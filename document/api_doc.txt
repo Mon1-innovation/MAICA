@@ -1,0 +1,86 @@
+此文档是MAICA接口的暂定文档, 后面很可能会有更多改动, 请不要硬编码在实际开发项目中.
+
+连接地址: wss://maicadev.monika.love/websocket
+服务器传信遵守以下原则:
+    服务器只会输出固定格式的json信息:
+    {"code": "状态码", "status": "运行步骤", "content": "有效载荷", "type": "信息类型", "time_ms": 时间戳(毫秒)}
+    其中, 1xx, continue信息代表工作正常但此输出只是完整输出的一部分, 常见于流式传输. 流式传输的信息类型会被标记为carriage.
+    2xx类的各种信息表示服务器在按预期方式工作, 常见于输入提示, 其类型一般被标记为info.
+    4xx类的各种信息表示用户的输入或连接可能有误, 其类型一般被标记为warn.
+    5xx类的信息表示服务器可能出现问题, 应当立刻停止使用并汇报traceray_id. 此类严重错误被标记为error.
+    应当注意, 虽然此状态码与运行步骤的格式参照http状态码, 但其用途并不相同.
+    接口输出的提醒, 警告和错误信息都会在content项中提供易读的解释. 此解释仅供开发调试参考用, 请避免将其作为程序处理的一部分.
+    适合程序处理的信息一般被标记为debug或carriage.
+第一轮通信为身份认证通信, 需要传入加密令牌.
+生成令牌的方法:
+    使用以下公钥:
+-----BEGIN RSA PUBLIC KEY-----
+MIIBCgKCAQEA2IHJQAPwWuynuivzvu/97/EbN+ttYoNmJyvu9RC/M9CHXCi1Emgc
+/KIluhzfJesBU/E/TX/xeuwURuGcyhIBk0qmba8GOADVjedt1OHcP6DJQJwu6+Bp
+kGd8BIqYFHjbsNwkBZiq7s0nRiHig0asd+Hhl/pwplXH/SIjASMlDPijF24OUSfP
++D7eRohyO4sWuj6WTExDq7VoCGz4DBGM3we9wN1YpWMikcb9RdDg+f610MUrzQVf
+l3tCkUjgHS+RhNtksuynpwm84Mg1MlbgU5s5alXKmAqQTTJ2IG61PHtrrCTVQA9M
+t9vozy56WuHPfv3KZTwrvZaIVSAExEL17wIDAQAB
+-----END RSA PUBLIC KEY-----
+    加密以下信息:
+    {"username": "你的论坛用户名", "password":"你的论坛密码(明文)"}
+    加密模式是PKCS1_OEAP.
+    加密完成后, 你会得到你的令牌.
+传入令牌之后, 服务器应当返回206 session_created, 并返回使用者的用户id, 用户名, 昵称等公开信息.
+
+接下来, 服务器会提示用户选择一个模型. 你应当按以下格式输入选择:
+    {"model": "maica_main", "sf_extraction": True}
+    其中, model为你选择使用的模型, 而sf_extraction代表是否从存档解析信息.
+    获取外界信息是MAICA的独特能力之一. 通过使用submod上传存档, MAICA能够读取来自MAS的大多数记忆.
+    上传的存档与chat_session一一对应, 你可以在submod中进行设置或手动上传.
+传入选择之后, 服务器应当返回200 ok, 并返回模型与基本模型信息.
+
+接下来, 用户应当开始对话. 你应当按以下格式输入信息:
+    {"chat_session": "1", "query": "你好啊"}
+    其中, chat_session的值可以取0~9, query为输入内容.
+    将chat_session标记为0将强制对话为单轮, 不会记录拼合历史内容. 其余每个session独立记录自己的历史内容.
+    也就是说, 每个用户最多拥有9个会话.
+    如果(目前还没有接口)与agent模型直接对话, chat_session将只能传入0, 因为agent模型的多轮对话基本没有意义.
+    用户应当避免在query中使用特殊符号, 这可能会导致其格式化失败.
+传入对话后:
+    maica_main使用流式输出传输内容, 因此模型应当开始传回连续的100 continue信息, 其载荷为流式传输所需要的chunk并标记为carriage:
+    {"code": "100", "status": "continue", "content": "我", "type": "carriage", "time_ms": 时间戳(毫秒)}
+    {"code": "100", "status": "continue", "content": "喜欢", "type": "carriage", "time_ms": 时间戳(毫秒)}
+    {"code": "100", "status": "continue", "content": "的颜", "type": "carriage", "time_ms": 时间戳(毫秒)}
+    {"code": "100", "status": "continue", "content": "色有", "type": "carriage", "time_ms": 时间戳(毫秒)}
+    {"code": "100", "status": "continue", "content": "很多, ", "type": "carriage", "time_ms": 时间戳(毫秒)}
+    ...
+    一轮对话完成后, 模型会输出1000 streaming_done并再次提醒用户输入下一条对话.
+    maica_main_nostream使用非流式输出传输内容, 因此模型应当在一段时间的等待后输出一条完整的回答:
+    {"code": "200", "status": "reply", "content": "我想你了, [player]!", "type": "carriage", "time_ms": 时间戳(毫秒)}
+非流式输出模型具有微弱的总速度优势, 因此如果信息不直接递交给用户, 你应当优先考虑使用非流式输出. 除此之外二者的行为相同.
+maica_core和maica_core_nostream共用chat_session.
+在一轮对话结束后, 你应当继续按以下格式输入信息:
+    {"chat_session": "1", "query": "我想你了"}
+如果session不为0, 服务器将自动为你检索和拼接存储的历史记录.
+如需切换session, 直接更改session并传入新的对话内容即可:
+    {"chat_session": "2", "query": "你好啊"}
+如需停止对话, 关闭连接即可. 你的session将被继续保存.
+在对话阶段, 用户可以发起重置chat_session请求. 你应当按以下格式发起请求:
+    {"chat_session": "1", "purge": True}
+此请求将从你的账户中重置编号为1的chat_session.
+重置在技术上并非删除, 而是将chat_session恢复到初始状态. 因此, 你不能重置一个尚不存在的chat_session. 尝试这样做不会影响连接正常运行, 但会收到404.
+要重新开始连接, 你需要重新进行认证和模型选择.
+
+为降低开发和调试难度, MAICA接口不强制, 也不会主动发送心跳连接. 但如果有需要, MAICA接口能够接收和响应心跳连接.
+在身份认证完成后, 向服务器发送大写单词PING即可收到来自服务器的心跳连接包:
+    {"code": "100", "status": "continue", "content": "PONG", "type": "heartbeat", "time_ms": 时间戳(毫秒)}
+在开发中, 你可以通过生成心跳连接避免连接被切断, 检测客户端与服务器的连接情况, 以及确定延迟水平.
+任何自动发送的心跳连接间隔不应短于10s, 否则会造成不必要的服务器压力.
+任何心跳连接都会在服务器端记录发起者的session信息. 在身份认证令牌交换完毕前, 服务器不接受心跳连接.
+
+MAICA的核心能力基于llm, 而任何llm的输入总长度都是有限的. 就MAICA核心模型而言, 能够解析的最大输入长度约为32768token, 在中文情况下约四万字.
+MAICA的每一个chat_session实际上保留约3.2万字符总内容(去除包装后). 在正常聊天情况下, 其中大约会有2-3万有效汉字.
+超出32768字符后, 数据库交换驱动将自动删除最早的对话轮次以节省服务器存储空间. 为响应性能起见, 每次删除将使剩余字符数少于30720. 如果你希望保留这些数据, 你应当每隔一段时间自行下载到本地并备份.
+MAICA完全能力驱动在处理信息时会插入用户不可见的输入token, 因此信息被删除的速率可能比理论计算要快. 直接使用MAICA核心模型则不会.
+如果本次处理中已经删除了chat_session的一部分, 将会在内容输出结束后输出提醒:
+    {"code": "204", "status": "deleted", "content": "Since session {chat_session} of user {username} exceeded 32k characters, The former part has been deleted to save storage--your ray tracer ID is {traceray_id}.", "type": "info", "time_ms": 时间戳(毫秒)}
+如果chat_session存储字符数已达到2.4万, 接口将会在内容输出结束后输出提醒:
+    {"code": "200", "status": "delete_hint", "content": "Session {chat_session} of user {username} exceeded 24k characters, which will be chopped after exceeding 32k, make backups if you want to--your ray tracer ID is {traceray_id}.", "type": "info", "time_ms": 时间戳(毫秒)}
+如果你希望记录该chat_session的完整内容, 应当在收到提醒后及时下载到本地并备份.
+为防止滥用, MAICA预计将不会允许从本地上传session记录.
