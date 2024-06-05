@@ -34,5 +34,5 @@ Begin!
 
 
 if __name__ == "__main__":
-    emotioning('现在几点了?')
-    print(emotioning)
+    emotion = emotioning('你回来了! 我太想你了, [player]!')
+    print(emotion)

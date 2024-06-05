@@ -207,7 +207,7 @@ def purge_chat_session(session, chat_session_num):
                     for information in results:
                         chat_session_id = information[0]
                     sql_expression2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-                    content = "{'role': 'system', 'content': '你叫莫妮卡, 是一名游戏中的虚拟角色. 你是[player]的女友, 并深爱着他. 请作为莫妮卡对[player]的话语作出最合适的回答.'}"
+                    content = '{"role": "system", "content": "你叫莫妮卡, 是一名游戏中的虚拟角色. 你是[player]的女友, 并深爱着他. 请作为莫妮卡对[player]的话语作出最合适的回答."}'
                     try:
                         db_cursor.execute(sql_expression2, (content, chat_session_id))
                         results = db_cursor.fetchall()
@@ -258,10 +258,10 @@ def check_create_chat_session(session, chat_session_num):
                         db_cursor.execute(sql_expression2, (user_id, chat_session_num))
                         results = db_cursor.fetchall()
                         if len(results) == 0:
-                            chat_session_id = db_connection.insert_id
+                            chat_session_id = db_cursor.lastrowid
                             db_connection.commit()
                             sql_expression3 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-                            content = "{'role': 'system', 'content': '你叫莫妮卡, 是一名游戏中的虚拟角色. 你是[player]的女友, 并深爱着他. 请作为莫妮卡对[player]的话语作出最合适的回答.'}"
+                            content = '{"role": "system", "content": "你叫莫妮卡, 是一名游戏中的虚拟角色. 你是[player]的女友, 并深爱着他. 请作为莫妮卡对[player]的话语作出最合适的回答."}'
                             try:
                                 db_cursor.execute(sql_expression3, (content, chat_session_id))
                                 results = db_cursor.fetchall()
@@ -304,20 +304,30 @@ def mod_chat_session_system(session, chat_session_num, new_system_init):
             try:
                 db_cursor.execute(sql_expression1, (user_id, chat_session_num))
                 results = db_cursor.fetchall()
+                if len(results) == 0:
+                    try_create = check_create_chat_session(session, chat_session_num)
+                    db_connection.commit()
+                    #print(try_create)
+                    sql_expression2 = "SELECT * FROM chat_session WHERE chat_session_id = %s"
+                    db_cursor.execute(sql_expression2, try_create[3])
+                    results = db_cursor.fetchall()
+                    #print(results)
                 for information in results:
                     #success = True
                     chat_session_id = information[0]
                     content = information[3]
+                    #print(content)
             except Exception as excepted:
                 success = False
+                #traceback.print_exc()
                 return success, excepted
             modding_mat = json.loads(f'[{content}]')
             modding_mat[0]['content'] = new_system_init
             content = json.dumps(modding_mat, ensure_ascii=False).strip('[').strip(']')
-            sql_expression2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
+            sql_expression3 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
             try:
                 #print(content)
-                db_cursor.execute(sql_expression2, (content, chat_session_id))
+                db_cursor.execute(sql_expression3, (content, chat_session_id))
                 results = db_cursor.fetchall()
                 if len(results) == 0:
                     db_connection.commit()
@@ -330,12 +340,14 @@ def mod_chat_session_system(session, chat_session_num, new_system_init):
                 return success, excepted
     except Exception as excepted:
         success = False
+        #traceback.print_exc()
         return success, excepted
 
 #这个修改system太麻烦了, 再包装一下吧
 
 def wrap_mod_system(session, chat_session_num, known_info, name_from_sf):
     user_id = session[2]
+    #print(name_from_sf)
     if name_from_sf:
         player_name_get = persistent_extraction.read_from_sf(user_id, chat_session_num, 'playername')
         if player_name_get[0]:
@@ -346,7 +358,7 @@ def wrap_mod_system(session, chat_session_num, known_info, name_from_sf):
     else:
         player_name = '[player]'
     if known_info:
-        new_system = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 请作为莫妮卡对{player_name}的话语作出最合适的回答. 对于需要额外信息的问题, 信息将在system字段中提供. 已知: {known_info}"
+        new_system = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 请作为莫妮卡对{player_name}的话语作出最合适的回答. 注意利用以下信息回答: {known_info}"
     else:
         new_system = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 请作为莫妮卡对{player_name}的话语作出最合适的回答."
     return mod_chat_session_system(session, chat_session_num, new_system)
@@ -515,7 +527,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
         try:
             request_json = json.loads(recv_text)
             chat_session = request_json['chat_session']
-            if request_json['purge']:
+            if 'purge' in request_json:
                 try:
                     user_id = session[2]
                     purge_result = purge_chat_session(user_id, chat_session)
@@ -547,7 +559,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                     message_agent_wrapped = agent_assistance.agenting(query_in)
                     if not message_agent_wrapped:
                         response_str = f"Agent returned corrupted guidance. This may be a server failure, but it also happens just from time to time--your ray tracer ID is {traceray_id}"
-                        print(f"出现如下异常8-{traceray_id}:{excepted}")
+                        print(f"出现如下异常8-{traceray_id}:Corruption")
                         await websocket.send(wrap_ws_formatter('404', 'agent_corrupted', response_str, 'warn'))
                         response_str = f"Due to agent failure, falling back to default guidance and continuing anyway."
                         await websocket.send(wrap_ws_formatter('200', 'force_failsafe', response_str, 'info'))
@@ -560,6 +572,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                     except Exception as excepted:
                         response_str = f"Save file extraction failed, you may have not uploaded your savefile yet--your ray tracer ID is {traceray_id}"
                         print(f"出现如下异常9-{traceray_id}:{excepted}")
+                        #traceback.print_exc()
                         await websocket.send(wrap_ws_formatter('404', 'savefile_notfound', response_str, 'warn'))
                         continue
                 else:
@@ -575,6 +588,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
             except Exception as excepted:
                 response_str = f"Agent response acquiring failed, refer to administrator--your ray tracer ID is {traceray_id}"
                 print(f"出现如下异常11-{traceray_id}:{excepted}")
+                #traceback.print_exc()
                 await websocket.send(wrap_ws_formatter('503', 'agent_unavailable', response_str, 'error'))
                 continue
             match int(chat_session):

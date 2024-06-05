@@ -11,6 +11,7 @@ def agenting(input):
     print(model_type)
     system_init = """
 Gather the information needed to reply to the following sentence. You need to sort the information you gathered into a conclusion. Do not directly answer the sentence.
+There should be nothing but the information in your reply.
 If you dont think any information mentioned below is needed to answer the sentence, say None.
 You have access to the following APIs:
 1. time_acquire: Call this tool to interact with the time API. This API will return the current time. Parameters: []
@@ -45,61 +46,68 @@ Begin!
         stop=['Observation:'],
         seed=42)
     response = resp.choices[0].message.content
-    #print(f"first response is {response}")
+    print(f"first response is {response}")
+    instructed_final_answer = ''
     cycle = 0
     while not re.search((r'^\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.M):
         cycle+1
         if cycle >= 7:
             break
         exception_return = ''
-        if not re.search(('none'), response[0], re.I):
-            for line in response:
-                match_action = re.search((r'^\s*Action\s*:\s*(.*)\s*$'), line, re.I)
-                if match_action:
-                    predict_action_funcion = match_action[0]
-                match_action_input = re.search((r'^\s*Action\s*Input\s*:\s*(.*)\s*$'), line, re.I)
-                if match_action_input:
-                    predict_parameters_json = match_action_input[1]
-                    print('serialization completed')
-                try:
-                    real_parameters_json = json.loads(predict_parameters_json)
-                    return_instruction = ''
-                    if re.search((r'time.*acquire'), predict_action_funcion, re.I):
-                        time_acquired = agent_modules.time_acquire(real_parameters_json)
-                        if time_acquired[0]:
-                            return_instruction = f"['time': '{time_acquired[2]}']"
-                        else:
-                            raise Exception(time_acquired[1])
-                    elif re.search((r'date.*acquire'), predict_action_funcion, re.I):
-                        date_acquired = agent_modules.date_acquire(real_parameters_json)
-                        if date_acquired[0]:
-                            return_instruction = f"['date': '{date_acquired[2]}']"
-                        else:
-                            raise Exception(date_acquired[1])
-                    elif re.search((r'event.*acquire'), predict_action_funcion, re.I):
-                        event_acquired = agent_modules.event_acquire(real_parameters_json)
-                        if event_acquired[0]:
-                            return_instruction = f"['event_today': '{event_acquired[2]}']"
-                        else:
-                            raise Exception(event_acquired[1])
-                    elif re.search((r'experience.*acquire'), predict_action_funcion, re.I):
-                        experience_acquired = agent_modules.experience_acquire(real_parameters_json)
-                        if experience_acquired[0]:
-                            return_instruction = f"['experience_had_together': '{experience_acquired[2]}']"
-                        else:
-                            raise Exception(experience_acquired[1])
-                    elif re.search((r'affection.*acquire'), predict_action_funcion, re.I):
-                        affection_acquired = agent_modules.affection_acquire(real_parameters_json)
-                        if affection_acquired[0]:
-                            return_instruction = f"['characters_affection_state': '{affection_acquired[2]}']"
-                        else:
-                            raise Exception(affection_acquired[1])
+        if not re.match((r'^\s*none'), response, re.I):
+            match_action = re.search((r'^\s*Action\s*:\s*(.*)\s*$'), response, re.I|re.M)
+            if match_action:
+                predict_action_funcion = match_action[1]
+                print(predict_action_funcion)
+            match_action_input = re.search((r'^\s*Action\s*Input\s*:\s*(.*)\s*$'), response, re.I|re.M)
+            if match_action_input:
+                predict_parameters_json = match_action_input[1].replace('\'', '"')
+                print('serialization completed')
+            else:
+                predict_parameters_json = '{}'
+            try:
+                real_parameters_json = json.loads(predict_parameters_json)
+                return_instruction = ''
+                if re.search((r'time.*acquire'), predict_action_funcion, re.I):
+                    time_acquired = agent_modules.time_acquire(real_parameters_json)
+                    if time_acquired[0]:
+                        return_instruction = f"['time': '{time_acquired[2]}']"
+                        match time_acquired[2]:
+                            case time if 4 < time['hour'] < 7:
+                                instructed_final_answer = f'现在是凌晨{time['hour']}点{time['minute']}分.'
                     else:
-                        raise Exception('None Function Actually Matched')
-                except Exception as excepted:
-                    exception_return = excepted
+                        raise Exception(time_acquired[1])
+                elif re.search((r'date.*acquire'), predict_action_funcion, re.I):
+                    date_acquired = agent_modules.date_acquire(real_parameters_json)
+                    if date_acquired[0]:
+                        return_instruction = f"['date': '{date_acquired[2]}']"
+                    else:
+                        raise Exception(date_acquired[1])
+                elif re.search((r'event.*acquire'), predict_action_funcion, re.I):
+                    event_acquired = agent_modules.event_acquire(real_parameters_json)
+                    if event_acquired[0]:
+                        return_instruction = f"['event_today': '{event_acquired[2]}']"
+                    else:
+                        raise Exception(event_acquired[1])
+                elif re.search((r'experience.*acquire'), predict_action_funcion, re.I):
+                    experience_acquired = agent_modules.experience_acquire(real_parameters_json)
+                    if experience_acquired[0]:
+                        return_instruction = f"['experience_had_together': '{experience_acquired[2]}']"
+                    else:
+                        raise Exception(experience_acquired[1])
+                elif re.search((r'affection.*acquire'), predict_action_funcion, re.I):
+                    affection_acquired = agent_modules.affection_acquire(real_parameters_json)
+                    if affection_acquired[0]:
+                        return_instruction = f"['characters_affection_state': '{affection_acquired[2]}']"
+                    else:
+                        raise Exception(affection_acquired[1])
+                else:
+                    raise Exception('None Function Actually Matched')
+            except Exception as excepted:
+                exception_return = excepted
+                print(excepted)
             if not exception_return:
-                if messages[2]:
+                if len(messages) > 2:
                     messages[2]['content'] = response + f"\n{return_instruction}"
                 else:
                     messages.append({'role': 'assistant', 'content': response + f"\n{return_instruction}"})
@@ -115,7 +123,6 @@ Begin!
         else:
             return 'EMPTY'
     final_answer = re.search((r'^\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.M)
-    print(f"final_answer is {final_answer}")
     if final_answer:
         print(f"agent final answer is {final_answer[1]}")
         return final_answer[1]
@@ -124,5 +131,5 @@ Begin!
         return None
 
 if __name__ == "__main__":
-    agenting('现在几点了?')
-    print(agenting)
+    agented = agenting('你喜欢我吗?')
+    print(agented)

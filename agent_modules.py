@@ -1,7 +1,8 @@
+import datetime
 def time_acquire(params):
     success = True
     exception = None
-    content = '8:40'
+    content = datetime.time.now()
     return success, exception, content
 def date_acquire(params):
     success = True
