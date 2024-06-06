@@ -97,9 +97,10 @@ Begin!
                     else:
                         raise Exception(event_acquired[1])
                 elif re.search((r'experience.*acquire'), predict_action_funcion, re.I):
-                    experience_acquired = agent_modules.experience_acquire(real_parameters_json)
+                    experience_acquired = agent_modules.experience_acquire(real_parameters_json, sf_extraction, session, chat_session)
                     if experience_acquired[0]:
                         return_instruction = f"['experience_had_together': '{experience_acquired[2]}']"
+                        instructed_final_answer += f"[{experience_acquired[3]}]"
                     else:
                         raise Exception(experience_acquired[1])
                 elif re.search((r'affection.*acquire'), predict_action_funcion, re.I):

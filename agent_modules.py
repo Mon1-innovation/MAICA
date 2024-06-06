@@ -109,9 +109,6 @@ def event_acquire(params, sf_extraction, session, chat_session):
                 holiday_friendly += '今天是'
             holiday_friendly += "平安夜"
             content += "平安夜"
-
-
-
     if time_defined in cn_holidays:
         if holiday_friendly:
             holiday_friendly += ', 也是'
@@ -134,10 +131,17 @@ def event_acquire(params, sf_extraction, session, chat_session):
         holiday_friendly += f"美国的{us_holidays.get(time_defined)}"
         content += f"[{us_holidays.get(time_defined)}]"
     return success, exception, content, holiday_friendly
-def experience_acquire(params):
+def experience_acquire(params, sf_extraction, session, chat_session):
     success = True
     exception = None
-    content = params['experience']
+    if sf_extraction:
+        try:
+            experience_cont = params['experience']
+        except Exception as excepted:
+            success = False
+            exception = excepted
+    else:
+        content = 'EMPTY'
     return success, exception, content
 def affection_acquire(params):
     success = True
