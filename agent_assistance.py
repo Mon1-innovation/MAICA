@@ -1,8 +1,9 @@
 import re
 import json
+import datetime
 import agent_modules # type: ignore
 from openai import OpenAI # type: ignore
-def agenting(input):
+def agenting(input, sf_extraction, session, chat_session):
     client = OpenAI(
         api_key='EMPTY',
         base_url='http://192.168.9.84:8021/v1',
@@ -18,7 +19,7 @@ You have access to the following APIs:
 
 2. date_acquire: Call this tool to interact with the date API. This API will return the current date. Parameters: []
 
-3. event_acquire: Call this tool to interact with the event API. This API will return if today is a special day or what special day it is today. Parameters: []
+3. event_acquire: Call this tool to interact with the event API. This API will return what special day it is. Parameters: [{"name": "month", "description": "The month of the date to search", "required": "False"}, {"name": "day", "description": "The day of the date to search", "required": "False"}]
 
 4. experience_acquire: Call this tool to interact with the experience API. This API will return what the characters experienced together before. Parameters: [{"name": "experience", "description": "Experience of which event should be acquired, use 全部 to acquire them all", "required": "True"}]
 
@@ -71,22 +72,28 @@ Begin!
                 if re.search((r'time.*acquire'), predict_action_funcion, re.I):
                     time_acquired = agent_modules.time_acquire(real_parameters_json)
                     if time_acquired[0]:
-                        return_instruction = f"['time': '{time_acquired[2]}']"
-                        match time_acquired[2]:
-                            case time if 4 < time['hour'] < 7:
-                                instructed_final_answer = f'现在是凌晨{time['hour']}点{time['minute']}分.'
+                        return_instruction = f"['time': '{time_acquired[2].hour}:{time_acquired[2].minute}']"
+                        instructed_final_answer += f"[{time_acquired[3]}]"
                     else:
                         raise Exception(time_acquired[1])
                 elif re.search((r'date.*acquire'), predict_action_funcion, re.I):
                     date_acquired = agent_modules.date_acquire(real_parameters_json)
                     if date_acquired[0]:
-                        return_instruction = f"['date': '{date_acquired[2]}']"
+                        return_instruction = f"['date': '{date_acquired[2]['year']}年{date_acquired[2]['month']}月{date_acquired[2]['day']}日']"
+                        instructed_final_answer += f"[{date_acquired[3]}]"
                     else:
                         raise Exception(date_acquired[1])
                 elif re.search((r'event.*acquire'), predict_action_funcion, re.I):
-                    event_acquired = agent_modules.event_acquire(real_parameters_json)
+                    if not 'year' in real_parameters_json:
+                        real_parameters_json['year'] = datetime.date.today().year
+                    if not 'month' in real_parameters_json:
+                        real_parameters_json['month'] = datetime.date.today().month
+                    if not 'day' in real_parameters_json:
+                        real_parameters_json['day'] = datetime.date.today().day
+                    event_acquired = agent_modules.event_acquire(real_parameters_json, sf_extraction, session, chat_session)
                     if event_acquired[0]:
-                        return_instruction = f"['event_today': '{event_acquired[2]}']"
+                        return_instruction = f"['event': '{event_acquired[2]}']"
+                        instructed_final_answer += f"[{event_acquired[3]}]"
                     else:
                         raise Exception(event_acquired[1])
                 elif re.search((r'experience.*acquire'), predict_action_funcion, re.I):

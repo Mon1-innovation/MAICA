@@ -556,7 +556,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
 
             try:
                 if client_options['full_maica']:
-                    message_agent_wrapped = agent_assistance.agenting(query_in)
+                    message_agent_wrapped = agent_assistance.agenting(query_in, sf_extraction, session, chat_session)
                     if not message_agent_wrapped:
                         response_str = f"Agent returned corrupted guidance. This may be a server failure, but it also happens just from time to time--your ray tracer ID is {traceray_id}"
                         print(f"出现如下异常8-{traceray_id}:Corruption")
