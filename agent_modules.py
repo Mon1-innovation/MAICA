@@ -50,7 +50,7 @@ def event_acquire(params, sf_extraction, session, chat_session):
     if sf_extraction:
         try:
             user_id = session[2]
-            player_bday = persistent_extraction.read_from_sf(user_id, chat_session, '_mas_player_bday')[2]
+            player_bday = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_player_bday')[2]
             player_age = params['year'] - player_bday.year
         except Exception as excepted:
             success = False
@@ -136,6 +136,9 @@ def experience_acquire(params, sf_extraction, session, chat_session):
     exception = None
     if sf_extraction:
         try:
+
+            #some hard works to be done here
+
             experience_cont = params['experience']
         except Exception as excepted:
             success = False
@@ -143,10 +146,43 @@ def experience_acquire(params, sf_extraction, session, chat_session):
     else:
         content = 'EMPTY'
     return success, exception, content
-def affection_acquire(params):
+def affection_acquire(params, sf_extraction, session, chat_session):
     success = True
     exception = None
-    content = 'Love'
+    if sf_extraction:
+        try:
+            user_id = session[2]
+            affection_extracted = persistent_extraction.read_from_sf(user_id, chat_session, 'affection')[2]
+            match affection_extracted:
+                case affection if affection < 200:
+                    content = '你与对方是初识的情侣关系'
+                case affection if 200 <= affection < 400:
+                    content = '你与对方是亲密的情侣关系'
+                case affection if 400 <= affection < 700:
+                    content = '你与对方是和谐的恋人关系'
+                case affection if 700 <= affection < 1000:
+                    content = '你与对方是情意深厚的恋人关系'
+                case affection if 1000 <= affection:
+                    content = '你与对方是情意至深的恋人, 足以超越虚拟与现实的隔阂'
+
+        except Exception as excepted:
+            success = False
+            exception = excepted
+    else:
+        content = '你与对方是和谐的恋人关系'
+    return success, exception, content
+def pinfo_acquire(params, sf_extraction, session, chat_session):
+    success = True
+    exception = None
+    if sf_extraction:
+        try:
+            user_id = session[2]
+            info_type = params['type']
+        except Exception as excepted:
+            success = False
+            exception = excepted
+    else:
+        content = 'UNKNOWN'
     return success, exception, content
 
 

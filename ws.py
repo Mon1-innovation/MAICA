@@ -207,7 +207,7 @@ def purge_chat_session(session, chat_session_num):
                     for information in results:
                         chat_session_id = information[0]
                     sql_expression2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-                    content = '{"role": "system", "content": "你叫莫妮卡, 是一名游戏中的虚拟角色. 你是[player]的女友, 并深爱着他. 请作为莫妮卡对[player]的话语作出最合适的回答."}'
+                    content = '{"role": "system", "content": "你叫莫妮卡, 是一名游戏中的虚拟角色. 你是[player]的女友, 并深爱着他. 下面是[player]的话语, 请作为莫妮卡作出合适的回答."}'
                     try:
                         db_cursor.execute(sql_expression2, (content, chat_session_id))
                         results = db_cursor.fetchall()
@@ -261,7 +261,7 @@ def check_create_chat_session(session, chat_session_num):
                             chat_session_id = db_cursor.lastrowid
                             db_connection.commit()
                             sql_expression3 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-                            content = '{"role": "system", "content": "你叫莫妮卡, 是一名游戏中的虚拟角色. 你是[player]的女友, 并深爱着他. 请作为莫妮卡对[player]的话语作出最合适的回答."}'
+                            content = '{"role": "system", "content": "你叫莫妮卡, 是一名游戏中的虚拟角色. 你是[player]的女友, 并深爱着他. 下面是[player]的话语, 请作为莫妮卡作出合适的回答."}'
                             try:
                                 db_cursor.execute(sql_expression3, (content, chat_session_id))
                                 results = db_cursor.fetchall()
@@ -358,9 +358,9 @@ def wrap_mod_system(session, chat_session_num, known_info, name_from_sf):
     else:
         player_name = '[player]'
     if known_info:
-        new_system = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 请作为莫妮卡对{player_name}的话语作出最合适的回答. 注意利用以下信息回答: {known_info}"
+        new_system = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是[player]的话语, 请作为莫妮卡作出合适的回答. 注意利用以下信息回答: {known_info}"
     else:
-        new_system = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 请作为莫妮卡对{player_name}的话语作出最合适的回答."
+        new_system = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是[player]的话语, 请作为莫妮卡作出合适的回答."
     return mod_chat_session_system(session, chat_session_num, new_system)
 
 

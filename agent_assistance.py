@@ -21,14 +21,16 @@ You have access to the following APIs:
 
 3. event_acquire: Call this tool to interact with the event API. This API will return what special day it is. Parameters: [{"name": "month", "description": "The month of the date to search", "required": "False"}, {"name": "day", "description": "The day of the date to search", "required": "False"}]
 
-4. experience_acquire: Call this tool to interact with the experience API. This API will return what the characters experienced together before. Parameters: [{"name": "experience", "description": "Experience of which event should be acquired, use 全部 to acquire them all", "required": "True"}]
+4. experience_acquire: Call this tool to interact with the experience API. This API will return what the character talked with you before. Parameters: [{"name": "experience", "description": "Experience of which event should be acquired, you should choose a keyword from the sentence", "required": "True"}]
 
 5. affection_acquire: Call this tool to interact with the affection API. This API will return what relationship the characters are in. Parameters: []
+
+6. personal_information: Call this tool to interact with the personal information API. This API will return necessary information of the speaker. Parameters: [{"name": "type", "description": "Which type of information is needed", "required": "True"}]
 
 Use the following format:
 
 Thought: you should always think about what to do
-Action: the action to take, should be one of the above tools[time_acquire, date_acquire, event_acquire, experience_acquire, affection_acquire]
+Action: the action to take, should be one of the above tools[time_acquire, date_acquire, event_acquire, experience_acquire, affection_acquire, personal_information]
 Action Input: the input to the action
 Observation: the result of the action
 ... (this Thought/Action/Action Input/Observation can be repeated zero or more times)
@@ -104,11 +106,19 @@ Begin!
                     else:
                         raise Exception(experience_acquired[1])
                 elif re.search((r'affection.*acquire'), predict_action_funcion, re.I):
-                    affection_acquired = agent_modules.affection_acquire(real_parameters_json)
+                    affection_acquired = agent_modules.affection_acquire(real_parameters_json, sf_extraction, session, chat_session)
                     if affection_acquired[0]:
                         return_instruction = f"['characters_affection_state': '{affection_acquired[2]}']"
+                        instructed_final_answer += f"[{affection_acquired[3]}]"
                     else:
                         raise Exception(affection_acquired[1])
+                elif re.search((r'personal.*information'), predict_action_funcion, re.I):
+                    pinfo_acquired = agent_modules.pinfo_acquire(real_parameters_json, sf_extraction, session, chat_session)
+                    if affection_acquired[0]:
+                        return_instruction = f"['personal_info': '{pinfo_acquired[2]}']"
+                        instructed_final_answer += f"[{pinfo_acquired[3]}]"
+                    else:
+                        raise Exception(pinfo_acquired[1])
                 else:
                     raise Exception('None Function Actually Matched')
             except Exception as excepted:
