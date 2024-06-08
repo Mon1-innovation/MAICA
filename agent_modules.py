@@ -6,7 +6,7 @@ import persistent_extraction
 def time_acquire(params):
     success = True
     exception = None
-    content = datetime.time.now()
+    content = datetime.datetime.now()
     match content:
         case time if time.hour < 4:
             time_friendly = f'现在是半夜{time.hour}点{time.minute}分. '
@@ -27,16 +27,16 @@ def time_acquire(params):
 def date_acquire(params):
     success = True
     exception = None
-    content = datetime.date.today()
+    content = datetime.datetime.today()
     match content:
         case date if 3 <= date.month < 6:
-            date_friendly += f"[今天是春季{date.year}年{date.month}月{date.day}日]"
+            date_friendly = f"[今天是春季{date.year}年{date.month}月{date.day}日]"
         case date if 6 <= date.month < 9:
-            date_friendly += f"[今天是夏季{date.year}年{date.month}月{date.day}日]"
+            date_friendly = f"[今天是夏季{date.year}年{date.month}月{date.day}日]"
         case date if 9 <= date.month < 12:
-            date_friendly += f"[今天是秋季{date.year}年{date.month}月{date.day}日]"
+            date_friendly = f"[今天是秋季{date.year}年{date.month}月{date.day}日]"
         case date if 12 <= date.month or date.month < 3:
-            date_friendly += f"[今天是冬季{date.year}年{date.month}月{date.day}日]"
+            date_friendly = f"[今天是冬季{date.year}年{date.month}月{date.day}日]"
     return success, exception, content, date_friendly
 def event_acquire(params, sf_extraction, session, chat_session):
     success = True
@@ -59,7 +59,7 @@ def event_acquire(params, sf_extraction, session, chat_session):
         if params['month'] == player_bday.month and params['day'] == player_bday.day:
             holiday_friendly += f"今天是对方的{player_age}岁生日"
             content += "对方的{player_age}岁生日"
-    match (params['month'], params['day']):
+    match (int(params['month']), int(params['day'])):
         case (m, d) if m == 9 and d == 22:
             if holiday_friendly:
                 holiday_friendly += ', 也是'
@@ -130,6 +130,9 @@ def event_acquire(params, sf_extraction, session, chat_session):
             holiday_friendly += '今天是'
         holiday_friendly += f"美国的{us_holidays.get(time_defined)}"
         content += f"[{us_holidays.get(time_defined)}]"
+    if not content:
+        content = "[None]"
+        holiday_friendly = "今天不是特殊节日"
     return success, exception, content, holiday_friendly
 def experience_acquire(params, sf_extraction, session, chat_session):
     success = True
@@ -144,8 +147,8 @@ def experience_acquire(params, sf_extraction, session, chat_session):
             success = False
             exception = excepted
     else:
-        content = 'EMPTY'
-    return success, exception, content
+        content = '没有找到相关经历'
+    return success, exception, content, content
 def affection_acquire(params, sf_extraction, session, chat_session):
     success = True
     exception = None
@@ -170,7 +173,7 @@ def affection_acquire(params, sf_extraction, session, chat_session):
             exception = excepted
     else:
         content = '你与对方是和谐的恋人关系'
-    return success, exception, content
+    return success, exception, content, content
 def pinfo_acquire(params, sf_extraction, session, chat_session):
     success = True
     exception = None
@@ -187,4 +190,4 @@ def pinfo_acquire(params, sf_extraction, session, chat_session):
 
 
 if __name__ == "__main__":
-    print(event_acquire({"year": 2023, "month": 12, "day": 25}, False, None, None)[3])
+    print(event_acquire({"year": 2023, "month": 2, "day": 14}, False, None, None)[3])
