@@ -471,6 +471,7 @@ async def def_model(websocket, session):
                     client_options = {
                         "model" : model_type_actual,
                         "stream" : True,
+                        "full_maica": False,
                         "sf_extraction": sf_extraction
                     }
                 case 'maica_core_nostream':
@@ -482,17 +483,8 @@ async def def_model(websocket, session):
                     client_options = {
                         "model" : model_type_actual,
                         "stream" : False,
+                        "full_maica": False,
                         "sf_extraction": sf_extraction
-                    }
-                case 'maica_agent_1':
-                    client_actual = OpenAI(
-                        api_key='EMPTY',
-                        base_url='http://192.168.9.84:8021/v1',
-                    )
-                    model_type_actual = client_actual.models.list().data[0].id
-                    client_options = {
-                        "model" : model_type_actual,
-                        "stream" : False
                     }
                 case _:
                     response_str = f"Bad model choice, check possible typo--your ray tracer ID is {traceray_id}"
