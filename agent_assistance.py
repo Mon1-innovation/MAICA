@@ -29,10 +29,12 @@ You have access to the following APIs:
 
 6. personal_information: Call this tool to interact with the personal information API. This API will return necessary information of the speaker. Parameters: [{"name": "type", "description": "Which type of information is needed", "required": "True"}]
 
+7. search_internet: Call this tool to interact with the internet search API. This API will search the phase provided in the parameters on the internet. Parameters: [{"name": "question", "description": "The question needs to be searched on Google", "required": "True"}]
+
 Use the following format:
 
 Thought: you should always think about what to do
-Action: the action to take, should be one of the above tools[time_acquire, date_acquire, event_acquire, experience_acquire, affection_acquire, personal_information]
+Action: the action to take, should be one of the above tools[time_acquire, date_acquire, event_acquire, experience_acquire, affection_acquire, personal_information, search_internet]
 Action Input: the input to the action
 Observation: the result of the action
 ... (this Thought/Action/Action Input/Observation can be repeated zero or more times)
@@ -76,7 +78,7 @@ Final Answer: 今天是情人节
     print(f"first response is {response}")
     instructed_final_answer = ''
     cycle = 0
-    inst_time = inst_date = inst_event = inst_exp = inst_aff = inst_pinfo = False
+    inst_time = inst_date = inst_event = inst_exp = inst_aff = inst_pinfo = inst_search = False
     while not re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.M):
         cycle += 1
         if cycle >= 7:
@@ -184,6 +186,15 @@ Final Answer: 今天是情人节
                             inst_pinfo = True
                     else:
                         raise Exception(pinfo_acquired[1])
+                elif re.search((r'search.*internet'), predict_action_funcion, re.I):
+                    internet_acquired = agent_modules.internet_acquire(real_parameters_json, sf_extraction, session, chat_session)
+                    if internet_acquired[0]:
+                        return_instruction = f"['search_result': '{internet_acquired[2]}']"
+                        if not inst_search:
+                            instructed_final_answer += f"[{internet_acquired[3]}]"
+                            inst_search= True
+                    else:
+                        raise Exception(internet_acquired[1])
                 else:
                     raise Exception('None Function Actually Matched')
             except Exception as excepted:

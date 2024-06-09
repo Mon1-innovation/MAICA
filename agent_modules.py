@@ -2,6 +2,7 @@ import datetime
 import requests
 import holidays
 import json
+import re
 import persistent_extraction
 def time_acquire(params):
     success = True
@@ -146,8 +147,9 @@ def experience_acquire(params, sf_extraction, session, chat_session):
         except Exception as excepted:
             success = False
             exception = excepted
+            content = '没有相关经历'
     else:
-        content = '没有找到相关经历'
+        content = '没有相关经历'
     return success, exception, content, content
 def affection_acquire(params, sf_extraction, session, chat_session):
     success = True
@@ -184,10 +186,48 @@ def pinfo_acquire(params, sf_extraction, session, chat_session):
         except Exception as excepted:
             success = False
             exception = excepted
+            content = 'UNKNOWN'
     else:
         content = 'UNKNOWN'
-    return success, exception, content
-
+    return success, exception, content, content
+def internet_acquire(params):
+    success = True
+    exception = None
+    searched_friendly = ''
+    content = []
+    for possible_key in {'question', 'query', 'search'}:
+        if possible_key in params:
+            likely_query = params[possible_key]
+            break
+    if not likely_query:
+        success = False
+        exception = 'NOQUERY'
+        content = searched_friendly = '未找到结果'
+    url = f'http://192.168.3.221:5071/google/search?limit=5&lang=zh_CN&text={likely_query}'
+    http_response = requests.get(url)
+    if 200 <= int(http_response.status_code) <= 399:
+        content_raw = http_response.text
+        try:
+            content_json = json.loads(content_raw)
+            rank_count = 0
+            for ranks in content_json:
+                rank_count += 1
+                description_clean = re.sub(r'[0-9]*年.*日', '', re.sub(r'转为.*网页', '', ranks['description']))
+                content.append({"title": ranks['title'], "content": description_clean})
+                searched_friendly += f'信息{rank_count}: {description_clean}; '
+            content = json.dumps(content, ensure_ascii=False)
+            searched_friendly = searched_friendly.strip(' ;')
+        except Exception as excepted:
+            success = False
+            exception = excepted
+            content = 'EMPTY'
+    else:
+        success = False
+        exception = http_response.status_code
+        content = 'EMPTY'
+    #content = "EMPTY"
+    return success, exception, content, searched_friendly
 
 if __name__ == "__main__":
-    print(event_acquire({"year": 2023, "month": 2, "day": 14}, False, None, None)[3])
+    #print(event_acquire({"year": 2023, "month": 2, "day": 14}, False, None, None)[3])
+    print(internet_acquire({"question": "番茄炒蛋怎么做"}))
