@@ -4,6 +4,7 @@ import holidays
 import json
 import re
 import persistent_extraction
+import exp_pinfo_index
 def time_acquire(params):
     success = True
     exception = None
@@ -25,19 +26,38 @@ def time_acquire(params):
             time_friendly = f'现在是半夜{time.hour - 12}点{time.minute}分. '
 
     return success, exception, content, time_friendly
-def date_acquire(params):
+def date_acquire(params, sf_extraction, session, chat_session):
     success = True
     exception = None
     content = datetime.datetime.today()
+    if sf_extraction:
+        try:
+            user_id = session[2]
+            south_north = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_pm_live_south_hemisphere')
+            if not south_north:
+                match content:
+                    case date if 3 <= date.month < 6:
+                        date_friendly = f"[今天是{date.year}年秋季{date.month}月{date.day}日]"
+                    case date if 6 <= date.month < 9:
+                        date_friendly = f"[今天是{date.year}年冬季{date.month}月{date.day}日]"
+                    case date if 9 <= date.month < 12:
+                        date_friendly = f"[今天是{date.year}年春季{date.month}月{date.day}日]"
+                    case date if 12 <= date.month or date.month < 3:
+                        date_friendly = f"[今天是{date.year}年夏季{date.month}月{date.day}日]"
+                return success, exception, content, date_friendly
+        except Exception as excepted:
+            success = False
+            exception = excepted
     match content:
         case date if 3 <= date.month < 6:
-            date_friendly = f"[今天是春季{date.year}年{date.month}月{date.day}日]"
+            date_friendly = f"[今天是{date.year}年春季{date.month}月{date.day}日]"
         case date if 6 <= date.month < 9:
-            date_friendly = f"[今天是夏季{date.year}年{date.month}月{date.day}日]"
+            date_friendly = f"[今天是{date.year}年夏季{date.month}月{date.day}日]"
         case date if 9 <= date.month < 12:
-            date_friendly = f"[今天是秋季{date.year}年{date.month}月{date.day}日]"
+            date_friendly = f"[今天是{date.year}年秋季{date.month}月{date.day}日]"
         case date if 12 <= date.month or date.month < 3:
-            date_friendly = f"[今天是冬季{date.year}年{date.month}月{date.day}日]"
+            date_friendly = f"[今天是{date.year}年冬季{date.month}月{date.day}日]"
+    success = True
     return success, exception, content, date_friendly
 def event_acquire(params, sf_extraction, session, chat_session):
     success = True
@@ -140,10 +160,15 @@ def experience_acquire(params, sf_extraction, session, chat_session):
     exception = None
     if sf_extraction:
         try:
-
-            #some hard works to be done here
-
+            user_id = session[2]
             experience_cont = params['experience']
+            content = exp_pinfo_index.exp_acquire_index(user_id, chat_session, experience_cont)
+            if content[0]:
+                content = content[3]
+            else:
+                success = False
+                exception = excepted
+                content = '没有相关经历'
         except Exception as excepted:
             success = False
             exception = excepted
@@ -157,7 +182,7 @@ def affection_acquire(params, sf_extraction, session, chat_session):
     if sf_extraction:
         try:
             user_id = session[2]
-            affection_extracted = persistent_extraction.read_from_sf(user_id, chat_session, 'affection')[2]
+            affection_extracted = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_affection')[2]
             match affection_extracted:
                 case affection if affection < 200:
                     content = '你与对方是初识的情侣关系'
@@ -169,7 +194,6 @@ def affection_acquire(params, sf_extraction, session, chat_session):
                     content = '你与对方是情意深厚的恋人关系'
                 case affection if 1000 <= affection:
                     content = '你与对方是情意至深的恋人, 足以超越虚拟与现实的隔阂'
-
         except Exception as excepted:
             success = False
             exception = excepted
@@ -183,12 +207,19 @@ def pinfo_acquire(params, sf_extraction, session, chat_session):
         try:
             user_id = session[2]
             info_type = params['type']
+            content = exp_pinfo_index.pinfo_acquire_index(user_id, chat_session, info_type)
+            if content[0]:
+                content = content[3]
+            else:
+                success = False
+                exception = excepted
+                content = '没有相关信息'
         except Exception as excepted:
             success = False
             exception = excepted
-            content = 'UNKNOWN'
+            content = '没有相关信息'
     else:
-        content = 'UNKNOWN'
+        content = '没有相关信息'
     return success, exception, content, content
 def internet_acquire(params):
     success = True

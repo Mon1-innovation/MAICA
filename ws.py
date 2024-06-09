@@ -6,6 +6,7 @@ import base64
 import json
 import pymysql
 import bcrypt
+import re
 import traceback
 import agent_assistance
 import persistent_extraction
@@ -352,15 +353,17 @@ def wrap_mod_system(session, chat_session_num, known_info, name_from_sf):
         player_name_get = persistent_extraction.read_from_sf(user_id, chat_session_num, 'playername')
         if player_name_get[0]:
             player_name = player_name_get[2]
+            if known_info:
+                known_info = re.sub(r'\[player\]', player_name, known_info)
         else:
             success = False
             return success, player_name_get[1]
     else:
         player_name = '[player]'
     if known_info:
-        new_system = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是[player]的话语, 请作为莫妮卡作出合适的回答, 并插入特定字符以表示情绪. 注意利用以下信息回答: {known_info}"
+        new_system = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答, 并插入特定字符以表示情绪. 注意利用以下信息回答: {known_info}"
     else:
-        new_system = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是[player]的话语, 请作为莫妮卡作出合适的回答, 并插入特定字符以表示情绪."
+        new_system = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答, 并插入特定字符以表示情绪."
     return mod_chat_session_system(session, chat_session_num, new_system)
 
 
@@ -555,7 +558,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                         await websocket.send(wrap_ws_formatter('404', 'agent_corrupted', response_str, 'warn'))
                         if message_agent_wrapped[1]:
                             response_str = f"Due to agent particular failure, falling back to instructed guidance and continuing."
-                            await websocket.send(wrap_ws_formatter('200', 'force_failsafe', response_str, 'info'))
+                            await websocket.send(wrap_ws_formatter('200', 'failsafe', response_str, 'info'))
                             info_agent_grabbed = message_agent_wrapped[1]
                         else:
                             response_str = f"Due to agent failure, falling back to default guidance and continuing anyway."

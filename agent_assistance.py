@@ -102,13 +102,13 @@ Final Answer: 今天是情人节
                     time_acquired = agent_modules.time_acquire(real_parameters_json)
                     if time_acquired[0]:
                         return_instruction = f"['time': '{time_acquired[2].hour}:{time_acquired[2].minute}']"
-                        if not inst_time:
+                        if not inst_time and time_acquired[3]:
                             instructed_final_answer += f"[{time_acquired[3]}]"
                             inst_time = True
                     else:
                         raise Exception(time_acquired[1])
                 elif re.search((r'date.*acquire'), predict_action_funcion, re.I):
-                    date_acquired = agent_modules.date_acquire(real_parameters_json)
+                    date_acquired = agent_modules.date_acquire(real_parameters_json, sf_extraction, session, chat_session)
                     if date_acquired[0]:
                         return_instruction = f"['date': '{date_acquired[2].year}年{date_acquired[2].month}月{date_acquired[2].day}日']"
                         if not inst_date:
@@ -154,7 +154,7 @@ Final Answer: 今天是情人节
                     event_acquired = agent_modules.event_acquire(real_parameters_json, sf_extraction, session, chat_session)
                     if event_acquired[0]:
                         return_instruction = f"['event': '{event_acquired[2]}']"
-                        if not inst_event:
+                        if not inst_event and event_acquired[3]:
                             instructed_final_answer += f"[{event_acquired[3]}]"
                             inst_event = True
                     else:
@@ -163,7 +163,7 @@ Final Answer: 今天是情人节
                     experience_acquired = agent_modules.experience_acquire(real_parameters_json, sf_extraction, session, chat_session)
                     if experience_acquired[0]:
                         return_instruction = f"['experience_had_together': '{experience_acquired[2]}']"
-                        if not inst_exp:
+                        if not inst_exp and experience_acquired[3]:
                             instructed_final_answer += f"[{experience_acquired[3]}]"
                             inst_exp = True
                     else:
@@ -172,7 +172,7 @@ Final Answer: 今天是情人节
                     affection_acquired = agent_modules.affection_acquire(real_parameters_json, sf_extraction, session, chat_session)
                     if affection_acquired[0]:
                         return_instruction = f"['characters_affection_state': '{affection_acquired[2]}']"
-                        if not inst_aff:
+                        if not inst_aff and affection_acquired[3]:
                             instructed_final_answer += f"[{affection_acquired[3]}]"
                             inst_aff = True
                     else:
@@ -181,7 +181,7 @@ Final Answer: 今天是情人节
                     pinfo_acquired = agent_modules.pinfo_acquire(real_parameters_json, sf_extraction, session, chat_session)
                     if affection_acquired[0]:
                         return_instruction = f"['personal_info': '{pinfo_acquired[2]}']"
-                        if not inst_pinfo:
+                        if not inst_pinfo and pinfo_acquired[3]:
                             instructed_final_answer += f"[{pinfo_acquired[3]}]"
                             inst_pinfo = True
                     else:
@@ -190,7 +190,7 @@ Final Answer: 今天是情人节
                     internet_acquired = agent_modules.internet_acquire(real_parameters_json, sf_extraction, session, chat_session)
                     if internet_acquired[0]:
                         return_instruction = f"['search_result': '{internet_acquired[2]}']"
-                        if not inst_search:
+                        if not inst_search and internet_acquired[3]:
                             instructed_final_answer += f"[{internet_acquired[3]}]"
                             inst_search= True
                     else:
