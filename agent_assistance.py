@@ -188,7 +188,7 @@ Final Answer: 今天是情人节
                     raise Exception('None Function Actually Matched')
             except Exception as excepted:
                 exception_return = excepted
-                traceback.print_exc()
+                #traceback.print_exc()
                 print(excepted)
             if not exception_return:
                 print(len(messages))
@@ -208,14 +208,14 @@ Final Answer: 今天是情人节
             else:
                 break
         else:
-            return 'EMPTY'
+            return 'EMPTY', ''
     final_answer = re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.M)
     if final_answer:
         print(f"agent final answer is {final_answer[1]}")
         return final_answer[1], instructed_final_answer
     else:
         print("None Returned Or Something Went Wrong")
-        return None, instructed_final_answer
+        return 'FAIL', instructed_final_answer
 
 if __name__ == "__main__":
     agented = agenting('我们今天干点什么好呢?', False, None, None)

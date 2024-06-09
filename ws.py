@@ -557,16 +557,24 @@ async def do_communicate(websocket, session, client_actual, client_options):
             try:
                 if client_options['full_maica']:
                     message_agent_wrapped = agent_assistance.agenting(query_in, sf_extraction, session, chat_session)
-                    if not message_agent_wrapped:
-                        response_str = f"Agent returned corrupted guidance. This may be a server failure, but it also happens just from time to time--your ray tracer ID is {traceray_id}"
+                    if message_agent_wrapped[0] == 'FAIL' or len(message_agent_wrapped[0]) > 15:
+                        response_str = f"Agent returned corrupted guidance. This may be a server failure, but a corruption is kinda expected so keep cool--your ray tracer ID is {traceray_id}"
                         print(f"出现如下异常8-{traceray_id}:Corruption")
                         await websocket.send(wrap_ws_formatter('404', 'agent_corrupted', response_str, 'warn'))
-                        response_str = f"Due to agent failure, falling back to default guidance and continuing anyway."
-                        await websocket.send(wrap_ws_formatter('200', 'force_failsafe', response_str, 'info'))
-                    elif message_agent_wrapped == 'EMPTY':
-                        message_agent_wrapped = None
+                        if message_agent_wrapped[1]:
+                            response_str = f"Due to agent particular failure, falling back to instructed guidance and continuing."
+                            await websocket.send(wrap_ws_formatter('200', 'force_failsafe', response_str, 'info'))
+                            info_agent_grabbed = message_agent_wrapped[1]
+                        else:
+                            response_str = f"Due to agent failure, falling back to default guidance and continuing anyway."
+                            await websocket.send(wrap_ws_formatter('200', 'force_failsafe', response_str, 'info'))
+                            info_agent_grabbed = None
+                    elif message_agent_wrapped[0] == 'EMPTY':
+                        info_agent_grabbed = None
+                    else:
+                        info_agent_grabbed = message_agent_wrapped[0]
                     try:
-                        agent_insertion = wrap_mod_system(session, chat_session, message_agent_wrapped, sf_extraction)
+                        agent_insertion = wrap_mod_system(session, chat_session, info_agent_grabbed, sf_extraction)
                         if not agent_insertion[0]:
                             raise Exception(agent_insertion[1])
                     except Exception as excepted:
