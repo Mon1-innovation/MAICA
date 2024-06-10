@@ -1,7 +1,7 @@
 import json
 def read_from_sf(userid, chat_session_num, key):
     success = False
-    with open(f"persistents/{userid}_{chat_session_num}.json") as savefile:
+    with open(f"persistents/{userid}_{chat_session_num}.json", 'r') as savefile:
         try:
             sf_content = json.loads(savefile.read())
             sf_item = sf_content[key]
@@ -10,11 +10,13 @@ def read_from_sf(userid, chat_session_num, key):
         except Exception as excepted:
             success = False
             return success, excepted, None
-        
+
+if __name__ == "__main__":
+    print(read_from_sf(23, 6, "mas_player_bday"))
 # 在这里列出可能被查找的所有条目:
 """
-
-mas_player_bday 
+mas_playername
+mas_player_bday ["yyyy", "mm", "dd"]
 mas_affection
 
 mas_pm_added_custom_bgm	Player has added custom music to the game before.

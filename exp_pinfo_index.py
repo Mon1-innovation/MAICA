@@ -235,7 +235,7 @@ def pinfo_acquire_index(user_id, chat_session, key):
                 else:
                     result.append('[player]讨厌跳杀内容. ')
             break
-    for matched in {'音乐', '听歌', 'rap', '听.*歌', '乐队', '说唱', '饶舌'}:
+    for matched in {'音乐', '听歌', 'rap', '听.*歌', '乐队', '说唱', '饶舌', '爱好'}:
         if re.search(matched, key, re.I):
             data1 = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_pm_like_rap')
             if data1[0]:
@@ -244,7 +244,7 @@ def pinfo_acquire_index(user_id, chat_session, key):
                 else:
                     result.append('[player]不喜欢说唱. ')
             break
-    for matched in {'音乐', '听歌', '摇滚', '听.*歌', '乐队', 'rock'}:
+    for matched in {'音乐', '听歌', '摇滚', '听.*歌', '乐队', 'rock', '爱好'}:
         if re.search(matched, key, re.I):
             data1 = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_pm_like_rock_n_roll')
             if data1[0]:
@@ -253,7 +253,7 @@ def pinfo_acquire_index(user_id, chat_session, key):
                 else:
                     result.append('[player]不喜欢摇滚. ')
             break
-    for matched in {'音乐', '听歌', '爵士', '听.*歌', 'jazz'}:
+    for matched in {'音乐', '听歌', '爵士', '听.*歌', 'jazz', '爱好'}:
         if re.search(matched, key, re.I):
             data1 = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_pm_like_jazz')
             if data1[0]:
@@ -262,7 +262,7 @@ def pinfo_acquire_index(user_id, chat_session, key):
                 else:
                     result.append('[player]不喜欢爵士乐. ')
             break
-    for matched in {'音乐', '听歌', '合成.*乐', '听.*歌', 'vocaloid', '术力口'}:
+    for matched in {'音乐', '听歌', '合成.*乐', '听.*歌', 'vocaloid', '术力口', '爱好'}:
         if re.search(matched, key, re.I):
             data1 = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_pm_like_vocaloids')
             if data1[0]:
@@ -271,7 +271,7 @@ def pinfo_acquire_index(user_id, chat_session, key):
                 else:
                     result.append('[player]不喜欢vocaloids. ')
             break
-    for matched in {'音乐', '听歌', '管弦', '听.*歌'}:
+    for matched in {'音乐', '听歌', '管弦', '听.*歌', '爱好'}:
         if re.search(matched, key, re.I):
             data1 = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_pm_like_orchestral_music')
             if data1[0]:
@@ -456,7 +456,7 @@ def pinfo_acquire_index(user_id, chat_session, key):
                 else:
                     result.append('[player]很少吃快餐. ')
             break
-    for matched in {'运动', '平常', '活动', '体育', '健身', '锻炼'}:
+    for matched in {'运动', '平常', '活动', '体育', '健身', '锻炼', '爱好'}:
         if re.search(matched, key, re.I):
             data1 = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_pm_like_playing_sports')
             if data1[0]:
@@ -465,7 +465,7 @@ def pinfo_acquire_index(user_id, chat_session, key):
                 else:
                     result.append('[player]不喜欢运动. ')
             break
-    for matched in {'运动', '体育', '锻炼', '活动', '健身', '网球'}:
+    for matched in {'运动', '体育', '锻炼', '活动', '健身', '网球', '爱好'}:
         if re.search(matched, key, re.I):
             data1 = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_pm_like_playing_tennis')
             if data1[0]:
@@ -490,7 +490,7 @@ def pinfo_acquire_index(user_id, chat_session, key):
                 else:
                     result.append('[player]还没有看过心理医生. ')
             break
-    for matched in {'动漫', '漫画', '二次元', '作品'}:
+    for matched in {'动漫', '漫画', '二次元', '作品', '爱好'}:
         if re.search(matched, key, re.I):
             data1 = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_pm_watch_mangime')
             if data1[0]:
@@ -836,8 +836,6 @@ def pinfo_acquire_index(user_id, chat_session, key):
                     else:
                         result.append('[player]是非二元性别. ')
             break
-
-
 
 
     return success, exception, result

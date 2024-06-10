@@ -10,19 +10,11 @@ import re
 import traceback
 import agent_assistance
 import persistent_extraction
+import httpserv
 from Crypto.Random import random as CRANDOM # type: ignore
 from Crypto.Cipher import PKCS1_OAEP # type: ignore
 from Crypto.PublicKey import RSA # type: ignore
 from openai import OpenAI # type: ignore
-
-#默认的客户端, 用于maica核心
-
-client = OpenAI(
-    api_key='EMPTY',
-    base_url='http://192.168.9.84:8011/v1',
-)
-model_type = client.models.list().data[0].id
-print(f"model type is {model_type}")
 
 #灵活客户端, 用于获取agent回答.
 #此类用于直接输出, agent的流式输出没有意义.
@@ -54,16 +46,6 @@ def wrap_ws_formatter(code, status, content, type):
         "time_ms" : int(round(time.time() * 1000))
     }
     return json.dumps(output, ensure_ascii=False)
-
-#启动时初始化密钥, 创建解密程序
-
-with open("key/prv.key", "r") as privkey_file:
-    global privkey
-    privkey = privkey_file.read()
-with open("key/pub.key", "r") as pubkey_file:
-    global pubkey
-    pubkey = pubkey_file.read()
-privkey_loaded = RSA.import_key(privkey)
 
 #账号数据库查询方法
 
@@ -350,14 +332,14 @@ def wrap_mod_system(session, chat_session_num, known_info, name_from_sf):
     user_id = session[2]
     #print(name_from_sf)
     if name_from_sf:
-        player_name_get = persistent_extraction.read_from_sf(user_id, chat_session_num, 'playername')
+        player_name_get = persistent_extraction.read_from_sf(user_id, chat_session_num, 'mas_playername')
         if player_name_get[0]:
             player_name = player_name_get[2]
             if known_info:
                 known_info = re.sub(r'\[player\]', player_name, known_info)
         else:
-            success = False
-            return success, player_name_get[1]
+            player_name = '[player]'
+            # continue on failure - playername may not be specified
     else:
         player_name = '[player]'
     if known_info:
@@ -546,58 +528,58 @@ async def do_communicate(websocket, session, client_actual, client_options):
             username = session[3]
             messages0 = json.dumps({'role': 'user', 'content': query_in}, ensure_ascii=False)
             sf_extraction = client_options['sf_extraction']
-
-            #MAICA_agent 在这里调用
-
-            try:
-                if client_options['full_maica']:
-                    message_agent_wrapped = agent_assistance.agenting(query_in, sf_extraction, session, chat_session)
-                    if message_agent_wrapped[0] == 'FAIL' or len(message_agent_wrapped[0]) > 15:
-                        response_str = f"Agent returned corrupted guidance. This may be a server failure, but a corruption is kinda expected so keep cool--your ray tracer ID is {traceray_id}"
-                        print(f"出现如下异常8-{traceray_id}:Corruption")
-                        await websocket.send(wrap_ws_formatter('404', 'agent_corrupted', response_str, 'warn'))
-                        if message_agent_wrapped[1]:
-                            response_str = f"Due to agent particular failure, falling back to instructed guidance and continuing."
-                            await websocket.send(wrap_ws_formatter('200', 'failsafe', response_str, 'info'))
-                            info_agent_grabbed = message_agent_wrapped[1]
-                        else:
-                            response_str = f"Due to agent failure, falling back to default guidance and continuing anyway."
-                            await websocket.send(wrap_ws_formatter('200', 'force_failsafe', response_str, 'info'))
-                            info_agent_grabbed = None
-                    elif message_agent_wrapped[0] == 'EMPTY':
-                        info_agent_grabbed = None
-                    else:
-                        info_agent_grabbed = message_agent_wrapped[0]
-                    try:
-                        agent_insertion = wrap_mod_system(session, chat_session, info_agent_grabbed, sf_extraction)
-                        if not agent_insertion[0]:
-                            raise Exception(agent_insertion[1])
-                    except Exception as excepted:
-                        response_str = f"Save file extraction failed, you may have not uploaded your savefile yet--your ray tracer ID is {traceray_id}"
-                        print(f"出现如下异常9-{traceray_id}:{excepted}")
-                        #traceback.print_exc()
-                        await websocket.send(wrap_ws_formatter('404', 'savefile_notfound', response_str, 'warn'))
-                        continue
-                else:
-                    try:
-                        agent_insertion = wrap_mod_system(session, chat_session, None, sf_extraction)
-                        if not agent_insertion[0]:
-                            raise Exception(agent_insertion[1])
-                    except Exception as excepted:
-                        response_str = f"Save file extraction failed, you may have not uploaded your savefile yet--your ray tracer ID is {traceray_id}"
-                        print(f"出现如下异常10-{traceray_id}:{excepted}")
-                        await websocket.send(wrap_ws_formatter('404', 'savefile_notfound', response_str, 'warn'))
-                        continue
-            except Exception as excepted:
-                response_str = f"Agent response acquiring failed, refer to administrator--your ray tracer ID is {traceray_id}"
-                print(f"出现如下异常11-{traceray_id}:{excepted}")
-                #traceback.print_exc()
-                await websocket.send(wrap_ws_formatter('503', 'agent_unavailable', response_str, 'error'))
-                continue
             match int(chat_session):
                 case i if i == 0:
                     messages = "[{'role': 'user', 'content': " + {query_in} + "]"
                 case i if 0 < i < 10 and i % 1 == 0:
+
+                    #MAICA_agent 在这里调用
+
+                    try:
+                        if client_options['full_maica']:
+                            message_agent_wrapped = agent_assistance.agenting(query_in, sf_extraction, session, chat_session)
+                            if message_agent_wrapped[0] == 'FAIL' or len(message_agent_wrapped[0]) > 15:
+                                response_str = f"Agent returned corrupted guidance. This may be a server failure, but a corruption is kinda expected so keep cool--your ray tracer ID is {traceray_id}"
+                                print(f"出现如下异常8-{traceray_id}:Corruption")
+                                await websocket.send(wrap_ws_formatter('404', 'agent_corrupted', response_str, 'warn'))
+                                if message_agent_wrapped[1]:
+                                    response_str = f"Due to agent particular failure, falling back to instructed guidance and continuing."
+                                    await websocket.send(wrap_ws_formatter('200', 'failsafe', response_str, 'info'))
+                                    info_agent_grabbed = message_agent_wrapped[1]
+                                else:
+                                    response_str = f"Due to agent failure, falling back to default guidance and continuing anyway."
+                                    await websocket.send(wrap_ws_formatter('200', 'force_failsafe', response_str, 'info'))
+                                    info_agent_grabbed = None
+                            elif message_agent_wrapped[0] == 'EMPTY':
+                                info_agent_grabbed = None
+                            else:
+                                info_agent_grabbed = message_agent_wrapped[0]
+                            try:
+                                agent_insertion = wrap_mod_system(session, chat_session, info_agent_grabbed, sf_extraction)
+                                if not agent_insertion[0]:
+                                    raise Exception(agent_insertion[1])
+                            except Exception as excepted:
+                                response_str = f"Save file extraction failed, you may have not uploaded your savefile yet--your ray tracer ID is {traceray_id}"
+                                print(f"出现如下异常9-{traceray_id}:{excepted}")
+                                #traceback.print_exc()
+                                await websocket.send(wrap_ws_formatter('404', 'savefile_notfound', response_str, 'warn'))
+                                continue
+                        else:
+                            try:
+                                agent_insertion = wrap_mod_system(session, chat_session, None, sf_extraction)
+                                if not agent_insertion[0]:
+                                    raise Exception(agent_insertion[1])
+                            except Exception as excepted:
+                                response_str = f"Save file extraction failed, you may have not uploaded your savefile yet--your ray tracer ID is {traceray_id}"
+                                print(f"出现如下异常10-{traceray_id}:{excepted}")
+                                await websocket.send(wrap_ws_formatter('404', 'savefile_notfound', response_str, 'warn'))
+                                continue
+                    except Exception as excepted:
+                        response_str = f"Agent response acquiring failed, refer to administrator--your ray tracer ID is {traceray_id}"
+                        print(f"出现如下异常11-{traceray_id}:{excepted}")
+                        #traceback.print_exc()
+                        await websocket.send(wrap_ws_formatter('503', 'agent_unavailable', response_str, 'error'))
+                        continue
                     check_result = check_create_chat_session(session, chat_session)
                     if check_result[0]:
                         rw_result = rw_chat_session(session, chat_session, 'r', messages0)
@@ -731,9 +713,27 @@ async def main_logic(websocket, path):
 # async def main_logic(websocket, path, other_param)
 
 if __name__ == '__main__':
+
+    #默认的客户端, 用于maica核心
+
+    client = OpenAI(
+        api_key='EMPTY',
+        base_url='http://192.168.9.84:8011/v1',
+    )
+    model_type = client.models.list().data[0].id
+    print(f"model type is {model_type}")
+
+    #启动时初始化密钥, 创建解密程序
+
+    with open("key/prv.key", "r") as privkey_file:
+        global privkey
+        privkey = privkey_file.read()
+    with open("key/pub.key", "r") as pubkey_file:
+        global pubkey
+        pubkey = pubkey_file.read()
+    privkey_loaded = RSA.import_key(privkey)
+
     print('server started!')
-
-
     start_server = websockets.serve(functools.partial(main_logic), '0.0.0.0', 5000)
     asyncio.get_event_loop().run_until_complete(start_server)
     asyncio.get_event_loop().run_forever()

@@ -3,6 +3,7 @@ import requests
 import holidays
 import json
 import re
+import traceback
 import persistent_extraction
 import exp_pinfo_index
 def time_acquire(params):
@@ -34,20 +35,21 @@ def date_acquire(params, sf_extraction, session, chat_session):
         try:
             user_id = session[2]
             south_north = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_pm_live_south_hemisphere')
-            if not south_north:
-                match content:
-                    case date if 3 <= date.month < 6:
-                        date_friendly = f"[今天是{date.year}年秋季{date.month}月{date.day}日]"
-                    case date if 6 <= date.month < 9:
-                        date_friendly = f"[今天是{date.year}年冬季{date.month}月{date.day}日]"
-                    case date if 9 <= date.month < 12:
-                        date_friendly = f"[今天是{date.year}年春季{date.month}月{date.day}日]"
-                    case date if 12 <= date.month or date.month < 3:
-                        date_friendly = f"[今天是{date.year}年夏季{date.month}月{date.day}日]"
-                return success, exception, content, date_friendly
+            if south_north[0]:
+                if not south_north[2]:
+                    match content:
+                        case date if 3 <= date.month < 6:
+                            date_friendly = f"[今天是{date.year}年秋季{date.month}月{date.day}日]"
+                        case date if 6 <= date.month < 9:
+                            date_friendly = f"[今天是{date.year}年冬季{date.month}月{date.day}日]"
+                        case date if 9 <= date.month < 12:
+                            date_friendly = f"[今天是{date.year}年春季{date.month}月{date.day}日]"
+                        case date if 12 <= date.month or date.month < 3:
+                            date_friendly = f"[今天是{date.year}年夏季{date.month}月{date.day}日]"
+                    return success, exception, content, date_friendly
         except Exception as excepted:
-            success = False
             exception = excepted
+            # continue on failure - hemisphere may not be specified
     match content:
         case date if 3 <= date.month < 6:
             date_friendly = f"[今天是{date.year}年春季{date.month}月{date.day}日]"
@@ -72,14 +74,13 @@ def event_acquire(params, sf_extraction, session, chat_session):
         try:
             user_id = session[2]
             player_bday = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_player_bday')[2]
-            player_age = params['year'] - player_bday.year
+            player_age = params['year'] - int(player_bday[0])
+            if int(params['month']) == int(player_bday[1]) and int(params['day']) == int(player_bday[2]):
+                holiday_friendly += f"今天是对方的{player_age}岁生日"
+                content += f"对方的{player_age}岁生日"
         except Exception as excepted:
-            success = False
             exception = excepted
-            return success, exception
-        if params['month'] == player_bday.month and params['day'] == player_bday.day:
-            holiday_friendly += f"今天是对方的{player_age}岁生日"
-            content += "对方的{player_age}岁生日"
+            # continue on failure - birthday may not be specified
     match (int(params['month']), int(params['day'])):
         case (m, d) if m == 9 and d == 22:
             if holiday_friendly:
@@ -183,7 +184,7 @@ def affection_acquire(params, sf_extraction, session, chat_session):
         try:
             user_id = session[2]
             affection_extracted = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_affection')[2]
-            match affection_extracted:
+            match int(affection_extracted):
                 case affection if affection < 200:
                     content = '你与对方是初识的情侣关系'
                 case affection if 200 <= affection < 400:
@@ -260,5 +261,5 @@ def internet_acquire(params):
     return success, exception, content, searched_friendly
 
 if __name__ == "__main__":
-    #print(event_acquire({"year": 2023, "month": 2, "day": 14}, False, None, None)[3])
-    print(internet_acquire({"question": "番茄炒蛋怎么做"}))
+    print(event_acquire({"year": 2023, "month": 6, "day": 10}, True, ["0", "0", "23"], 6))
+    #print(internet_acquire({"question": "番茄炒蛋怎么做"}))

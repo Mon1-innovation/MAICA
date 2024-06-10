@@ -39,7 +39,7 @@ Action Input: the input to the action
 Observation: the result of the action
 ... (this Thought/Action/Action Input/Observation can be repeated zero or more times)
 Thought: I now know the final answer
-Final Answer: all the information you gathered
+Final Answer: sort all the observations into a single sentence
 Begin!
 """
     backup_init = """
@@ -50,8 +50,12 @@ Begin!
 Thought: 我需要获取现在的时间以决定做什么好
 Action: time_acquire
 Observation: [{'time': '13:49'}]
+Thought: 我需要知道对方的爱好以决定做什么好
+Action: personal_information
+Action Input: [{"type": "爱好"}]
+Observation: [{'personal_info': ['[player]喜欢运动']}]
 Thought: I now know the final answer
-Final Answer: 现在是下午13:49
+Final Answer: 现在是下午13:49, [player]喜欢运动
 """
     init_example_2 = """
 Thought: 我需要获取今天的节日事件
@@ -162,7 +166,7 @@ Final Answer: 今天是情人节
                 elif re.search((r'experience.*acquire'), predict_action_funcion, re.I):
                     experience_acquired = agent_modules.experience_acquire(real_parameters_json, sf_extraction, session, chat_session)
                     if experience_acquired[0]:
-                        return_instruction = f"['experience_had_together': '{experience_acquired[2]}']"
+                        return_instruction = f"['experience_had': '{experience_acquired[2]}']"
                         if not inst_exp and experience_acquired[3]:
                             instructed_final_answer += f"[{experience_acquired[3]}]"
                             inst_exp = True
