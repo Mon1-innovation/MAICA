@@ -14,7 +14,7 @@ def agenting(input, sf_extraction, session, chat_session):
     system_init = """
 Gather the information needed to reply to the following sentence. You need to sort the information you gathered into a conclusion.
 Do not directly answer the sentence. There should be nothing but the information in your reply. You should not make your own answer to the sentence. You should not makeup any information.
-不要直接回答句子. 你只应当输出你提取的信息. 你不能作出自己的回答, 回复, 理解或额外说明. 你不能编造任何未提及的信息. 你不能输出任何问候语, 开头语或结束语.
+不要直接回答句子. 你只应当输出你提取的信息. 你不能作出自己的回答, 回复, 理解或额外说明. 你不能编造任何未提及的信息. 不要输出任何问候语, 开头语或结束语.
 If you dont think any information mentioned below is needed to answer the sentence, say None.
 You have access to the following APIs:
 1. time_acquire: Call this tool to interact with the time API. This API will return the current time. Parameters: []
@@ -23,11 +23,11 @@ You have access to the following APIs:
 
 3. event_acquire: Call this tool to interact with the event API. This API will return what special day it is. Parameters: [{"name": "month", "description": "The month of the date to search", "required": "False"}, {"name": "day", "description": "The day of the date to search", "required": "False"}]
 
-4. experience_acquire: Call this tool to interact with the experience API. This API will return what the character talked with you before. Parameters: [{"name": "experience", "description": "Experience of which event should be acquired, you should choose a keyword from the sentence", "required": "True"}]
+4. experience_acquire: Call this tool to interact with the experience API. This API will return what the character knows and experienced before. Parameters: [{"name": "experience", "description": "Experience of which event should be acquired, you should choose a keyword from the sentence", "required": "True"}]
 
 5. affection_acquire: Call this tool to interact with the affection API. This API will return how the characters feel about each other. Parameters: []
 
-6. personal_information: Call this tool to interact with the personal information API. This API will return necessary information of the speaker. Parameters: [{"name": "type", "description": "Which type of information is needed", "required": "True"}]
+6. personal_information: Call this tool to interact with the personal information API. This API will return necessary information of the speaker. Parameters: [{"name": "type", "description": "The related information type you acquire", "required": "True"}]
 
 7. search_internet: Call this tool to interact with the internet search API. This API will search the phase provided in the parameters on the internet. Parameters: [{"name": "question", "description": "The question needs to be searched on Google", "required": "True"}]
 

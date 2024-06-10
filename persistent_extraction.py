@@ -13,6 +13,7 @@ def read_from_sf(userid, chat_session_num, key):
         
 # 在这里列出可能被查找的所有条目:
 """
+
 mas_player_bday 
 mas_affection
 
@@ -55,7 +56,7 @@ mas_pm_live_south_hemisphere	Does the player live in the Southern hemisphere? Af
 mas_pm_gets_snow	Does it snow where the player lives?
 mas_pm_social_personality	Not true/false.
 mas_pm_likes_panties	Is the player into panties?
-mas_pm_no_talk_panties	Player has specified they don't want to talk about panty fetishes. Does not clarify if they like/dislike.
+#mas_pm_no_talk_panties	Player has specified they don't want to talk about panty fetishes. Does not clarify if they like/dislike.
 mas_pm_drinks_soda	Does the player drink soda?
 mas_pm_eat_fast_food	Does the player eat fast food often?
 mas_pm_wearsRing	Does the player wear a promise ring for Monika?
@@ -66,11 +67,11 @@ mas_pm_see_therapist	Does the player see a therapist?
 mas_pm_watch_mangime	Does the player read manga/watch anime?
 mas_pm_do_smoke	Does the player smoke?
 mas_pm_do_smoke_quit	Is the player trying to quit smoking?
-mas_pm_do_smoke_quit_succeeded_before	Has the player quit smoking successfully before?
+#mas_pm_do_smoke_quit_succeeded_before	Has the player quit smoking successfully before?
 mas_pm_driving_can_drive	Can the player drive a car?
 mas_pm_driving_learning	If the player cannot drive, are they learning?
 mas_pm_driving_been_in_accident	Has the player been in a car accident while driving?
-mas_pm_driving_post_accident	If the player has been in an accident, do they still drive much?
+#mas_pm_driving_post_accident	If the player has been in an accident, do they still drive much?
 mas_pm_donate_charity	Has the player donated to charity before?
 mas_pm_volunteer_charity	Has the player volunteered for a charity before?
 mas_pm_have_fam	Does the player have a family?
@@ -83,7 +84,7 @@ mas_pm_fam_like_monika	Does the player think their family would like Monika?
 mas_pm_gone_to_prom	Did the player attend prom?
 mas_pm_no_prom	Player has specified that their school did not have a prom.
 mas_pm_prom_good	Did the player have a good time at prom?
-mas_pm_had_prom_date	Did the player have a prom date?
+#mas_pm_had_prom_date	Did the player have a prom date?
 mas_pm_prom_monika	Player has specified they would have had a better time at prom if Monika was there.
 mas_pm_prom_not_interested	Player has specified they were not interested in prom.
 mas_pm_prom_shy	If the player was not interested in prom, is it because they were too shy?
@@ -101,11 +102,11 @@ mas_pm_has_friends	Does the player have friends?
 mas_pm_few_friends	Player has specified they only have a few friends.
 mas_pm_feels_lonely_sometimes	Does the player sometimes feel lonely?
 mas_pm_listened_to_grad_speech	Has the player heard Monika's graduate speech? This is set to False if they ignored it.
-mas_grad_speech_timed_out	Set to true only if the player has ignored Monika's graduate speech twice.
+#mas_grad_speech_timed_out	Set to true only if the player has ignored Monika's graduate speech twice.
 mas_pm_liked_grad_speech	Did the player like Monika's graduation speech?
 mas_pm_given_false_justice	Has the player been delivered false justice before?
-mas_pm_monika_deletion_justice	Does the player think that Monika being deleted by so many people was justice?
-mas_monika_deletion_justice_kidding	Monika believes player was teasing/joking when they said deleting her was justice.
+#mas_pm_monika_deletion_justice	Does the player think that Monika being deleted by so many people was justice?
+#mas_monika_deletion_justice_kidding	Monika believes player was teasing/joking when they said deleting her was justice.
 mas_pm_would_come_to_spaceroom	Would the player take the chance to go to Monika's world? Set to None if they cannot answer.
 mas_pm_owns_car	Does the player own a car?
 mas_pm_owns_car_type	Not true/false. Type of vehicle player owns. For list of options, see monika_vehicle.
@@ -117,4 +118,13 @@ mas_pm_social_personality	Not true/false. Player's social personality. mas_SP_EX
 mas_pm_likes_nature	Does the player like nature?
 mas_pm_swear_frequency	Not true/false. Frequency of player's swearing: SF_OFTEN/SF_SOMETIMES/SF_NEVER
 mas_gender == " "	"M" for male "F" for female and "X" for Gender Neutral
+
+_mas_bday_said_happybday
+_mas_f14_spent_f14
+_mas_nye_spent_nye
+_mas_player_bday_spent_time
+_mas_d25_spent_d25
+_mas_o31_tt_count
+
+
 """
