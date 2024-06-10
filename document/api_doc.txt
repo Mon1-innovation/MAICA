@@ -69,7 +69,7 @@ maica_core和maica_core_nostream共用chat_session.
 
 MAICA上传存档的接口位于https://maicadev.monika.love/api/savefile. 你应当遵循以下格式, 以POST形式上传从存档中解读的信息:
     {"access_token": "你的令牌", "chat_session": "指定对应的chat_session", "content":"json格式的存档内容"}
-    需要注意, json格式的存档内容中应当全部使用双引号且必须转义, 形如{\"mas_player_bday\": [\"2004\", \"06\", \"10\"]}
+需要注意, json格式的存档内容中应当全部使用双引号且必须转义, 形如{\"mas_player_bday\": [\"2004\", \"06\", \"10\"]}
 从存档中解析的信息可以包含以下条目:
 """
 mas_playername
@@ -186,7 +186,7 @@ _mas_d25_spent_d25
 _mas_o31_tt_count
 """
 其中, 除前三行外均为原版可调用的变量. mas_playername为str格式的玩家名称, mas_player_bday为list格式的玩家生日, mas_affection为int格式的好感度.
-原理上, 任何条目都是可缺省的. 缺省关键变量将使其被默认值替代, 缺省事件变量将使其退出索引.
+原理上, 任何条目都是可缺省的. 缺省关键变量将使其被默认值替代, 缺省事件变量将使其退出MFocus索引.
 原理上, 上传的存档json可以包含冗余的条目, 但其整体格式必须是完整可读的json.
 存档json的总长度不能超过10万字符, 超长会被拒收. 请避免开发中发生泄漏.
 
