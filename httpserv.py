@@ -17,6 +17,8 @@ with open("key/pub.key", "r") as pubkey_file:
     global pubkey
     pubkey = pubkey_file.read()
 privkey_loaded = RSA.import_key(privkey)
+pubkey_loaded = RSA.import_key(pubkey)
+
 
 # 通过methods设置POST请求
 @app.route('/', methods=["POST"])
@@ -51,13 +53,42 @@ def json_request():
             else:
                 success = False
                 exception = "Content length exceeded"
-                return f'{success}, {exception}'
-        return f'{success}, {None}'
+                return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
+        return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
+    except Exception as excepted:
+        #traceback.print_exc()
+        success = False
+        exception = excepted
+        return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
+    
+@app.route('/reg/', methods=["POST"])
+def register():
+    success = True
+    exception = ''
+    try:
+        data = json.loads(request.data)
+        if 'username' in data:
+            type_usr = 'username'
+            cridential = data['username']
+        elif 'email' in data:
+            type_usr = 'email'
+            cridential = data['email']
+        else:
+            success = False
+            exception = "No user cridential provided"
+            return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
+        password = data['password']
+        token_raw = json.dumps({type_usr: cridential, "password": password}, ensure_ascii=False)
+        encryptor = PKCS1_OAEP.new(pubkey_loaded)
+        encrypted_token = base64.b64encode(encryptor.encrypt(token_raw.encode('utf-8'))).decode('utf-8')
+        return json.dumps({"success": success, "exception": exception, "token": encrypted_token}, ensure_ascii=False)
     except Exception as excepted:
         traceback.print_exc()
         success = False
         exception = excepted
-        return f'{success}, {exception}'
+        return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
+    
+
 if __name__ == '__main__':
     app.run(
         host='0.0.0.0',

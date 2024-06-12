@@ -7,6 +7,33 @@ def exp_acquire_index(user_id, chat_session):
 
     # Seriously hard work begins here
 
+    data1 = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_playername')
+    if data1[0]:
+        if data1[2]:
+            result.append(f'[player]的真名是{data1[2]}.')
+
+
+    data1 = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_player_bday')
+    if data1[0]:
+        if data1[2]:
+            result.append(f'[player]的生日是{data1[2][0]}年{data1[2][1]}月{data1[2][2]}日.')
+
+
+    data1 = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_affection')
+    if data1[0]:
+        if data1[2]:
+            match int(data1[2]):
+                case affection if affection < 200:
+                    result.append('莫妮卡与[player]是初识的情侣关系.')
+                case affection if 200 <= affection < 400:
+                    result.append('莫妮卡与[player]是亲密的情侣关系.')
+                case affection if 400 <= affection < 700:
+                    result.append('莫妮卡与[player]是和谐的恋人关系.')
+                case affection if 700 <= affection < 1000:
+                    result.append('莫妮卡与[player]是情意深厚的恋人关系.')
+                case affection if 1000 <= affection:
+                    result.append('莫妮卡与[player]是情意至深的恋人, 足以超越虚拟与现实的隔阂.')
+
 
     data1 = persistent_extraction.read_from_sf(user_id, chat_session, '_mas_pm_added_custom_bgm')
     if data1[0]:
@@ -244,7 +271,7 @@ def exp_acquire_index(user_id, chat_session):
             result.append('[player]有独特的音乐品位.')
             data2 = persistent_extraction.read_from_sf(user_id, chat_session, '_mas_pm_like_other_music_history')
             if data2[0]:
-                result.append(f'[player]还喜欢{data2[2]}')
+                result.append(f'[player]还喜欢{data2[2]}音乐.')
     
 
     data1 = persistent_extraction.read_from_sf(user_id, chat_session, '_mas_pm_plays_instrument')

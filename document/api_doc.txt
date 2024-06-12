@@ -1,7 +1,7 @@
 此文档是MAICA接口的暂定文档, 后面很可能会有更多改动, 请不要硬编码在实际开发项目中.
 
 连接地址: wss://maicadev.monika.love/websocket
-服务器传信遵守以下原则:
+websocket服务器传信遵守以下原则:
     服务器只会输出固定格式的json信息:
     {"code": "状态码", "status": "运行步骤", "content": "有效载荷", "type": "信息类型", "time_ms": 时间戳(毫秒)}
     其中, 1xx, continue信息代表工作正常但此输出只是完整输出的一部分, 常见于流式传输. 流式传输的信息类型会被标记为carriage.
@@ -11,9 +11,17 @@
     应当注意, 虽然此状态码与运行步骤的格式参照http状态码, 但其用途并不相同.
     接口输出的提醒, 警告和错误信息都会在content项中提供易读的解释. 此解释仅供开发调试参考用, 请避免将其作为程序处理的一部分.
     适合程序处理的信息一般被标记为debug或carriage.
-第一轮通信为身份认证通信, 需要传入加密令牌.
-生成令牌的方法:
-    使用以下公钥:
+半双工http服务器传信一般遵守以下原则:
+    服务器一般会输出形如此格式的json信息:
+    {"success": 是否成功, "exception": "详细问题描述", "载荷键": "载荷值"}
+
+MAICA生成令牌的接口位于https://maicadev.monika.love/api/register. 你应当遵循以下格式, 以POST形式上传你的论坛账号信息:
+    {"username": "你的论坛用户名", "password":"你的论坛密码(明文)"}
+    或:
+    {"email": "你的论坛绑定邮箱", "password":"你的论坛密码(明文)"}
+如果令牌被正确生成, 接口会返回形如:
+    {"success": true, "exception": "", "token": "生成的加密令牌"}
+MAICA也支持本地加密. 如希望本地加密, 使用以下公钥:
 -----BEGIN RSA PUBLIC KEY-----
 MIIBCgKCAQEA2IHJQAPwWuynuivzvu/97/EbN+ttYoNmJyvu9RC/M9CHXCi1Emgc
 /KIluhzfJesBU/E/TX/xeuwURuGcyhIBk0qmba8GOADVjedt1OHcP6DJQJwu6+Bp
@@ -28,6 +36,8 @@ t9vozy56WuHPfv3KZTwrvZaIVSAExEL17wIDAQAB
     {"email": "你的论坛绑定邮箱", "password":"你的论坛密码(明文)"}
     加密模式是PKCS1_OEAP.
     加密完成后, 你会得到你的令牌.
+
+第一轮通信为身份认证通信, 需要直接传入加密令牌.
 传入令牌之后, 服务器应当返回206 session_created, 并返回使用者的用户id, 用户名, 昵称等公开信息. 传入令牌不需要json格式.
 
 接下来, 服务器会提示用户选择一个模型. 你应当按以下格式输入选择:
@@ -71,7 +81,9 @@ maica_core和maica_core_nostream共用chat_session.
 
 MAICA上传存档的接口位于https://maicadev.monika.love/api/savefile. 你应当遵循以下格式, 以POST形式上传从存档中解读的信息:
     {"access_token": "你的令牌", "chat_session": "指定对应的chat_session", "content":"json格式的存档内容"}
-需要注意, json格式的存档内容中应当全部使用双引号且必须转义, 形如{\"mas_player_bday\": [\"2004\", \"06\", \"10\"]}
+    需要注意, json格式的存档内容中应当全部使用双引号且必须转义, 形如{\"mas_player_bday\": [\"2004\", \"06\", \"10\"]}
+如果存档被成功接收, 接口会返回:
+    {"success": true, "exception": ""}
 从存档中解析的信息可以包含以下条目:
 """
 mas_playername

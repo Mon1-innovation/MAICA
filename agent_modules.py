@@ -77,7 +77,7 @@ def event_acquire(params, sf_extraction, session, chat_session):
             player_age = params['year'] - int(player_bday[0])
             if int(params['month']) == int(player_bday[1]) and int(params['day']) == int(player_bday[2]):
                 holiday_friendly += f"今天是对方的{player_age}岁生日"
-                content += f"对方的{player_age}岁生日"
+                content += f"[对方的{player_age}岁生日]"
         except Exception as excepted:
             exception = excepted
             # continue on failure - birthday may not be specified
@@ -88,49 +88,49 @@ def event_acquire(params, sf_extraction, session, chat_session):
             else:
                 holiday_friendly += '今天是'
             holiday_friendly += "你的生日"
-            content += "你的生日"
+            content += "[你的生日]"
         case (m, d) if m == 2 and d == 14:
             if holiday_friendly:
                 holiday_friendly += ', 也是'
             else:
                 holiday_friendly += '今天是'
             holiday_friendly += "情人节"
-            content += "情人节"
+            content += "[情人节]"
         case (m, d) if m == 4 and d == 1:
             if holiday_friendly:
                 holiday_friendly += ', 也是'
             else:
                 holiday_friendly += '今天是'
             holiday_friendly += "愚人节"
-            content += "愚人节"
+            content += "[愚人节]"
         case (m, d) if m == 6 and d == 1:
             if holiday_friendly:
                 holiday_friendly += ', 也是'
             else:
                 holiday_friendly += '今天是'
             holiday_friendly += "儿童节"
-            content += "儿童节"
+            content += "[儿童节]"
         case (m, d) if m == 9 and d == 1:
             if holiday_friendly:
                 holiday_friendly += ', 也是'
             else:
                 holiday_friendly += '今天是'
             holiday_friendly += "开学日"
-            content += "开学日"
+            content += "[开学日]"
         case (m, d) if m == 10 and d == 31:
             if holiday_friendly:
                 holiday_friendly += ', 也是'
             else:
                 holiday_friendly += '今天是'
             holiday_friendly += "万圣节"
-            content += "万圣节"
+            content += "[万圣节]"
         case (m, d) if m == 12 and d == 24:
             if holiday_friendly:
                 holiday_friendly += ', 也是'
             else:
                 holiday_friendly += '今天是'
             holiday_friendly += "平安夜"
-            content += "平安夜"
+            content += "[平安夜]"
     if time_defined in cn_holidays:
         if holiday_friendly:
             holiday_friendly += ', 也是'
@@ -261,5 +261,5 @@ def internet_acquire(params):
     return success, exception, content, searched_friendly
 
 if __name__ == "__main__":
-    print(event_acquire({"year": 2023, "month": 6, "day": 10}, True, ["0", "0", "23"], 6))
+    print(event_acquire({"year": 2023, "month": 1, "day": 1}, True, ["0", "0", "23"], 1))
     print(internet_acquire({"question": "番茄炒蛋怎么做"}))
