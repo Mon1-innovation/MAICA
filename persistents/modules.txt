@@ -1,3 +1,5 @@
+---THIS FILE IS DEPRECATED---
+
 affection: 好感度
 mname: 莫妮卡名字
 playername: 玩家名字

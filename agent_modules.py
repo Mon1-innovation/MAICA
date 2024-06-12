@@ -34,7 +34,7 @@ def date_acquire(params, sf_extraction, session, chat_session):
     if sf_extraction:
         try:
             user_id = session[2]
-            south_north = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_pm_live_south_hemisphere')
+            south_north = persistent_extraction.read_from_sf(user_id, chat_session, '_mas_pm_live_south_hemisphere')
             if south_north[0]:
                 if not south_north[2]:
                     match content:

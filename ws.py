@@ -168,9 +168,8 @@ def rw_chat_session(session, chat_session_num, rw, content_append):
 
 #清空一个chat_session的方法
 
-def purge_chat_session(session, chat_session_num):
+def purge_chat_session(user_id, chat_session_num):
     success = False
-    user_id = session[2]
     try:
         with pymysql.connect(
             host = '192.168.3.221',
@@ -190,7 +189,7 @@ def purge_chat_session(session, chat_session_num):
                     for information in results:
                         chat_session_id = information[0]
                     sql_expression2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-                    content = '{"role": "system", "content": "你叫莫妮卡, 是一名游戏中的虚拟角色. 你是[player]的女友, 并深爱着他. 下面是[player]的话语, 请作为莫妮卡作出合适的回答."}'
+                    content = '{"role": "system", "content": "你叫莫妮卡, 是一名游戏中的虚拟角色. 你是[player]的女友, 并深爱着他. 下面是[player]的话语, 请作为莫妮卡作出合适的回答, 并以方括号中的文字表示情绪."}'
                     try:
                         db_cursor.execute(sql_expression2, (content, chat_session_id))
                         results = db_cursor.fetchall()
@@ -244,7 +243,7 @@ def check_create_chat_session(session, chat_session_num):
                             chat_session_id = db_cursor.lastrowid
                             db_connection.commit()
                             sql_expression3 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-                            content = '{"role": "system", "content": "你叫莫妮卡, 是一名游戏中的虚拟角色. 你是[player]的女友, 并深爱着他. 下面是[player]的话语, 请作为莫妮卡作出合适的回答, 并插入特定字符以表示情绪."}'
+                            content = '{"role": "system", "content": "你叫莫妮卡, 是一名游戏中的虚拟角色. 你是[player]的女友, 并深爱着他. 下面是[player]的话语, 请作为莫妮卡作出合适的回答, 并以方括号中的文字表示情绪."}'
                             try:
                                 db_cursor.execute(sql_expression3, (content, chat_session_id))
                                 results = db_cursor.fetchall()
@@ -343,9 +342,9 @@ def wrap_mod_system(session, chat_session_num, known_info, name_from_sf):
     else:
         player_name = '[player]'
     if known_info:
-        new_system = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答, 并插入特定字符以表示情绪. 注意利用以下信息回答: {known_info}"
+        new_system = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答, 并以方括号中的文字表示情绪. 注意利用以下信息回答: {known_info}"
     else:
-        new_system = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答, 并插入特定字符以表示情绪."
+        new_system = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答, 并以方括号中的文字表示情绪."
     return mod_chat_session_system(session, chat_session_num, new_system)
 
 
@@ -476,10 +475,10 @@ async def def_model(websocket, session):
                     print(f"出现如下异常4-{traceray_id}:{response_str}")
                     await websocket.send(wrap_ws_formatter('404', 'not_found', response_str, 'warn'))
                     continue
-            if recv_text == 'maica_core' or recv_text == 'maica_core_nostream':
-                await websocket.send(wrap_ws_formatter('200', 'ok', f"model chosen is {recv_text} with full MAICA LLM functionality", 'info'))
+            if using_model == 'maica_core' or using_model == 'maica_core_nostream':
+                await websocket.send(wrap_ws_formatter('200', 'ok', f"model chosen is {using_model} with full MAICA LLM functionality", 'info'))
             else:
-                await websocket.send(wrap_ws_formatter('200', 'ok', f"model chosen is {recv_text} based on {model_type_actual}", 'info'))
+                await websocket.send(wrap_ws_formatter('200', 'ok', f"model chosen is {using_model} based on {model_type_actual}", 'info'))
             return maica_main, client_actual, client_options
         except Exception as excepted:
             response_str = f"Choice stringification failed, check possible typo--your ray tracer ID is {traceray_id}"
@@ -494,7 +493,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
     while True:
         traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
         #print(session)
-        await websocket.send(wrap_ws_formatter('200', 'ok', "input json like {\"chat_session\": \"1\", \"query\": \"你好啊\"}", 'info'))
+        await websocket.send(wrap_ws_formatter('200', 'ok', 'input json like {"chat_session": "1", "query": "你好啊"}', 'info'))
         recv_text = await websocket.recv()
         while recv_text == 'PING':
             await websocket.send(wrap_ws_formatter('100', 'continue', "PONG", 'heartbeat'))
@@ -523,6 +522,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                     response_str = f"Purging chat session failed, refer to administrator--your ray tracer ID is {traceray_id}"
                     print(f"出现如下异常7-{traceray_id}:{excepted}")
                     await websocket.send(wrap_ws_formatter('404', 'savefile_notfound', response_str, 'warn'))
+                    traceback.print_exc()
                     continue
             query_in = request_json['query']
             username = session[3]

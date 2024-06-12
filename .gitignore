@@ -166,3 +166,4 @@ key/
 *.key
 bash/
 maica/
+persistents/
