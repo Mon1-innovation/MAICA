@@ -1,6 +1,7 @@
 import re
+import json
 import persistent_extraction
-def exp_acquire_index(user_id, chat_session):
+def mfocus_form_info(user_id, chat_session):
     success = True
     exception = None
     result = []
@@ -759,9 +760,14 @@ def exp_acquire_index(user_id, chat_session):
             else:
                 result.append('[player]是非二元性别.')
     
+    with open(f'persistents/{user_id}_{chat_session}_friendly.json', 'w+', encoding = 'utf-8') as sf_friendly:
+        sf_friendly.write(json.dumps(result, ensure_ascii=False))
 
 
     return success, exception, result
 
+def mfocus_agent(user_id, chat_session):
+    return
+
 if __name__ == "__main__":
-    print(exp_acquire_index(23, 1)[2])
+    print(mfocus_form_info(23, 1)[2])
