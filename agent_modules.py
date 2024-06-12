@@ -262,4 +262,4 @@ def internet_acquire(params):
 
 if __name__ == "__main__":
     print(event_acquire({"year": 2023, "month": 6, "day": 10}, True, ["0", "0", "23"], 6))
-    #print(internet_acquire({"question": "番茄炒蛋怎么做"}))
+    print(internet_acquire({"question": "番茄炒蛋怎么做"}))
