@@ -89,6 +89,7 @@ MAICA上传存档的接口位于https://maicadev.monika.love/api/savefile. 你�
 mas_playername
 mas_player_bday ["yyyy", "mm", "dd"]
 mas_affection
+mas_geolocation
 
 _mas_pm_added_custom_bgm	Player has added custom music to the game before.
 _mas_pm_religious	Is the player religious?

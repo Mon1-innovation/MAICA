@@ -1,4 +1,3 @@
-#----THIS FILE IS DEPRECATED----
 import re
 import json
 import datetime
@@ -13,41 +12,6 @@ def agenting(input, sf_extraction, session, chat_session):
     model_type = client.models.list().data[0].id
     print(model_type)
     system_init = """
-Gather the information needed to reply to the following sentence. You need to sort the information you gathered into a conclusion.
-Do not directly answer the sentence. There should be nothing but the information in your reply. You should not make your own answer to the sentence. You should not makeup any information.
-不要直接回答句子. 你只应当输出你提取的信息. 你不能作出自己的回答, 回复, 理解或额外说明. 你不能编造任何未提及的信息. 不要输出任何问候语, 开头语或结束语.
-If you dont think any information mentioned below is needed to answer the sentence, say None.
-You have access to the following APIs:
-1. time_acquire: Call this tool to interact with the time API. This API will return the current time. Parameters: []
-
-2. date_acquire: Call this tool to interact with the date API. This API will return the current date. Parameters: []
-
-3. event_acquire: Call this tool to interact with the event API. This API will return what special day it is. Parameters: [{"name": "month", "description": "The month of the date to search", "required": "False"}, {"name": "day", "description": "The day of the date to search", "required": "False"}]
-
-4. experience_acquire: Call this tool to interact with the experience API. This API will return what the character knows and experienced before. Parameters: [{"name": "experience", "description": "Experience of which event should be acquired, you should choose a keyword from the sentence", "required": "True"}]
-
-5. affection_acquire: Call this tool to interact with the affection API. This API will return how the characters feel about each other. Parameters: []
-
-6. personal_information: Call this tool to interact with the personal information API. This API will return necessary information of the speaker. Parameters: [{"name": "type", "description": "The related information type you acquire", "required": "True"}]
-
-7. search_internet: Call this tool to interact with the internet search API. This API will search the phase provided in the parameters on the internet. Parameters: [{"name": "question", "description": "The question needs to be searched on Google", "required": "True"}]
-
-Use the following format:
-
-Thought: you should always think about what to do
-Action: the action to take, should be one of the above tools[time_acquire, date_acquire, event_acquire, experience_acquire, affection_acquire, personal_information, search_internet]
-Action Input: the input to the action
-Observation: the result of the action
-... (this Thought/Action/Action Input/Observation can be repeated zero or more times)
-Thought: I now know the final answer
-Final Answer: sort all the observations into a single sentence
-Begin!
-"""
-    backup_init = """
-6. appearence_acquire: Call this tool to interact with the appearence API. This API will return how the characters look. Parameters: [{"name": "who", "description": "Choose from user and assistant whose appearence needs to be acquired", "required": "True"}, {"name": "which", "description": "The detailed bodypart needs to be acquired", "required": "True"}]
-
-"""
-    system_init_new = """
 You are an assistant designed to sort and conclude from sentences. Proceed the following sentence accroding to rules provided below.
 You have access to following tools:
 1. time_acquire: Call this tool if you think the current time is needed to answer the sentence. Parameters: []
@@ -73,22 +37,22 @@ Thought: I have used every necessary tool
 Begin!
 """
     init_example_1 = """
-Thought: 我需要获取现在的时间以决定做什么好
+Thought: 要回答干点什么好, 对话者必须知道当前的时间
 Action: time_acquire
+Action Input: []
 Observation: [{'time': '13:49'}]
-Thought: 我需要知道对方的爱好以决定做什么好
-Action: personal_information
-Action Input: [{"type": "爱好"}]
+Thought: 要回答干点什么好, 对话者必须知道对方的爱好
+Action: persistent_acquire
+Action Input: []
 Observation: [{'personal_info': ['[player]喜欢运动']}]
-Thought: I now know the final answer
-Final Answer: 现在是下午13:49, [player]喜欢运动
+Thought: I have used every necessary tool
 """
     init_example_2 = """
-Thought: 我需要获取今天的节日事件
+Thought: 要回答今天是什么日子, 对话者必须知道今天的节日
 Action: event_acquire
+Action Input: []
 Observation: [{'event': '情人节'}]
-Thought: I now know the final answer
-Final Answer: 今天是情人节
+Thought: I have used every necessary tool
 """
     messages = [{'role': 'system', 'content': system_init}]
     messages_appending = [
