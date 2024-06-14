@@ -34,6 +34,7 @@ Action Input: the parameters to pass in
 Observation: the result of the action
 ... (this Thought/Action/Action Input/Observation can be repeated zero or more times)
 Thought: I have used every necessary tool
+Final Answer: My work is done
 Begin!
 """
     init_example_1 = """
@@ -46,6 +47,7 @@ Action: persistent_acquire
 Action Input: []
 Observation: [{'personal_info': ['[player]喜欢运动']}]
 Thought: I have used every necessary tool
+Final Answer: My work is done
 """
     init_example_2 = """
 Thought: 要回答今天是什么日子, 对话者必须知道今天的节日
@@ -53,6 +55,7 @@ Action: event_acquire
 Action Input: []
 Observation: [{'event': '情人节'}]
 Thought: I have used every necessary tool
+Final Answer: My work is done
 """
     messages = [{'role': 'system', 'content': system_init}]
     messages_appending = [
@@ -71,26 +74,35 @@ Thought: I have used every necessary tool
     response = resp.choices[0].message.content
     print(f"first response is {response}")
     instructed_final_answer = ''
+    # to be extended
     cycle = 0
-    inst_time = inst_date = inst_event = inst_exp = inst_aff = inst_pinfo = inst_search = False
+    inst_time = inst_date = inst_event = inst_wea = inst_aff = inst_pst = inst_search = False
     while not re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.M):
         cycle += 1
         if cycle >= 7:
             break
+            # something must have went wrong
         exception_return = ''
-        if not re.match((r'^\s*none'), response, re.I):
+        # to be added
+        if not re.search((r'Action\s*:\s*none'), response, re.I):
+            # so we know he took an action at least
             match_action = re.search((r'\s*Action\s*:\s*(.*)\s*$'), response, re.I|re.M)
             if match_action:
                 predict_action_funcion = match_action[1]
                 print(predict_action_funcion)
+                # what the action is
             match_action_input = re.search((r'\s*Action\s*Input\s*:\s*(\{.*\})\s*$'), response, re.I|re.M)
             if match_action_input:
                 predict_parameters_json = match_action_input[1].replace('\'', '"')
-                print('serialization completed')
+                # we suggest this is a loadble json
             else:
                 predict_parameters_json = '{}'
             try:
-                real_parameters_json = json.loads(predict_parameters_json)
+                try:
+                    real_parameters_json = json.loads(predict_parameters_json)
+                except:
+                    predict_parameters_json = json.loads({})
+                # if predict_parameters_json is not loadble json, continue anyway
                 return_instruction = ''
                 if re.search((r'time.*acquire'), predict_action_funcion, re.I):
                     time_acquired = agent_modules.time_acquire(real_parameters_json)
@@ -110,6 +122,15 @@ Thought: I have used every necessary tool
                             inst_date = True
                     else:
                         raise Exception(date_acquired[1])
+                elif re.search((r'weather.*acquire'), predict_action_funcion, re.I):
+                    weather_acquired = agent_modules.weather_acquire(real_parameters_json, sf_extraction, session, chat_session)
+                    if weather_acquired[0]:
+                        return_instruction = f"['weather': '{weather_acquired[2]}']"
+                        if not inst_wea and weather_acquired[3]:
+                            instructed_final_answer += f"[{weather_acquired[3]}]"
+                            inst_wea = True
+                    else:
+                        raise Exception(weather_acquired[1])
                 elif re.search((r'event.*acquire'), predict_action_funcion, re.I):
                     if 'year' in real_parameters_json:
                         if isinstance(real_parameters_json['year'], str):
@@ -153,33 +174,15 @@ Thought: I have used every necessary tool
                             inst_event = True
                     else:
                         raise Exception(event_acquired[1])
-                elif re.search((r'experience.*acquire'), predict_action_funcion, re.I):
-                    experience_acquired = agent_modules.experience_acquire(real_parameters_json, sf_extraction, session, chat_session)
-                    if experience_acquired[0]:
-                        return_instruction = f"['experience_had': '{experience_acquired[2]}']"
-                        if not inst_exp and experience_acquired[3]:
-                            instructed_final_answer += f"[{experience_acquired[3]}]"
-                            inst_exp = True
+                elif re.search((r'persistent.*acquire'), predict_action_funcion, re.I):
+                    persistent_acquired = agent_modules.persistent_acquire(real_parameters_json, sf_extraction, session, chat_session, input)
+                    if persistent_acquired[0]:
+                        return_instruction = f"['known_info': '{persistent_acquired[2]}']"
+                        if not inst_pst and persistent_acquired[3]:
+                            instructed_final_answer += f"[{persistent_acquired[3]}]"
+                            inst_pst = True
                     else:
-                        raise Exception(experience_acquired[1])
-                elif re.search((r'affection.*acquire'), predict_action_funcion, re.I):
-                    affection_acquired = agent_modules.affection_acquire(real_parameters_json, sf_extraction, session, chat_session)
-                    if affection_acquired[0]:
-                        return_instruction = f"['characters_affection_state': '{affection_acquired[2]}']"
-                        if not inst_aff and affection_acquired[3]:
-                            instructed_final_answer += f"[{affection_acquired[3]}]"
-                            inst_aff = True
-                    else:
-                        raise Exception(affection_acquired[1])
-                elif re.search((r'personal.*information'), predict_action_funcion, re.I):
-                    pinfo_acquired = agent_modules.pinfo_acquire(real_parameters_json, sf_extraction, session, chat_session)
-                    if affection_acquired[0]:
-                        return_instruction = f"['personal_info': '{pinfo_acquired[2]}']"
-                        if not inst_pinfo and pinfo_acquired[3]:
-                            instructed_final_answer += f"[{pinfo_acquired[3]}]"
-                            inst_pinfo = True
-                    else:
-                        raise Exception(pinfo_acquired[1])
+                        raise Exception(persistent_acquired[1])
                 elif re.search((r'search.*internet'), predict_action_funcion, re.I):
                     internet_acquired = agent_modules.internet_acquire(real_parameters_json, sf_extraction, session, chat_session)
                     if internet_acquired[0]:

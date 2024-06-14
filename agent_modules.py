@@ -5,7 +5,7 @@ import json
 import re
 import traceback
 import persistent_extraction
-import exp_pinfo_index
+import mfocus
 def time_acquire(params):
     success = True
     exception = None
@@ -61,6 +61,20 @@ def date_acquire(params, sf_extraction, session, chat_session):
             date_friendly = f"[今天是{date.year}年冬季{date.month}月{date.day}日]"
     success = True
     return success, exception, content, date_friendly
+def weathere_acquire(params, sf_extraction, session, chat_session):
+    success = True
+    exception = None
+    if sf_extraction:
+        try:
+            user_id = session[2]
+            weather_location = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_geolocation')
+        except Exception as excepted:
+            success = False
+            exception = excepted
+            content = '天气未知'
+    else:
+        content = '天气未知'
+    return success, exception, content, content
 def event_acquire(params, sf_extraction, session, chat_session):
     success = True
     exception = None
@@ -156,64 +170,18 @@ def event_acquire(params, sf_extraction, session, chat_session):
         content = "[None]"
         holiday_friendly = "今天不是特殊节日"
     return success, exception, content, holiday_friendly
-def experience_acquire(params, sf_extraction, session, chat_session):
+def persistent_acquire(params, sf_extraction, session, chat_session, query):
     success = True
     exception = None
     if sf_extraction:
         try:
             user_id = session[2]
-            experience_cont = params['experience']
-            content = exp_pinfo_index.exp_acquire_index(user_id, chat_session, experience_cont)
+            content = mfocus.mfocus_agent(user_id, chat_session, query)
             if content[0]:
-                content = content[3]
+                content = content[2]
             else:
                 success = False
-                exception = excepted
-                content = '没有相关经历'
-        except Exception as excepted:
-            success = False
-            exception = excepted
-            content = '没有相关经历'
-    else:
-        content = '没有相关经历'
-    return success, exception, content, content
-def affection_acquire(params, sf_extraction, session, chat_session):
-    success = True
-    exception = None
-    if sf_extraction:
-        try:
-            user_id = session[2]
-            affection_extracted = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_affection')[2]
-            match int(affection_extracted):
-                case affection if affection < 200:
-                    content = '你与对方是初识的情侣关系'
-                case affection if 200 <= affection < 400:
-                    content = '你与对方是亲密的情侣关系'
-                case affection if 400 <= affection < 700:
-                    content = '你与对方是和谐的恋人关系'
-                case affection if 700 <= affection < 1000:
-                    content = '你与对方是情意深厚的恋人关系'
-                case affection if 1000 <= affection:
-                    content = '你与对方是情意至深的恋人, 足以超越虚拟与现实的隔阂'
-        except Exception as excepted:
-            success = False
-            exception = excepted
-    else:
-        content = '你与对方是和谐的恋人关系'
-    return success, exception, content, content
-def pinfo_acquire(params, sf_extraction, session, chat_session):
-    success = True
-    exception = None
-    if sf_extraction:
-        try:
-            user_id = session[2]
-            info_type = params['type']
-            content = exp_pinfo_index.pinfo_acquire_index(user_id, chat_session, info_type)
-            if content[0]:
-                content = content[3]
-            else:
-                success = False
-                exception = excepted
+                exception = content[1]
                 content = '没有相关信息'
         except Exception as excepted:
             success = False
@@ -261,5 +229,7 @@ def internet_acquire(params):
     return success, exception, content, searched_friendly
 
 if __name__ == "__main__":
-    print(event_acquire({"year": 2023, "month": 1, "day": 1}, True, ["0", "0", "23"], 1))
-    print(internet_acquire({"question": "番茄炒蛋怎么做"}))
+    #print(event_acquire({"year": 2023, "month": 1, "day": 1}, True, ["0", "0", "23"], 1))
+    #print(internet_acquire({"question": "番茄炒蛋怎么做"}))
+    print(persistent_acquire({}, True, [0, 0, 23], 1, '你喜欢吃什么'))
+    #print(persistent_acquire({}, True, [0, 0, 23], 1, '你是谁'))

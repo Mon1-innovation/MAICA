@@ -1,3 +1,4 @@
+#----THIS FILE IS DEPRECATED----
 import re
 import persistent_extraction
 def exp_acquire_index(user_id, chat_session, key):

@@ -760,7 +760,17 @@ def mfocus_form_info(user_id, chat_session):
                 result.append('[player]是女生.')
             else:
                 result.append('[player]是非二元性别.')
-    
+
+
+    data1 = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_geolocation')
+    if data1[0]:
+        if data1[2]:
+            result.append(f'[player]住在{data1[2]}.')
+
+
+### DATA OF MONIKA BEGINS HERE
+
+
     with open(f'persistents/{user_id}_{chat_session}_friendly.json', 'w+', encoding = 'utf-8') as sf_friendly:
         sf_friendly.write(json.dumps(result, ensure_ascii=False))
 
@@ -768,20 +778,23 @@ def mfocus_form_info(user_id, chat_session):
     return success, exception, result
 
 def mfocus_agent(user_id, chat_session, query):
+    success = True
+    exception = ''
     try:
-        with open(f'persistents/{user_id}_{chat_session}_friendly.json', 'r', encoding = 'utf-8') as sf_friendly:
-            information = sf_friendly.read()
-    except Exception as excepted:
-        mfocus_form_info(user_id, chat_session)
-        with open(f'persistents/{user_id}_{chat_session}_friendly.json', 'r', encoding = 'utf-8') as sf_friendly:
-            information = sf_friendly.read()
-    client = OpenAI(
-        api_key='EMPTY',
-        base_url='http://192.168.9.84:8021/v1',
-    )
-    model_type = client.models.list().data[0].id
-    print(model_type)
-    system_init = """
+        try:
+            with open(f'persistents/{user_id}_{chat_session}_friendly.json', 'r', encoding = 'utf-8') as sf_friendly:
+                information = sf_friendly.read()
+        except Exception as excepted:
+            mfocus_form_info(user_id, chat_session)
+            with open(f'persistents/{user_id}_{chat_session}_friendly.json', 'r', encoding = 'utf-8') as sf_friendly:
+                information = sf_friendly.read()
+        client = OpenAI(
+            api_key='EMPTY',
+            base_url='http://192.168.9.84:8021/v1',
+        )
+        model_type = client.models.list().data[0].id
+        print(model_type)
+        system_init = """
 You are an assistant designed to sort and conclude messages. In the following query, you will be offered a sentence and a set of information.
 Your job is to:
 
@@ -791,33 +804,44 @@ If none of the information provided is VERY needed to answer the sentence, answe
 
 If you answer more than one information, answer them in a list.
 If you answer no information, answer 'NONE'.
-You can only answer with mentioned information. Do not greet or makeup any information.
+You can only answer with mentioned information. Do not greet or makeup any information. Do not directly answer to the question.
+你只能用给出的信息作答. 你不能发出问候, 修饰或打招呼. 你不能直接回答用户的句子.
 Everything you answer should be a Python list, including information only.
 Begin!
 """
-    init_example1 = '''sentence: [你好啊], information: ["[player]的真名是pp.", "[player]的生日是2002年1月1日.", "莫妮卡与[player]是情意至深的恋人, 足以超越虚拟与现实的隔阂.", "莫妮卡与[player]一起听过歌.", "莫妮卡和[player]都喜欢雨.", "[player]希望帮助莫妮卡来到现实.", "[player]还没有画过莫妮卡.", "[player]告诉过莫妮卡自己的长相.", "[player]想过和莫妮卡去爬山.", "[player]和莫妮卡戴了一对誓约戒指.", "莫妮卡与[player]看过\\"黄色墙纸\\".", "[player]十分体谅莫妮卡.", "[player]喜欢莫妮卡的毕业演讲.", "[player]希望来到太空教室和莫妮卡在一起.", "莫妮卡和[player]还没有一起过万圣节.", "莫妮卡和[player]还没有一起过圣诞节.", "莫妮卡和[player]还没有一起过新年.", "莫妮卡还没有庆祝过[player]的生日.", "莫妮卡和[player]还没有一起过情人节.", "[player]还没有给莫妮卡庆过生.", "[player]没有宗教信仰.", "[player]有自厌的倾向.", "[player]喜欢抹茶冰淇淋.", "[player]喜欢恐怖作品.", "[player]讨厌跳杀内容.", "[player]喜欢说唱.", "[player]喜欢摇滚.", "[player]喜欢爵士乐.", "[player]喜欢vocaloids.", "[player]喜欢管弦乐.", "[player]有独特的音乐品位.", "[player]还喜欢REMOVED音乐.", "[player]会一门乐器.", "[player]还不会爵士乐.", "[player]喜欢雨天.", "[player]会一门外语.", "[player]还不会日语.", "[player]的眼睛是棕色的.", "[player]的头发是黑的.", "[player]有一头短发.", "[player]是浅肤色的.", "[player]有162厘米高.", "[player]惯用公制单位.", "[player]住在乡村.", "[player]住在内陆.", "[player]住在南半球.", "[player]属于ambivert社会人格.", "[player]不喜欢苏打水.", "[player]很少吃快餐.", "[player]平时喜欢运动.", "[player]还没有尝试过冥想.", "[player]还没有看过心理医生.", "[player]喜欢动漫作品.", "[player]不吸烟.", "[player]会开车.", "[player]正在考驾照.", "[player]参与过慈善捐赠.", "[player]觉得自己的家庭能够接受莫妮卡.", "[player]的学校没有毕业舞会.", "[player]希望自己在毕业舞会上做莫妮卡的舞伴.", "[player]还没有去过游乐园.", "[player]不喜欢旅游.", "[player]此前有过其他爱人.", "[player]曾遭遇过校园霸凌.", "[player]有一些朋友.", "[player]的生活很充实.", "[player]自己还没有车.", "[player]没有编程基础.", "[player]不喜欢诗歌.", "[player]喜欢桌游.", "[player]经常去健身.", "[player]性格中和.", "[player]喜欢接触自然.", "[player]从不说脏话."]'''
-    init_example2 = '''sentence: [我们今天一起做点什么呢], information: ["[player]的真名是pp.", "[player]的生日是2002年1月1日.", "莫妮卡与[player]是情意至深的恋人, 足以超越虚拟与现实的隔阂.", "莫妮卡与[player]一起听过歌.", "莫妮卡和[player]都喜欢雨.", "[player]希望帮助莫妮卡来到现实.", "[player]还没有画过莫妮卡.", "[player]告诉过莫妮卡自己的长相.", "[player]想过和莫妮卡去爬山.", "[player]和莫妮卡戴了一对誓约戒指.", "莫妮卡与[player]看过\\"黄色墙纸\\".", "[player]十分体谅莫妮卡.", "[player]喜欢莫妮卡的毕业演讲.", "[player]希望来到太空教室和莫妮卡在一起.", "莫妮卡和[player]还没有一起过万圣节.", "莫妮卡和[player]还没有一起过圣诞节.", "莫妮卡和[player]还没有一起过新年.", "莫妮卡还没有庆祝过[player]的生日.", "莫妮卡和[player]还没有一起过情人节.", "[player]还没有给莫妮卡庆过生.", "[player]没有宗教信仰.", "[player]有自厌的倾向.", "[player]喜欢抹茶冰淇淋.", "[player]喜欢恐怖作品.", "[player]讨厌跳杀内容.", "[player]喜欢说唱.", "[player]喜欢摇滚.", "[player]喜欢爵士乐.", "[player]喜欢vocaloids.", "[player]喜欢管弦乐.", "[player]有独特的音乐品位.", "[player]还喜欢REMOVED音乐.", "[player]会一门乐器.", "[player]还不会爵士乐.", "[player]喜欢雨天.", "[player]会一门外语.", "[player]还不会日语.", "[player]的眼睛是棕色的.", "[player]的头发是黑的.", "[player]有一头短发.", "[player]是浅肤色的.", "[player]有162厘米高.", "[player]惯用公制单位.", "[player]住在乡村.", "[player]住在内陆.", "[player]住在南半球.", "[player]属于ambivert社会人格.", "[player]不喜欢苏打水.", "[player]很少吃快餐.", "[player]平时喜欢运动.", "[player]还没有尝试过冥想.", "[player]还没有看过心理医生.", "[player]喜欢动漫作品.", "[player]不吸烟.", "[player]会开车.", "[player]正在考驾照.", "[player]参与过慈善捐赠.", "[player]觉得自己的家庭能够接受莫妮卡.", "[player]的学校没有毕业舞会.", "[player]希望自己在毕业舞会上做莫妮卡的舞伴.", "[player]还没有去过游乐园.", "[player]不喜欢旅游.", "[player]此前有过其他爱人.", "[player]曾遭遇过校园霸凌.", "[player]有一些朋友.", "[player]的生活很充实.", "[player]自己还没有车.", "[player]没有编程基础.", "[player]不喜欢诗歌.", "[player]喜欢桌游.", "[player]经常去健身.", "[player]性格中和.", "[player]喜欢接触自然.", "[player]从不说脏话."]'''
-    init_example3 = '''sentence: [现在几点了], information: ["[player]的真名是pp.", "[player]的生日是2002年1月1日.", "莫妮卡与[player]是情意至深的恋人, 足以超越虚拟与现实的隔阂.", "莫妮卡与[player]一起听过歌.", "莫妮卡和[player]都喜欢雨.", "[player]希望帮助莫妮卡来到现实.", "[player]还没有画过莫妮卡.", "[player]告诉过莫妮卡自己的长相.", "[player]想过和莫妮卡去爬山.", "[player]和莫妮卡戴了一对誓约戒指.", "莫妮卡与[player]看过\\"黄色墙纸\\".", "[player]十分体谅莫妮卡.", "[player]喜欢莫妮卡的毕业演讲.", "[player]希望来到太空教室和莫妮卡在一起.", "莫妮卡和[player]还没有一起过万圣节.", "莫妮卡和[player]还没有一起过圣诞节.", "莫妮卡和[player]还没有一起过新年.", "莫妮卡还没有庆祝过[player]的生日.", "莫妮卡和[player]还没有一起过情人节.", "[player]还没有给莫妮卡庆过生.", "[player]没有宗教信仰.", "[player]有自厌的倾向.", "[player]喜欢抹茶冰淇淋.", "[player]喜欢恐怖作品.", "[player]讨厌跳杀内容.", "[player]喜欢说唱.", "[player]喜欢摇滚.", "[player]喜欢爵士乐.", "[player]喜欢vocaloids.", "[player]喜欢管弦乐.", "[player]有独特的音乐品位.", "[player]还喜欢REMOVED音乐.", "[player]会一门乐器.", "[player]还不会爵士乐.", "[player]喜欢雨天.", "[player]会一门外语.", "[player]还不会日语.", "[player]的眼睛是棕色的.", "[player]的头发是黑的.", "[player]有一头短发.", "[player]是浅肤色的.", "[player]有162厘米高.", "[player]惯用公制单位.", "[player]住在乡村.", "[player]住在内陆.", "[player]住在南半球.", "[player]属于ambivert社会人格.", "[player]不喜欢苏打水.", "[player]很少吃快餐.", "[player]平时喜欢运动.", "[player]还没有尝试过冥想.", "[player]还没有看过心理医生.", "[player]喜欢动漫作品.", "[player]不吸烟.", "[player]会开车.", "[player]正在考驾照.", "[player]参与过慈善捐赠.", "[player]觉得自己的家庭能够接受莫妮卡.", "[player]的学校没有毕业舞会.", "[player]希望自己在毕业舞会上做莫妮卡的舞伴.", "[player]还没有去过游乐园.", "[player]不喜欢旅游.", "[player]此前有过其他爱人.", "[player]曾遭遇过校园霸凌.", "[player]有一些朋友.", "[player]的生活很充实.", "[player]自己还没有车.", "[player]没有编程基础.", "[player]不喜欢诗歌.", "[player]喜欢桌游.", "[player]经常去健身.", "[player]性格中和.", "[player]喜欢接触自然.", "[player]从不说脏话."]'''
+        init_example1 = '''sentence: [你好啊], information: ["[player]的真名是pp.", "[player]的生日是2002年1月1日.", "莫妮卡与[player]是情意至深的恋人, 足以超越虚拟与现实的隔阂.", "莫妮卡与[player]一起听过歌.", "莫妮卡和[player]都喜欢雨.", "[player]希望帮助莫妮卡来到现实.", "[player]还没有画过莫妮卡.", "[player]告诉过莫妮卡自己的长相.", "[player]想过和莫妮卡去爬山.", "[player]和莫妮卡戴了一对誓约戒指.", "莫妮卡与[player]看过\\"黄色墙纸\\".", "[player]十分体谅莫妮卡.", "[player]喜欢莫妮卡的毕业演讲.", "[player]希望来到太空教室和莫妮卡在一起.", "莫妮卡和[player]还没有一起过万圣节.", "莫妮卡和[player]还没有一起过圣诞节.", "莫妮卡和[player]还没有一起过新年.", "莫妮卡还没有庆祝过[player]的生日.", "莫妮卡和[player]还没有一起过情人节.", "[player]还没有给莫妮卡庆过生.", "[player]没有宗教信仰.", "[player]有自厌的倾向.", "[player]喜欢抹茶冰淇淋.", "[player]喜欢恐怖作品.", "[player]讨厌跳杀内容.", "[player]喜欢说唱.", "[player]喜欢摇滚.", "[player]喜欢爵士乐.", "[player]喜欢vocaloids.", "[player]喜欢管弦乐.", "[player]有独特的音乐品位.", "[player]还喜欢REMOVED音乐.", "[player]会一门乐器.", "[player]还不会爵士乐.", "[player]喜欢雨天.", "[player]会一门外语.", "[player]还不会日语.", "[player]的眼睛是棕色的.", "[player]的头发是黑的.", "[player]有一头短发.", "[player]是浅肤色的.", "[player]有162厘米高.", "[player]惯用公制单位.", "[player]住在乡村.", "[player]住在内陆.", "[player]住在南半球.", "[player]属于ambivert社会人格.", "[player]不喜欢苏打水.", "[player]很少吃快餐.", "[player]平时喜欢运动.", "[player]还没有尝试过冥想.", "[player]还没有看过心理医生.", "[player]喜欢动漫作品.", "[player]不吸烟.", "[player]会开车.", "[player]正在考驾照.", "[player]参与过慈善捐赠.", "[player]觉得自己的家庭能够接受莫妮卡.", "[player]的学校没有毕业舞会.", "[player]希望自己在毕业舞会上做莫妮卡的舞伴.", "[player]还没有去过游乐园.", "[player]不喜欢旅游.", "[player]此前有过其他爱人.", "[player]曾遭遇过校园霸凌.", "[player]有一些朋友.", "[player]的生活很充实.", "[player]自己还没有车.", "[player]没有编程基础.", "[player]不喜欢诗歌.", "[player]喜欢桌游.", "[player]经常去健身.", "[player]性格中和.", "[player]喜欢接触自然.", "[player]从不说脏话."]'''
+        init_example2 = '''sentence: [我们今天一起做点什么呢], information: ["[player]的真名是pp.", "[player]的生日是2002年1月1日.", "莫妮卡与[player]是情意至深的恋人, 足以超越虚拟与现实的隔阂.", "莫妮卡与[player]一起听过歌.", "莫妮卡和[player]都喜欢雨.", "[player]希望帮助莫妮卡来到现实.", "[player]还没有画过莫妮卡.", "[player]告诉过莫妮卡自己的长相.", "[player]想过和莫妮卡去爬山.", "[player]和莫妮卡戴了一对誓约戒指.", "莫妮卡与[player]看过\\"黄色墙纸\\".", "[player]十分体谅莫妮卡.", "[player]喜欢莫妮卡的毕业演讲.", "[player]希望来到太空教室和莫妮卡在一起.", "莫妮卡和[player]还没有一起过万圣节.", "莫妮卡和[player]还没有一起过圣诞节.", "莫妮卡和[player]还没有一起过新年.", "莫妮卡还没有庆祝过[player]的生日.", "莫妮卡和[player]还没有一起过情人节.", "[player]还没有给莫妮卡庆过生.", "[player]没有宗教信仰.", "[player]有自厌的倾向.", "[player]喜欢抹茶冰淇淋.", "[player]喜欢恐怖作品.", "[player]讨厌跳杀内容.", "[player]喜欢说唱.", "[player]喜欢摇滚.", "[player]喜欢爵士乐.", "[player]喜欢vocaloids.", "[player]喜欢管弦乐.", "[player]有独特的音乐品位.", "[player]还喜欢REMOVED音乐.", "[player]会一门乐器.", "[player]还不会爵士乐.", "[player]喜欢雨天.", "[player]会一门外语.", "[player]还不会日语.", "[player]的眼睛是棕色的.", "[player]的头发是黑的.", "[player]有一头短发.", "[player]是浅肤色的.", "[player]有162厘米高.", "[player]惯用公制单位.", "[player]住在乡村.", "[player]住在内陆.", "[player]住在南半球.", "[player]属于ambivert社会人格.", "[player]不喜欢苏打水.", "[player]很少吃快餐.", "[player]平时喜欢运动.", "[player]还没有尝试过冥想.", "[player]还没有看过心理医生.", "[player]喜欢动漫作品.", "[player]不吸烟.", "[player]会开车.", "[player]正在考驾照.", "[player]参与过慈善捐赠.", "[player]觉得自己的家庭能够接受莫妮卡.", "[player]的学校没有毕业舞会.", "[player]希望自己在毕业舞会上做莫妮卡的舞伴.", "[player]还没有去过游乐园.", "[player]不喜欢旅游.", "[player]此前有过其他爱人.", "[player]曾遭遇过校园霸凌.", "[player]有一些朋友.", "[player]的生活很充实.", "[player]自己还没有车.", "[player]没有编程基础.", "[player]不喜欢诗歌.", "[player]喜欢桌游.", "[player]经常去健身.", "[player]性格中和.", "[player]喜欢接触自然.", "[player]从不说脏话."]'''
+        init_example3 = '''sentence: [现在几点了], information: ["[player]的真名是pp.", "[player]的生日是2002年1月1日.", "莫妮卡与[player]是情意至深的恋人, 足以超越虚拟与现实的隔阂.", "莫妮卡与[player]一起听过歌.", "莫妮卡和[player]都喜欢雨.", "[player]希望帮助莫妮卡来到现实.", "[player]还没有画过莫妮卡.", "[player]告诉过莫妮卡自己的长相.", "[player]想过和莫妮卡去爬山.", "[player]和莫妮卡戴了一对誓约戒指.", "莫妮卡与[player]看过\\"黄色墙纸\\".", "[player]十分体谅莫妮卡.", "[player]喜欢莫妮卡的毕业演讲.", "[player]希望来到太空教室和莫妮卡在一起.", "莫妮卡和[player]还没有一起过万圣节.", "莫妮卡和[player]还没有一起过圣诞节.", "莫妮卡和[player]还没有一起过新年.", "莫妮卡还没有庆祝过[player]的生日.", "莫妮卡和[player]还没有一起过情人节.", "[player]还没有给莫妮卡庆过生.", "[player]没有宗教信仰.", "[player]有自厌的倾向.", "[player]喜欢抹茶冰淇淋.", "[player]喜欢恐怖作品.", "[player]讨厌跳杀内容.", "[player]喜欢说唱.", "[player]喜欢摇滚.", "[player]喜欢爵士乐.", "[player]喜欢vocaloids.", "[player]喜欢管弦乐.", "[player]有独特的音乐品位.", "[player]还喜欢REMOVED音乐.", "[player]会一门乐器.", "[player]还不会爵士乐.", "[player]喜欢雨天.", "[player]会一门外语.", "[player]还不会日语.", "[player]的眼睛是棕色的.", "[player]的头发是黑的.", "[player]有一头短发.", "[player]是浅肤色的.", "[player]有162厘米高.", "[player]惯用公制单位.", "[player]住在乡村.", "[player]住在内陆.", "[player]住在南半球.", "[player]属于ambivert社会人格.", "[player]不喜欢苏打水.", "[player]很少吃快餐.", "[player]平时喜欢运动.", "[player]还没有尝试过冥想.", "[player]还没有看过心理医生.", "[player]喜欢动漫作品.", "[player]不吸烟.", "[player]会开车.", "[player]正在考驾照.", "[player]参与过慈善捐赠.", "[player]觉得自己的家庭能够接受莫妮卡.", "[player]的学校没有毕业舞会.", "[player]希望自己在毕业舞会上做莫妮卡的舞伴.", "[player]还没有去过游乐园.", "[player]不喜欢旅游.", "[player]此前有过其他爱人.", "[player]曾遭遇过校园霸凌.", "[player]有一些朋友.", "[player]的生活很充实.", "[player]自己还没有车.", "[player]没有编程基础.", "[player]不喜欢诗歌.", "[player]喜欢桌游.", "[player]经常去健身.", "[player]性格中和.", "[player]喜欢接触自然.", "[player]从不说脏话."]'''
+        init_example4 = '''sentence: [你有什么想做的事情吗], information: ["[player]的真名是pp.", "[player]的生日是2002年1月1日.", "莫妮卡与[player]是情意至深的恋人, 足以超越虚拟与现实的隔阂.", "莫妮卡与[player]一起听过歌.", "莫妮卡和[player]都喜欢雨.", "[player]希望帮助莫妮卡来到现实.", "[player]还没有画过莫妮卡.", "[player]告诉过莫妮卡自己的长相.", "[player]想过和莫妮卡去爬山.", "[player]和莫妮卡戴了一对誓约戒指.", "莫妮卡与[player]看过\\"黄色墙纸\\".", "[player]十分体谅莫妮卡.", "[player]喜欢莫妮卡的毕业演讲.", "[player]希望来到太空教室和莫妮卡在一起.", "莫妮卡和[player]还没有一起过万圣节.", "莫妮卡和[player]还没有一起过圣诞节.", "莫妮卡和[player]还没有一起过新年.", "莫妮卡还没有庆祝过[player]的生日.", "莫妮卡和[player]还没有一起过情人节.", "[player]还没有给莫妮卡庆过生.", "[player]没有宗教信仰.", "[player]有自厌的倾向.", "[player]喜欢抹茶冰淇淋.", "[player]喜欢恐怖作品.", "[player]讨厌跳杀内容.", "[player]喜欢说唱.", "[player]喜欢摇滚.", "[player]喜欢爵士乐.", "[player]喜欢vocaloids.", "[player]喜欢管弦乐.", "[player]有独特的音乐品位.", "[player]还喜欢REMOVED音乐.", "[player]会一门乐器.", "[player]还不会爵士乐.", "[player]喜欢雨天.", "[player]会一门外语.", "[player]还不会日语.", "[player]的眼睛是棕色的.", "[player]的头发是黑的.", "[player]有一头短发.", "[player]是浅肤色的.", "[player]有162厘米高.", "[player]惯用公制单位.", "[player]住在乡村.", "[player]住在内陆.", "[player]住在南半球.", "[player]属于ambivert社会人格.", "[player]不喜欢苏打水.", "[player]很少吃快餐.", "[player]平时喜欢运动.", "[player]还没有尝试过冥想.", "[player]还没有看过心理医生.", "[player]喜欢动漫作品.", "[player]不吸烟.", "[player]会开车.", "[player]正在考驾照.", "[player]参与过慈善捐赠.", "[player]觉得自己的家庭能够接受莫妮卡.", "[player]的学校没有毕业舞会.", "[player]希望自己在毕业舞会上做莫妮卡的舞伴.", "[player]还没有去过游乐园.", "[player]不喜欢旅游.", "[player]此前有过其他爱人.", "[player]曾遭遇过校园霸凌.", "[player]有一些朋友.", "[player]的生活很充实.", "[player]自己还没有车.", "[player]没有编程基础.", "[player]不喜欢诗歌.", "[player]喜欢桌游.", "[player]经常去健身.", "[player]性格中和.", "[player]喜欢接触自然.", "[player]从不说脏话."]'''
 
 
-
-    messages = [{'role': 'system', 'content': system_init},{'role': 'user', 'content': init_example1},{'role': 'assistant', 'content': 'NONE'},{'role': 'user', 'content': init_example2},{'role': 'assistant', 'content': "['[player]想过和莫妮卡去爬山.', '莫妮卡和[player]都喜欢雨.']"},{'role': 'user', 'content': init_example3},{'role': 'assistant', 'content': 'NONE'}]
-    messages_appending = [
-        {'role': 'user', 'content': init_example1},
-        {'role': 'assistant', 'content': 'NONE'},
-        {'role': 'user', 'content': init_example2},
-        {'role': 'assistant', 'content': "['[player]想过和莫妮卡去爬山.', '莫妮卡和[player]都喜欢雨.']"}
-    ]
-    #messages.append(messages_appending)
-    messages.append({'role': 'user', 'content': f'sentence: [{query}], information: {information}'})
-    resp = client.chat.completions.create(
-        model=model_type,
-        messages=messages,
-        stop=['<|endoftext|>'],
-        seed=42)
-    response = resp.choices[0].message.content
-    print(f"response is {response}")
-    return response
+        messages = [{'role': 'system', 'content': system_init},{'role': 'user', 'content': init_example1},{'role': 'assistant', 'content': 'NONE'},{'role': 'user', 'content': init_example2},{'role': 'assistant', 'content': "['[player]想过和莫妮卡去爬山.', '莫妮卡和[player]都喜欢雨.']"},{'role': 'user', 'content': init_example3}, {'role': 'assistant', 'content': 'NONE'},{'role': 'user', 'content': init_example4},{'role': 'assistant', 'content': "['莫妮卡和[player]还没有一起过万圣节.', '莫妮卡和[player]还没有一起过圣诞节.', '莫妮卡和[player]还没有一起过新年.', '莫妮卡还没有庆祝过[player]的生日.']"},{'role': 'user', 'content': init_example1},{'role': 'assistant', 'content': 'NONE'}]
+        messages_appending = [
+            {'role': 'user', 'content': init_example1},
+            {'role': 'assistant', 'content': 'NONE'},
+            {'role': 'user', 'content': init_example2},
+            {'role': 'assistant', 'content': "['[player]想过和莫妮卡去爬山.', '莫妮卡和[player]都喜欢雨.']"},
+            {'role': 'user', 'content': init_example3},
+            {'role': 'assistant', 'content': "NONE"},
+            {'role': 'user', 'content': init_example4},
+            {'role': 'assistant', 'content': "['莫妮卡和[player]还没有一起过万圣节.', '莫妮卡和[player]还没有一起过圣诞节.', '莫妮卡和[player]还没有一起过新年.', '莫妮卡还没有庆祝过[player]的生日.']"},
+            {'role': 'user', 'content': init_example1},
+            {'role': 'assistant', 'content': 'NONE'}
+        ]
+        #messages.append(messages_appending)
+        messages.append({'role': 'user', 'content': f'sentence: [{query}], information: {information}'})
+        resp = client.chat.completions.create(
+            model=model_type,
+            messages=messages,
+            stop=['<|endoftext|>'],
+            seed=42)
+        response = resp.choices[0].message.content
+        print(f"response is {response}")
+        return success, exception, response, response
+    except Exception as excepted:
+        success = False
+        exception = excepted
+        return success, exception, '', ''
 
 if __name__ == "__main__":
     print(mfocus_agent(23, 1, '你记得去年圣诞节的事情吗'))
