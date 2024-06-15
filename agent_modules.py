@@ -173,6 +173,12 @@ def event_acquire(params, sf_extraction, session, chat_session):
 def persistent_acquire(params, sf_extraction, session, chat_session, query):
     success = True
     exception = None
+    for possible_key in {'question', 'query', 'search'}:
+        if possible_key in params:
+            likely_query = params[possible_key]
+            break
+    if likely_query:
+        query = likely_query
     if sf_extraction:
         try:
             user_id = session[2]
@@ -190,7 +196,7 @@ def persistent_acquire(params, sf_extraction, session, chat_session, query):
     else:
         content = '没有相关信息'
     return success, exception, content, content
-def internet_acquire(params):
+def internet_acquire(params, sf_extraction, session, chat_session):
     success = True
     exception = None
     searched_friendly = ''
@@ -203,6 +209,18 @@ def internet_acquire(params):
         success = False
         exception = 'NOQUERY'
         content = searched_friendly = '未找到结果'
+    if sf_extraction:
+        try:
+            user_id = session[2]
+            geolocation = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_geolocation')
+            if geolocation[0]:
+                if geolocation[2]:
+                    location = geolocation[2]
+                    for location_prompt in {'地区', '周边', '附近', '周围'}:
+                        likely_query = re.sub(rf'{location_prompt}', rf'{location}{location_prompt}', likely_query)
+        except Exception as excepted:
+            # We just try to proceed
+            pass
     url = f'http://192.168.3.221:5071/google/search?limit=5&lang=zh_CN&text={likely_query}'
     http_response = requests.get(url)
     if 200 <= int(http_response.status_code) <= 399:
@@ -212,9 +230,10 @@ def internet_acquire(params):
             rank_count = 0
             for ranks in content_json:
                 rank_count += 1
-                description_clean = re.sub(r'[0-9]*年.*日', '', re.sub(r'转为.*网页', '', ranks['description']))
+                description_clean = re.sub(r'缺少字词.*', '', re.sub(r'[0-9]*年.*日', '', re.sub(r'转为.*网页', '', ranks['description'])))
                 content.append({"title": ranks['title'], "content": description_clean})
-                searched_friendly += f'信息{rank_count}: {description_clean}; '
+                if rank_count <= 2:
+                    searched_friendly += f'信息{rank_count}: {description_clean}; '
             content = json.dumps(content, ensure_ascii=False)
             searched_friendly = searched_friendly.strip(' ;')
         except Exception as excepted:

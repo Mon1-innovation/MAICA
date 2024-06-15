@@ -4,10 +4,11 @@ import datetime
 import traceback
 import agent_modules # type: ignore
 from openai import OpenAI # type: ignore
+from loadenv import load_env
 def agenting(input, sf_extraction, session, chat_session):
     client = OpenAI(
         api_key='EMPTY',
-        base_url='http://192.168.9.84:8021/v1',
+        base_url=load_env('MFOCUS_ADDR'),
     )
     model_type = client.models.list().data[0].id
     print(model_type)
@@ -22,7 +23,7 @@ You have access to following tools:
 
 4. event_acquire: Call this tool if you think the event or holiday of a given date is needed to answer the sentence. Parameters: [{"name": "date", "description": "The given date of which you need to know its event, leave empty for today", "required": "False"}]
 
-5. persistent_acquire: Call this tool if you think any additional information about the speakers is needed to answer the sentence, such as their hobbies, experiences, appearence or relationship. Parameters: []
+5. persistent_acquire: Call this tool if you think any additional information about the speakers is needed to answer the sentence, such as their hobbies, experiences, appearence or relationship. Parameters: [{"name": "question", "description": "The information needed to answer the sentence", "required": "True"}]
 
 6. search_internet: Call this tool to interact with the internet search API. This API will search the phase provided in the parameters on the internet. Parameters: [{"name": "question", "description": "The question needs to be searched on Google", "required": "True"}]
 
@@ -33,8 +34,8 @@ Action: the action to take, should be one of the above tools[time_acquire, date_
 Action Input: the parameters to pass in
 Observation: the result of the action
 ... (this Thought/Action/Action Input/Observation can be repeated zero or more times)
-Thought: I have used every necessary tool
-Final Answer: My work is done
+Thought: I now know the final answer
+Final Answer: sort up every information you acquired, and output directly.
 Begin!
 """
     init_example_1 = """
@@ -44,18 +45,18 @@ Action Input: []
 Observation: [{'time': '13:49'}]
 Thought: 要回答干点什么好, 对话者必须知道对方的爱好
 Action: persistent_acquire
-Action Input: []
+Action Input: [{'question': '你的爱好是什么'}]
 Observation: [{'personal_info': ['[player]喜欢运动']}]
-Thought: I have used every necessary tool
-Final Answer: My work is done
+Thought: I now know the final answer
+Final Answer: [player]喜欢运动, 且现在是下午13:49
 """
     init_example_2 = """
 Thought: 要回答今天是什么日子, 对话者必须知道今天的节日
 Action: event_acquire
 Action Input: []
 Observation: [{'event': '情人节'}]
-Thought: I have used every necessary tool
-Final Answer: My work is done
+Thought: I now know the final answer
+Final Answer: 今天是情人节
 """
     messages = [{'role': 'system', 'content': system_init}]
     messages_appending = [
@@ -64,7 +65,7 @@ Final Answer: My work is done
         {'role': 'user', 'content': '你知道今天是什么日子吗?'},
         {'role': 'assistant', 'content': init_example_2}
     ]
-    messages.append(messages_appending)
+    messages.extend(messages_appending)
     messages.append({'role': 'user', 'content': input})
     resp = client.chat.completions.create(
         model=model_type,
@@ -73,11 +74,11 @@ Final Answer: My work is done
         seed=42)
     response = resp.choices[0].message.content
     print(f"first response is {response}")
-    instructed_final_answer = ''
+    instructed_final_answer = {}
     # to be extended
     cycle = 0
     inst_time = inst_date = inst_event = inst_wea = inst_aff = inst_pst = inst_search = False
-    while not re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.M):
+    while not re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.S):
         cycle += 1
         if cycle >= 7:
             break
@@ -108,8 +109,8 @@ Final Answer: My work is done
                     time_acquired = agent_modules.time_acquire(real_parameters_json)
                     if time_acquired[0]:
                         return_instruction = f"['time': '{time_acquired[2].hour}:{time_acquired[2].minute}']"
-                        if not inst_time and time_acquired[3]:
-                            instructed_final_answer += f"[{time_acquired[3]}]"
+                        if time_acquired[3]:
+                            instructed_final_answer['time'] = f"[{time_acquired[3]}]"
                             inst_time = True
                     else:
                         raise Exception(time_acquired[1])
@@ -117,17 +118,16 @@ Final Answer: My work is done
                     date_acquired = agent_modules.date_acquire(real_parameters_json, sf_extraction, session, chat_session)
                     if date_acquired[0]:
                         return_instruction = f"['date': '{date_acquired[2].year}年{date_acquired[2].month}月{date_acquired[2].day}日']"
-                        if not inst_date:
-                            instructed_final_answer += f"[{date_acquired[3]}]"
-                            inst_date = True
+                        instructed_final_answer['date'] = f"[{date_acquired[3]}]"
+                        inst_date = True
                     else:
                         raise Exception(date_acquired[1])
                 elif re.search((r'weather.*acquire'), predict_action_funcion, re.I):
                     weather_acquired = agent_modules.weather_acquire(real_parameters_json, sf_extraction, session, chat_session)
                     if weather_acquired[0]:
                         return_instruction = f"['weather': '{weather_acquired[2]}']"
-                        if not inst_wea and weather_acquired[3]:
-                            instructed_final_answer += f"[{weather_acquired[3]}]"
+                        if weather_acquired[3]:
+                            instructed_final_answer['weather'] = f"[{weather_acquired[3]}]"
                             inst_wea = True
                     else:
                         raise Exception(weather_acquired[1])
@@ -169,8 +169,8 @@ Final Answer: My work is done
                     event_acquired = agent_modules.event_acquire(real_parameters_json, sf_extraction, session, chat_session)
                     if event_acquired[0]:
                         return_instruction = f"['event': '{event_acquired[2]}']"
-                        if not inst_event and event_acquired[3]:
-                            instructed_final_answer += f"[{event_acquired[3]}]"
+                        if event_acquired[3]:
+                            instructed_final_answer['event'] = f"[{event_acquired[3]}]"
                             inst_event = True
                     else:
                         raise Exception(event_acquired[1])
@@ -178,8 +178,8 @@ Final Answer: My work is done
                     persistent_acquired = agent_modules.persistent_acquire(real_parameters_json, sf_extraction, session, chat_session, input)
                     if persistent_acquired[0]:
                         return_instruction = f"['known_info': '{persistent_acquired[2]}']"
-                        if not inst_pst and persistent_acquired[3]:
-                            instructed_final_answer += f"[{persistent_acquired[3]}]"
+                        if persistent_acquired[3]:
+                            instructed_final_answer['persistent'] = f"[{persistent_acquired[3]}]"
                             inst_pst = True
                     else:
                         raise Exception(persistent_acquired[1])
@@ -187,8 +187,8 @@ Final Answer: My work is done
                     internet_acquired = agent_modules.internet_acquire(real_parameters_json, sf_extraction, session, chat_session)
                     if internet_acquired[0]:
                         return_instruction = f"['search_result': '{internet_acquired[2]}']"
-                        if not inst_search and internet_acquired[3]:
-                            instructed_final_answer += f"[{internet_acquired[3]}]"
+                        if internet_acquired[3]:
+                            instructed_final_answer['internet'] = f"[{internet_acquired[3]}]"
                             inst_search= True
                     else:
                         raise Exception(internet_acquired[1])
@@ -199,7 +199,7 @@ Final Answer: My work is done
                 #traceback.print_exc()
                 print(excepted)
             if not exception_return:
-                print(len(messages))
+                #print(len(messages))
                 #print(len(messages_appending))
                 if True:
                     messages[len(messages) - 1]['content'] += response + f"\n{return_instruction}"
@@ -217,15 +217,16 @@ Final Answer: My work is done
                 break
         else:
             return 'EMPTY', ''
-    final_answer = re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.M)
+    instructed_final_answer_joined = ''.join(str(x) for x in instructed_final_answer.values())
+    final_answer = re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.S)
     if final_answer:
         print(f"agent final answer is {final_answer[1]}")
-        return final_answer[1], instructed_final_answer
+        return final_answer[1], instructed_final_answer_joined
     else:
         print("None Returned Or Something Went Wrong")
-        return 'FAIL', instructed_final_answer
+        return 'FAIL', instructed_final_answer_joined
 
 if __name__ == "__main__":
-    agented = agenting('我们今天干点什么好呢?', False, None, None)
-    print(agented[0])
+    agented = agenting('我们可以去吃点什么呢?', True, [0,0,23], 1)
+    #print(agented[0])
     print(agented[1])

@@ -15,6 +15,7 @@ from Crypto.Random import random as CRANDOM # type: ignore
 from Crypto.Cipher import PKCS1_OAEP # type: ignore
 from Crypto.PublicKey import RSA # type: ignore
 from openai import OpenAI # type: ignore
+from loadenv import load_env
 
 #灵活客户端, 用于获取agent回答.
 #此类用于直接输出, agent的流式输出没有意义.
@@ -425,7 +426,7 @@ async def def_model(websocket, session):
                 case 'maica_main':
                     client_actual = OpenAI(
                         api_key='EMPTY',
-                        base_url='http://192.168.9.84:8011/v1',
+                        base_url=load_env('MCORE_ADDR'),
                     )
                     model_type_actual = client_actual.models.list().data[0].id
                     client_options = {
@@ -437,7 +438,7 @@ async def def_model(websocket, session):
                 case 'maica_main_nostream':
                     client_actual = OpenAI(
                         api_key='EMPTY',
-                        base_url='http://192.168.9.84:8011/v1',
+                        base_url=load_env('MCORE_ADDR'),
                     )
                     model_type_actual = client_actual.models.list().data[0].id
                     client_options = {
@@ -449,7 +450,7 @@ async def def_model(websocket, session):
                 case 'maica_core':
                     client_actual = OpenAI(
                         api_key='EMPTY',
-                        base_url='http://192.168.9.84:8011/v1',
+                        base_url=load_env('MCORE_ADDR'),
                     )
                     model_type_actual = client_actual.models.list().data[0].id
                     client_options = {
@@ -461,7 +462,7 @@ async def def_model(websocket, session):
                 case 'maica_core_nostream':
                     client_actual = OpenAI(
                         api_key='EMPTY',
-                        base_url='http://192.168.9.84:8011/v1',
+                        base_url=load_env('MCORE_ADDR'),
                     )
                     model_type_actual = client_actual.models.list().data[0].id
                     client_options = {
@@ -538,7 +539,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                     try:
                         if client_options['full_maica']:
                             message_agent_wrapped = agent_assistance.agenting(query_in, sf_extraction, session, chat_session)
-                            if message_agent_wrapped[0] == 'FAIL' or len(message_agent_wrapped[0]) > 15:
+                            if message_agent_wrapped[0] == 'FAIL' or len(message_agent_wrapped[0]) > 30:
                                 response_str = f"Agent returned corrupted guidance. This may be a server failure, but a corruption is kinda expected so keep cool--your ray tracer ID is {traceray_id}"
                                 print(f"出现如下异常8-{traceray_id}:Corruption")
                                 await websocket.send(wrap_ws_formatter('404', 'agent_corrupted', response_str, 'warn'))
@@ -718,7 +719,7 @@ if __name__ == '__main__':
 
     client = OpenAI(
         api_key='EMPTY',
-        base_url='http://192.168.9.84:8011/v1',
+        base_url=load_env('MCORE_ADDR'),
     )
     model_type = client.models.list().data[0].id
     print(f"model type is {model_type}")
