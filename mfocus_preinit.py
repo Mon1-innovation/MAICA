@@ -23,9 +23,13 @@ You have access to following tools:
 
 4. event_acquire: Call this tool if you think the event or holiday of a given date is needed to answer the sentence. Parameters: [{"name": "date", "description": "The given date of which you need to know its event, leave empty for today", "required": "False"}]
 
-5. persistent_acquire: Call this tool if you think any additional information about the speakers is needed to answer the sentence, such as their hobbies, experiences, appearence or relationship. Parameters: [{"name": "question", "description": "The information needed to answer the sentence", "required": "True"}]
+5. persistent_acquire: Call this tool if you think any additional information about the speakers is needed to answer the sentence, such as their preferences, hobbies, experiences, appearence or relationship. Parameters: [{"name": "question", "description": "The information needed to answer the sentence", "required": "True"}]
 
-6. search_internet: Call this tool to interact with the internet search API. This API will search the phase provided in the parameters on the internet. Parameters: [{"name": "question", "description": "The question needs to be searched on Google", "required": "True"}]
+6. search_internet: Call this tool to interact with the internet search API. This API will search the phase provided in the parameters on the internet. Parameters: [{"name": "question", "description": "The question needs to be searched on Google. This question should not be too detailed", "required": "True"}]
+
+If you are using search_internet tool, only include the location and the abstract information needed. Do not include too many details.
+
+If there is anything additional you want to know about the speakers, call persistent_acquire tool.
 
 Answer using the following format:
 
@@ -47,8 +51,12 @@ Thought: 要回答干点什么好, 对话者必须知道对方的爱好
 Action: persistent_acquire
 Action Input: [{'question': '你的爱好是什么'}]
 Observation: [{'personal_info': ['[player]喜欢运动']}]
+Thought: 我需要搜索互联网以获取合适的运动场地
+Action: search_internet
+Action Input: [{"question": "附近的运动场馆"}]
+Observation: [{'search_result': '信息1: 附近有一座体育馆'}]
 Thought: I now know the final answer
-Final Answer: [player]喜欢运动, 且现在是下午13:49
+Final Answer: [player]喜欢运动, 附近有一座体育馆, 且现在是下午13:49
 """
     init_example_2 = """
 Thought: 要回答今天是什么日子, 对话者必须知道今天的节日
@@ -108,7 +116,7 @@ Final Answer: 今天是情人节
                 if re.search((r'time.*acquire'), predict_action_funcion, re.I):
                     time_acquired = agent_modules.time_acquire(real_parameters_json)
                     if time_acquired[0]:
-                        return_instruction = f"['time': '{time_acquired[2].hour}:{time_acquired[2].minute}']"
+                        return_instruction = f"[{{'time': '{time_acquired[2].hour}:{time_acquired[2].minute}'}}]"
                         if time_acquired[3]:
                             instructed_final_answer['time'] = f"[{time_acquired[3]}]"
                             inst_time = True
@@ -117,7 +125,7 @@ Final Answer: 今天是情人节
                 elif re.search((r'date.*acquire'), predict_action_funcion, re.I):
                     date_acquired = agent_modules.date_acquire(real_parameters_json, sf_extraction, session, chat_session)
                     if date_acquired[0]:
-                        return_instruction = f"['date': '{date_acquired[2].year}年{date_acquired[2].month}月{date_acquired[2].day}日']"
+                        return_instruction = f"[{{'date': '{date_acquired[2].year}年{date_acquired[2].month}月{date_acquired[2].day}日'}}]"
                         instructed_final_answer['date'] = f"[{date_acquired[3]}]"
                         inst_date = True
                     else:
@@ -125,7 +133,7 @@ Final Answer: 今天是情人节
                 elif re.search((r'weather.*acquire'), predict_action_funcion, re.I):
                     weather_acquired = agent_modules.weather_acquire(real_parameters_json, sf_extraction, session, chat_session)
                     if weather_acquired[0]:
-                        return_instruction = f"['weather': '{weather_acquired[2]}']"
+                        return_instruction = f"[{{'weather': '{weather_acquired[2]}'}}]"
                         if weather_acquired[3]:
                             instructed_final_answer['weather'] = f"[{weather_acquired[3]}]"
                             inst_wea = True
@@ -168,7 +176,7 @@ Final Answer: 今天是情人节
                         real_parameters_json['day'] = datetime.date.today().day
                     event_acquired = agent_modules.event_acquire(real_parameters_json, sf_extraction, session, chat_session)
                     if event_acquired[0]:
-                        return_instruction = f"['event': '{event_acquired[2]}']"
+                        return_instruction = f"[{{'event': '{event_acquired[2]}'}}]"
                         if event_acquired[3]:
                             instructed_final_answer['event'] = f"[{event_acquired[3]}]"
                             inst_event = True
@@ -177,16 +185,19 @@ Final Answer: 今天是情人节
                 elif re.search((r'persistent.*acquire'), predict_action_funcion, re.I):
                     persistent_acquired = agent_modules.persistent_acquire(real_parameters_json, sf_extraction, session, chat_session, input)
                     if persistent_acquired[0]:
-                        return_instruction = f"['known_info': '{persistent_acquired[2]}']"
+                        return_instruction = f"[{{'known_info': '{persistent_acquired[2]}'}}]"
                         if persistent_acquired[3]:
-                            instructed_final_answer['persistent'] = f"[{persistent_acquired[3]}]"
+                            if 'persistent' in instructed_final_answer:
+                                instructed_final_answer['persistent'] += f"[{persistent_acquired[3]}]"
+                            else:
+                                instructed_final_answer['persistent'] = f"[{persistent_acquired[3]}]"
                             inst_pst = True
                     else:
                         raise Exception(persistent_acquired[1])
                 elif re.search((r'search.*internet'), predict_action_funcion, re.I):
                     internet_acquired = agent_modules.internet_acquire(real_parameters_json, sf_extraction, session, chat_session)
                     if internet_acquired[0]:
-                        return_instruction = f"['search_result': '{internet_acquired[2]}']"
+                        return_instruction = f"[{{'search_result': '{internet_acquired[2]}'}}]"
                         if internet_acquired[3]:
                             instructed_final_answer['internet'] = f"[{internet_acquired[3]}]"
                             inst_search= True

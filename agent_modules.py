@@ -6,6 +6,7 @@ import re
 import traceback
 import persistent_extraction
 import mfocus
+from enet_scraping import internet_search_limb
 def time_acquire(params):
     success = True
     exception = None
@@ -221,29 +222,17 @@ def internet_acquire(params, sf_extraction, session, chat_session):
         except Exception as excepted:
             # We just try to proceed
             pass
-    url = f'http://192.168.3.221:5071/google/search?limit=5&lang=zh_CN&text={likely_query}'
-    http_response = requests.get(url)
-    if 200 <= int(http_response.status_code) <= 399:
-        content_raw = http_response.text
-        try:
-            content_json = json.loads(content_raw)
-            rank_count = 0
-            for ranks in content_json:
-                rank_count += 1
-                description_clean = re.sub(r'缺少字词.*', '', re.sub(r'[0-9]*年.*日', '', re.sub(r'转为.*网页', '', ranks['description'])))
-                content.append({"title": ranks['title'], "content": description_clean})
-                if rank_count <= 2:
-                    searched_friendly += f'信息{rank_count}: {description_clean}; '
-            content = json.dumps(content, ensure_ascii=False)
-            searched_friendly = searched_friendly.strip(' ;')
-        except Exception as excepted:
-            success = False
-            exception = excepted
-            content = 'EMPTY'
-    else:
+    try:
+        search_response = internet_search_limb(likely_query)
+        if search_response[0]:
+            content = json.dumps(search_response[2], ensure_ascii=False)
+            searched_friendly = search_response[3]
+        else:
+            raise Exception('search failed')
+    except Exception as excepted:
         success = False
-        exception = http_response.status_code
-        content = 'EMPTY'
+        exception = excepted
+        return success, exception
     #content = "EMPTY"
     return success, exception, content, searched_friendly
 

@@ -792,6 +792,16 @@ def mfocus_form_info(user_id, chat_session):
         '莫妮卡对科技, 环境, 历史等方面都有兴趣和见解.'
     ]
     result.extend(data_ex)
+
+
+### HERE WE TEST STH
+
+
+    data_extest = [
+        '[player]喜欢吃红烧肉.',
+        '[player]喜欢吃土豆丝.'
+    ]
+    result.extend(data_extest)
     with open(f'persistents/{user_id}_{chat_session}_friendly.json', 'w+', encoding = 'utf-8') as sf_friendly:
         sf_friendly.write(json.dumps(result, ensure_ascii=False))
 
@@ -802,13 +812,7 @@ def mfocus_agent(user_id, chat_session, query):
     success = True
     exception = ''
     try:
-        try:
-            with open(f'persistents/{user_id}_{chat_session}_friendly.json', 'r', encoding = 'utf-8') as sf_friendly:
-                information = sf_friendly.read()
-        except Exception as excepted:
-            mfocus_form_info(user_id, chat_session)
-            with open(f'persistents/{user_id}_{chat_session}_friendly.json', 'r', encoding = 'utf-8') as sf_friendly:
-                information = sf_friendly.read()
+        information = mfocus_form_info(user_id, chat_session)[2]
         client = OpenAI(
             api_key='EMPTY',
             base_url=load_env('MFOCUS_ADDR'),
