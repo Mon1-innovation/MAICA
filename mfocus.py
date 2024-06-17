@@ -872,7 +872,7 @@ Begin!
         resp = client.chat.completions.create(
             model=model_type,
             messages=messages,
-            stop=['<|endoftext|>'],
+            #stop=['<|endoftext|>'],
             seed=42)
         response = resp.choices[0].message.content
         print(f"response is {response}")

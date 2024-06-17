@@ -49,8 +49,17 @@ t9vozy56WuHPfv3KZTwrvZaIVSAExEL17wIDAQAB
 
 接下来, 用户应当开始对话. 你应当按以下格式输入信息:
     {"chat_session": "1", "query": "你好啊"}
-    其中, chat_session的值可以取0~9, query为输入内容.
-    将chat_session标记为0将强制对话为单轮, 不会记录拼合历史内容. 其余每个session独立记录自己的历史内容.
+    其中, chat_session的值可以取-1~9, query为输入内容.
+    通过query单次传入是总字符数不得超过4096. 如果chat_session为-1, 则传入的对话条目也不能超过10.
+    将chat_session标记为-1将从query读入完整的上下文. 你需要根据openai-api的格式自行序列化你的传入信息, 并转换为json. 形如:
+    [
+        {"role": "system", "content": "你是莫妮卡"},
+        {"role": "user", "content": "你好啊"}
+    ]
+    你需要通过前端完成可能的序列化, 转义和历史拼合, 服务器不会记录拼合历史内容.
+    将chat_session标记为0将强制对话为单轮, 不会记录拼合历史内容.
+    其余每个session独立记录自己的历史内容.
+    当指定session为-1或0时, maica完全能力将不会生效, 即仅核心模型响应. 这是为调试或深度开发准备的功能, 譬如通过自建agent模型与maica核心模型协作.
     也就是说, 每个用户最多拥有9个会话.
     如果(目前还没有接口)与agent模型直接对话, chat_session将只能传入0, 因为agent模型的多轮对话基本没有意义.
     用户应当避免在query中使用特殊符号, 这可能会导致其格式化失败.

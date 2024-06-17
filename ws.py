@@ -8,7 +8,7 @@ import pymysql
 import bcrypt
 import re
 import traceback
-import agent_assistance
+import mfocus_preinit
 import persistent_extraction
 import httpserv
 from Crypto.Random import random as CRANDOM # type: ignore
@@ -401,7 +401,7 @@ async def check_permit(websocket):
                 #print(verification_result[0])
                 return verification_result
         except Exception as excepted:
-            response_str = f"JSON stringification failed, refer to administrator--your ray tracer ID is {traceray_id}"
+            response_str = f"JSON serialization failed, refer to administrator--your ray tracer ID is {traceray_id}"
             print(f"出现如下异常3-{traceray_id}:{excepted}")
             await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
             continue
@@ -482,7 +482,7 @@ async def def_model(websocket, session):
                 await websocket.send(wrap_ws_formatter('200', 'ok', f"model chosen is {using_model} based on {model_type_actual}", 'info'))
             return maica_main, client_actual, client_options
         except Exception as excepted:
-            response_str = f"Choice stringification failed, check possible typo--your ray tracer ID is {traceray_id}"
+            response_str = f"Choice serialization failed, check possible typo--your ray tracer ID is {traceray_id}"
             print(f"出现如下异常5-{traceray_id}:{excepted}")
             await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
             continue
@@ -501,6 +501,11 @@ async def do_communicate(websocket, session, client_actual, client_options):
             print(f"recieved PING from {session[3]}")
             recv_text = await websocket.recv()
         #query = recv_text
+        if len(recv_text) > 4096:
+            response_str = f"Input exceeding 4096 characters, which is not permitted--your ray tracer ID is {traceray_id}"
+            print(f"出现如下异常6-{traceray_id}:length exceeded")
+            await websocket.send(wrap_ws_formatter('403', 'length_exceeded', response_str, 'warn'))
+            continue
         try:
             request_json = json.loads(recv_text)
             chat_session = request_json['chat_session']
@@ -523,13 +528,27 @@ async def do_communicate(websocket, session, client_actual, client_options):
                     response_str = f"Purging chat session failed, refer to administrator--your ray tracer ID is {traceray_id}"
                     print(f"出现如下异常7-{traceray_id}:{excepted}")
                     await websocket.send(wrap_ws_formatter('404', 'savefile_notfound', response_str, 'warn'))
-                    traceback.print_exc()
+                    #traceback.print_exc()
                     continue
             query_in = request_json['query']
             username = session[3]
             messages0 = json.dumps({'role': 'user', 'content': query_in}, ensure_ascii=False)
             sf_extraction = client_options['sf_extraction']
             match int(chat_session):
+                case i if i == -1:
+                    try:
+                        messages = query_in
+                        if len(messages) > 10:
+                            response_str = f"Input exceeding 9 rounds, which is not permitted--your ray tracer ID is {traceray_id}"
+                            print(f"出现如下异常6-{traceray_id}:rounds exceeded")
+                            await websocket.send(wrap_ws_formatter('403', 'rounds_exceeded', response_str, 'warn'))
+                            continue
+                    except Exception as excepted:
+                        response_str = f"Input serialization failed, check possible type--your ray tracer ID is {traceray_id}"
+                        print(f"出现如下异常7-{traceray_id}:{excepted}")
+                        await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
+                        #traceback.print_exc()
+                        continue
                 case i if i == 0:
                     messages = "[{'role': 'user', 'content': " + {query_in} + "]"
                 case i if 0 < i < 10 and i % 1 == 0:
@@ -538,7 +557,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
 
                     try:
                         if client_options['full_maica']:
-                            message_agent_wrapped = agent_assistance.agenting(query_in, sf_extraction, session, chat_session)
+                            message_agent_wrapped = mfocus_preinit.agenting(query_in, sf_extraction, session, chat_session)
                             if message_agent_wrapped[0] == 'FAIL' or len(message_agent_wrapped[0]) > 30:
                                 response_str = f"Agent returned corrupted guidance. This may be a server failure, but a corruption is kinda expected so keep cool--your ray tracer ID is {traceray_id}"
                                 print(f"出现如下异常8-{traceray_id}:Corruption")
@@ -599,7 +618,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                     try:
                         messages = json.loads(messages)
                     except Exception as excepted:
-                        response_str = f"Chat input stringification failed, check possible typo--your ray tracer ID is {traceray_id}"
+                        response_str = f"Chat input serialization failed, check possible typo--your ray tracer ID is {traceray_id}"
                         print(f"出现如下异常14-{traceray_id}:{excepted}")
                         await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
                         continue
@@ -609,7 +628,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                     await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
                     continue
         except Exception as excepted:
-            response_str = f"Query stringification failed, check possible typo--your ray tracer ID is {traceray_id}"
+            response_str = f"Query serialization failed, check possible typo--your ray tracer ID is {traceray_id}"
             print(f"出现如下异常16-{traceray_id}:{excepted}")
             await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
             continue

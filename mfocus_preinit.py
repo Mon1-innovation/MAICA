@@ -19,13 +19,11 @@ You have access to following tools:
 
 2. date_acquire: Call this tool if you think the current date is needed to answer the sentence. Parameters: []
 
-3. weather_acquire: Call this tool if you think the current weather information or weather forcast is needed to answer the sentence. Parameters: []
+3. event_acquire: Call this tool if you think the event or holiday of a given date is needed to answer the sentence. Parameters: [{"name": "date", "description": "The given date of which you need to know its event, leave empty for today", "required": "False"}]
 
-4. event_acquire: Call this tool if you think the event or holiday of a given date is needed to answer the sentence. Parameters: [{"name": "date", "description": "The given date of which you need to know its event, leave empty for today", "required": "False"}]
+4. persistent_acquire: Call this tool if you think any additional information about the speakers is needed to answer the sentence, such as their preferences, hobbies, experiences, appearence or relationship. Parameters: [{"name": "question", "description": "The information needed to answer the sentence", "required": "True"}]
 
-5. persistent_acquire: Call this tool if you think any additional information about the speakers is needed to answer the sentence, such as their preferences, hobbies, experiences, appearence or relationship. Parameters: [{"name": "question", "description": "The information needed to answer the sentence", "required": "True"}]
-
-6. search_internet: Call this tool to interact with the internet search API. This API will search the phase provided in the parameters on the internet. Parameters: [{"name": "question", "description": "The question needs to be searched on Google. This question should not be too detailed", "required": "True"}]
+5. search_internet: Call this tool to interact with the internet search API. This API will search the phase provided in the parameters on the internet. Parameters: [{"name": "question", "description": "The question needs to be searched on Google. This question should not be too detailed", "required": "True"}]
 
 If you are using search_internet tool, only include the location and the abstract information needed. Do not include too many details.
 
@@ -34,7 +32,7 @@ If there is anything additional you want to know about the speakers, call persis
 Answer using the following format:
 
 Thought: you should always think about what to do
-Action: the action to take, should be one of the above tools[time_acquire, date_acquire, weather_acquire, event_acquire, persistent_acquire, search_internet]
+Action: the action to take, should be one of the above tools[time_acquire, date_acquire, event_acquire, persistent_acquire, search_internet]
 Action Input: the parameters to pass in
 Observation: the result of the action
 ... (this Thought/Action/Action Input/Observation can be repeated zero or more times)
@@ -42,8 +40,10 @@ Thought: I now know the final answer
 Final Answer: sort up every information you acquired, and output directly.
 Begin!
 """
-    init_example_1 = """
-Thought: 要回答干点什么好, 对话者必须知道当前的时间
+    weather_bkp = """
+3. weather_acquire: Call this tool if you think the current weather information or weather forcast is needed to answer the sentence. Parameters: []
+"""
+    init_example_1 = """Thought: 要回答干点什么好, 对话者必须知道当前的时间
 Action: time_acquire
 Action Input: []
 Observation: [{'time': '13:49'}]
@@ -58,8 +58,7 @@ Observation: [{'search_result': '信息1: 附近有一座体育馆'}]
 Thought: I now know the final answer
 Final Answer: [player]喜欢运动, 附近有一座体育馆, 且现在是下午13:49
 """
-    init_example_2 = """
-Thought: 要回答今天是什么日子, 对话者必须知道今天的节日
+    init_example_2 = """Thought: 要回答今天是什么日子, 对话者必须知道今天的节日
 Action: event_acquire
 Action Input: []
 Observation: [{'event': '情人节'}]
@@ -95,13 +94,15 @@ Final Answer: 今天是情人节
         # to be added
         if not re.search((r'Action\s*:\s*none'), response, re.I):
             # so we know he took an action at least
-            match_action = re.search((r'\s*Action\s*:\s*(.*)\s*$'), response, re.I|re.M)
+            match_action = re.search((r'\s*Action\s*:\s*(.*)\s*'), response, re.I|re.M)
             if match_action:
                 predict_action_funcion = match_action[1]
                 print(predict_action_funcion)
                 # what the action is
-            match_action_input = re.search((r'\s*Action\s*Input\s*:\s*(\{.*\})\s*$'), response, re.I|re.M)
+            match_action_input = re.search((r'\s*Action\s*Input\s*:.*?(\{.*\}).*?'), response, re.I|re.M)
             if match_action_input:
+                #print("matched")
+                print(match_action_input[1])
                 predict_parameters_json = match_action_input[1].replace('\'', '"')
                 # we suggest this is a loadble json
             else:
@@ -126,7 +127,7 @@ Final Answer: 今天是情人节
                     date_acquired = agent_modules.date_acquire(real_parameters_json, sf_extraction, session, chat_session)
                     if date_acquired[0]:
                         return_instruction = f"[{{'date': '{date_acquired[2].year}年{date_acquired[2].month}月{date_acquired[2].day}日'}}]"
-                        instructed_final_answer['date'] = f"[{date_acquired[3]}]"
+                        instructed_final_answer['date'] = f"{date_acquired[3]}"
                         inst_date = True
                     else:
                         raise Exception(date_acquired[1])
@@ -183,14 +184,14 @@ Final Answer: 今天是情人节
                     else:
                         raise Exception(event_acquired[1])
                 elif re.search((r'persistent.*acquire'), predict_action_funcion, re.I):
-                    persistent_acquired = agent_modules.persistent_acquire(real_parameters_json, sf_extraction, session, chat_session, input)
+                    persistent_acquired = agent_modules.persistent_acquire(real_parameters_json, sf_extraction, session, chat_session)
                     if persistent_acquired[0]:
-                        return_instruction = f"[{{'known_info': '{persistent_acquired[2]}'}}]"
+                        return_instruction = f"[{{'known_info': {persistent_acquired[2]}}}]"
                         if persistent_acquired[3]:
                             if 'persistent' in instructed_final_answer:
-                                instructed_final_answer['persistent'] += f"[{persistent_acquired[3]}]"
+                                instructed_final_answer['persistent'] += f"{persistent_acquired[3]}"
                             else:
-                                instructed_final_answer['persistent'] = f"[{persistent_acquired[3]}]"
+                                instructed_final_answer['persistent'] = f"{persistent_acquired[3]}"
                             inst_pst = True
                     else:
                         raise Exception(persistent_acquired[1])
@@ -212,11 +213,16 @@ Final Answer: 今天是情人节
             if not exception_return:
                 #print(len(messages))
                 #print(len(messages_appending))
-                if True:
-                    messages[len(messages) - 1]['content'] += response + f"\n{return_instruction}"
+                #print(messages[len(messages) - 1]['content'])
+                #print(response)
+                #print(f"{return_instruction}")
+                if messages[len(messages) - 1]['role'] == 'assistant':
+                    messages[len(messages) - 1]['content'] += response + f"{return_instruction}"
+                    #print(messages)
                 else:
-                    messages.append({'role': 'assistant', 'content': response + f"\n{return_instruction}"})
-                    print(messages)
+                    messages.append({'role': 'assistant', 'content': response + f"{return_instruction}"})
+                    print(messages[len(messages) - 1]['content'])
+                    #print(messages)
                 resp = client.chat.completions.create(
                     model=model_type,
                     messages=messages,
@@ -228,6 +234,7 @@ Final Answer: 今天是情人节
                 break
         else:
             return 'EMPTY', ''
+    #print(instructed_final_answer)
     instructed_final_answer_joined = ''.join(str(x) for x in instructed_final_answer.values())
     final_answer = re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.S)
     if final_answer:
@@ -238,6 +245,6 @@ Final Answer: 今天是情人节
         return 'FAIL', instructed_final_answer_joined
 
 if __name__ == "__main__":
-    agented = agenting('我们可以去吃点什么呢?', True, [0,0,23], 1)
+    agented = agenting('我们可以去哪吃呢?', True, [0,0,23], 1)
     #print(agented[0])
     print(agented[1])

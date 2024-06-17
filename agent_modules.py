@@ -37,7 +37,7 @@ def date_acquire(params, sf_extraction, session, chat_session):
             user_id = session[2]
             south_north = persistent_extraction.read_from_sf(user_id, chat_session, '_mas_pm_live_south_hemisphere')
             if south_north[0]:
-                if not south_north[2]:
+                if south_north[2]:
                     match content:
                         case date if 3 <= date.month < 6:
                             date_friendly = f"[今天是{date.year}年秋季{date.month}月{date.day}日]"
@@ -62,7 +62,7 @@ def date_acquire(params, sf_extraction, session, chat_session):
             date_friendly = f"[今天是{date.year}年冬季{date.month}月{date.day}日]"
     success = True
     return success, exception, content, date_friendly
-def weathere_acquire(params, sf_extraction, session, chat_session):
+def weather_acquire(params, sf_extraction, session, chat_session):
     success = True
     exception = None
     if sf_extraction:
@@ -171,7 +171,8 @@ def event_acquire(params, sf_extraction, session, chat_session):
         content = "[None]"
         holiday_friendly = "今天不是特殊节日"
     return success, exception, content, holiday_friendly
-def persistent_acquire(params, sf_extraction, session, chat_session, query):
+def persistent_acquire(params, sf_extraction, session, chat_session):
+    #print(params)
     success = True
     exception = None
     for possible_key in {'question', 'query', 'search'}:
