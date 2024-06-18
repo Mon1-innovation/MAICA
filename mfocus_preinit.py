@@ -211,11 +211,6 @@ Final Answer: 今天是情人节
                 #traceback.print_exc()
                 print(excepted)
             if not exception_return:
-                #print(len(messages))
-                #print(len(messages_appending))
-                #print(messages[len(messages) - 1]['content'])
-                #print(response)
-                #print(f"{return_instruction}")
                 if messages[len(messages) - 1]['role'] == 'assistant':
                     messages[len(messages) - 1]['content'] += response + f"{return_instruction}"
                     #print(messages)
@@ -229,6 +224,9 @@ Final Answer: 今天是情人节
                     stop=['Observation:'],
                     seed=42)
                 response = resp.choices[0].message.content
+                print(response)
+                response = re.sub(r'<\|.*?:\n*\s*', '', response)
+                print(response)
                 print(f"following response is {response}")
             else:
                 break
