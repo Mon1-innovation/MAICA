@@ -151,7 +151,7 @@ Final Answer: 今天是情人节
                     "question": {
                         "type": "string",
                         "description": "The question needs to be searched on Google, which should not be too detailed.",
-                        "example_value": "附近有什么好吃的?"
+                        "example_value": "附近有什么好吃的"
                     }
                 },
                 "required": [
