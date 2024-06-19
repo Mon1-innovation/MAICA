@@ -866,12 +866,16 @@ Begin!
             {'role': 'assistant', 'content': '["莫妮卡和[player]还没有一起过万圣节.", "莫妮卡和[player]还没有一起过圣诞节.", "莫妮卡和[player]还没有一起过新年.", "莫妮卡还没有庆祝过[player]的生日."]'},
             {'role': 'user', 'content': init_example5},
             {'role': 'assistant', 'content': '["莫妮卡喜欢素食, 她认为这是对减少碳排放做出的贡献."]'}
+
         ]
-        messages.extend(messages_appending)
+        #messages.extend(messages_appending)
         messages.append({'role': 'user', 'content': f'sentence: [{query}], information: {information}'})
         resp = client.chat.completions.create(
             model=model_type,
             messages=messages,
+            top_p = 0.1,
+            presence_penalty = 0.0,
+            frequency_penalty = 0.0,
             #stop=['<|endoftext|>'],
             seed=42)
         response = resp.choices[0].message.content
@@ -881,6 +885,14 @@ Begin!
         success = False
         exception = excepted
         return success, exception, '', ''
+
+"""
+            {'role': 'user', 'content': init_example4},
+            {'role': 'assistant', 'content': '["莫妮卡和[player]还没有一起过万圣节.", "莫妮卡和[player]还没有一起过圣诞节.", "莫妮卡和[player]还没有一起过新年.", "莫妮卡还没有庆祝过[player]的生日."]'}
+
+            {'role': 'user', 'content': init_example5},
+            {'role': 'assistant', 'content': '["莫妮卡喜欢素食, 她认为这是对减少碳排放做出的贡献."]'}
+"""
 
 if __name__ == "__main__":
     mfocus_form_info(23, 1)

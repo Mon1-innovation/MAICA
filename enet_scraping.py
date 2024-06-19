@@ -17,4 +17,4 @@ def internet_search_limb(query):
     return True, None, slt_default, slt_humane
 
 if __name__ == '__main__':
-    print(internet_search_limb('湖北鄂州附近有哪些提供红烧肉和土豆丝的餐厅？')[2])
+    print(internet_search_limb('hello world')[2])
