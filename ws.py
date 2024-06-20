@@ -128,13 +128,13 @@ def rw_chat_session(session, chat_session_num, rw, content_append):
                 else:
                     content = content_append
                 len_content_actual = len(content) - len(json.loads(f'[{content}]')) * 31
-                if len_content_actual >= 32768:
+                if len_content_actual >= 28672:
                     try:
                         cutting_mat = json.loads(f"[{content}]")
                     except Exception as excepted:
                         success = False
                         return success, excepted
-                    while len_content_actual >= 30720 or cutting_mat[1]['role'] == "assistant":
+                    while len_content_actual >= 24576 or cutting_mat[1]['role'] == "assistant":
                         cutting_mat.pop(1)
                     content = json.dumps(cutting_mat, ensure_ascii=False).strip('[').strip(']')
                     cutted = 1
@@ -613,7 +613,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                     try:
                         messages = query_in
                         if len(messages) > 10:
-                            response_str = f"Input exceeding 9 rounds, which is not permitted--your ray tracer ID is {traceray_id}"
+                            response_str = f"Input exceeding 10 rounds, which is not permitted--your ray tracer ID is {traceray_id}"
                             print(f"出现如下异常15-{traceray_id}:rounds exceeded")
                             await websocket.send(wrap_ws_formatter('403', 'rounds_exceeded', response_str, 'warn'))
                             continue
@@ -745,9 +745,9 @@ async def do_communicate(websocket, session, client_actual, client_options):
                     if stored[4]:
                         match stored[4]:
                             case 1:
-                                await websocket.send(wrap_ws_formatter('204', 'deleted', f"Since session {chat_session} of user {username} exceeded 32k characters, The former part has been deleted to save storage--your ray tracer ID is {traceray_id}.", 'info'))
+                                await websocket.send(wrap_ws_formatter('204', 'deleted', f"Since session {chat_session} of user {username} exceeded 28k characters, The former part has been deleted to save storage--your ray tracer ID is {traceray_id}.", 'info'))
                             case 2:
-                                await websocket.send(wrap_ws_formatter('200', 'delete_hint', f"Session {chat_session} of user {username} exceeded 24k characters, which will be chopped after exceeding 32k, make backups if you want to--your ray tracer ID is {traceray_id}.", 'info'))
+                                await websocket.send(wrap_ws_formatter('200', 'delete_hint', f"Session {chat_session} of user {username} exceeded 24k characters, which will be chopped after exceeding 28k, make backups if you want to--your ray tracer ID is {traceray_id}.", 'info'))
                 else:
                     response_str = f"Chat reply recording failed, refer to administrator--your ray tracer ID is {traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
                     print(f"出现如下异常26-{traceray_id}:{stored[1]}")

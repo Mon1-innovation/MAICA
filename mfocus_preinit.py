@@ -49,18 +49,18 @@ Action Input: []
 Observation: [{'time': '13:49'}]
 Thought: 要回答干点什么好, 对话者必须知道对方的爱好
 Action: persistent_acquire
-Action Input: [{'question': '你的爱好是什么'}]
+Action Input: {'question': '你的爱好是什么'}
 Observation: [{'personal_info': ['[player]喜欢运动']}]
 Thought: 我需要搜索互联网以获取合适的运动场地
 Action: search_internet
-Action Input: [{"question": "附近的运动场馆"}]
+Action Input: {"question": "附近的运动场馆"}
 Observation: [{'search_result': '信息1: 附近有一座体育馆'}]
 Thought: I now know the final answer
 Final Answer: [player]喜欢运动, 附近有一座体育馆, 且现在是下午13:49
 """
     init_example_2 = """Thought: 要回答今天是什么日子, 对话者必须知道今天的节日
 Action: event_acquire
-Action Input: []
+Action Input: {}
 Observation: [{'event': '情人节'}]
 Thought: I now know the final answer
 Final Answer: 今天是情人节
@@ -125,7 +125,7 @@ Final Answer: 今天是情人节
         },
         {
             "name": "persistent_acquire",
-            "description": "Call this tool to get any additional information about the speakers, such as their preferences, hobbies, experiences, appearence or relationship.",
+            "description": "Call this tool to get any additional information about the speakers, such as their preferences, hobbies, experiences, appearence or relationship. Notice that this tool has a high priority, ALWAYS use it as long as it could benefit your answer.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -144,7 +144,7 @@ Final Answer: 今天是情人节
         },
         {
             "name": "search_internet",
-            "description": "Call this tool to interact with the internet search API. This API will search your question on the internet.",
+            "description": "Call this tool to interact with the internet search API. This API will search your question on the internet. Notice that this tool has a high priority, ALWAYS use it as long as it could benefit your answer.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -177,7 +177,8 @@ Final Answer: 今天是情人节
         messages=messages,
         tools = tools,
         stop=['Observation:'],
-        top_p = 0.1,
+        temperature=0.6,
+        top_p = 0.6,
         presence_penalty = 0.0,
         frequency_penalty = 0.0,
         seed=42)
@@ -199,7 +200,7 @@ Final Answer: 今天是情人节
         return_instruction = ''
         try:
             predict_action_function = tool_calls['function']['name']
-            real_parameters_dict = json.loads(tool_calls['function']['arguments'])
+            real_parameters_dict = json.loads(re.sub(r"(?!=\\)'", '"', tool_calls['function']['arguments']))
             if re.search((r'time.*acquire'), predict_action_function, re.I):
                 time_acquired = agent_modules.time_acquire(real_parameters_dict)
                 if time_acquired[0]:
@@ -304,7 +305,8 @@ Final Answer: 今天是情人节
                 messages=messages,
                 tools = tools,
                 stop=['Observation:'],
-                top_p = 0.1,
+                temperature=0.6,
+                top_p = 0.6,
                 presence_penalty = 0.0,
                 frequency_penalty = 0.0,
                 seed=42)
@@ -325,7 +327,7 @@ Final Answer: 今天是情人节
         return 'FAIL', instructed_final_answer_joined
 
 if __name__ == "__main__":
-    agented = agenting('我们可以去哪里吃呢?', True, [0,0,23], 1)
+    agented = agenting('现在的天气怎么样?', True, [0,0,23], 1)
     #print(agented[0])
     print(agented[1])
 

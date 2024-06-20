@@ -29,34 +29,16 @@ Thought: I now know the final answer
 Final Answer: the final answer to the original input question
 Begin!"""
 messages = [{
+    'role': 'system',
+    'content': system
+}, 
+{
     'role': 'user',
     'content': '输入图片是/tmp/1.jpg，协助判断图片中是否存在着火点'
 }]
 resp = client.chat.completions.create(
     model=model_type,
     messages=messages,
-    tools =  [
-        {
-            "name": "url_for_newapi",
-            "description": "This is the subfunction for tool \"newapi\", you can use this tool.The description of this function is: \"url_for_newapi\"",
-            "parameters": {
-            "type": "object",
-            "properties": {
-                "url": {
-                "type": "string",
-                "description": "",
-                "example_value": "https://www.instagram.com/reels/CtB6vWMMHFD/"
-                }
-            },
-            "required": [
-                "url"
-            ],
-            "optional": [
-                "url"
-            ]
-            }
-        },
-    ],
     stop=['Observation:'],
     top_p = 0.1,
     presence_penalty = 0.0,

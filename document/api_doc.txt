@@ -10,7 +10,7 @@ websocket服务器传信遵守以下原则:
     5xx类的信息表示服务器可能出现问题, 应当立刻停止使用并汇报traceray_id. 此类严重错误被标记为error.
     应当注意, 虽然此状态码与运行步骤的格式参照http状态码, 但其用途并不相同.
     接口输出的提醒, 警告和错误信息都会在content项中提供易读的解释. 此解释仅供开发调试参考用, 请避免将其作为程序处理的一部分.
-    适合程序处理的信息一般被标记为debug或carriage.
+    适合程序处理的信息一般被标记为carriage.
 半双工http服务器传信一般遵守以下原则:
     服务器一般会输出形如此格式的json信息:
     {"success": 是否成功, "exception": "详细问题描述", "载荷键": "载荷值"}
@@ -94,10 +94,12 @@ MAICA上传存档的接口位于https://maicadev.monika.love/api/savefile. 你�
     {"success": true, "exception": ""}
 从存档中解析的信息可以包含以下条目:
 """
-mas_playername
-mas_player_bday ["yyyy", "mm", "dd"]
-mas_affection
-mas_geolocation
+mas_playername #str
+mas_player_bday #["yyyy", "mm", "dd"]
+mas_affection #int
+mas_geolocation #str
+
+mas_player_additions #["[player]喜欢吃寿司.", "[player]喜欢初音未来.", "[player]不喜欢猫"]
 
 _mas_pm_added_custom_bgm	Player has added custom music to the game before.
 _mas_pm_religious	Is the player religious?
@@ -208,9 +210,15 @@ _mas_player_bday_spent_time
 _mas_d25_spent_d25
 _mas_o31_tt_count
 """
-其中, 除前三行外均为原版可调用的变量. mas_playername为str格式的玩家名称, mas_player_bday为list格式的玩家生日, mas_affection为int格式的好感度.
+其中, 除前五行外均为原版可调用的变量.
+    mas_playername为str格式的玩家名称.
+    mas_player_bday为list格式的玩家生日.
+    mas_affection为int格式的好感度.
+    mas_geolocation为str格式的玩家地理位置. 此条目应当尽可能简短到仅保留城市名, 过长的条目会导致搜索引擎误解.
+    mas_player_additions为list格式的补充数据. 此条目应当为一个list中的若干str, 且至多检索24项. 若包含超过24项, 则mfocus每次随机抽取24项. 每项应当为一个简单表述, 过长的项可能会导致失焦.
 原理上, 任何条目都是可缺省的. 缺省关键变量将使其被默认值替代, 缺省事件变量将使其退出MFocus索引.
 原理上, 上传的存档json可以包含冗余的条目, 但其整体格式必须是完整可读的json.
+为尽可能提高分词一致性, 传入的任何可读文本应当使用半角标点, 并在断句前追加半角空格, 类似本文档的写法. 使用全角标点可能会使模型表现略微偏离预期.
 存档json的总长度不能超过10万字符, 超长会被拒收. 请避免开发中发生泄漏.
 
 为降低开发和调试难度, MAICA websocket接口不强制, 也不会主动发送心跳连接. 但如果有需要, MAICA接口能够接收和响应心跳连接.
@@ -220,13 +228,12 @@ _mas_o31_tt_count
 任何自动发送的心跳连接间隔不应短于10s, 否则会造成不必要的服务器压力.
 任何心跳连接都会在服务器端记录发起者的session信息. 在身份认证令牌交换完毕前, 服务器不接受心跳连接.
 
-MAICA的核心能力基于llm, 而任何llm的输入总长度都是有限的. 就MAICA核心模型而言, 能够解析的最大输入长度约为32768token, 在中文情况下约四万字.
-MAICA的每一个chat_session实际上保留约3.2万字符总内容(去除包装后). 在正常聊天情况下, 其中大约会有2-3万有效汉字.
-超出32768字符后, 数据库交换驱动将自动删除最早的对话轮次以节省服务器存储空间. 为响应性能起见, 每次删除将使剩余字符数少于30720. 如果你希望保留这些数据, 你应当每隔一段时间自行下载到本地并备份.
-MAICA完全能力驱动在处理信息时会插入用户不可见的输入token, 因此信息被删除的速率可能比理论计算要快. 直接使用MAICA核心模型则不会.
+MAICA的核心能力基于llm, 而任何llm的输入总长度都是有限的. 就MAICA核心模型而言, 能够解析的最大输入长度为32768token, 在中文情况下约四万字.
+MAICA的每一个chat_session实际上保留28672字符总内容(去除包装后). 在正常聊天情况下, 其中大约会有2-2.5万有效汉字.
+超出28672字符后, 数据库交换驱动将自动删除最早的对话轮次以节省服务器存储空间. 为响应性能起见, 每次删除将使剩余字符数少于24576. 如果你希望保留这些数据, 你应当每隔一段时间自行下载到本地并备份.
 如果本次处理中已经删除了chat_session的一部分, 将会在内容输出结束后输出提醒:
-    {"code": "204", "status": "deleted", "content": "Since session {chat_session} of user {username} exceeded 32k characters, The former part has been deleted to save storage--your ray tracer ID is {traceray_id}.", "type": "info", "time_ms": 时间戳(毫秒)}
+    {"code": "204", "status": "deleted", "content": "Since session {chat_session} of user {username} exceeded 28k characters, The former part has been deleted to save storage--your ray tracer ID is {traceray_id}.", "type": "info", "time_ms": 时间戳(毫秒)}
 如果chat_session存储字符数已达到2.4万, 接口将会在内容输出结束后输出提醒:
-    {"code": "200", "status": "delete_hint", "content": "Session {chat_session} of user {username} exceeded 24k characters, which will be chopped after exceeding 32k, make backups if you want to--your ray tracer ID is {traceray_id}.", "type": "info", "time_ms": 时间戳(毫秒)}
+    {"code": "200", "status": "delete_hint", "content": "Session {chat_session} of user {username} exceeded 24k characters, which will be chopped after exceeding 28k, make backups if you want to--your ray tracer ID is {traceray_id}.", "type": "info", "time_ms": 时间戳(毫秒)}
 如果你希望记录该chat_session的完整内容, 应当在收到提醒后及时下载到本地并备份.
 为防止滥用, MAICA预计将不会允许从本地上传session记录.

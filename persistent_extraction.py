@@ -20,6 +20,8 @@ if __name__ == "__main__":
 mas_playername
 mas_player_bday ["yyyy", "mm", "dd"]
 mas_affection
+mas_geolocation
+mas_player_additions
 
 mas_pm_added_custom_bgm	Player has added custom music to the game before.
 mas_pm_religious	Is the player religious?

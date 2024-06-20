@@ -19,4 +19,4 @@ def internet_search_limb(query):
     return True, None, slt_default, slt_humane
 
 if __name__ == '__main__':
-    print(internet_search_limb('鄂州附近美食')[2])
+    print(internet_search_limb('现在的天气怎么样? 鄂州')[2])
