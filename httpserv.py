@@ -49,7 +49,7 @@ def json_request():
         else:
             if len(content) < 100000:
                 with open(f'persistents/{verification_result[2]}_{chat_session}.json', 'w+', encoding = 'utf-8') as sf:
-                    sf.write(content)
+                    sf.write(json.dumps(content, ensure_ascii=False))
             else:
                 success = False
                 exception = "Content length exceeded"

@@ -7,6 +7,7 @@ import traceback
 import persistent_extraction
 import mfocus
 from enet_scraping import internet_search_limb
+from weather_scraping import weather_api_get
 def time_acquire(params):
     success = True
     exception = None
@@ -32,6 +33,8 @@ def date_acquire(params, sf_extraction, session, chat_session):
     success = True
     exception = None
     content = datetime.datetime.today()
+    weeklist = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
+    weekday = weeklist[content.weekday()]
     if sf_extraction:
         try:
             user_id = session[2]
@@ -40,26 +43,26 @@ def date_acquire(params, sf_extraction, session, chat_session):
                 if south_north[2]:
                     match content:
                         case date if 3 <= date.month < 6:
-                            date_friendly = f"[今天是{date.year}年秋季{date.month}月{date.day}日]"
+                            date_friendly = f"[今天是{date.year}年秋季{date.month}月{date.day}日{weekday}]"
                         case date if 6 <= date.month < 9:
-                            date_friendly = f"[今天是{date.year}年冬季{date.month}月{date.day}日]"
+                            date_friendly = f"[今天是{date.year}年冬季{date.month}月{date.day}日{weekday}]"
                         case date if 9 <= date.month < 12:
-                            date_friendly = f"[今天是{date.year}年春季{date.month}月{date.day}日]"
+                            date_friendly = f"[今天是{date.year}年春季{date.month}月{date.day}日{weekday}]"
                         case date if 12 <= date.month or date.month < 3:
-                            date_friendly = f"[今天是{date.year}年夏季{date.month}月{date.day}日]"
+                            date_friendly = f"[今天是{date.year}年夏季{date.month}月{date.day}日{weekday}]"
                     return success, exception, content, date_friendly
         except Exception as excepted:
             exception = excepted
             # continue on failure - hemisphere may not be specified
     match content:
         case date if 3 <= date.month < 6:
-            date_friendly = f"[今天是{date.year}年春季{date.month}月{date.day}日]"
+            date_friendly = f"[今天是{date.year}年春季{date.month}月{date.day}日{weekday}]"
         case date if 6 <= date.month < 9:
-            date_friendly = f"[今天是{date.year}年夏季{date.month}月{date.day}日]"
+            date_friendly = f"[今天是{date.year}年夏季{date.month}月{date.day}日{weekday}]"
         case date if 9 <= date.month < 12:
-            date_friendly = f"[今天是{date.year}年秋季{date.month}月{date.day}日]"
+            date_friendly = f"[今天是{date.year}年秋季{date.month}月{date.day}日{weekday}]"
         case date if 12 <= date.month or date.month < 3:
-            date_friendly = f"[今天是{date.year}年冬季{date.month}月{date.day}日]"
+            date_friendly = f"[今天是{date.year}年冬季{date.month}月{date.day}日{weekday}]"
     success = True
     return success, exception, content, date_friendly
 def weather_acquire(params, sf_extraction, session, chat_session):
@@ -69,13 +72,16 @@ def weather_acquire(params, sf_extraction, session, chat_session):
         try:
             user_id = session[2]
             weather_location = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_geolocation')
+            got_weather = weather_api_get(weather_location)
+            content = json.dumps(got_weather[2], ensure_ascii=False)
+            weather_friendly = f"当前气温是{got_weather[2]['当前温度']}度, 当前天气是{got_weather[2]['当前天气']}, 当前湿度是{got_weather[2]['当前湿度']}%"
         except Exception as excepted:
             success = False
             exception = excepted
-            content = '天气未知'
+            content = weather_friendly = '天气未知'
     else:
-        content = '天气未知'
-    return success, exception, content, content
+        content = weather_friendly = '天气未知'
+    return success, exception, content, weather_friendly
 def event_acquire(params, sf_extraction, session, chat_session):
     success = True
     exception = None
@@ -214,16 +220,25 @@ def internet_acquire(params, sf_extraction, session, chat_session):
     if sf_extraction:
         try:
             user_id = session[2]
+            loc_caught = False
             geolocation = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_geolocation')
             if geolocation[0]:
                 if geolocation[2]:
                     location = geolocation[2]
                     for location_prompt in {'地区', '周边', '附近', '周围'}:
-                        likely_query = re.sub(rf'{location_prompt}', rf'{location}{location_prompt}', likely_query)
+                        if re.search(location_prompt, likely_query, re.I):
+                            likely_query = re.sub(rf'{location_prompt}', rf'{location}{location_prompt}', likely_query)
+                            loc_caught = True
+                    if not loc_caught:
+                        for locrelated_prompt in {'天气', '温度', '降雨', '霾', '店'}:
+                            if re.search(locrelated_prompt, likely_query, re.I):
+                                likely_query = re.sub('^', rf'{location}', likely_query)
+                                break
         except Exception as excepted:
             # We just try to proceed
             pass
     try:
+        print(f'likely query: {likely_query}')
         search_response = internet_search_limb(likely_query)
         if search_response[0]:
             content = json.dumps(search_response[2], ensure_ascii=False)
@@ -240,5 +255,5 @@ def internet_acquire(params, sf_extraction, session, chat_session):
 if __name__ == "__main__":
     #print(event_acquire({"year": 2023, "month": 1, "day": 1}, True, ["0", "0", "23"], 1))
     #print(internet_acquire({"question": "番茄炒蛋怎么做"}))
-    print(persistent_acquire({}, True, [0, 0, 23], 1, '你喜欢吃什么'))
+    print(weather_acquire({}, True, [0, 0, 23], 1))
     #print(persistent_acquire({}, True, [0, 0, 23], 1, '你是谁'))

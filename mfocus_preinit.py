@@ -93,6 +93,19 @@ Final Answer: 今天是情人节
             }
         },
         {
+            "name": "weather_acquire",
+            "description": "Call this tool to get the current weather.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                },
+                "required": [
+                ],
+                "optional": [
+                ]
+            }
+        },
+        {
             "name": "event_acquire",
             "description": "Call this tool to get the event or holiday of a given date.",
             "parameters": {
@@ -151,7 +164,7 @@ Final Answer: 今天是情人节
                     "question": {
                         "type": "string",
                         "description": "The question needs to be searched on Google, which should not be too detailed.",
-                        "example_value": "附近有什么好吃的"
+                        "example_value": "今天天气怎么样"
                     }
                 },
                 "required": [
@@ -221,7 +234,7 @@ Final Answer: 今天是情人节
             elif re.search((r'weather.*acquire'), predict_action_function, re.I):
                 weather_acquired = agent_modules.weather_acquire(real_parameters_dict, sf_extraction, session, chat_session)
                 if weather_acquired[0]:
-                    return_instruction = f"[{{'weather': '{weather_acquired[2]}'}}]"
+                    return_instruction = f"[{{'weather': {weather_acquired[2]}}}]"
                     if weather_acquired[3]:
                         instructed_final_answer['weather'] = f"[{weather_acquired[3]}]"
                         inst_wea = True
@@ -327,7 +340,7 @@ Final Answer: 今天是情人节
         return 'FAIL', instructed_final_answer_joined
 
 if __name__ == "__main__":
-    agented = agenting('现在的天气怎么样?', True, [0,0,23], 1)
+    agented = agenting('今天的天气怎么样', True, [0,0,23], 1)
     #print(agented[0])
     print(agented[1])
 

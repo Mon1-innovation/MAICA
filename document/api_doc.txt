@@ -43,8 +43,12 @@ t9vozy56WuHPfv3KZTwrvZaIVSAExEL17wIDAQAB
 接下来, 服务器会提示用户选择一个模型. 你应当按以下格式输入选择:
     {"model": "maica_main", "sf_extraction": true}
     其中, model为你选择使用的模型, 而sf_extraction代表是否从存档解析信息.
-    获取外界信息是MAICA的独特能力之一. 通过使用submod上传存档, MAICA能够读取来自MAS的大多数记忆.
-    上传的存档与chat_session一一对应, 你可以在submod中进行设置或手动上传.
+    MAICA目前接受四种传入模型选择, 分别是maica_main, maica_core, maica_main_nostream, maica_core_nostream.
+    带有core字样的选择代表启用核心能力, 带有main字样的选择代表启用完全能力, 带有nostream字样的选择代表不启用流式输出.
+    由于算力与设计结构的原因, MAICA完全能力的响应前置延迟显著高于核心能力, 在服务拥挤时可能更甚.
+    MFocus是MAICA的独特能力之一. 其能够帮助MAICA获取外界信息回答问题, 而通过使用submod上传存档, MAICA还能读取来自MAS的大多数记忆.
+    上传的存档与chat_session一一对应, 可以通过后面介绍的存档上传接口传入.
+    仅当同时启用sf_extraction和MAICA完全能力时, 用户可以体验MAICA的最佳表现. 你可以出于隐私或响应速度起见关闭这些功能, 但当然会导致能力缺失.
 传入选择之后, 服务器应当返回200 ok, 并返回模型与基本模型信息.
 
 接下来, 用户应当开始对话. 你应当按以下格式输入信息:
@@ -214,8 +218,8 @@ _mas_o31_tt_count
     mas_playername为str格式的玩家名称.
     mas_player_bday为list格式的玩家生日.
     mas_affection为int格式的好感度.
-    mas_geolocation为str格式的玩家地理位置. 此条目应当尽可能简短到仅保留城市名, 过长的条目会导致搜索引擎误解.
-    mas_player_additions为list格式的补充数据. 此条目应当为一个list中的若干str, 且至多检索24项. 若包含超过24项, 则mfocus每次随机抽取24项. 每项应当为一个简单表述, 过长的项可能会导致失焦.
+    mas_geolocation为str格式的玩家地理位置. 此条目应当尽可能简短到至多保留省名与城市名, 过长的条目会导致搜索引擎误解.
+    mas_player_additions为list格式的补充数据. 此条目应当为一个list中的若干str, 且至多检索48项. 若包含超过48项, 则mfocus每次随机抽取48项. 每项应当为一个简单表述, 过长的项可能会导致失焦.
 原理上, 任何条目都是可缺省的. 缺省关键变量将使其被默认值替代, 缺省事件变量将使其退出MFocus索引.
 原理上, 上传的存档json可以包含冗余的条目, 但其整体格式必须是完整可读的json.
 为尽可能提高分词一致性, 传入的任何可读文本应当使用半角标点, 并在断句前追加半角空格, 类似本文档的写法. 使用全角标点可能会使模型表现略微偏离预期.
@@ -225,6 +229,7 @@ _mas_o31_tt_count
 在身份认证完成后, 向服务器发送大写单词PING即可收到来自服务器的心跳连接包:
     {"code": "100", "status": "continue", "content": "PONG", "type": "heartbeat", "time_ms": 时间戳(毫秒)}
 在开发中, 你可以通过生成心跳连接避免连接被切断, 检测客户端与服务器的连接情况, 以及确定延迟水平.
+当一项任务正在进行中时, 传入的心跳连接不会被回应.
 任何自动发送的心跳连接间隔不应短于10s, 否则会造成不必要的服务器压力.
 任何心跳连接都会在服务器端记录发起者的session信息. 在身份认证令牌交换完毕前, 服务器不接受心跳连接.
 

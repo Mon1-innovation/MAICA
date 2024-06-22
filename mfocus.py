@@ -397,9 +397,9 @@ def mfocus_form_info(user_id, chat_session):
     data1 = persistent_extraction.read_from_sf(user_id, chat_session, '_mas_pm_live_south_hemisphere')
     if data1[0]:
         if data1[2]:
-            result.append('[player]住在北半球.')
-        else:
             result.append('[player]住在南半球.')
+        else:
+            result.append('[player]住在北半球.')
     
 
     data1 = persistent_extraction.read_from_sf(user_id, chat_session, '_mas_pm_social_personality')
@@ -799,8 +799,8 @@ def mfocus_form_info(user_id, chat_session):
 
 
     data_exp = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_player_additions')[2]
-    if len(data_exp) > 24:
-        data_exp = sample(data_exp, 24)
+    if len(data_exp) > 48:
+        data_exp = sample(data_exp, 48)
     result.extend(data_exp)
 
 
@@ -857,8 +857,7 @@ Begin!
 Begin!
 """
 # Finally we decided test3 was the best prompt
-        system_init_test3 = """
-You are an assistant designed to sort  messages. In the following query, you will be offered a sentence and a set of information in a Python list format.
+        system_init_test3 = """You are an assistant designed to sort messages. In the following query, you will be offered a sentence and a set of information in a Python list format.
 Your job is to choose one or many information that matches the original sentence best. These information MUST be useful in answering the original sentence. Then output the information in a Python list.
 Everything you answer should be a Python list, including information only. The list should not contain more than 4 items. Do not modify or make up information. Do not include useless information.
 Begin!
