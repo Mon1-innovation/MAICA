@@ -5,7 +5,7 @@ import traceback
 import agent_modules # type: ignore
 from openai import OpenAI # type: ignore
 from loadenv import load_env
-def agenting(input, sf_extraction, session, chat_session):
+def agenting(input, sf_extraction, session, chat_session, websocket=None):
     client = OpenAI(
         api_key='EMPTY',
         base_url=load_env('MFOCUS_ADDR'),
