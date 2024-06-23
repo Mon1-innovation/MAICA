@@ -461,6 +461,7 @@ async def check_permit(websocket):
 #面向api的第二层io: 指定服务内容
 
 async def def_model(websocket, session):
+    await websocket.send(wrap_ws_formatter('200', 'ok', f"choose service from:'maica_main', 'maica_main_nostream', 'maica_core', 'maica_core_nostream'", 'info'))
     while True:
         traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
         checked_status = check_user_status(session)
@@ -475,7 +476,6 @@ async def def_model(websocket, session):
             await websocket.send(wrap_ws_formatter('403', 'account_banned', response_str, 'warn'))
             await websocket.close(1000, 'Permission denied')
         maica_main = False
-        await websocket.send(wrap_ws_formatter('200', 'ok', f"choose service from:'maica_main', 'maica_main_nostream', 'maica_core', 'maica_core_nostream'", 'info'))
         recv_text = await websocket.recv()
         while recv_text == 'PING':
             await websocket.send(wrap_ws_formatter('100', 'continue', "PONG", 'heartbeat'))
@@ -554,6 +554,7 @@ async def def_model(websocket, session):
 #面向api的第三层io: 有效数据交换
 
 async def do_communicate(websocket, session, client_actual, client_options):
+    await websocket.send(wrap_ws_formatter('200', 'ok', 'input json like {"chat_session": "1", "query": "你好啊"}', 'info'))
     while True:
         traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
         checked_status = check_user_status(session)
@@ -568,7 +569,6 @@ async def do_communicate(websocket, session, client_actual, client_options):
             await websocket.send(wrap_ws_formatter('403', 'account_banned', response_str, 'warn'))
             await websocket.close(1000, 'Permission denied')
         #print(session)
-        await websocket.send(wrap_ws_formatter('200', 'ok', 'input json like {"chat_session": "1", "query": "你好啊"}', 'info'))
         recv_text = await websocket.recv()
         while recv_text == 'PING':
             await websocket.send(wrap_ws_formatter('100', 'continue', "PONG", 'heartbeat'))
@@ -632,23 +632,30 @@ async def do_communicate(websocket, session, client_actual, client_options):
                     try:
                         if client_options['full_maica']:
                             message_agent_wrapped = mfocus_preinit.agenting(query_in, sf_extraction, session, chat_session, websocket)
-                            if message_agent_wrapped[0] == 'FAIL' or len(message_agent_wrapped[0]) > 30 or len(message_agent_wrapped[1]) < 5:
+                            if message_agent_wrapped[0] == 'FAIL' or len(message_agent_wrapped[0]) > 30 or not message_agent_wrapped[1]:
                                 # We do not want answers without information
                                 response_str = f"Agent returned corrupted guidance. This may be a server failure, but a corruption is kinda expected so keep cool--your ray tracer ID is {traceray_id}"
                                 print(f"出现如下异常17-{traceray_id}:Corruption")
-                                await websocket.send(wrap_ws_formatter('404', 'agent_corrupted', response_str, 'warn'))
+                                await websocket.send(wrap_ws_formatter('200', 'agent_corrupted', response_str, 'debug'))
                                 if message_agent_wrapped[1]:
                                     response_str = f"Due to agent particular failure, falling back to instructed guidance and continuing."
-                                    await websocket.send(wrap_ws_formatter('200', 'failsafe', response_str, 'info'))
+                                    await websocket.send(wrap_ws_formatter('200', 'failsafe', response_str, 'debug'))
                                     info_agent_grabbed = message_agent_wrapped[1]
                                 else:
                                     response_str = f"Due to agent failure, falling back to default guidance and continuing anyway."
-                                    await websocket.send(wrap_ws_formatter('200', 'force_failsafe', response_str, 'info'))
+                                    await websocket.send(wrap_ws_formatter('200', 'force_failsafe', response_str, 'debug'))
                                     info_agent_grabbed = None
                             elif message_agent_wrapped[0] == 'EMPTY':
                                 info_agent_grabbed = None
                             else:
-                                info_agent_grabbed = message_agent_wrapped[0]
+                                # We are defaulting instructed guidance because its more clear pattern
+                                if 'mf_aggressive' in request_json:
+                                    if request_json['mf_aggressive']:
+                                        info_agent_grabbed = message_agent_wrapped[0]
+                                    else:
+                                        info_agent_grabbed = message_agent_wrapped[1]
+                                else:
+                                    info_agent_grabbed = message_agent_wrapped[1]
                             try:
                                 agent_insertion = wrap_mod_system(session, chat_session, info_agent_grabbed, sf_extraction)
                                 if not agent_insertion[0]:

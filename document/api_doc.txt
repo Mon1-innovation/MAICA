@@ -66,6 +66,8 @@ t9vozy56WuHPfv3KZTwrvZaIVSAExEL17wIDAQAB
     当指定session为-1或0时, maica完全能力将不会生效, 即仅核心模型响应. 这是为调试或深度开发准备的功能, 譬如通过自建agent模型与maica核心模型协作.
     如果(目前还没有接口)与agent模型直接对话, chat_session将只能传入0, 因为agent模型的多轮对话基本没有意义.
     用户应当避免在query中使用特殊符号, 这可能会导致其格式化失败. 同时应当注意对必要的符号进行转义.
+        实验性功能: 用户可以在传入信息中添加键"mf_aggressive", 其应为boolean, 若未传入默认为false.
+        指定mf_aggressive为true将总是尽可能使用MFocus的最终输出替代指导构型信息. 启用此功能可能提升模型的复杂信息梳理能力, 但也可能会造成人称或格式的混乱.
 传入对话后:
     maica_main使用流式输出传输内容, 因此模型应当开始传回连续的100 continue信息, 其载荷为流式传输所需要的chunk并标记为carriage:
     {"code": "100", "status": "continue", "content": "我", "type": "carriage", "time_ms": 时间戳(毫秒)}

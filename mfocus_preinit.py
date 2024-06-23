@@ -2,6 +2,8 @@ import re
 import json
 import datetime
 import traceback
+import asyncio
+import ws
 import agent_modules # type: ignore
 from openai import OpenAI # type: ignore
 from loadenv import load_env
@@ -197,8 +199,19 @@ Final Answer: 今天是情人节
         seed=42)
     response = resp.choices[0].message.content
     tool_calls = resp.choices[0].message.tool_calls
-    print(f"MFocus preinit 1st round finished, response is:\n{response}\nEnd of MFocus preinit 1st round")
-    print(f"Acquiring tool call from MFocus preinit 1st round, response is:\n{tool_calls}\nEnd of tool call acquiration")
+    if tool_calls:
+        response_str1 = f'MFocus preinit 1st round finished, response is:\n{response}\nEnd of MFocus preinit 1st round.'
+        response_str2 = f'Acquiring tool call from MFocus preinit 1st round, response is:\n{tool_calls}\nEnd of tool call acquiration.'
+    else:
+        response_str1 = f'MFocus preinit 1st round finished, response is:\n{response}\nEnding due to returning none or corruption.'
+        response_str2 = f'No tool called by MFocus.'
+    if websocket:
+        asyncio.run(websocket.send(ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug')))
+        asyncio.run(websocket.send(ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'debug')))
+    print(response_str1)
+    print(response_str2)
+  
+
 
     instructed_final_answer = {}
     # to be extended
@@ -324,20 +337,36 @@ Final Answer: 今天是情人节
                 frequency_penalty = 0.0,
                 seed=42)
             response = resp.choices[0].message.content
-            print(f"MFocus preinit {cycle+1}nd/rd/th round finished, response is:\n{response}\nEnd of MFocus preinit 1st round")
             tool_calls = resp.choices[0].message.tool_calls
-            print(f"Acquiring tool call from MFocus preinit {cycle+1}nd/rd/th round, response is:\n{tool_calls}\nEnd of tool call acquiration")
+            if tool_calls:
+                response_str1 = f'MFocus preinit {cycle+1}nd/rd/th round finished, response is:\n{response}\nEnd of MFocus preinit following round.'
+                response_str2 = f'Acquiring tool call from MFocus preinit {cycle+1}nd/rd/th round, response is:\n{tool_calls}\nEnd of tool call acquiration.'
+            else:
+                response_str1 = f'MFocus preinit {cycle+1}nd/rd/th round finished, response is:\n{response}\nEnding due to returning none or corruption.'
+                response_str2 = f'No tool called by MFocus.'
+            if websocket:
+                asyncio.run(websocket.send(ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug')))
+                asyncio.run(websocket.send(ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'debug')))
+            print(response_str1)
+            print(response_str2)
+
         else:
             break
     #print(instructed_final_answer)
     instructed_final_answer_joined = ''.join(str(x) for x in instructed_final_answer.values())
     final_answer = re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.S)
-    if final_answer:
-        print(f"MFocus callback achieved, response is:\n{final_answer[1]}\nEnd of MFocus callback")
+    if final_answer and instructed_final_answer_joined:
+        response_str3 = f"MFocus callback achieved, response is:\n{final_answer[1]}\nInfo acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."
+        asyncio.run(websocket.send(ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug')))
         return final_answer[1], instructed_final_answer_joined
-    else:
-        print("No final answer found for MFocus callback, can be exception")
+    elif instructed_final_answer_joined:
+        response_str3 = f"MFocus falling back, Info acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."
+        asyncio.run(websocket.send(ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug')))
         return 'FAIL', instructed_final_answer_joined
+    else:
+        response_str3 = f"MFocus failed or missed, Ending MFocus callback."
+        asyncio.run(websocket.send(ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug')))
+        return 'FAIL', ''
 
 if __name__ == "__main__":
     agented = agenting('你有什么想吃的东西吗', True, [0,0,23], 1)
