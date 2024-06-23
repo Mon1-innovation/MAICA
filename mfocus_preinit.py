@@ -357,15 +357,18 @@ Final Answer: 今天是情人节
     final_answer = re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.S)
     if final_answer and instructed_final_answer_joined:
         response_str3 = f"MFocus callback achieved, response is:\n{final_answer[1]}\nInfo acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."
-        asyncio.run(websocket.send(ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug')))
+        if websocket: asyncio.run(websocket.send(ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug')))
+        print(response_str3)
         return final_answer[1], instructed_final_answer_joined
     elif instructed_final_answer_joined:
         response_str3 = f"MFocus falling back, Info acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."
-        asyncio.run(websocket.send(ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug')))
+        if websocket: asyncio.run(websocket.send(ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug')))
+        print(response_str3)
         return 'FAIL', instructed_final_answer_joined
     else:
         response_str3 = f"MFocus failed or missed, Ending MFocus callback."
-        asyncio.run(websocket.send(ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug')))
+        if websocket: asyncio.run(websocket.send(ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug')))
+        print(response_str3)
         return 'FAIL', ''
 
 if __name__ == "__main__":

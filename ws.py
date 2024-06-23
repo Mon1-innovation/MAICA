@@ -17,12 +17,15 @@ from Crypto.PublicKey import RSA # type: ignore
 from openai import OpenAI # type: ignore
 from loadenv import load_env
 
+#省得到处找
+
 def global_init_system(player_name):
     system_init = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答. 你只应当使用自然语言回答, 不要分条, 不要列表, 不要编造信息, 不要编造结论, 并在每句开始时以方括号中的文字表示情绪."
     return system_init
 
-#灵活客户端, 用于获取agent回答.
-#此类用于直接输出, agent的流式输出没有意义.
+#灵活客户端, 用于获取agent回答
+#此类用于直接输出, agent的流式输出没有意义
+#其实好像没用上, 但是让他去吧
 
 def get_agent_answer(query, client):
     client = OpenAI(
@@ -75,12 +78,14 @@ def run_hash_dcc(identity, is_email, pwd):
                 dbres_email = information[3]
                 dbres_ecf = information[4]
                 dbres_pwd_bcrypt = information[5]
-            verification = bcrypt.checkpw(pwd.encode(), dbres_pwd_bcrypt.encode())
             if not dbres_ecf:
                 verification = False
                 return verification, "Email not verified"
+            verification = bcrypt.checkpw(pwd.encode(), dbres_pwd_bcrypt.encode())
             if verification:
                 return verification, None, dbres_id, dbres_username, dbres_nickname, dbres_email
+            else:
+                return verification, 'Password wrong'
             
     except Exception as excepted:
         #traceback.print_exc()
