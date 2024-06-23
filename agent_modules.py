@@ -238,7 +238,7 @@ def internet_acquire(params, sf_extraction, session, chat_session):
             # We just try to proceed
             pass
     try:
-        print(f'likely query: {likely_query}')
+        print(f'Agent modules acquiring Internet search, query is:\n{likely_query}\nEnd of Internet search')
         search_response = internet_search_limb(likely_query)
         if search_response[0]:
             content = json.dumps(search_response[2], ensure_ascii=False)

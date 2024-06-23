@@ -632,7 +632,8 @@ async def do_communicate(websocket, session, client_actual, client_options):
                     try:
                         if client_options['full_maica']:
                             message_agent_wrapped = mfocus_preinit.agenting(query_in, sf_extraction, session, chat_session)
-                            if message_agent_wrapped[0] == 'FAIL' or len(message_agent_wrapped[0]) > 30:
+                            if message_agent_wrapped[0] == 'FAIL' or len(message_agent_wrapped[0]) > 30 or len(message_agent_wrapped[1]) < 5:
+                                # We do not want answers without information
                                 response_str = f"Agent returned corrupted guidance. This may be a server failure, but a corruption is kinda expected so keep cool--your ray tracer ID is {traceray_id}"
                                 print(f"出现如下异常17-{traceray_id}:Corruption")
                                 await websocket.send(wrap_ws_formatter('404', 'agent_corrupted', response_str, 'warn'))

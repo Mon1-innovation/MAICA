@@ -11,7 +11,7 @@ def agenting(input, sf_extraction, session, chat_session):
         base_url=load_env('MFOCUS_ADDR'),
     )
     model_type = client.models.list().data[0].id
-    print(model_type)
+    print(f'MFocus preinit addressing model, response is:\n{model_type}\nEnd of MFocus addressing model')
     system_init = """
 You are an assistant designed to sort and conclude from sentences. Proceed the following sentence accroding to rules provided below.
 You have access to following tools:
@@ -138,7 +138,7 @@ Final Answer: 今天是情人节
         },
         {
             "name": "persistent_acquire",
-            "description": "Call this tool to get any additional information about the speakers, such as their preferences, hobbies, experiences, appearence or relationship. Notice that this tool has a high priority, ALWAYS use it as long as it could benefit your answer.",
+            "description": "Call this tool to get any additional information about the speakers, such as their preferences, hobbies, experiences, appearence or relationship. 如果你被问及你作为AI不具有的记忆, 经历, 人格或感情, 请使用此工具查找.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -157,7 +157,7 @@ Final Answer: 今天是情人节
         },
         {
             "name": "search_internet",
-            "description": "Call this tool to interact with the internet search API. This API will search your question on the internet. Notice that this tool has a high priority, ALWAYS use it as long as it could benefit your answer.",
+            "description": "Call this tool to interact with the internet search API. This API will search your question on the internet.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -197,8 +197,8 @@ Final Answer: 今天是情人节
         seed=42)
     response = resp.choices[0].message.content
     tool_calls = resp.choices[0].message.tool_calls
-    print(f"first response is {response}")
-    print(f"first tool called is {tool_calls}")
+    print(f"MFocus preinit 1st round finished, response is:\n{response}\nEnd of MFocus preinit 1st round")
+    print(f"Acquiring tool call from MFocus preinit 1st round, response is:\n{tool_calls}\nEnd of tool call acquiration")
 
     instructed_final_answer = {}
     # to be extended
@@ -308,8 +308,8 @@ Final Answer: 今天是情人节
                 raise Exception('None Function Actually Matched')
         except Exception as excepted:
             exception_return = excepted
-            traceback.print_exc()
-            print(excepted)
+            #traceback.print_exc()
+            print(f'Exception occured during MFocus preinit: {exception_return}')
         if not exception_return:
             messages.append({'role': 'assistant', 'content': response})
             messages.append({'role': 'tool', 'content': return_instruction})
@@ -324,23 +324,23 @@ Final Answer: 今天是情人节
                 frequency_penalty = 0.0,
                 seed=42)
             response = resp.choices[0].message.content
-            print(f"following response is {response}")
+            print(f"MFocus preinit {cycle+1}nd/rd/th round finished, response is:\n{response}\nEnd of MFocus preinit 1st round")
             tool_calls = resp.choices[0].message.tool_calls
-            print(f"following tool called is {tool_calls}")
+            print(f"Acquiring tool call from MFocus preinit {cycle+1}nd/rd/th round, response is:\n{tool_calls}\nEnd of tool call acquiration")
         else:
             break
     #print(instructed_final_answer)
     instructed_final_answer_joined = ''.join(str(x) for x in instructed_final_answer.values())
     final_answer = re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.S)
     if final_answer:
-        print(f"agent final answer is {final_answer[1]}")
+        print(f"MFocus callback achieved, response is:\n{final_answer[1]}\nEnd of MFocus callback")
         return final_answer[1], instructed_final_answer_joined
     else:
-        print("None Returned Or Something Went Wrong")
+        print("No final answer found for MFocus callback, can be exception")
         return 'FAIL', instructed_final_answer_joined
 
 if __name__ == "__main__":
-    agented = agenting('今天的天气怎么样', True, [0,0,23], 1)
+    agented = agenting('你有什么想吃的东西吗', True, [0,0,23], 1)
     #print(agented[0])
     print(agented[1])
 
