@@ -230,7 +230,7 @@ def internet_acquire(params, sf_extraction, session, chat_session):
                             likely_query = re.sub(rf'{location_prompt}', rf'{location}{location_prompt}', likely_query)
                             loc_caught = True
                     if not loc_caught:
-                        for locrelated_prompt in {'天气', '温度', '降雨', '霾', '店'}:
+                        for locrelated_prompt in {'天气', '温度', '路况', '降雨', '霾', '店'}:
                             if re.search(locrelated_prompt, likely_query, re.I):
                                 likely_query = re.sub('^', rf'{location}', likely_query)
                                 break

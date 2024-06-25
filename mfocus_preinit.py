@@ -72,7 +72,7 @@ Final Answer: 今天是情人节
     tools =  [
         {
             "name": "time_acquire",
-            "description": "Call this tool to get the current time.",
+            "description": "Call this tool to get the current time. 如果对话关于: 时间; 问候; 三餐; 休息, 使用此工具查找.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -85,7 +85,7 @@ Final Answer: 今天是情人节
         },
         {
             "name": "date_acquire",
-            "description": "Call this tool to get the current date.",
+            "description": "Call this tool to get the current date. 如果对话关于: 日期; 季节; 年份, 使用此工具查找.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -98,7 +98,7 @@ Final Answer: 今天是情人节
         },
         {
             "name": "weather_acquire",
-            "description": "Call this tool to get the current weather.",
+            "description": "Call this tool to get the current weather. 如果对话关于: 天气; 通勤; 户外活动, 使用此工具查找.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -111,7 +111,7 @@ Final Answer: 今天是情人节
         },
         {
             "name": "event_acquire",
-            "description": "Call this tool to get the event or holiday of a given date.",
+            "description": "Call this tool to get the event or holiday of a given date. 如果对话关于: 节日; 活动; 假期, 使用此工具查找.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -142,7 +142,7 @@ Final Answer: 今天是情人节
         },
         {
             "name": "persistent_acquire",
-            "description": "Call this tool to get any additional information about the speakers, such as their preferences, hobbies, experiences, appearence or relationship. 如果你被问及你作为AI不具有的记忆, 经历, 人格或感情, 请使用此工具查找.",
+            "description": "Call this tool to get any additional information about the speakers, such as their preferences, hobbies, experiences, appearence or relationship. 如果你被问及你作为AI不具有的记忆, 经历, 人格, 感情或任何其它事物, 使用此工具查找.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -374,7 +374,7 @@ Final Answer: 今天是情人节
         return 'FAIL', ''
 
 if __name__ == "__main__":
-    agented = agenting('你有什么想吃的东西吗', True, [0,0,23], 1)
+    agented = asyncio.run(agenting('我是走路去还是坐车去比较好', True, [0,0,23], 1))
     #print(agented[0])
     print(agented[1])
 
