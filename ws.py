@@ -21,7 +21,7 @@ from loadenv import load_env
 #省得到处找
 
 def global_init_system(player_name):
-    system_init = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答. 你只应当使用自然语言回答, 并在每句开始时以方括号中的文字表示情绪."
+    system_init = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答. 你只应使用自然语言, 以聊天语气回答, 并在每句开始时以方括号中的文字表示情绪."
     return system_init
 
 #灵活客户端, 用于获取agent回答
@@ -720,8 +720,8 @@ async def do_communicate(websocket, session, client_actual, client_options):
         default_max_tokens = None
         default_frequency_penalty = 0.0
         default_presence_penalty = 0.0
-        #default_seed = random.randint(0,999)
-        default_seed = 42
+        default_seed = random.randint(0,999)
+        #default_seed = 42
         completion_args = {
             "model": client_options['model'],
             "messages": messages,

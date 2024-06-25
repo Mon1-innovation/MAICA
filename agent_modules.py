@@ -14,19 +14,19 @@ def time_acquire(params):
     content = datetime.datetime.now()
     match content:
         case time if time.hour < 4:
-            time_friendly = f'现在是半夜{time.hour}点{time.minute}分'
+            time_friendly = f'现在是半夜{time.hour}点{str(time.minute).zfill(2)}分'
         case time if 4 <= time.hour < 7:
-            time_friendly = f'现在是凌晨{time.hour}点{time.minute}分'
+            time_friendly = f'现在是凌晨{time.hour}点{str(time.minute).zfill(2)}分'
         case time if 7 <= time.hour < 11:
-            time_friendly = f'现在是上午{time.hour}点{time.minute}分'
+            time_friendly = f'现在是上午{time.hour}点{str(time.minute).zfill(2)}分'
         case time if 11 <= time.hour < 13:
-            time_friendly = f'现在是中午{time.hour}点{time.minute}分'
+            time_friendly = f'现在是中午{time.hour}点{str(time.minute).zfill(2)}分'
         case time if 13 <= time.hour < 18:
-            time_friendly = f'现在是下午{time.hour - 12}点{time.minute}分'
+            time_friendly = f'现在是下午{time.hour - 12}点{str(time.minute).zfill(2)}分'
         case time if 18 <= time.hour < 23:
-            time_friendly = f'现在是晚上{time.hour - 12}点{time.minute}分'
+            time_friendly = f'现在是晚上{time.hour - 12}点{str(time.minute).zfill(2)}分'
         case time if 23 <= time.hour:
-            time_friendly = f'现在是半夜{time.hour - 12}点{time.minute}分'
+            time_friendly = f'现在是深夜{time.hour - 12}点{str(time.minute).zfill(2)}分'
 
     return success, exception, content, time_friendly
 def date_acquire(params, sf_extraction, session, chat_session):
