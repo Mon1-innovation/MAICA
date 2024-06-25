@@ -21,7 +21,7 @@ from loadenv import load_env
 #省得到处找
 
 def global_init_system(player_name):
-    system_init = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答. 你只应当使用自然语言回答, 不要分条, 不要列表, 不要编造信息, 不要编造结论, 并在每句开始时以方括号中的文字表示情绪."
+    system_init = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答. 你只应当使用自然语言回答, 并在每句开始时以方括号中的文字表示情绪."
     return system_init
 
 #灵活客户端, 用于获取agent回答
@@ -188,7 +188,7 @@ def purge_chat_session(user_id, chat_session_num):
             password = load_env('DB_PASSWORD'),
             db = 'maica'
         )as db_connection, db_connection.cursor() as db_cursor:
-            sql_expression1 = "SELECT chat_session_id FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
+            sql_expression1 = "SELECT chat_session_id, content FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
             try:
                 db_cursor.execute(sql_expression1, (user_id, chat_session_num))
                 results = db_cursor.fetchall()
@@ -199,6 +199,7 @@ def purge_chat_session(user_id, chat_session_num):
                 else:
                     for information in results:
                         chat_session_id = information[0]
+                        content_to_archive = information[1]
                     sql_expression2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
                     content = f'{{"role": "system", "content": "{global_init_system('[player]')}"}}'
                     try:
@@ -206,9 +207,20 @@ def purge_chat_session(user_id, chat_session_num):
                         results = db_cursor.fetchall()
                         if len(results) == 0:
                             db_connection.commit()
-                            success = True
-                            inexist = False
-                            return success, None, inexist
+                            sql_expression3 = "INSERT INTO csession_archived (chat_session_id, content) VALUES (%s, %s)"
+                            try:
+                                db_cursor.execute(sql_expression3, (chat_session_id, content_to_archive))
+                                results = db_cursor.fetchall()
+                                if len(results) == 0:
+                                    db_connection.commit()
+                                    success = True
+                                    inexist = False
+                                    return success, None, inexist
+                                else:
+                                    raise Exception('Insert Not Successful')
+                            except Exception as excepted:
+                                success = False
+                                return success, excepted
                         else:
                             raise Exception('Insert Not Successful')
                     except Exception as excepted:
@@ -708,7 +720,8 @@ async def do_communicate(websocket, session, client_actual, client_options):
         default_max_tokens = None
         default_frequency_penalty = 0.0
         default_presence_penalty = 0.0
-        default_seed = random.randint(0,999)
+        #default_seed = random.randint(0,999)
+        default_seed = 42
         completion_args = {
             "model": client_options['model'],
             "messages": messages,
@@ -753,7 +766,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                     await websocket.send(wrap_ws_formatter('100', 'continue', token, 'carriage'))
             await websocket.send(wrap_ws_formatter('1000', 'streaming_done', f"streaming has finished with seed {completion_args['seed']}", 'info'))
             reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
-            print(f"Finished replying-{traceray_id}:{session[3]}")
+            print(f"Finished replying-{traceray_id}:{session[3]}, with seed {completion_args['seed']}")
         else:
             token_combined = stream_resp.choices[0].message.content
             print(token_combined)

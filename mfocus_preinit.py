@@ -142,7 +142,7 @@ Final Answer: 今天是情人节
         },
         {
             "name": "persistent_acquire",
-            "description": "Call this tool to get any additional information about the speakers, such as their preferences, hobbies, experiences, appearence or relationship. 如果你被问及你作为AI不具有的记忆, 经历, 人格, 感情或任何其它事物, 使用此工具查找.",
+            "description": "Call this tool to get any additional information about the speakers, such as their preferences, hobbies, experiences, appearence or relationship. 如果你被问及你作为AI不具有的记忆, 经历, 人格, 感情, 喜好或任何其它事物, 使用此工具查找.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -195,7 +195,7 @@ Final Answer: 今天是情人节
         tools = tools,
         stop=['Observation:'],
         temperature=0.6,
-        top_p = 0.6,
+        top_p = 0.9,
         presence_penalty = 0.0,
         frequency_penalty = 0.0,
         seed=42)
@@ -374,7 +374,7 @@ Final Answer: 今天是情人节
         return 'FAIL', ''
 
 if __name__ == "__main__":
-    agented = asyncio.run(agenting('我是走路去还是坐车去比较好', True, [0,0,23], 1))
+    agented = asyncio.run(agenting('下午好！', True, [0,0,23], 1))
     #print(agented[0])
     print(agented[1])
 
