@@ -50,6 +50,7 @@ t9vozy56WuHPfv3KZTwrvZaIVSAExEL17wIDAQAB
     上传的存档与chat_session一一对应, 可以通过后面介绍的存档上传接口传入.
     仅当同时启用sf_extraction和MAICA完全能力时, 用户可以体验MAICA的最佳表现. 你可以出于隐私或响应速度起见关闭这些功能, 但当然会导致能力缺失.
 传入选择之后, 服务器应当返回200 ok, 并返回模型与基本模型信息.
+此处传入的选择均是不适合在对话途中修改的. 如果需要修改参数继续对话, 需要重建连接和进行认证.
 
 接下来, 用户应当开始对话. 你应当按以下格式输入信息:
     {"chat_session": "1", "query": "你好啊"}
@@ -68,6 +69,15 @@ t9vozy56WuHPfv3KZTwrvZaIVSAExEL17wIDAQAB
     用户应当避免在query中使用特殊符号, 这可能会导致其格式化失败. 同时应当注意对必要的符号进行转义.
         实验性功能: 用户可以在传入信息中添加键"mf_aggressive", 其应为boolean, 若未传入默认为false.
         指定mf_aggressive为true将总是尽可能使用MFocus的最终输出替代指导构型信息. 启用此功能可能提升模型的复杂信息梳理能力, 但也可能会造成人称或格式的混乱.
+        实验性功能: 用户可以在传入信息中添加超参数键, 其包括"top_p", "temperature", "max_tokens", "frequency_penalty", "presence_penalty", "seed".
+        超参数将被传递到核心模型, 具体效果可以查阅OpenAI文档. 超参数有以下限制:
+            0.1 <= float(top_p) <= 1.0, 默认值为0.7
+            0.0 <= float(temperature) <= 1.0, 默认值为0.4
+            0 < int(max_tokens) <= 128, 默认值为模型自动
+            0.0 <= float(frequency_penalty) <= 1.0, 默认值为0.0
+            0.0 <= float(presence_penalty) <= 1.0, 默认值为0.0
+            0 <= int(seed) <= 999, 默认值为随机
+        谨慎地使用超参数, 这些参数能对模型应答造成明显的影响. 如果在前端中包含此类选项, 应当向用户提供明确指示.
 传入对话后:
     maica_main使用流式输出传输内容, 因此模型应当开始传回连续的100 continue信息, 其载荷为流式传输所需要的chunk并标记为carriage:
     {"code": "100", "status": "continue", "content": "我", "type": "carriage", "time_ms": 时间戳(毫秒)}

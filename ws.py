@@ -472,7 +472,7 @@ async def check_permit(websocket):
 #面向api的第二层io: 指定服务内容
 
 async def def_model(websocket, session):
-    await websocket.send(wrap_ws_formatter('200', 'ok', f"choose service from:'maica_main', 'maica_main_nostream', 'maica_core', 'maica_core_nostream'", 'info'))
+    await websocket.send(wrap_ws_formatter('200', 'ok', 'choose service like {"model": "maica_main", "sf_extraction": true, "stream_output": true}', 'info'))
     while True:
         traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
         checked_status = check_user_status(session)
@@ -703,18 +703,44 @@ async def do_communicate(websocket, session, client_actual, client_options):
             print(f"出现如下异常25-{traceray_id}:{excepted}")
             await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
             continue
-        #messages = [{
-        #    'role': 'user',
-        #    'content': query
-        #}]
-        #print(messages)
-        gen_seed = random.randint(0,99)
-        stream_resp = client_actual.chat.completions.create(
-            model=client_options['model'],
-            messages=messages,
-            stream=client_options['stream'],
-            seed=gen_seed
-        )
+        default_top_p = 0.7
+        default_temperature = 0.4
+        default_max_tokens = None
+        default_frequency_penalty = 0.0
+        default_presence_penalty = 0.0
+        default_seed = random.randint(0,999)
+        completion_args = {
+            "model": client_options['model'],
+            "messages": messages,
+            "stream": client_options['stream'],
+        }
+        for super_param in ['top_p', 'temperature', 'max_tokens', 'frequency_penalty', 'presence_penalty', 'seed']:
+            if super_param in request_json:
+                super_value = request_json[super_param]
+                match super_param:
+                    case 'max_tokens':
+                        if 0 < int(super_value) <= 128:
+                            completion_args['max_tokens'] = int(super_value)
+                        else:
+                            raise Exception('max_tokens must fall on 1~128')
+                    case 'seed':
+                        if 0 <= int(super_value) <= 999:
+                            completion_args['seed'] = int(super_value)
+                        else:
+                            raise Exception('seed must fall on 0~999')      
+                    case 'top_p':
+                        if 0.1 <= float(super_value) <= 1.0:
+                            completion_args['top_p'] = float(super_value)
+                        else:
+                            raise Exception('top_p must fall on 0.1~1.0')
+                    case _:
+                        if 0.0 <= float(super_value) <= 1.0:
+                            completion_args[super_param] = float(super_value)
+                        else:
+                            raise Exception(f'{super_param} must fall on 0.0~1.0')
+            if not super_param in completion_args and super_param != 'max_tokens':
+                completion_args[super_param] = eval(f'default_{super_param}')
+        stream_resp = client_actual.chat.completions.create(**completion_args)
         if client_options['stream']:
         #print(f'query: {query}')
             reply_appended = ''
@@ -725,7 +751,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                 if token != '':
                     reply_appended = reply_appended + token
                     await websocket.send(wrap_ws_formatter('100', 'continue', token, 'carriage'))
-            await websocket.send(wrap_ws_formatter('1000', 'streaming_done', f"streaming has finished with seed {gen_seed}", 'info'))
+            await websocket.send(wrap_ws_formatter('1000', 'streaming_done', f"streaming has finished with seed {completion_args['seed']}", 'info'))
             reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
             print(f"Finished replying-{traceray_id}:{session[3]}")
         else:
