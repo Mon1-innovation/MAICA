@@ -7,7 +7,9 @@ import ws
 import agent_modules # type: ignore
 from openai import OpenAI # type: ignore
 from loadenv import load_env
-def agenting(input, sf_extraction, session, chat_session, websocket=None):
+async def agenting(input, sf_extraction, session, chat_session, websocket=None):
+    if websocket:
+        loop = asyncio.get_event_loop()
     client = OpenAI(
         api_key='EMPTY',
         base_url=load_env('MFOCUS_ADDR'),
@@ -206,8 +208,8 @@ Final Answer: 今天是情人节
         response_str1 = f'MFocus preinit 1st round finished, response is:\n{response}\nEnding due to returning none or corruption.'
         response_str2 = f'No tool called by MFocus.'
     if websocket:
-        asyncio.run(websocket.send(ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug')))
-        asyncio.run(websocket.send(ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'debug')))
+        await websocket.send(ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug'))
+        await websocket.send(ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'debug'))
     print(response_str1)
     print(response_str2)
   
@@ -345,8 +347,8 @@ Final Answer: 今天是情人节
                 response_str1 = f'MFocus preinit {cycle+1}nd/rd/th round finished, response is:\n{response}\nEnding due to returning none or corruption.'
                 response_str2 = f'No tool called by MFocus.'
             if websocket:
-                asyncio.run(websocket.send(ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug')))
-                asyncio.run(websocket.send(ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'debug')))
+                await websocket.send(ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug'))
+                await websocket.send(ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'debug'))
             print(response_str1)
             print(response_str2)
 
@@ -357,17 +359,17 @@ Final Answer: 今天是情人节
     final_answer = re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.S)
     if final_answer and instructed_final_answer_joined:
         response_str3 = f"MFocus callback achieved, response is:\n{final_answer[1]}\nInfo acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."
-        if websocket: asyncio.run(websocket.send(ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug')))
+        if websocket: await websocket.send(ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug'))
         print(response_str3)
         return final_answer[1], instructed_final_answer_joined
     elif instructed_final_answer_joined:
         response_str3 = f"MFocus falling back, Info acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."
-        if websocket: asyncio.run(websocket.send(ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug')))
+        if websocket: await websocket.send(ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug'))
         print(response_str3)
         return 'FAIL', instructed_final_answer_joined
     else:
         response_str3 = f"MFocus failed or missed, Ending MFocus callback."
-        if websocket: asyncio.run(websocket.send(ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug')))
+        if websocket: await websocket.send(ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug'))
         print(response_str3)
         return 'FAIL', ''
 

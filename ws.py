@@ -7,6 +7,7 @@ import json
 import pymysql
 import bcrypt
 import re
+import random
 import traceback
 import mfocus_preinit
 import persistent_extraction
@@ -412,6 +413,7 @@ def check_user_status(session, key='banned'):
 #面向api的第一层io: 身份验证, 获取session
 
 async def check_permit(websocket):
+    print('Someone started a connection')
     while True:
         traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
         recv_text = await websocket.recv()
@@ -484,6 +486,7 @@ async def def_model(websocket, session):
             print(f"出现如下异常7-{traceray_id}:banned")
             await websocket.send(wrap_ws_formatter('403', 'account_banned', response_str, 'warn'))
             await websocket.close(1000, 'Permission denied')
+        # This one is deprecated
         maica_main = False
         recv_text = await websocket.recv()
         while recv_text == 'PING':
@@ -494,6 +497,7 @@ async def def_model(websocket, session):
             model_choice = json.loads(recv_text)
             using_model = model_choice['model']
             sf_extraction = model_choice['sf_extraction']
+            stream_output = model_choice['stream_output']
             match using_model:
                 case 'maica_main':
                     client_actual = OpenAI(
@@ -503,19 +507,7 @@ async def def_model(websocket, session):
                     model_type_actual = client_actual.models.list().data[0].id
                     client_options = {
                         "model" : model_type_actual,
-                        "stream" : True,
-                        "full_maica": True,
-                        "sf_extraction": sf_extraction
-                    }
-                case 'maica_main_nostream':
-                    client_actual = OpenAI(
-                        api_key='EMPTY',
-                        base_url=load_env('MCORE_ADDR'),
-                    )
-                    model_type_actual = client_actual.models.list().data[0].id
-                    client_options = {
-                        "model" : model_type_actual,
-                        "stream" : False,
+                        "stream" : stream_output,
                         "full_maica": True,
                         "sf_extraction": sf_extraction
                     }
@@ -527,19 +519,7 @@ async def def_model(websocket, session):
                     model_type_actual = client_actual.models.list().data[0].id
                     client_options = {
                         "model" : model_type_actual,
-                        "stream" : True,
-                        "full_maica": False,
-                        "sf_extraction": sf_extraction
-                    }
-                case 'maica_core_nostream':
-                    client_actual = OpenAI(
-                        api_key='EMPTY',
-                        base_url=load_env('MCORE_ADDR'),
-                    )
-                    model_type_actual = client_actual.models.list().data[0].id
-                    client_options = {
-                        "model" : model_type_actual,
-                        "stream" : False,
+                        "stream" : stream_output,
                         "full_maica": False,
                         "sf_extraction": sf_extraction
                     }
@@ -548,9 +528,9 @@ async def def_model(websocket, session):
                     print(f"出现如下异常8-{traceray_id}:{response_str}")
                     await websocket.send(wrap_ws_formatter('404', 'not_found', response_str, 'warn'))
                     continue
-            if using_model == 'maica_core' or using_model == 'maica_core_nostream':
+            if using_model == 'maica_main':
                 await websocket.send(wrap_ws_formatter('200', 'ok', f"model chosen is {using_model} with full MAICA LLM functionality", 'info'))
-            else:
+            elif using_model == 'maica_core':
                 await websocket.send(wrap_ws_formatter('200', 'ok', f"model chosen is {using_model} based on {model_type_actual}", 'info'))
             return maica_main, client_actual, client_options
         except Exception as excepted:
@@ -640,7 +620,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
 
                     try:
                         if client_options['full_maica']:
-                            message_agent_wrapped = mfocus_preinit.agenting(query_in, sf_extraction, session, chat_session, websocket)
+                            message_agent_wrapped = await mfocus_preinit.agenting(query_in, sf_extraction, session, chat_session, websocket)
                             if message_agent_wrapped[0] == 'FAIL' or len(message_agent_wrapped[0]) > 30 or not message_agent_wrapped[1]:
                                 # We do not want answers without information
                                 response_str = f"Agent returned corrupted guidance. This may be a server failure, but a corruption is kinda expected so keep cool--your ray tracer ID is {traceray_id}"
@@ -728,11 +708,12 @@ async def do_communicate(websocket, session, client_actual, client_options):
         #    'content': query
         #}]
         #print(messages)
+        gen_seed = random.randint(0,99)
         stream_resp = client_actual.chat.completions.create(
             model=client_options['model'],
             messages=messages,
             stream=client_options['stream'],
-            seed=42
+            seed=gen_seed
         )
         if client_options['stream']:
         #print(f'query: {query}')
@@ -744,7 +725,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                 if token != '':
                     reply_appended = reply_appended + token
                     await websocket.send(wrap_ws_formatter('100', 'continue', token, 'carriage'))
-            await websocket.send(wrap_ws_formatter('1000', 'streaming_done', "streaming has finished", 'info'))
+            await websocket.send(wrap_ws_formatter('1000', 'streaming_done', f"streaming has finished with seed {gen_seed}", 'info'))
             reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
             print(f"Finished replying-{traceray_id}:{session[3]}")
         else:
@@ -789,10 +770,10 @@ def callback_do_communicate(future):
     print(f'Result_callback_do_communicate: {future.result()}')
 
 def callback_def_model(future):
-    print(f'Result_callback_def_model: {future.result()}')
+    print(f'Stage2 passed:\n{future.result()}')
 
 def callback_check_permit(future):
-    print(f'Result_callback_check_permit: {future.result()}')
+    print(f'Stage1 passed:\n{future.result()}')
     
 #主要线程驱动器
 

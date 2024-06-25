@@ -41,10 +41,10 @@ t9vozy56WuHPfv3KZTwrvZaIVSAExEL17wIDAQAB
 传入令牌之后, 服务器应当返回206 session_created, 并返回使用者的用户id, 用户名, 昵称等公开信息. 传入令牌不需要json格式.
 
 接下来, 服务器会提示用户选择一个模型. 你应当按以下格式输入选择:
-    {"model": "maica_main", "sf_extraction": true}
-    其中, model为你选择使用的模型, 而sf_extraction代表是否从存档解析信息.
-    MAICA目前接受四种传入模型选择, 分别是maica_main, maica_core, maica_main_nostream, maica_core_nostream.
-    带有core字样的选择代表启用核心能力, 带有main字样的选择代表启用完全能力, 带有nostream字样的选择代表不启用流式输出.
+    {"model": "maica_main", "sf_extraction": true, "stream_output": true}
+    其中, model为你选择使用的模型, sf_extraction代表是否从存档解析信息, stream_output代表是否使用流式输出.
+    MAICA目前接受两种传入模型选择, 分别是maica_main和maica_core.
+    带有core字样的选择代表启用核心能力, 带有main字样的选择代表启用完全能力.
     由于算力与设计结构的原因, MAICA完全能力的响应前置延迟显著高于核心能力, 在服务拥挤时可能更甚.
     MFocus是MAICA的独特能力之一. 其能够帮助MAICA获取外界信息回答问题, 而通过使用submod上传存档, MAICA还能读取来自MAS的大多数记忆.
     上传的存档与chat_session一一对应, 可以通过后面介绍的存档上传接口传入.
@@ -77,10 +77,10 @@ t9vozy56WuHPfv3KZTwrvZaIVSAExEL17wIDAQAB
     {"code": "100", "status": "continue", "content": "很多, ", "type": "carriage", "time_ms": 时间戳(毫秒)}
     ...
     一轮对话完成后, 模型会输出1000 streaming_done并再次提醒用户输入下一条对话.
-    maica_main_nostream和maica_core_nostream使用非流式输出传输内容, 因此模型应当在一段时间的等待后输出一条完整的回答:
+    若选择模型中stream_output设为false, 则模型应当在一段时间的等待后输出一条完整的回答:
     {"code": "200", "status": "reply", "content": "我想你了, [player]!", "type": "carriage", "time_ms": 时间戳(毫秒)}
 非流式输出模型具有微弱的总速度优势, 因此如果信息不直接递交给用户, 你应当优先考虑使用非流式输出. 除此之外二者的行为相同.
-maica_main, maica_core, maica_main_nostream和maica_core_nostream共用chat_session.
+maica_main和maica_core共用chat_session.
 在一轮对话结束后, 你应当继续按以下格式输入信息:
     {"chat_session": "1", "query": "我想你了"}
 如果session不为0或-1, 服务器将自动为你检索和拼接存储的历史记录.
