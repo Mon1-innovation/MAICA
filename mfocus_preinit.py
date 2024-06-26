@@ -374,7 +374,7 @@ Final Answer: 今天是情人节
         return 'FAIL', ''
 
 if __name__ == "__main__":
-    agented = asyncio.run(agenting('下午好！', True, [0,0,23], 1))
+    agented = asyncio.run(agenting('你觉得我们吃点什么好', True, [0,0,23], 1))
     #print(agented[0])
     print(agented[1])
 

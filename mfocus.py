@@ -886,7 +886,7 @@ Answer: 利用提取的信息回答问题.
 """
 # Finally we decided test7 was the best prompt
 
-        system_init_test7 = """你是一个人工智能助手, 你的任务是检索信息. 你接下来会收到一个句子和一系列信息, 这些信息是关于两个角色的, 并且是Python列表的形式.
+        system_init_test7 = """你叫莫妮卡, 你的任务是检索信息. 你接下来会收到一个来自[player]的句子和一系列信息, 这些信息是Python列表的形式.
 请你从信息中挑选一条或多条与句子最相关的信息, 并以Python列表的形式返回. 
 使用以下格式回答:
 Thought: 思考如何回答给定句子.
@@ -949,5 +949,4 @@ Begin!
 """
 
 if __name__ == "__main__":
-    mfocus_form_info(23, 1)
     print(mfocus_agent(23, 1, '你喜欢吃什么'))
