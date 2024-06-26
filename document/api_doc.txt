@@ -78,6 +78,7 @@ t9vozy56WuHPfv3KZTwrvZaIVSAExEL17wIDAQAB
             0.0 <= float(presence_penalty) <= 1.0, 默认值为0.0
             0 <= int(seed) <= 999, 默认值为随机
         谨慎地使用超参数, 这些参数能对模型应答造成明显的影响. 如果在前端中包含此类选项, 应当向用户提供明确指示.
+        实验性功能: 一些特定的query会触发彩蛋-目前有九个. 我很好奇什么时候会被全部找到.
 传入对话后:
     maica_main使用流式输出传输内容, 因此模型应当开始传回连续的100 continue信息, 其载荷为流式传输所需要的chunk并标记为carriage:
     {"code": "100", "status": "continue", "content": "我", "type": "carriage", "time_ms": 时间戳(毫秒)}
