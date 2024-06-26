@@ -17,6 +17,7 @@ from Crypto.Cipher import PKCS1_OAEP # type: ignore
 from Crypto.PublicKey import RSA # type: ignore
 from openai import OpenAI # type: ignore
 from loadenv import load_env
+from easter_egg import easter
 
 #省得到处找
 
@@ -607,6 +608,10 @@ async def do_communicate(websocket, session, client_actual, client_options):
                     continue
             query_in = request_json['query']
             username = session[3]
+            easter_check = easter(query_in)
+            if easter_check:
+                await websocket.send(wrap_ws_formatter('299', 'easter_egg', easter_check, 'info'))
+                continue
             messages0 = json.dumps({'role': 'user', 'content': query_in}, ensure_ascii=False)
             sf_extraction = client_options['sf_extraction']
             match int(chat_session):
