@@ -239,6 +239,15 @@ _mas_o31_tt_count
 为尽可能提高分词一致性, 传入的任何可读文本应当使用半角标点, 并在断句前追加半角空格, 类似本文档的写法. 使用全角标点可能会使模型表现略微偏离预期.
 存档json的总长度不能超过10万字符, 超长会被拒收. 请避免开发中发生泄漏.
 
+MAICA下载历史记录存档的接口位于https://maicadev.monika.love/api/history. 你应当遵循以下格式, 以POST形式请求历史记录:
+    {"access_token": "你的令牌", "chat_session": "指定对应的chat_session", "lines":"指定获取的条数"}
+    lines应为int值.
+        当lines为正整数n时, 接口只返回对话历史的前n项, 应注意其中第一项为最后一次生效的system字段.
+        当lines为负整数-n时, 接口只返回对话历史的后n项, 此时返回的对话历史仍然以正序排列.
+        当lines为0时, 接口返回全部对话历史--可能会很长.
+如果历史被成功下载, 接口会返回:
+    {"success": true, "exception": "", "history": "json string格式的历史"}
+
 为降低开发和调试难度, MAICA websocket接口不强制, 也不会主动发送心跳连接. 但如果有需要, MAICA接口能够接收和响应心跳连接.
 在身份认证完成后, 向服务器发送大写单词PING即可收到来自服务器的心跳连接包:
     {"code": "100", "status": "continue", "content": "PONG", "type": "heartbeat", "time_ms": 时间戳(毫秒)}

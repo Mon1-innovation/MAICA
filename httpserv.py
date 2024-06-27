@@ -21,8 +21,8 @@ pubkey_loaded = RSA.import_key(pubkey)
 
 
 # 通过methods设置POST请求
-@app.route('/', methods=["POST"])
-def json_request():
+@app.route('/savefile/', methods=["POST"])
+def save_upload():
     success = True
     exception = ''
     try:
@@ -60,8 +60,52 @@ def json_request():
         success = False
         exception = excepted
         return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
+
+@app.route('/history/', methods=["POST"])
+def history_download():
+    success = True
+    exception = ''
+    try:
+        data = json.loads(request.data)
+        access_token = data['access_token']
+        chat_session = data['chat_session']
+        lines = data['lines']
+        print(access_token)
+        decryptor = PKCS1_OAEP.new(privkey_loaded)
+        decrypted_token =decryptor.decrypt(base64.b64decode(access_token)).decode("utf-8")
+        login_cridential = json.loads(decrypted_token)
+        if 'username' in login_cridential:
+            login_identity = login_cridential['username']
+            login_is_email = False
+        elif 'email' in login_cridential:
+            login_identity = login_cridential['email']
+            login_is_email = True
+        else:
+            raise Exception('No Identity Provided')
+        login_password = login_cridential['password']
+        verification_result = ws.run_hash_dcc(login_identity, login_is_email, login_password)
+        if not verification_result[0]:
+            raise Exception('Identity hashing failed')
+        else:
+            session = verification_result
+            hisjson = json.loads(f"[{ws.rw_chat_session(session, chat_session, 'r', None)}]")
+            match int(lines):
+                case i if i > 0:
+                    hisfine = hisjson[:i]
+                case i if i < 0:
+                    hisfine = hisjson[i:]
+                case _:
+                    hisfine = hisjson
+            hisstr = json.dumps(hisfine, ensure_ascii=False)
+        return json.dumps({"success": success, "exception": exception, "history": hisstr}, ensure_ascii=False)
+    except Exception as excepted:
+        #traceback.print_exc()
+        success = False
+        exception = excepted
+        return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
+
     
-@app.route('/reg/', methods=["POST"])
+@app.route('/register/', methods=["POST"])
 def register():
     success = True
     exception = ''
