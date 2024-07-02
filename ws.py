@@ -611,7 +611,6 @@ async def do_communicate(websocket, session, client_actual, client_options):
             easter_check = easter(query_in)
             if easter_check:
                 await websocket.send(wrap_ws_formatter('299', 'easter_egg', easter_check, 'info'))
-                continue
             messages0 = json.dumps({'role': 'user', 'content': query_in}, ensure_ascii=False)
             sf_extraction = client_options['sf_extraction']
             match int(chat_session):
