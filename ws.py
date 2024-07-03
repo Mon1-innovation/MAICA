@@ -69,7 +69,7 @@ def run_hash_dcc(identity, is_email, pwd):
             host = load_env('DB_ADDR'),
             user = load_env('DB_USER'),
             password = load_env('DB_PASSWORD'),
-            db = 'test_forum_com'
+            db = load_env('AUTHENTICATOR_DB')
         )as db_connection, db_connection.cursor() as db_cursor:
             db_cursor.execute(sql_expression, (identity))
             results = db_cursor.fetchall()
@@ -104,7 +104,7 @@ def rw_chat_session(session, chat_session_num, rw, content_append):
             host = load_env('DB_ADDR'),
             user = load_env('DB_USER'),
             password = load_env('DB_PASSWORD'),
-            db = 'maica'
+            db = load_env('MAICA_DB')
         )as db_connection, db_connection.cursor() as db_cursor:
             if rw == 'r':
                 sql_expression = "SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
@@ -189,7 +189,7 @@ def purge_chat_session(user_id, chat_session_num):
             host = load_env('DB_ADDR'),
             user = load_env('DB_USER'),
             password = load_env('DB_PASSWORD'),
-            db = 'maica'
+            db = load_env('MAICA_DB')
         )as db_connection, db_connection.cursor() as db_cursor:
             sql_expression1 = "SELECT chat_session_id, content FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
             try:
@@ -248,7 +248,7 @@ def check_create_chat_session(session, chat_session_num):
             host = load_env('DB_ADDR'),
             user = load_env('DB_USER'),
             password = load_env('DB_PASSWORD'),
-            db = 'maica'
+            db = load_env('MAICA_DB')
         )as db_connection, db_connection.cursor() as db_cursor:
             sql_expression1 = "SELECT chat_session_id FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
             try:
@@ -306,7 +306,7 @@ def mod_chat_session_system(session, chat_session_num, new_system_init):
             host = load_env('DB_ADDR'),
             user = load_env('DB_USER'),
             password = load_env('DB_PASSWORD'),
-            db = 'maica'
+            db = load_env('MAICA_DB')
         )as db_connection, db_connection.cursor() as db_cursor:
             sql_expression1 = "SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
             try:
@@ -383,7 +383,7 @@ def check_user_status(session, key='banned'):
             host = load_env('DB_ADDR'),
             user = load_env('DB_USER'),
             password = load_env('DB_PASSWORD'),
-            db = 'maica'
+            db = load_env('MAICA_DB')
         )as db_connection, db_connection.cursor() as db_cursor:
             sql_expression1 = "SELECT * FROM account_status WHERE user_id = %s"
             try:
