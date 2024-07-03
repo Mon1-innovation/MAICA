@@ -21,7 +21,7 @@ pubkey_loaded = RSA.import_key(pubkey)
 
 
 # 通过methods设置POST请求
-@app.route('/savefile/', methods=["POST"])
+@app.route('/savefile', methods=["POST"])
 def save_upload():
     success = True
     exception = ''
@@ -61,7 +61,7 @@ def save_upload():
         exception = excepted
         return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
 
-@app.route('/history/', methods=["POST"])
+@app.route('/history', methods=["POST"])
 def history_download():
     success = True
     exception = ''
@@ -105,7 +105,7 @@ def history_download():
         return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
 
     
-@app.route('/register/', methods=["POST"])
+@app.route('/register', methods=["POST"])
 def register():
     success = True
     exception = ''
