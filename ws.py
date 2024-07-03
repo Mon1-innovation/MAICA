@@ -732,6 +732,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
             "model": client_options['model'],
             "messages": messages,
             "stream": client_options['stream'],
+            "stop": ['<|im_end|>', '<|endoftext|>'],
         }
         for super_param in ['top_p', 'temperature', 'max_tokens', 'frequency_penalty', 'presence_penalty', 'seed']:
             if super_param in request_json:
