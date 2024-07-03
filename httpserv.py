@@ -88,7 +88,12 @@ def history_download():
             raise Exception('Identity hashing failed')
         else:
             session = verification_result
-            hisjson = json.loads(f"[{ws.rw_chat_session(session, chat_session, 'r', None)}]")
+            hisjson = ws.rw_chat_session(session, chat_session, 'r', None)
+            print(hisjson)
+            if hisjson[0]:
+                hisjson = json.loads(f"[{hisjson[3]}]")
+            else:
+                raise Exception('History reading failed')
             match int(lines):
                 case i if i > 0:
                     hisfine = hisjson[:i]

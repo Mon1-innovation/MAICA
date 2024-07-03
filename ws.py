@@ -112,7 +112,9 @@ def rw_chat_session(session, chat_session_num, rw, content_append):
                     db_cursor.execute(sql_expression, (user_id, chat_session_num))
                     results = db_cursor.fetchall()
                     for information in results:
-                        if len(information[3]) != 0 and content_append:
+                        if content_append is None:
+                            content_append = ''
+                        elif len(information[3]) != 0:
                             content_append = ',' + content_append
                         chat_session_id = information[0]
                         content = information[3] + content_append
