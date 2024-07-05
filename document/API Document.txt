@@ -1,3 +1,6 @@
+I'm sorry for not offering an English ver of this document but it's just too much work for me.
+If you want to read in English, use a translator.
+
 此文档是MAICA接口的暂定文档, 后面很可能会有更多改动, 请不要硬编码在实际开发项目中.
 
 连接地址: wss://maicadev.monika.love/websocket
@@ -73,7 +76,7 @@ t9vozy56WuHPfv3KZTwrvZaIVSAExEL17wIDAQAB
         超参数将被传递到核心模型, 具体效果可以查阅OpenAI文档. 超参数有以下限制:
             0.1 <= float(top_p) <= 1.0, 默认值为0.7
             0.0 <= float(temperature) <= 1.0, 默认值为0.4
-            0 < int(max_tokens) <= 128, 默认值为模型自动
+            0 < int(max_tokens) <= 1024, 默认值为模型自动
             0.0 <= float(frequency_penalty) <= 1.0, 默认值为0.0
             0.0 <= float(presence_penalty) <= 1.0, 默认值为0.0
             0 <= int(seed) <= 999, 默认值为随机

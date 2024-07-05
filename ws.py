@@ -739,10 +739,10 @@ async def do_communicate(websocket, session, client_actual, client_options):
                 super_value = request_json[super_param]
                 match super_param:
                     case 'max_tokens':
-                        if 0 < int(super_value) <= 128:
+                        if 0 < int(super_value) <= 1024:
                             completion_args['max_tokens'] = int(super_value)
                         else:
-                            raise Exception('max_tokens must fall on 1~128')
+                            raise Exception('max_tokens must fall on 1~1024')
                     case 'seed':
                         if 0 <= int(super_value) <= 999:
                             completion_args['seed'] = int(super_value)
