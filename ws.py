@@ -80,15 +80,15 @@ def run_hash_dcc(identity, is_email, pwd):
                 dbres_email = information[3]
                 dbres_ecf = information[4]
                 dbres_pwd_bcrypt = information[5]
-            if not dbres_ecf:
-                verification = False
-                return verification, "Email not verified"
             verification = bcrypt.checkpw(pwd.encode(), dbres_pwd_bcrypt.encode())
             if verification:
-                return verification, None, dbres_id, dbres_username, dbres_nickname, dbres_email
+                if not dbres_ecf:
+                    verification = False
+                    return verification, "Email not verified"
+                else:
+                    return verification, None, dbres_id, dbres_username, dbres_nickname, dbres_email
             else:
                 return verification, 'Password wrong'
-            
     except Exception as excepted:
         #traceback.print_exc()
         verification = False
@@ -141,17 +141,17 @@ def rw_chat_session(session, chat_session_num, rw, content_append):
                 else:
                     content = content_append
                 len_content_actual = len(content) - len(json.loads(f'[{content}]')) * 31
-                if len_content_actual >= 28672:
+                if len_content_actual >= int(load_env('SESSION_MAX_TOKEN')):
                     try:
                         cutting_mat = json.loads(f"[{content}]")
                     except Exception as excepted:
                         success = False
                         return success, excepted
-                    while len_content_actual >= 24576 or cutting_mat[1]['role'] == "assistant":
+                    while len_content_actual >= int(load_env('SESSION_WARN_TOKEN')) or cutting_mat[1]['role'] == "assistant":
                         cutting_mat.pop(1)
                     content = json.dumps(cutting_mat, ensure_ascii=False).strip('[').strip(']')
                     cutted = 1
-                elif len_content_actual >= 24576:
+                elif len_content_actual >= int(load_env('SESSION_WARN_TOKEN')):
                     cutted = 2
                 else:
                     cutted = 0
@@ -543,6 +543,7 @@ async def def_model(websocket, session):
                     print(f"出现如下异常8-{traceray_id}:{response_str}")
                     await websocket.send(wrap_ws_formatter('404', 'not_found', response_str, 'warn'))
                     continue
+            await websocket.send(wrap_ws_formatter('200', 'ok', f"service provider is {load_env('DEV_IDENTITY')}", 'info'))
             if using_model == 'maica_main':
                 await websocket.send(wrap_ws_formatter('200', 'ok', f"model chosen is {using_model} with full MAICA LLM functionality", 'info'))
             elif using_model == 'maica_core':
