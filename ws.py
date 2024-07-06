@@ -860,7 +860,7 @@ if __name__ == '__main__':
         base_url=load_env('MCORE_ADDR'),
     )
     model_type = client.models.list().data[0].id
-    print(f"model type is {model_type}")
+    print(f"First time confirm--model type is {model_type}")
 
     #启动时初始化密钥, 创建解密程序
 
@@ -872,7 +872,10 @@ if __name__ == '__main__':
         pubkey = pubkey_file.read()
     privkey_loaded = RSA.import_key(privkey)
 
-    print('server started!')
-    start_server = websockets.serve(functools.partial(main_logic), '0.0.0.0', 5000)
-    asyncio.get_event_loop().run_until_complete(start_server)
-    asyncio.get_event_loop().run_forever()
+    print('Server started!')
+    try:
+        start_server = websockets.serve(functools.partial(main_logic), '0.0.0.0', 5000)
+        asyncio.get_event_loop().run_until_complete(start_server)
+        asyncio.get_event_loop().run_forever()
+    except Exception as excepted:
+        print(f'Exception: {excepted}. Likely connection loss.')
