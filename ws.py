@@ -17,7 +17,11 @@ from Crypto.Cipher import PKCS1_OAEP # type: ignore
 from Crypto.PublicKey import RSA # type: ignore
 from openai import OpenAI # type: ignore
 from loadenv import load_env
-from easter_egg import easter
+try:
+    from easter_egg import easter
+    easter_exist = True
+except:
+    easter_exist = False
 
 #省得到处找
 
@@ -148,6 +152,7 @@ def rw_chat_session(session, chat_session_num, rw, content_append):
                         success = False
                         return success, excepted
                     while len_content_actual >= int(load_env('SESSION_WARN_TOKEN')) or cutting_mat[1]['role'] == "assistant":
+                        len_content_actual = len(content) - len(cutting_mat) * 31
                         cutting_mat.pop(1)
                     content = json.dumps(cutting_mat, ensure_ascii=False).strip('[').strip(']')
                     cutted = 1
@@ -390,18 +395,20 @@ def check_user_status(session, key='banned'):
                 db_cursor.execute(sql_expression1, (user_id))
                 results = db_cursor.fetchall()
                 if len(results) > 0:
+                    stats_json = {}
                     for information in results:
-                        status = json.loads(information[2])
-                        if key in status:
-                            if status[key]:
-                                success = True
-                                return success, None, True, status[key]
-                            else:
-                                success = True
-                                return success, None, False, status[key]
+                        stats_json.update(json.loads(information[2]))
+                    status = json.loads(stats_json)
+                    if key in status:
+                        if status[key]:
+                            success = True
+                            return success, None, True, status[key]
                         else:
                             success = True
-                            return success, 'didnt really found', False, None
+                            return success, None, False, status[key]
+                    else:
+                        success = True
+                        return success, 'didnt really found', False, None
                 else:
                     success = True
                     return success, 'didnt really exist', False, None
@@ -611,9 +618,11 @@ async def do_communicate(websocket, session, client_actual, client_options):
                     continue
             query_in = request_json['query']
             username = session[3]
-            easter_check = easter(query_in)
-            if easter_check:
-                await websocket.send(wrap_ws_formatter('299', 'easter_egg', easter_check, 'info'))
+            global easter_exist
+            if easter_exist:
+                easter_check = easter(query_in)
+                if easter_check:
+                    await websocket.send(wrap_ws_formatter('299', 'easter_egg', easter_check, 'info'))
             messages0 = json.dumps({'role': 'user', 'content': query_in}, ensure_ascii=False)
             sf_extraction = client_options['sf_extraction']
             match int(chat_session):
@@ -790,9 +799,9 @@ async def do_communicate(websocket, session, client_actual, client_options):
                     if stored[4]:
                         match stored[4]:
                             case 1:
-                                await websocket.send(wrap_ws_formatter('204', 'deleted', f"Since session {chat_session} of user {username} exceeded 28k characters, The former part has been deleted to save storage--your ray tracer ID is {traceray_id}.", 'info'))
+                                await websocket.send(wrap_ws_formatter('204', 'deleted', f"Since session {chat_session} of user {username} exceeded {load_env('SESSION_MAX_TOKEN')} characters, The former part has been deleted to save storage--your ray tracer ID is {traceray_id}.", 'info'))
                             case 2:
-                                await websocket.send(wrap_ws_formatter('200', 'delete_hint', f"Session {chat_session} of user {username} exceeded 24k characters, which will be chopped after exceeding 28k, make backups if you want to--your ray tracer ID is {traceray_id}.", 'info'))
+                                await websocket.send(wrap_ws_formatter('200', 'delete_hint', f"Session {chat_session} of user {username} exceeded {load_env('SESSION_WARN_TOKEN')} characters, which will be chopped after exceeding {load_env('SESSION_MAX_TOKEN')}, make backups if you want to--your ray tracer ID is {traceray_id}.", 'info'))
                 else:
                     response_str = f"Chat reply recording failed, refer to administrator--your ray tracer ID is {traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
                     print(f"出现如下异常26-{traceray_id}:{stored[1]}")

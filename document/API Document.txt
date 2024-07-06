@@ -1,7 +1,7 @@
 I'm sorry for not offering an English ver of this document but it's just too much work for me.
 If you want to read in English, use a translator.
 
-此文档是MAICA接口的暂定文档, 后面很可能会有更多改动, 请不要硬编码在实际开发项目中.
+此文档是MAICA接口的使用文档. 文档内容和API结构可能在此后会有变化, 请开发者关注.
 
 连接地址: wss://maicadev.monika.love/websocket
 websocket服务器传信遵守以下原则:
@@ -52,7 +52,7 @@ t9vozy56WuHPfv3KZTwrvZaIVSAExEL17wIDAQAB
     MFocus是MAICA的独特能力之一. 其能够帮助MAICA获取外界信息回答问题, 而通过使用submod上传存档, MAICA还能读取来自MAS的大多数记忆.
     上传的存档与chat_session一一对应, 可以通过后面介绍的存档上传接口传入.
     仅当同时启用sf_extraction和MAICA完全能力时, 用户可以体验MAICA的最佳表现. 你可以出于隐私或响应速度起见关闭这些功能, 但当然会导致能力缺失.
-传入选择之后, 服务器应当返回200 ok, 并返回模型与基本模型信息.
+传入选择之后, 服务器应当返回200 ok, 并返回服务设备与基本模型信息.
 此处传入的选择均是不适合在对话途中修改的. 如果需要修改参数继续对话, 需要重建连接和进行认证.
 
 接下来, 用户应当开始对话. 你应当按以下格式输入信息:
