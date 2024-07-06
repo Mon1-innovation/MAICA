@@ -3,6 +3,7 @@ import json
 import base64
 import traceback
 import ws
+from gevent import pywsgi
 from Crypto.Random import random as CRANDOM # type: ignore
 from Crypto.Cipher import PKCS1_OAEP # type: ignore
 from Crypto.PublicKey import RSA # type: ignore
@@ -139,8 +140,11 @@ def register():
     
 
 if __name__ == '__main__':
-    app.run(
-        host='0.0.0.0',
-        port= 6000,
-        debug=True
-    )
+#    app.run(
+#        host='0.0.0.0',
+#        port= 6000,
+#        debug=False
+#    )
+    server_thread = pywsgi.WSGIServer(('0.0.0.0', 6000), app)
+    print('HTTP server started!')
+    server_thread.serve_forever()
