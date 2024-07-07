@@ -1,4 +1,4 @@
-<h1 align="center">MAICA</h1>
+<h1 align="center">MAICA-Illuminator</h1>
 <div align="center">
 <img src="https://maica.monika.love/assets/maica-text-finish-p.png" width=150>
 </div>
