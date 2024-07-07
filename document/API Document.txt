@@ -44,14 +44,16 @@ t9vozy56WuHPfv3KZTwrvZaIVSAExEL17wIDAQAB
 传入令牌之后, 服务器应当返回206 session_created, 并返回使用者的用户id, 用户名, 昵称等公开信息. 传入令牌不需要json格式.
 
 接下来, 服务器会提示用户选择一个模型. 你应当按以下格式输入选择:
-    {"model": "maica_main", "sf_extraction": true, "stream_output": true}
-    其中, model为你选择使用的模型, sf_extraction代表是否从存档解析信息, stream_output代表是否使用流式输出.
+    {"model": "maica_main", "sf_extraction": true, "stream_output": true, "target_lang": "zh"}
+    其中, model为你选择使用的模型, sf_extraction代表是否从存档解析信息, stream_output代表是否使用流式输出, target_lang代表输出语言种类.
     MAICA目前接受两种传入模型选择, 分别是maica_main和maica_core.
     带有core字样的选择代表启用核心能力, 带有main字样的选择代表启用完全能力.
     由于算力与设计结构的原因, MAICA完全能力的响应前置延迟显著高于核心能力, 在服务拥挤时可能更甚.
     MFocus是MAICA的独特能力之一. 其能够帮助MAICA获取外界信息回答问题, 而通过使用submod上传存档, MAICA还能读取来自MAS的大多数记忆.
     上传的存档与chat_session一一对应, 可以通过后面介绍的存档上传接口传入.
     仅当同时启用sf_extraction和MAICA完全能力时, 用户可以体验MAICA的最佳表现. 你可以出于隐私或响应速度起见关闭这些功能, 但当然会导致能力缺失.
+    target_lang只能传入zh或en. 此方法通过修改system prompt实现, 并不能保证输出语言严格正确.
+    除model外, 其余参数的缺省值分别为true, true, "zh".
 传入选择之后, 服务器应当返回200 ok, 并返回服务设备与基本模型信息.
 此处传入的选择均是不适合在对话途中修改的. 如果需要修改参数继续对话, 需要重建连接和进行认证.
 

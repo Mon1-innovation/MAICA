@@ -358,7 +358,7 @@ def mod_chat_session_system(session, chat_session_num, new_system_init):
 
 #这个修改system太麻烦了, 再包装一下吧
 
-def wrap_mod_system(session, chat_session_num, known_info, name_from_sf):
+def wrap_mod_system(session, chat_session_num, known_info, name_from_sf, language='zh'):
     user_id = session[2]
     #print(name_from_sf)
     if name_from_sf:
@@ -373,9 +373,11 @@ def wrap_mod_system(session, chat_session_num, known_info, name_from_sf):
     else:
         player_name = '[player]'
     if known_info:
-        new_system = f"{global_init_system(player_name)} 注意利用以下信息回答: {known_info}"
+        new_system = f"{global_init_system(player_name)} 注意利用以下信息回答: {known_info}."
     else:
         new_system = global_init_system(player_name)
+    if language == 'en':
+        new_system += '\n你应当使用英文回答.\nAnswer in English.'
     return mod_chat_session_system(session, chat_session_num, new_system)
 
 #检查用户账号的即时状态
@@ -518,8 +520,18 @@ async def def_model(websocket, session):
         try:
             model_choice = json.loads(recv_text)
             using_model = model_choice['model']
-            sf_extraction = model_choice['sf_extraction']
-            stream_output = model_choice['stream_output']
+            if 'sf_extraction' in model_choice:
+                sf_extraction = model_choice['sf_extraction']
+            else:
+                sf_extraction = True
+            if 'stream_output' in model_choice:
+                stream_output = model_choice['stream_output']
+            else:
+                stream_output = True
+            if 'target_lang' in model_choice:
+                target_lang = model_choice['target_lang']
+            else:
+                target_lang = 'zh'
             match using_model:
                 case 'maica_main':
                     client_actual = OpenAI(
@@ -531,7 +543,8 @@ async def def_model(websocket, session):
                         "model" : model_type_actual,
                         "stream" : stream_output,
                         "full_maica": True,
-                        "sf_extraction": sf_extraction
+                        "sf_extraction": sf_extraction,
+                        "target_lang": target_lang
                     }
                 case 'maica_core':
                     client_actual = OpenAI(
@@ -543,7 +556,8 @@ async def def_model(websocket, session):
                         "model" : model_type_actual,
                         "stream" : stream_output,
                         "full_maica": False,
-                        "sf_extraction": sf_extraction
+                        "sf_extraction": sf_extraction,
+                        "target_lang": target_lang
                     }
                 case _:
                     response_str = f"Bad model choice, check possible typo--your ray tracer ID is {traceray_id}"
@@ -625,6 +639,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                     await websocket.send(wrap_ws_formatter('299', 'easter_egg', easter_check, 'info'))
             messages0 = json.dumps({'role': 'user', 'content': query_in}, ensure_ascii=False)
             sf_extraction = client_options['sf_extraction']
+            target_lang = client_options['target_lang']
             match int(chat_session):
                 case i if i == -1:
                     try:
@@ -674,7 +689,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                                 else:
                                     info_agent_grabbed = message_agent_wrapped[1]
                             try:
-                                agent_insertion = wrap_mod_system(session, chat_session, info_agent_grabbed, sf_extraction)
+                                agent_insertion = wrap_mod_system(session, chat_session, info_agent_grabbed, sf_extraction, target_lang)
                                 if not agent_insertion[0]:
                                     raise Exception(agent_insertion[1])
                             except Exception as excepted:
@@ -685,7 +700,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                                 continue
                         else:
                             try:
-                                agent_insertion = wrap_mod_system(session, chat_session, None, sf_extraction)
+                                agent_insertion = wrap_mod_system(session, chat_session, None, sf_extraction, target_lang)
                                 if not agent_insertion[0]:
                                     raise Exception(agent_insertion[1])
                             except Exception as excepted:
