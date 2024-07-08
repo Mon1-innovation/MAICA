@@ -72,7 +72,7 @@ Final Answer: 今天是情人节
     tools =  [
         {
             "name": "time_acquire",
-            "description": "Call this tool to get the current time. 如果对话关于: 时间; 问候; 三餐; 休息, 则使用此工具查询时间.",
+            "description": "Call this tool to get the current time. 只要对话关于: 时间; 问候; 三餐; 休息, 就使用此工具查询时间.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -85,7 +85,7 @@ Final Answer: 今天是情人节
         },
         {
             "name": "date_acquire",
-            "description": "Call this tool to get the current date. 如果对话关于: 日期; 季节; 年份, 则使用此工具查询日期.",
+            "description": "Call this tool to get the current date. 只要对话关于: 日期; 季节; 年份, 就使用此工具查询日期.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -98,7 +98,7 @@ Final Answer: 今天是情人节
         },
         {
             "name": "weather_acquire",
-            "description": "Call this tool to get the current weather. 如果对话关于: 天气; 通勤; 户外活动, 则使用此工具查询天气.",
+            "description": "Call this tool to get the current weather. 只要对话关于: 天气; 通勤; 户外活动, 就使用此工具查询天气.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -111,7 +111,7 @@ Final Answer: 今天是情人节
         },
         {
             "name": "event_acquire",
-            "description": "Call this tool to get the event or holiday of a given date. 如果对话关于: 节日; 活动; 假期, 则使用此工具查询节日.",
+            "description": "Call this tool to get the event or holiday of a given date. 只要对话关于: 节日; 活动; 假期, 就使用此工具查询节日.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -142,7 +142,7 @@ Final Answer: 今天是情人节
         },
         {
             "name": "persistent_acquire",
-            "description": "Call this tool to get any additional information about the speakers, such as their preferences, hobbies, experiences, appearence or relationship. 如果你被问及你作为AI不具有的记忆, 经历, 人格, 感情, 喜好或任何其它事物, 则使用此工具查找记忆.",
+            "description": "Call this tool to get any additional information about the speakers, such as their preferences, hobbies, experiences, appearence or relationship. 只要你被问及你作为AI不具有的记忆, 经历, 人格, 感情, 喜好或任何其它事物, 就使用此工具查找记忆.",
             "parameters": {
                 "type": "object",
                 "properties": {

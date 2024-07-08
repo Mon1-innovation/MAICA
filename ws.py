@@ -496,7 +496,7 @@ async def check_permit(websocket):
 #面向api的第二层io: 指定服务内容
 
 async def def_model(websocket, session):
-    await websocket.send(wrap_ws_formatter('200', 'ok', 'choose service like {"model": "maica_main", "sf_extraction": true, "stream_output": true}', 'info'))
+    await websocket.send(wrap_ws_formatter('200', 'ok', 'choose service like {"model": "maica_main", "sf_extraction": true, "stream_output": true, "target_lang": "zh"}', 'info'))
     while True:
         traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
         checked_status = check_user_status(session)
@@ -666,7 +666,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                             message_agent_wrapped = await mfocus_preinit.agenting(query_in, sf_extraction, session, chat_session, websocket)
                             if message_agent_wrapped[0] == 'FAIL' or len(message_agent_wrapped[0]) > 30 or len(message_agent_wrapped[1]) < 5:
                                 # We do not want answers without information
-                                response_str = f"Agent returned corrupted guidance. This may be a server failure, but a corruption is kinda expected so keep cool--your ray tracer ID is {traceray_id}"
+                                response_str = f"MFocus returned corrupted guidance. This may or may not be a server failure, a corruption is kinda expected so keep cool--your ray tracer ID is {traceray_id}"
                                 print(f"出现如下异常17-{traceray_id}:Corruption")
                                 await websocket.send(wrap_ws_formatter('200', 'agent_corrupted', response_str, 'debug'))
                                 if len(message_agent_wrapped[1]) > 5:
