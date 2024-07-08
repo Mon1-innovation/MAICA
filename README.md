@@ -21,6 +21,8 @@ MAICA LIA分支的模型地址是https://huggingface.co/edgeinfinity/MAICAv0-LIA
 
 MAICA LOA分支的模型地址是https://huggingface.co/edgeinfinity/MAICAv0-LOA-7B.
 
+MAICA的基本数据集仓库位于https://huggingface.co/datasets/edgeinfinity/MAICA_ds_basis.
+
 MAICA的相关文档存储于https://github.com/Mon1-innovation/MAICA/tree/main/document.
 
 请理解由于人力有限, 我们不在此对项目作额外介绍. 如需了解MAICA, 请前往上述详细介绍页面.

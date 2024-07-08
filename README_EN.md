@@ -21,6 +21,8 @@ LIA branch of MAICA core model is at https://huggingface.co/edgeinfinity/MAICAv0
 
 LOA branch of MAICA core model is at https://huggingface.co/edgeinfinity/MAICAv0-LOA-7B.
 
+Basic datasets of MAICA are at https://huggingface.co/datasets/edgeinfinity/MAICA_ds_basis.
+
 MAICA related documents are at https://github.com/Mon1-innovation/MAICA/tree/main/document.
 
 Please pardon for not putting an instruction here, since it's an unnecessary trouble. To know more about MAICA, refer to instruction pages mentioned above.
