@@ -480,7 +480,7 @@ async def check_permit(websocket):
                 await websocket.send(wrap_ws_formatter('403', 'account_banned', response_str, 'warn'))
                 await websocket.close(1000, 'Permission denied')
             else:
-                await websocket.send(wrap_ws_formatter('206', 'session_created', "AUTHENCATION PASSED", 'info'))
+                await websocket.send(wrap_ws_formatter('206', 'session_created', "Authencation passed!", 'info'))
                 await websocket.send(wrap_ws_formatter('200', 'user_id', f"{verification_result[2]}", 'debug'))
                 await websocket.send(wrap_ws_formatter('200', 'username', f"{verification_result[3]}", 'debug'))
                 await websocket.send(wrap_ws_formatter('200', 'nickname', f"{verification_result[4]}", 'debug'))
