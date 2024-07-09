@@ -9,6 +9,7 @@ import bcrypt
 import re
 import random
 import traceback
+import mspire
 import mfocus_preinit
 import persistent_extraction
 import httpserv
@@ -609,8 +610,6 @@ async def do_communicate(websocket, session, client_actual, client_options):
         try:
             request_json = json.loads(recv_text)
             chat_session = request_json['chat_session']
-            #if 'inspire' in request_json:
-                #if request_json['inspire']:
             if 'purge' in request_json:
                 if request_json['purge']:
                     try:
@@ -635,6 +634,18 @@ async def do_communicate(websocket, session, client_actual, client_options):
                         continue
             query_in = request_json['query']
             username = session[3]
+            if 'inspire' in request_json:
+                if request_json['inspire']:
+                    if isinstance(request_json['inspire'], str):
+                        query_insp = mspire.make_inspire(request_json['inspire'])
+                    else:
+                        query_insp = mspire.make_inspire()
+                    if not query_insp[0]:
+                        response_str = f"MSpire generation failed, refer to administrator--your ray tracer ID is {traceray_id}"
+                        print(f"出现如下异常15-{traceray_id}:{query_insp[1]}")
+                        await websocket.send(wrap_ws_formatter('503', 'mspire_failed', response_str, 'error'))
+                        continue
+                    query_in = query_insp[2]
             global easter_exist
             if easter_exist:
                 easter_check = easter(query_in)
@@ -649,12 +660,12 @@ async def do_communicate(websocket, session, client_actual, client_options):
                         messages = query_in
                         if len(messages) > 10:
                             response_str = f"Input exceeding 10 rounds, which is not permitted--your ray tracer ID is {traceray_id}"
-                            print(f"出现如下异常15-{traceray_id}:rounds exceeded")
+                            print(f"出现如下异常16-{traceray_id}:rounds exceeded")
                             await websocket.send(wrap_ws_formatter('403', 'rounds_exceeded', response_str, 'warn'))
                             continue
                     except Exception as excepted:
                         response_str = f"Input serialization failed, check possible type--your ray tracer ID is {traceray_id}"
-                        print(f"出现如下异常16-{traceray_id}:{excepted}")
+                        print(f"出现如下异常17-{traceray_id}:{excepted}")
                         await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
                         #traceback.print_exc()
                         continue
@@ -670,7 +681,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                             if message_agent_wrapped[0] == 'FAIL' or len(message_agent_wrapped[0]) > 30 or len(message_agent_wrapped[1]) < 5:
                                 # We do not want answers without information
                                 response_str = f"MFocus returned corrupted guidance. This may or may not be a server failure, a corruption is kinda expected so keep cool--your ray tracer ID is {traceray_id}"
-                                print(f"出现如下异常17-{traceray_id}:Corruption")
+                                print(f"出现如下异常18-{traceray_id}:Corruption")
                                 await websocket.send(wrap_ws_formatter('200', 'agent_corrupted', response_str, 'debug'))
                                 if len(message_agent_wrapped[1]) > 5:
                                     response_str = f"Due to agent particular failure, falling back to instructed guidance and continuing."
@@ -697,7 +708,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                                     raise Exception(agent_insertion[1])
                             except Exception as excepted:
                                 response_str = f"Save file extraction failed, you may have not uploaded your savefile yet--your ray tracer ID is {traceray_id}"
-                                print(f"出现如下异常18-{traceray_id}:{excepted}")
+                                print(f"出现如下异常19-{traceray_id}:{excepted}")
                                 #traceback.print_exc()
                                 await websocket.send(wrap_ws_formatter('404', 'savefile_notfound', response_str, 'warn'))
                                 continue
@@ -708,12 +719,12 @@ async def do_communicate(websocket, session, client_actual, client_options):
                                     raise Exception(agent_insertion[1])
                             except Exception as excepted:
                                 response_str = f"Save file extraction failed, you may have not uploaded your savefile yet--your ray tracer ID is {traceray_id}"
-                                print(f"出现如下异常19-{traceray_id}:{excepted}")
+                                print(f"出现如下异常20-{traceray_id}:{excepted}")
                                 await websocket.send(wrap_ws_formatter('404', 'savefile_notfound', response_str, 'warn'))
                                 continue
                     except Exception as excepted:
                         response_str = f"Agent response acquiring failed, refer to administrator--your ray tracer ID is {traceray_id}"
-                        print(f"出现如下异常20-{traceray_id}:{excepted}")
+                        print(f"出现如下异常21-{traceray_id}:{excepted}")
                         #traceback.print_exc()
                         await websocket.send(wrap_ws_formatter('503', 'agent_unavailable', response_str, 'error'))
                         continue
@@ -724,29 +735,29 @@ async def do_communicate(websocket, session, client_actual, client_options):
                             messages = f'[{rw_result[3]}]'
                         else:
                             response_str = f"Chat session reading failed, refer to administrator--your ray tracer ID is {traceray_id}"
-                            print(f"出现如下异常21-{traceray_id}:{rw_result[1]}")
+                            print(f"出现如下异常22-{traceray_id}:{rw_result[1]}")
                             await websocket.send(wrap_ws_formatter('500', 'read_failed', response_str, 'error'))
                             await websocket.close(1000, 'Stopping connection due to critical server failure')
                     else:
                         response_str = f"Chat session creation failed, refer to administrator--your ray tracer ID is {traceray_id}"
-                        print(f"出现如下异常22-{traceray_id}:{check_result[1]}")
+                        print(f"出现如下异常23-{traceray_id}:{check_result[1]}")
                         await websocket.send(wrap_ws_formatter('500', 'creation_failed', response_str, 'error'))
                         await websocket.close(1000, 'Stopping connection due to critical server failure')
                     try:
                         messages = json.loads(messages)
                     except Exception as excepted:
                         response_str = f"Chat input serialization failed, check possible typo--your ray tracer ID is {traceray_id}"
-                        print(f"出现如下异常23-{traceray_id}:{excepted}")
+                        print(f"出现如下异常24-{traceray_id}:{excepted}")
                         await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
                         continue
                 case _:
                     response_str = f"Chat session num mistaken, check possible typo--your ray tracer ID is {traceray_id}"
-                    print(f"出现如下异常24-{traceray_id}:{chat_session}")
+                    print(f"出现如下异常25-{traceray_id}:{chat_session}")
                     await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
                     continue
         except Exception as excepted:
             response_str = f"Query serialization failed, check possible typo--your ray tracer ID is {traceray_id}"
-            print(f"出现如下异常25-{traceray_id}:{excepted}")
+            print(f"出现如下异常26-{traceray_id}:{excepted}")
             await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
             continue
         default_top_p = 0.7
@@ -822,12 +833,12 @@ async def do_communicate(websocket, session, client_actual, client_options):
                                 await websocket.send(wrap_ws_formatter('200', 'delete_hint', f"Session {chat_session} of user {username} exceeded {load_env('SESSION_WARN_TOKEN')} characters, which will be chopped after exceeding {load_env('SESSION_MAX_TOKEN')}, make backups if you want to--your ray tracer ID is {traceray_id}.", 'info'))
                 else:
                     response_str = f"Chat reply recording failed, refer to administrator--your ray tracer ID is {traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
-                    print(f"出现如下异常26-{traceray_id}:{stored[1]}")
+                    print(f"出现如下异常27-{traceray_id}:{stored[1]}")
                     await websocket.send(wrap_ws_formatter('500', 'store_failed', response_str, 'error'))
                     await websocket.close(1000, 'Stopping connection due to critical server failure')
             else:
                 response_str = f"Chat query recording failed, refer to administrator--your ray tracer ID is {traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
-                print(f"出现如下异常27-{traceray_id}:{stored[1]}")
+                print(f"出现如下异常28-{traceray_id}:{stored[1]}")
                 await websocket.send(wrap_ws_formatter('500', 'store_failed', response_str, 'error'))
                 await websocket.close(1000, 'Stopping connection due to critical server failure')
             print(f"Finished entire loop-{traceray_id}:{session[3]}")

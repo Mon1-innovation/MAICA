@@ -109,6 +109,11 @@ maica_main和maica_core共用chat_session.
 重置在技术上并非删除, 而是将chat_session恢复到初始状态. 因此, 你不能重置一个尚不存在的chat_session. 尝试这样做不会影响连接正常运行, 但会收到404.
 被重置的chat_session内容不会被删除, 会被归档并可能用于后续的模型训练与改进. 这部分数据不再支持用户下载.
 要重新开始连接, 你需要重新进行认证和模型选择.
+实验性功能: 在对话阶段, 用户可以发起MSpire请求, 其能使MAICA作出类似主动发问的响应. 你应当按以下格式发起请求:
+    {"chat_session": "1", "inspire": true}
+    MSpire的工作原理是在zh.wikipedia.org上查找页面, 并从中刮削信息指导模型发问. 将inspire设为true以选取随机的页面.
+    你可以将inspire设为具体的页面标题以选取一个具体的页面, 但其必须在zh.wikipedia.org上存在, 否则会发生错误.
+目前为止MSpire的行为仅为替换query, 实际上能够在前端使用其他方法实现. 在一个chat_session中频繁使用MSpire可能导致后续回答模式紊乱.
 
 MAICA上传存档的接口位于https://maicadev.monika.love/api/savefile. 你应当遵循以下格式, 以POST形式上传从存档中解读的信息:
     {"access_token": "你的令牌", "chat_session": "指定对应的chat_session", "content":"json格式的存档内容"}

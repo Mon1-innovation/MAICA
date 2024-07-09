@@ -1,21 +1,21 @@
-import ws
+import json
 import wiki_scraping
 from openai import OpenAI
 
-def make_inspire(session, chat_session_num = 9):
+def make_inspire(title_in=None):
     success = True
+    exception = None
     try:
-        title, summary = wiki_scraping.get_random_page()
+        title, summary = wiki_scraping.get_page(title_in)
+        if not summary or summary.isspace():
+            raise Exception('MSpire got no return')
         prompt = f"利用提供的以下信息, 主动和我聊聊{title}: {summary}"
-        ori_history = ws.rw_chat_session(session, chat_session_num, 'r', None)
-        if ori_history[0]:
-            ori_history = ori_history[3]
-        print(ori_history)
-
+        message = json.dumps({"role": "user", "content": prompt}, ensure_ascii=False)
     except Exception as excepted:
         success = False
         exception = excepted
     #print(summary)
+    return success, exception, prompt
 
 
 if __name__ == '__main__':
