@@ -1,8 +1,9 @@
 import re
+from loadenv import load_env
 from search_engines import Google, Bing
 
 def internet_search_limb(query):
-    engine = Bing()
+    engine = Bing(load_env('PROXY_ADDR'))
     engine.set_headers({'User-Agent':f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 OPR/109.0.0.0"})
     results = engine.search(query, pages=2)
     slt_default = []

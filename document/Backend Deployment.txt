@@ -90,6 +90,8 @@ SESSION_WARN_TOKEN = '24576'
     #此处应填入session长度警告值
     #此值必须低于SESSION_MAX_TOKEN, 这同时是自动裁剪时的预期保留量
     #实际上限制的是大致的净字符数, token是我口胡了
+PROXY_ADDR = 'http://127.0.0.1:7890'
+    #用于自动化搜索引擎的代理地址
 WEATHER_KEY = 'whateveryousay'
     #此处应填入高德天气的API KEY
     #是免费的, 你可以自行注册. 此条目被用于MFOCUS

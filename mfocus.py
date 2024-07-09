@@ -1,5 +1,6 @@
 import re
 import json
+import traceback
 from random import sample
 from openai import OpenAI # type: ignore
 import persistent_extraction

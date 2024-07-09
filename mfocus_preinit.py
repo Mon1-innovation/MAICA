@@ -228,7 +228,10 @@ Final Answer: 今天是情人节
         return_instruction = ''
         try:
             predict_action_function = tool_calls['function']['name']
-            real_parameters_dict = json.loads(re.sub(r"(?!=\\)'", '"', tool_calls['function']['arguments']))
+            try:
+                real_parameters_dict = json.loads(re.sub(r"(?!=\\)'", '"', tool_calls['function']['arguments']))
+            except:
+                real_parameters_dict = {"question": tool_calls['function']['arguments']}
             if re.search((r'time.*acquire'), predict_action_function, re.I):
                 time_acquired = agent_modules.time_acquire(real_parameters_dict)
                 if time_acquired[0]:
@@ -374,7 +377,7 @@ Final Answer: 今天是情人节
         return 'FAIL', ''
 
 if __name__ == "__main__":
-    agented = asyncio.run(agenting('你吃过晚饭了吗', True, [0,0,23], 1))
+    agented = asyncio.run(agenting('你记得我的生日吗', True, [0,0,23], 1))
     #print(agented[0])
     print(agented[1])
 
