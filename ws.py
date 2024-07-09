@@ -609,27 +609,30 @@ async def do_communicate(websocket, session, client_actual, client_options):
         try:
             request_json = json.loads(recv_text)
             chat_session = request_json['chat_session']
+            #if 'inspire' in request_json:
+                #if request_json['inspire']:
             if 'purge' in request_json:
-                try:
-                    user_id = session[2]
-                    purge_result = purge_chat_session(user_id, chat_session)
-                    if not purge_result[0]:
-                        raise Exception(purge_result[1])
-                    elif purge_result[2]:
-                        response_str = f"Determined chat session not exist, check possible typo--your ray tracer ID is {traceray_id}"
-                        print(f"出现如下异常13-{traceray_id}:{excepted}")
-                        await websocket.send(wrap_ws_formatter('404', 'session_notfound', response_str, 'warn'))
+                if request_json['purge']:
+                    try:
+                        user_id = session[2]
+                        purge_result = purge_chat_session(user_id, chat_session)
+                        if not purge_result[0]:
+                            raise Exception(purge_result[1])
+                        elif purge_result[2]:
+                            response_str = f"Determined chat session not exist, check possible typo--your ray tracer ID is {traceray_id}"
+                            print(f"出现如下异常13-{traceray_id}:{excepted}")
+                            await websocket.send(wrap_ws_formatter('404', 'session_notfound', response_str, 'warn'))
+                            continue
+                        else:
+                            response_str = f"finished swiping user id {user_id} chat session {chat_session}"
+                            await websocket.send(wrap_ws_formatter('204', 'deleted', response_str, 'info'))
+                            continue
+                    except Exception as excepted:
+                        response_str = f"Purging chat session failed, refer to administrator--your ray tracer ID is {traceray_id}"
+                        print(f"出现如下异常14-{traceray_id}:{excepted}")
+                        await websocket.send(wrap_ws_formatter('404', 'savefile_notfound', response_str, 'warn'))
+                        #traceback.print_exc()
                         continue
-                    else:
-                        response_str = f"finished swiping user id {user_id} chat session {chat_session}"
-                        await websocket.send(wrap_ws_formatter('204', 'deleted', response_str, 'info'))
-                        continue
-                except Exception as excepted:
-                    response_str = f"Purging chat session failed, refer to administrator--your ray tracer ID is {traceray_id}"
-                    print(f"出现如下异常14-{traceray_id}:{excepted}")
-                    await websocket.send(wrap_ws_formatter('404', 'savefile_notfound', response_str, 'warn'))
-                    #traceback.print_exc()
-                    continue
             query_in = request_json['query']
             username = session[3]
             global easter_exist
