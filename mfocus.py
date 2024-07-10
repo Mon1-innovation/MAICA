@@ -8,6 +8,23 @@ from loadenv import load_env
 def mfocus_form_info(user_id, chat_session):
     success = True
     exception = None
+    conclusion = []
+    mf_hcb = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_sf_hcb')
+    if mf_hcb[0]:
+        if mf_hcb[2]:
+            conclusion.extend(conclude_basic_sf(user_id, chat_session))
+            conclusion.extend(conclude_cb_sf(user_id, chat_session, 36))
+        else:
+            conclusion.extend(conclude_cb_sf(user_id, chat_session, 108))
+    else:
+        conclusion.extend(conclude_cb_sf(user_id, chat_session, 108))
+    conclusion.extend(conclude_moni_sf())
+
+    with open(f'persistents/{user_id}_{chat_session}_friendly.json', 'w+', encoding = 'utf-8') as sf_friendly:
+        sf_friendly.write(json.dumps(conclusion, ensure_ascii=False))
+    return success, exception, conclusion
+
+def conclude_basic_sf(user_id, chat_session):
     result = []
 
     # Seriously hard work begins here
@@ -769,11 +786,11 @@ def mfocus_form_info(user_id, chat_session):
                 result.append('[player]是女生.')
             else:
                 result.append('[player]是非二元性别.')
+    
 
+    return result
 
-### DATA OF MONIKA BEGINS HERE
-
-
+def conclude_moni_sf():
     data_ex = [
         '莫妮卡是[player]的女友.',
         '莫妮卡有一头珊瑚棕色的长发.',
@@ -793,29 +810,13 @@ def mfocus_form_info(user_id, chat_session):
         '莫妮卡爱好音乐, 会弹钢琴, 会唱歌.',
         '莫妮卡对科技, 环境, 历史等方面都有兴趣和见解.'
     ]
-    result.extend(data_ex)
+    return data_ex
 
-
-### EXTENDS OF PLAYER STARTS HERE
-
-
+def conclude_cb_sf(user_id, chat_session, cb):
     data_exp = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_player_additions')[2]
-    if len(data_exp) > 48:
-        data_exp = sample(data_exp, 48)
-    result.extend(data_exp)
-
-
-### HERE WE TEST STH
-
-
-    data_extest = [
-    ]
-    #result.extend(data_extest)
-    with open(f'persistents/{user_id}_{chat_session}_friendly.json', 'w+', encoding = 'utf-8') as sf_friendly:
-        sf_friendly.write(json.dumps(result, ensure_ascii=False))
-
-
-    return success, exception, result
+    if len(data_exp) > cb:
+        data_exp = sample(data_exp, cb)
+    return data_exp
 
 def mfocus_agent(user_id, chat_session, query):
     success = True
