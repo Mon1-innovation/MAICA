@@ -632,7 +632,6 @@ async def do_communicate(websocket, session, client_actual, client_options):
                         await websocket.send(wrap_ws_formatter('404', 'savefile_notfound', response_str, 'warn'))
                         #traceback.print_exc()
                         continue
-            query_in = request_json['query']
             username = session[3]
             if 'inspire' in request_json:
                 if request_json['inspire']:
@@ -646,6 +645,10 @@ async def do_communicate(websocket, session, client_actual, client_options):
                         await websocket.send(wrap_ws_formatter('503', 'mspire_failed', response_str, 'error'))
                         continue
                     query_in = query_insp[2]
+                else:
+                    query_in = request_json['query']
+            else:
+                query_in = request_json['query']
             global easter_exist
             if easter_exist:
                 easter_check = easter(query_in)
