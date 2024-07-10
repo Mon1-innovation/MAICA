@@ -114,7 +114,7 @@ maica_main和maica_core共用chat_session.
     MSpire的工作原理是在zh.wikipedia.org上查找页面, 并从中刮削信息指导模型发问. 将inspire设为true以选取随机的页面.
     你可以将inspire设为具体的页面标题以选取一个具体的页面, 但其必须在zh.wikipedia.org上存在, 否则会发生错误.
     你可以将inspire设为形如"Category:心理学"以选取一个类目且其必须在zh.wikipedia.org上存在, MSpire将从中随机抽取一个页面或子分类页面.
-目前为止MSpire的行为仅为替换query, 实际上能够在前端使用其他方法实现. 在一个chat_session中频繁使用MSpire可能导致后续回答模式紊乱.
+目前为止MSpire的行为仅为替换query, 实际上与前端实现没有本质区别. 在一个chat_session中频繁使用MSpire可能导致后续回答模式紊乱.
 MSpire的chat_session可以被设为0-9, 不能使用-1. 如果不需要对MSpire话题作后续讨论, 可以使用chat_session 0.
 
 MAICA上传存档的接口位于https://maicadev.monika.love/api/savefile. 你应当遵循以下格式, 以POST形式上传从存档中解读的信息:
