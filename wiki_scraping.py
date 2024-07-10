@@ -11,8 +11,7 @@ def get_redirect_url(url):
     response = requests.get(url, headers=headers)
     return response.url
 
-def get_page(title=None):
-    category_list = ['自然', '自然科学', '社会', '人文', '世界']
+def get_page(title=None, category_list = ['自然', '自然科学', '社会', '人文', '世界']):
     category = random.choice(category_list)
     i = 1
     random_url = r"https://randomincategory.toolforge.org/?server=zh.wikipedia.org&cmnamespace=&cmtype=&returntype=&purge=1"
