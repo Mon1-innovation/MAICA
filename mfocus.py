@@ -12,12 +12,13 @@ def mfocus_form_info(user_id, chat_session):
     mf_hcb = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_sf_hcb')
     if mf_hcb[0]:
         if mf_hcb[2]:
+            conclusion.extend(conclude_cb_sf(user_id, chat_session, 108))
+        else:
             conclusion.extend(conclude_basic_sf(user_id, chat_session))
             conclusion.extend(conclude_cb_sf(user_id, chat_session, 36))
-        else:
-            conclusion.extend(conclude_cb_sf(user_id, chat_session, 108))
     else:
-        conclusion.extend(conclude_cb_sf(user_id, chat_session, 108))
+        conclusion.extend(conclude_basic_sf(user_id, chat_session))
+        conclusion.extend(conclude_cb_sf(user_id, chat_session, 36))
     conclusion.extend(conclude_moni_sf())
 
     with open(f'persistents/{user_id}_{chat_session}_friendly.json', 'w+', encoding = 'utf-8') as sf_friendly:
