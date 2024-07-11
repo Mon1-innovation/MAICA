@@ -19,4 +19,4 @@ def make_inspire(title_in=None):
 
 
 if __name__ == '__main__':
-    make_inspire([1, 0, 23], 9)
+    make_inspire()
