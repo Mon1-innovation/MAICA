@@ -826,7 +826,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
             print(token_combined)
             await websocket.send(wrap_ws_formatter('200', 'reply', token_combined, 'carriage'))
             reply_appended_insertion = json.dumps({'role': 'assistant', 'content': token_combined}, ensure_ascii=False)
-        if chat_session != '0':
+        if int(chat_session) > 0:
             stored = rw_chat_session(session, chat_session, 'w', messages0)
             #print(stored)
             if stored[0]:
