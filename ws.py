@@ -584,6 +584,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
     await websocket.send(wrap_ws_formatter('200', 'ok', 'input json like {"chat_session": "1", "query": "你好啊"}', 'info'))
     while True:
         traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
+        bypass_mf = False
         checked_status = check_user_status(session)
         if not checked_status[0]:
             response_str = f"Account service failed to fetch, refer to administrator--your ray tracer ID is {traceray_id}"
@@ -639,6 +640,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                         query_insp = mspire.make_inspire(request_json['inspire'])
                     else:
                         query_insp = mspire.make_inspire()
+                    bypass_mf = True
                     if not query_insp[0]:
                         response_str = f"MSpire generation failed, refer to administrator--your ray tracer ID is {traceray_id}"
                         print(f"出现如下异常15-{traceray_id}:{query_insp[1]}")
@@ -679,7 +681,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                     #MAICA_agent 在这里调用
 
                     try:
-                        if client_options['full_maica']:
+                        if client_options['full_maica'] and not bypass_mf:
                             message_agent_wrapped = await mfocus_preinit.agenting(query_in, sf_extraction, session, chat_session, websocket)
                             if message_agent_wrapped[0] == 'FAIL' or len(message_agent_wrapped[0]) > 30 or len(message_agent_wrapped[1]) < 5:
                                 # We do not want answers without information
@@ -716,6 +718,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                                 await websocket.send(wrap_ws_formatter('404', 'savefile_notfound', response_str, 'warn'))
                                 continue
                         else:
+                            bypass_mf = False
                             try:
                                 agent_insertion = wrap_mod_system(session, chat_session, None, sf_extraction, target_lang)
                                 if not agent_insertion[0]:

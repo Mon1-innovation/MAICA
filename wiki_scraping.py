@@ -22,11 +22,16 @@ def get_page(title=None, category_list = ['自然', '自然科学', '社会', '�
     #print(random_url)
     #random_url = rf"https://randomincategory.toolforge.org/?category={category}&server=zh.wikipedia.org&cmnamespace=&cmtype=&returntype="
     #random_url = r"https://zh.wikipedia.org/wiki/Special:%E9%9A%8F%E6%9C%BA%E9%A1%B5%E9%9D%A2"
+    wiki_pointer = wikipediaapi.Wikipedia('MyProjectName (merlin@example.com)', 'zh')
     if not title:
         #title = unquote(re.search(r'/wiki/(.*)', get_redirect_url(random_url))[1], 'utf-8')
         title = unquote(re.search(r'title=(.*)&', get_redirect_url(random_url))[1], 'utf-8')
-    wiki_pointer = wikipediaapi.Wikipedia('MyProjectName (merlin@example.com)', 'zh')
-    wiki_page = wiki_pointer.page(title)
+        wiki_page = wiki_pointer.page(title)
+    else:
+        wiki_page = wiki_pointer.page(title)
+        if not wiki_page.exists():
+            title = zhconv.convert(title, 'zh-hant')
+            wiki_page = wiki_pointer.page(title)
     print(f'MSpire acquiring topic: {wiki_page.title}')
     while re.match('category:', wiki_page.title, re.I):
         sub_category = re.search(r'category:(.*)\s*\n*', wiki_page.title, re.I)[1]
@@ -36,8 +41,8 @@ def get_page(title=None, category_list = ['自然', '自然科学', '社会', '�
         random_url = rf"https://zh.wikipedia.org/wiki/Special:%E5%88%86%E7%B1%BB%E5%86%85%E9%9A%8F%E6%9C%BA?wpcategory={sub_category}"
         title = unquote(re.search(r'title=(.*)&', get_redirect_url(random_url))[1], 'utf-8')
         wiki_page = wiki_pointer.page(title)
-    title = zhconv.convert(title, 'zh-hans')
-    summary = re.sub(r'\n*==.*?==$', '', zhconv.convert(wiki_page.summary, 'zh-hans'), re.I|re.S)
+    title = zhconv.convert(title, 'zh-cn')
+    summary = re.sub(r'\n*==.*?==$', '', zhconv.convert(wiki_page.summary, 'zh-cn'), re.I|re.S)
     return title, summary
 
 if __name__ == '__main__':
