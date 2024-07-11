@@ -675,7 +675,8 @@ async def do_communicate(websocket, session, client_actual, client_options):
                         #traceback.print_exc()
                         continue
                 case i if i == 0:
-                    messages = "[{'role': 'user', 'content': " + {query_in} + "]"
+                    print(query_in)
+                    messages = [{'role': 'system', 'content': global_init_system('[player]')}, {'role': 'user', 'content': query_in}]
                 case i if 0 < i < 10 and i % 1 == 0:
 
                     #MAICA_agent 在这里调用
@@ -762,6 +763,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                     await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
                     continue
         except Exception as excepted:
+            #traceback.print_exc()
             response_str = f"Query serialization failed, check possible typo--your ray tracer ID is {traceray_id}"
             print(f"出现如下异常26-{traceray_id}:{excepted}")
             await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
