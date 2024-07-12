@@ -39,8 +39,11 @@ def get_page(title=None, target_lang='zh'):
             title = zhconv.convert(title, 'zh-hant')
             wiki_page = wiki_pointer.page(title)
     print(f'MSpire acquiring topic: {wiki_page.title}')
+    while ':' in wiki_page.title and not re.match(r'category:(.*)\s*\n*', wiki_page.title, re.I):
+        title = unquote(re.search(r'title=(.*)&', get_redirect_url(random_url))[1], 'utf-8')
+        wiki_page = wiki_pointer.page(title)
     while re.match('category:', wiki_page.title, re.I):
-        sub_category = re.search(r'category:(.*)\s*\n*', wiki_page.title, re.I)[1]
+        sub_category = re.match(r'category:(.*)\s*\n*', wiki_page.title, re.I)[1]
         print(f'MSpire acquiring subtopic: {sub_category}')
         #random_url = rf"https://randomincategory.toolforge.org/?category={sub_category}&server=zh.wikipedia.org&cmnamespace=&cmtype=&returntype=&purge=1"
         #print(get_redirect_url(random_url))

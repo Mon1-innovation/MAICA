@@ -1,3 +1,4 @@
+import re
 import json
 import traceback
 import wiki_scraping
@@ -10,7 +11,7 @@ def make_inspire(title_in=None, target_lang='zh'):
         title, summary = wiki_scraping.get_page(title_in, target_lang)
         if not summary or summary.isspace():
             raise Exception('MSpire got no return')
-        prompt = f"利用提供的以下信息, 主动和我简单地聊聊{title}: {summary}. 你只应使用自然语言, 以聊天语气对话, 并在每句开始时以方括号中的文字表示情绪."
+        prompt = f"利用提供的以下信息, 主动和我简单地聊聊{re.sub('_', '', title)}: {summary} 你只应使用自然语言, 以聊天语气对话, 并在每句开始时以方括号中的文字表示情绪."
         if target_lang == 'en':
             prompt += '\n你应当使用英文回答.\nAnswer in English.'
         message = json.dumps({"role": "user", "content": prompt}, ensure_ascii=False)

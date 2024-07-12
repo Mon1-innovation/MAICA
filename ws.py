@@ -677,6 +677,8 @@ async def do_communicate(websocket, session, client_actual, client_options):
                 case i if i == 0:
                     print(query_in)
                     messages = [{'role': 'system', 'content': global_init_system('[player]')}, {'role': 'user', 'content': query_in}]
+                    if target_lang == 'en':
+                        messages[0]['content'] += '\n你应当使用英文回答.\nAnswer in English.'
                 case i if 0 < i < 10 and i % 1 == 0:
 
                     #MAICA_agent 在这里调用
