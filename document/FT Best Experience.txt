@@ -27,7 +27,7 @@ torchrun \
     --dtype AUTO \
     --output_dir output \
     --ddp_backend nccl \
-    --dataset 'dataset/moni_dataset.jsonl dataset/moni_dataset.jsonl dataset/moni_dataset.jsonl dataset/moni_dataset.jsonl dataset/covid_new.jsonl dataset/covid_new.jsonl dataset/covid_new.jsonl dataset/covid_new.jsonl dataset/covid_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl HF::roleplay-base#2500 iic/MSAgent-MultiRole#1000 AI-ModelScope/wikipedia-cn-20230720-filtered#500 AI-ModelScope/ruozhiba#500 modelscope/chinese-poetry-collection#1000 AI-ModelScope/webnovel_cn#500' \
+    --dataset 'dataset/moni_dataset.jsonl dataset/moni_dataset.jsonl dataset/moni_dataset.jsonl dataset/moni_dataset.jsonl dataset/moni_dataset_en.jsonl dataset/moni_dataset_en.jsonl dataset/covid_new.jsonl dataset/covid_new.jsonl dataset/covid_new.jsonl dataset/covid_new.jsonl dataset/covid_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl HF::roleplay-base#2500 iic/MSAgent-MultiRole#1000 AI-ModelScope/wikipedia-cn-20230720-filtered#500 AI-ModelScope/ruozhiba#500 modelscope/chinese-poetry-collection#1000 AI-ModelScope/webnovel_cn#500' \
     --system None \
     --val_dataset dataset/ds_new.jsonl \
     --lora_target_modules ALL \
