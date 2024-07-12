@@ -11,9 +11,13 @@ def get_redirect_url(url):
     response = requests.get(url, headers=headers)
     return response.url
 
-def get_page(title=None, category_list = ['自然', '自然科学', '社会', '人文', '世界', '生活', '艺术', '文化']):
+def get_page(title=None, target_lang='zh'):
+    if target_lang == 'zh':
+        category_list=['自然', '自然科学', '社会', '人文', '世界', '生活', '艺术', '文化']
+    else:
+        category_list=['Nature', 'Natural_sciences', 'Society', 'Humanities', 'World', 'Health', 'Culture', 'The_arts']
     category = random.choice(category_list)
-    random_url = rf"https://zh.wikipedia.org/wiki/Special:%E5%88%86%E7%B1%BB%E5%86%85%E9%9A%8F%E6%9C%BA?wpcategory={category}"
+    random_url = rf"https://{target_lang}.wikipedia.org/wiki/Special:%E5%88%86%E7%B1%BB%E5%86%85%E9%9A%8F%E6%9C%BA?wpcategory={category}"
     #i = 1
     #random_url = r"https://randomincategory.toolforge.org/?server=zh.wikipedia.org&cmnamespace=&cmtype=&returntype=&purge=1"
     #for c in category_list:
@@ -38,7 +42,7 @@ def get_page(title=None, category_list = ['自然', '自然科学', '社会', '�
         print(f'MSpire acquiring subtopic: {sub_category}')
         #random_url = rf"https://randomincategory.toolforge.org/?category={sub_category}&server=zh.wikipedia.org&cmnamespace=&cmtype=&returntype=&purge=1"
         #print(get_redirect_url(random_url))
-        random_url = rf"https://zh.wikipedia.org/wiki/Special:%E5%88%86%E7%B1%BB%E5%86%85%E9%9A%8F%E6%9C%BA?wpcategory={sub_category}"
+        random_url = rf"https://{target_lang}.wikipedia.org/wiki/Special:%E5%88%86%E7%B1%BB%E5%86%85%E9%9A%8F%E6%9C%BA?wpcategory={sub_category}"
         title = unquote(re.search(r'title=(.*)&', get_redirect_url(random_url))[1], 'utf-8')
         wiki_page = wiki_pointer.page(title)
     title = zhconv.convert(title, 'zh-cn')

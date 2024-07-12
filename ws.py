@@ -634,12 +634,14 @@ async def do_communicate(websocket, session, client_actual, client_options):
                         #traceback.print_exc()
                         continue
             username = session[3]
+            sf_extraction = client_options['sf_extraction']
+            target_lang = client_options['target_lang']
             if 'inspire' in request_json:
                 if request_json['inspire']:
                     if isinstance(request_json['inspire'], str):
-                        query_insp = mspire.make_inspire(request_json['inspire'])
+                        query_insp = mspire.make_inspire(request_json['inspire'], target_lang)
                     else:
-                        query_insp = mspire.make_inspire()
+                        query_insp = mspire.make_inspire(target_lang=target_lang)
                     bypass_mf = True
                     if not query_insp[0]:
                         response_str = f"MSpire generation failed, refer to administrator--your ray tracer ID is {traceray_id}"
@@ -657,8 +659,6 @@ async def do_communicate(websocket, session, client_actual, client_options):
                 if easter_check:
                     await websocket.send(wrap_ws_formatter('299', 'easter_egg', easter_check, 'info'))
             messages0 = json.dumps({'role': 'user', 'content': query_in}, ensure_ascii=False)
-            sf_extraction = client_options['sf_extraction']
-            target_lang = client_options['target_lang']
             match int(chat_session):
                 case i if i == -1:
                     try:
