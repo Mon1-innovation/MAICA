@@ -873,24 +873,28 @@ def callback_check_permit(future):
 #主要线程驱动器
 
 async def main_logic(websocket, path):
-    loop = asyncio.get_event_loop()
+    try:
+        loop = asyncio.get_event_loop()
 
-    task_check_permit = loop.create_task(check_permit(websocket))
-    task_check_permit.add_done_callback(functools.partial(callback_check_permit))
-    
-    permit = await asyncio.gather(task_check_permit)
-    if permit[0][0] != True:
-        raise Exception('Security exception occured')
+        task_check_permit = loop.create_task(check_permit(websocket))
+        task_check_permit.add_done_callback(functools.partial(callback_check_permit))
+        
+        permit = await asyncio.gather(task_check_permit)
+        if permit[0][0] != True:
+            raise Exception('Security exception occured')
 
-    task_def_model = loop.create_task(def_model(websocket, permit[0]))
-    task_def_model.add_done_callback(functools.partial(callback_def_model))
+        task_def_model = loop.create_task(def_model(websocket, permit[0]))
+        task_def_model.add_done_callback(functools.partial(callback_def_model))
 
-    defed_model = await asyncio.gather(task_def_model)
-        #print(defed_model)
-    task_do_communicate = loop.create_task(do_communicate(websocket, permit[0], defed_model[0][1], defed_model[0][2]))
-    task_do_communicate.add_done_callback(functools.partial(callback_do_communicate))
+        defed_model = await asyncio.gather(task_def_model)
+            #print(defed_model)
+        task_do_communicate = loop.create_task(do_communicate(websocket, permit[0], defed_model[0][1], defed_model[0][2]))
+        task_do_communicate.add_done_callback(functools.partial(callback_do_communicate))
 
-    returnslt = await asyncio.gather(task_do_communicate)
+        returnslt = await asyncio.gather(task_do_communicate)
+        
+    except Exception as excepted:
+        print(f'Exception: {excepted}. Likely connection loss.')
 
 # 如果要给被回调的main_logic传递自定义参数，可使用以下形式
 # 一、修改回调形式
@@ -921,9 +925,7 @@ if __name__ == '__main__':
     privkey_loaded = RSA.import_key(privkey)
 
     print('Server started!')
-    try:
-        start_server = websockets.serve(functools.partial(main_logic), '0.0.0.0', 5000)
-        asyncio.get_event_loop().run_until_complete(start_server)
-        asyncio.get_event_loop().run_forever()
-    except Exception as excepted:
-        print(f'Exception: {excepted}. Likely connection loss.')
+    
+    start_server = websockets.serve(functools.partial(main_logic), '0.0.0.0', 5000)
+    asyncio.get_event_loop().run_until_complete(start_server)
+    asyncio.get_event_loop().run_forever()
