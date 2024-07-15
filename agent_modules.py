@@ -190,7 +190,7 @@ def persistent_acquire(params, sf_extraction, session, chat_session):
     if sf_extraction:
         try:
             user_id = session[2]
-            content = mfocus_sfe.mfocus_agent(user_id, chat_session, query)
+            content = mfocus_sfe.mfocus_find_info(user_id, chat_session, query)
             if content[0]:
                 content = content[2]
             else:

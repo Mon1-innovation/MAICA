@@ -819,7 +819,7 @@ def conclude_cb_sf(user_id, chat_session, cb):
         data_exp = sample(data_exp, cb)
     return data_exp
 
-def mfocus_agent(user_id, chat_session, query):
+def mfocus_find_info(user_id, chat_session, query):
     success = True
     exception = ''
     try:
@@ -952,4 +952,4 @@ Begin!
 """
 
 if __name__ == "__main__":
-    print(mfocus_agent(23, 1, '你喜欢吃什么'))
+    print(mfocus_find_info(23, 1, '你喜欢吃什么'))
