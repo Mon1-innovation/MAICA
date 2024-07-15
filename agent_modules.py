@@ -5,7 +5,7 @@ import json
 import re
 import traceback
 import persistent_extraction
-import mfocus
+import mfocus_sfe
 from enet_scraping import internet_search_limb
 from weather_scraping import weather_api_get
 def time_acquire(params):
@@ -190,7 +190,7 @@ def persistent_acquire(params, sf_extraction, session, chat_session):
     if sf_extraction:
         try:
             user_id = session[2]
-            content = mfocus.mfocus_agent(user_id, chat_session, query)
+            content = mfocus_sfe.mfocus_agent(user_id, chat_session, query)
             if content[0]:
                 content = content[2]
             else:
