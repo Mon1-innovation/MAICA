@@ -300,7 +300,7 @@ def conclude_basic_sf(user_id, chat_session):
             result.append('[player]有独特的音乐品位.')
             data2 = persistent_extraction.read_from_sf(user_id, chat_session, '_mas_pm_like_other_music_history')
             if data2[0]:
-                result.append(f'[player]还喜欢{data2[2]}音乐.')
+                result.append(f'[player]还喜欢{re.search("u'(.*)'", data2[2])[1]}音乐.')
     
 
     data1 = persistent_extraction.read_from_sf(user_id, chat_session, '_mas_pm_plays_instrument')
@@ -952,4 +952,5 @@ Begin!
 """
 
 if __name__ == "__main__":
-    print(mfocus_find_info(23, 1, '你喜欢吃什么'))
+    print(mfocus_form_info(18270,1))
+    #print(mfocus_find_info(23, 1, '你喜欢吃什么'))
