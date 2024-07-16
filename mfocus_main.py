@@ -346,9 +346,11 @@ Final Answer: 今天是情人节
                 presence_penalty = 1.9,
                 frequency_penalty = 1.9,
                 seed=42)
-            if resp.choices[0].message.tool_calls['function'] == tool_calls['function']:
-                print('Total repetition detected, aborting')
-                break
+            if resp.choices[0].message.tool_calls:
+                if resp.choices[0].message.tool_calls['function']:
+                    if resp.choices[0].message.tool_calls['function'] == tool_calls['function']:
+                        print('Total repetition detected, aborting')
+                        break
             response = resp.choices[0].message.content
             tool_calls = resp.choices[0].message.tool_calls
             if tool_calls:
@@ -384,7 +386,7 @@ Final Answer: 今天是情人节
         return 'FAIL', ''
 
 if __name__ == "__main__":
-    agented = asyncio.run(agenting('What should we have for lunch?', True, [0,0,23], 1))
+    agented = asyncio.run(agenting('你好啊', True, [0,0,23], 1))
     #print(agented[0])
     print(agented[1])
 
