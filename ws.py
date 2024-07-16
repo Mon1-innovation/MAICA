@@ -818,8 +818,11 @@ async def do_communicate(websocket, session, client_actual, client_options):
                 await asyncio.sleep(0)
                 print(token, end='', flush=True)
                 if token != '':
-                    reply_appended = reply_appended + token
-                    await websocket.send(wrap_ws_formatter('100', 'continue', token, 'carriage'))
+                    if not '<|' in token:
+                        reply_appended = reply_appended + token
+                        await websocket.send(wrap_ws_formatter('100', 'continue', token, 'carriage'))
+                    else:
+                        break
             await websocket.send(wrap_ws_formatter('1000', 'streaming_done', f"streaming has finished with seed {completion_args['seed']}", 'info'))
             reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
             print(f"Finished replying-{traceray_id}:{session[3]}, with seed {completion_args['seed']}")
