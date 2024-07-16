@@ -374,7 +374,7 @@ def wrap_mod_system(session, chat_session_num, known_info, name_from_sf, languag
     else:
         player_name = '[player]'
     if known_info:
-        new_system = f"{global_init_system(player_name)} 注意利用以下信息回答: {known_info}."
+        new_system = f"{global_init_system(player_name)} 以下是一些相关信息, 你可以利用其中有价值的部分作答: {known_info}."
     else:
         new_system = global_init_system(player_name)
     if language == 'en':

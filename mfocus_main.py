@@ -167,8 +167,8 @@ Final Answer: 今天是情人节
                 "properties": {
                     "question": {
                         "type": "string",
-                        "description": "The question needs to be searched on Google, which should not be too detailed.",
-                        "example_value": "今天天气怎么样"
+                        "description": "The question needs to be searched on Google, which should not be too detailed. 只有当以上工具均不能提供有效信息时, 你才能使用此工具.",
+                        "example_value": "附近有哪些餐馆"
                     }
                 },
                 "required": [
@@ -338,9 +338,12 @@ Final Answer: 今天是情人节
                 stop=['Observation:'],
                 temperature=0.6,
                 top_p = 0.6,
-                presence_penalty = 0.0,
-                frequency_penalty = 0.0,
+                presence_penalty = 1.9,
+                frequency_penalty = 1.9,
                 seed=42)
+            if resp.choices[0].message.tool_calls['function'] == tool_calls['function']:
+                print('Total repetition detected, aborting')
+                break
             response = resp.choices[0].message.content
             tool_calls = resp.choices[0].message.tool_calls
             if tool_calls:
@@ -354,7 +357,6 @@ Final Answer: 今天是情人节
                 await websocket.send(ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'debug'))
             print(response_str1)
             print(response_str2)
-
         else:
             break
     #print(instructed_final_answer)
@@ -377,7 +379,7 @@ Final Answer: 今天是情人节
         return 'FAIL', ''
 
 if __name__ == "__main__":
-    agented = asyncio.run(agenting('你记得我叫什么名字吗', True, [0,0,23], 1))
+    agented = asyncio.run(agenting('我们现在可以干点什么', True, [0,0,23], 1))
     #print(agented[0])
     print(agented[1])
 
