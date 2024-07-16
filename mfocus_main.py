@@ -307,7 +307,12 @@ Final Answer: 今天是情人节
                     return_instruction = f"[{{'known_info': {persistent_acquired[2]}}}]"
                     if persistent_acquired[3]:
                         if 'persistent' in instructed_final_answer:
-                            instructed_final_answer['persistent'] += f"{persistent_acquired[3]}"
+                            persis_old_list = list(instructed_final_answer['persistent'])
+                            persis_new_list = list(persistent_acquired[3])
+                            for item_plus in persis_new_list:
+                                if not item_plus in persis_old_list:
+                                    persis_old_list.append(item_plus)
+                            instructed_final_answer['persistent'] = str(persis_old_list)
                         else:
                             instructed_final_answer['persistent'] = f"{persistent_acquired[3]}"
                         inst_pst = True
@@ -379,7 +384,7 @@ Final Answer: 今天是情人节
         return 'FAIL', ''
 
 if __name__ == "__main__":
-    agented = asyncio.run(agenting('我们现在可以干点什么', True, [0,0,23], 1))
+    agented = asyncio.run(agenting('你记得我喜欢吃什么吗', True, [0,0,23], 1))
     #print(agented[0])
     print(agented[1])
 
