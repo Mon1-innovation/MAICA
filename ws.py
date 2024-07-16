@@ -359,15 +359,18 @@ def mod_chat_session_system(session, chat_session_num, new_system_init):
 
 #这个修改system太麻烦了, 再包装一下吧
 
-def wrap_mod_system(session, chat_session_num, known_info, name_from_sf, language='zh'):
+def wrap_mod_system(session, chat_session_num, known_info, name_from_sf, language='zh', sfe_aggressive=False):
     user_id = session[2]
     #print(name_from_sf)
     if name_from_sf:
         player_name_get = persistent_extraction.read_from_sf(user_id, chat_session_num, 'mas_playername')
         if player_name_get[0]:
-            player_name = player_name_get[2]
-            if known_info:
-                known_info = re.sub(r'\[player\]', player_name, known_info)
+            if sfe_aggressive:
+                player_name = player_name_get[2]
+                if known_info:
+                    known_info = re.sub(r'\[player\]', player_name, known_info)
+            else:
+                player_name = '[player]'
         else:
             player_name = '[player]'
             # continue on failure - playername may not be specified
@@ -585,6 +588,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
     while True:
         traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
         bypass_mf = False
+        sfe_aggressive = False
         checked_status = check_user_status(session)
         if not checked_status[0]:
             response_str = f"Account service failed to fetch, refer to administrator--your ray tracer ID is {traceray_id}"
@@ -653,6 +657,9 @@ async def do_communicate(websocket, session, client_actual, client_options):
                     query_in = request_json['query']
             else:
                 query_in = request_json['query']
+            if 'sfe_aggressive' in request_json:
+                if request_json['sfe_aggressive']:
+                    sfe_aggressive = True
             global easter_exist
             if easter_exist:
                 easter_check = easter(query_in)
@@ -711,7 +718,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                                 else:
                                     info_agent_grabbed = message_agent_wrapped[1]
                             try:
-                                agent_insertion = wrap_mod_system(session, chat_session, info_agent_grabbed, sf_extraction, target_lang)
+                                agent_insertion = wrap_mod_system(session, chat_session, info_agent_grabbed, sf_extraction, target_lang, sfe_aggressive)
                                 if not agent_insertion[0]:
                                     raise Exception(agent_insertion[1])
                             except Exception as excepted:
@@ -723,7 +730,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                         else:
                             bypass_mf = False
                             try:
-                                agent_insertion = wrap_mod_system(session, chat_session, None, sf_extraction, target_lang)
+                                agent_insertion = wrap_mod_system(session, chat_session, None, sf_extraction, target_lang, sfe_aggressive)
                                 if not agent_insertion[0]:
                                     raise Exception(agent_insertion[1])
                             except Exception as excepted:
