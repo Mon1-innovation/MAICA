@@ -81,7 +81,7 @@ t9vozy56WuHPfv3KZTwrvZaIVSAExEL17wIDAQAB
             0.1 <= float(top_p) <= 1.0, 默认值为0.7
             0.0 <= float(temperature) <= 1.0, 默认值为0.4
             0 < int(max_tokens) <= 1024, 默认值为模型自动
-            0.0 <= float(frequency_penalty) <= 1.0, 默认值为0.0
+            0.0 <= float(frequency_penalty) <= 1.0, 默认值为0.3
             0.0 <= float(presence_penalty) <= 1.0, 默认值为0.0
             0 <= int(seed) <= 999, 默认值为随机
         谨慎地使用超参数, 这些参数能对模型应答造成明显的影响. 如果在前端中包含此类选项, 应当向用户提供明确指示.
@@ -118,6 +118,13 @@ maica_main和maica_core共用chat_session.
     你可以将inspire设为形如"Category:心理学"以选取一个类目且其必须在对应wikipedia.org上存在, MSpire将从中随机抽取一个页面或子分类页面.
 目前为止MSpire的行为仅为替换query, 实际上与前端实现没有本质区别. 在一个chat_session中频繁使用MSpire可能导致后续回答模式紊乱.
 MSpire的chat_session可以被设为0-9, 不能使用-1. 如果不需要对MSpire话题作后续讨论, 可以使用chat_session 0.
+
+为方便后端开发与调试, MAICA提供一个服务状态接口以告知客户端当前服务状态, 其位于https://maicadev.monika.love/api/accessibility. 你应当以空白的POST形式请求服务状态.
+如果成功请求, 接口会返回:
+    {"success": true, "exception": "", "accessibility": "当前服务状态"}
+仅当当前服务状态为"serving"时, 客户端应当继续工作. 若服务状态为任何其它值, 都应终止后续流程, 以免干扰服务器调试排障.
+此服务状态由后端管理人员填写, 并不一定代表服务器实际状态. 但当此接口认为服务不适用时, 任何形式的客户端都应当停止向服务器发起任何连接.
+对于任何规范的客户端应用, 都应当将此请求排在任何其它请求之前.
 
 MAICA上传存档的接口位于https://maicadev.monika.love/api/savefile. 你应当遵循以下格式, 以POST形式上传从存档中解读的信息:
     {"access_token": "你的令牌", "chat_session": "指定对应的chat_session", "content":"json格式的存档内容"}

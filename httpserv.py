@@ -7,6 +7,7 @@ from gevent import pywsgi
 from Crypto.Random import random as CRANDOM # type: ignore
 from Crypto.Cipher import PKCS1_OAEP # type: ignore
 from Crypto.PublicKey import RSA # type: ignore
+from loadenv import load_env
 
 # 实例化app
 app = Flask(import_name=__name__)
@@ -110,7 +111,6 @@ def history_download():
         exception = excepted
         return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
 
-    
 @app.route('/register', methods=["POST"])
 def register():
     success = True
@@ -138,6 +138,12 @@ def register():
         exception = excepted
         return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
     
+@app.route('/accessibility', methods=["POST"])
+def access():
+    success = True
+    exception = ''
+    accessibility = load_env('DEV_STATUS')
+    return json.dumps({"success": success, "exception": exception, "accessibility": accessibility}, ensure_ascii=False)
 
 if __name__ == '__main__':
 #    app.run(

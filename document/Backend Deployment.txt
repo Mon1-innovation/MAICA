@@ -82,6 +82,9 @@ DB_PASSWORD = '123456'
 DEV_IDENTITY = 'XP00-10"铸灾神械"'
     #此处应填入服务集群的名称或代称
     #想写什么写什么, 但必须有
+DEV_STATUS = 'serving'
+    #告知前端服务状态
+    #若状态不为'serving', 任何规范开发的前端程序都会终止运行
 SESSION_MAX_TOKEN = '28672'
     #此处应填入session长度限制
     #此值必须低于你使用核心模型的max_model_length, 且建议留出一定余量

@@ -780,7 +780,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
         default_top_p = 0.7
         default_temperature = 0.4
         default_max_tokens = None
-        default_frequency_penalty = 0.0
+        default_frequency_penalty = 0.3
         default_presence_penalty = 0.0
         default_seed = random.randint(0,999)
         #default_seed = 42
