@@ -1,6 +1,11 @@
 import json
 def read_from_sf(userid, chat_session_num, key):
     success = False
+    try:
+        with open(f"persistents/{userid}_{chat_session_num}.json") as savefile:
+            pass
+    except:
+        chat_session_num = 1
     with open(f"persistents/{userid}_{chat_session_num}.json", 'r', encoding= 'utf-8') as savefile:
         try:
             sf_content = json.loads(savefile.read())

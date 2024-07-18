@@ -33,6 +33,8 @@ def save_upload():
         chat_session = data['chat_session']
         content = data['content']
         print(access_token)
+        if int(chat_session) < 1 or int(chat_session) > 9:
+            raise Exception('Chat session out of range')
         decryptor = PKCS1_OAEP.new(privkey_loaded)
         decrypted_token =decryptor.decrypt(base64.b64decode(access_token)).decode("utf-8")
         login_cridential = json.loads(decrypted_token)
@@ -73,6 +75,8 @@ def history_download():
         chat_session = data['chat_session']
         lines = data['lines']
         print(access_token)
+        if int(chat_session) < 1 or int(chat_session) > 9:
+            raise Exception('Chat session out of range')
         decryptor = PKCS1_OAEP.new(privkey_loaded)
         decrypted_token =decryptor.decrypt(base64.b64decode(access_token)).decode("utf-8")
         login_cridential = json.loads(decrypted_token)

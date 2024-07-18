@@ -51,6 +51,7 @@ t9vozy56WuHPfv3KZTwrvZaIVSAExEL17wIDAQAB
     由于算力与设计结构的原因, MAICA完全能力的响应前置延迟显著高于核心能力, 在服务拥挤时可能更甚.
     MFocus是MAICA的独特能力之一. 其能够帮助MAICA获取外界信息回答问题, 而通过使用submod上传存档, MAICA还能读取来自MAS的大多数记忆.
     上传的存档与chat_session一一对应, 可以通过后面介绍的存档上传接口传入.
+    若当前指定的chat_session不存在对应存档, 则尝试使用chat_session为1的存档.
     仅当同时启用sf_extraction和MAICA完全能力时, 用户可以体验MAICA的最佳表现. 你可以出于隐私或响应速度起见关闭这些功能, 但当然会导致能力缺失.
     target_lang只能传入zh或en. 此方法通过修改system prompt实现, 并不能保证输出语言严格正确.
     除model外, 其余参数的缺省值分别为true, true, "zh".
