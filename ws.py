@@ -780,7 +780,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
             continue
         default_top_p = 0.7
         default_temperature = 0.4
-        default_max_tokens = None
+        default_max_tokens = 1024
         default_frequency_penalty = 0.3
         default_presence_penalty = 0.0
         default_seed = random.randint(0,999)
@@ -810,12 +810,17 @@ async def do_communicate(websocket, session, client_actual, client_options):
                             completion_args['top_p'] = float(super_value)
                         else:
                             raise Exception('top_p must fall on 0.1~1.0')
+                    case 'frequency_penalty':
+                        if 0.2 <= float(super_value) <= 1.0:
+                            completion_args['frequency_penalty'] = float(super_value)
+                        else:
+                            raise Exception('frequency_penalty must fall on 0.2~1.0')
                     case _:
                         if 0.0 <= float(super_value) <= 1.0:
                             completion_args[super_param] = float(super_value)
                         else:
                             raise Exception(f'{super_param} must fall on 0.0~1.0')
-            if not super_param in completion_args and super_param != 'max_tokens':
+            if not super_param in completion_args:
                 completion_args[super_param] = eval(f'default_{super_param}')
         stream_resp = client_actual.chat.completions.create(**completion_args)
         if client_options['stream']:

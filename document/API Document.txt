@@ -81,8 +81,8 @@ t9vozy56WuHPfv3KZTwrvZaIVSAExEL17wIDAQAB
         超参数将被传递到核心模型, 具体效果可以查阅OpenAI文档. 超参数有以下限制:
             0.1 <= float(top_p) <= 1.0, 默认值为0.7
             0.0 <= float(temperature) <= 1.0, 默认值为0.4
-            0 < int(max_tokens) <= 1024, 默认值为模型自动
-            0.0 <= float(frequency_penalty) <= 1.0, 默认值为0.3
+            0 < int(max_tokens) <= 1024, 默认值为1024
+            0.2 <= float(frequency_penalty) <= 1.0, 默认值为0.3
             0.0 <= float(presence_penalty) <= 1.0, 默认值为0.0
             0 <= int(seed) <= 999, 默认值为随机
         谨慎地使用超参数, 这些参数能对模型应答造成明显的影响. 如果在前端中包含此类选项, 应当向用户提供明确指示.
