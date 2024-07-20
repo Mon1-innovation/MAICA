@@ -26,8 +26,11 @@ except:
 
 #省得到处找
 
-def global_init_system(player_name):
-    system_init = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答. 你只应使用自然语言, 以聊天语气回答, 并在每句开始时以方括号中的文字表示情绪."
+def global_init_system(player_name, target_lang='zh'):
+    if target_lang == 'zh':
+        system_init = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答. 你只应使用自然语言, 以聊天语气回答, 并在每句开始时以方括号中的文字表示情绪."
+    else:
+        system_init = f"You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Answer the following query from {player_name} properly as Monika. You should only answer in casual natural tone with English, and express your emotion at the beginning of each sentence by wrapping them in square brackets."
     return system_init
 
 #灵活客户端, 用于获取agent回答
@@ -188,7 +191,7 @@ def rw_chat_session(session, chat_session_num, rw, content_append):
 
 #清空一个chat_session的方法
 
-def purge_chat_session(user_id, chat_session_num):
+def purge_chat_session(user_id, chat_session_num, target_lang='zh'):
     success = False
     try:
         with pymysql.connect(
@@ -210,7 +213,7 @@ def purge_chat_session(user_id, chat_session_num):
                         chat_session_id = information[0]
                         content_to_archive = information[1]
                     sql_expression2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-                    content = f'{{"role": "system", "content": "{global_init_system('[player]')}"}}'
+                    content = f'{{"role": "system", "content": "{global_init_system('[player]', target_lang)}"}}'
                     try:
                         db_cursor.execute(sql_expression2, (content, chat_session_id))
                         results = db_cursor.fetchall()
@@ -244,7 +247,7 @@ def purge_chat_session(user_id, chat_session_num):
 
 #如果chat_session不存在, 那就创建一个呗
 
-def check_create_chat_session(session, chat_session_num):
+def check_create_chat_session(session, chat_session_num, target_lang='zh'):
     success = False
     exist =None
     chat_session_id = None
@@ -275,7 +278,7 @@ def check_create_chat_session(session, chat_session_num):
                             chat_session_id = db_cursor.lastrowid
                             db_connection.commit()
                             sql_expression3 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-                            content = f'{{"role": "system", "content": "{global_init_system('[player]')}"}}'
+                            content = f'{{"role": "system", "content": "{global_init_system('[player]', target_lang)}"}}'
                             try:
                                 db_cursor.execute(sql_expression3, (content, chat_session_id))
                                 results = db_cursor.fetchall()
@@ -303,7 +306,7 @@ def check_create_chat_session(session, chat_session_num):
     
 #修改特定session的system. 只能希望模型会看一眼了.
 
-def mod_chat_session_system(session, chat_session_num, new_system_init):
+def mod_chat_session_system(session, chat_session_num, new_system_init, target_lang='zh'):
     success = False
     chat_session_id = None
     user_id = session[2]
@@ -319,7 +322,7 @@ def mod_chat_session_system(session, chat_session_num, new_system_init):
                 db_cursor.execute(sql_expression1, (user_id, chat_session_num))
                 results = db_cursor.fetchall()
                 if len(results) == 0:
-                    try_create = check_create_chat_session(session, chat_session_num)
+                    try_create = check_create_chat_session(session, chat_session_num, target_lang)
                     db_connection.commit()
                     #print(try_create)
                     sql_expression2 = "SELECT * FROM chat_session WHERE chat_session_id = %s"
@@ -377,12 +380,10 @@ def wrap_mod_system(session, chat_session_num, known_info, name_from_sf, languag
     else:
         player_name = '[player]'
     if known_info:
-        new_system = f"{global_init_system(player_name)} 以下是一些相关信息, 你可以利用其中有价值的部分作答: {known_info}."
+        new_system = f"{global_init_system(player_name, language)} 以下是一些相关信息, 你可以利用其中有价值的部分作答: {known_info}."
     else:
-        new_system = global_init_system(player_name)
-    if language == 'en':
-        new_system += '\n你应当使用英文回答.\nAnswer in English.'
-    return mod_chat_session_system(session, chat_session_num, new_system)
+        new_system = global_init_system(player_name, language)
+    return mod_chat_session_system(session, chat_session_num, new_system, language)
 
 #检查用户账号的即时状态
 
@@ -615,11 +616,16 @@ async def do_communicate(websocket, session, client_actual, client_options):
         try:
             request_json = json.loads(recv_text)
             chat_session = request_json['chat_session']
+            username = session[3]
+            sf_extraction = client_options['sf_extraction']
+            target_lang = client_options['target_lang']
+            if target_lang != 'zh' and target_lang != 'en':
+                raise Exception('Language choice unrecognized')
             if 'purge' in request_json:
                 if request_json['purge']:
                     try:
                         user_id = session[2]
-                        purge_result = purge_chat_session(user_id, chat_session)
+                        purge_result = purge_chat_session(user_id, chat_session, target_lang)
                         if not purge_result[0]:
                             raise Exception(purge_result[1])
                         elif purge_result[2]:
@@ -637,9 +643,6 @@ async def do_communicate(websocket, session, client_actual, client_options):
                         await websocket.send(wrap_ws_formatter('404', 'savefile_notfound', response_str, 'warn'))
                         #traceback.print_exc()
                         continue
-            username = session[3]
-            sf_extraction = client_options['sf_extraction']
-            target_lang = client_options['target_lang']
             if 'inspire' in request_json:
                 if request_json['inspire']:
                     if isinstance(request_json['inspire'], str):
@@ -683,9 +686,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                         continue
                 case i if i == 0:
                     print(query_in)
-                    messages = [{'role': 'system', 'content': global_init_system('[player]')}, {'role': 'user', 'content': query_in}]
-                    if target_lang == 'en':
-                        messages[0]['content'] += '\n你应当使用英文回答.\nAnswer in English.'
+                    messages = [{'role': 'system', 'content': global_init_system('[player]', target_lang)}, {'role': 'user', 'content': query_in}]
                 case i if 0 < i < 10 and i % 1 == 0:
 
                     #MAICA_agent 在这里调用
@@ -744,7 +745,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                         #traceback.print_exc()
                         await websocket.send(wrap_ws_formatter('503', 'agent_unavailable', response_str, 'error'))
                         continue
-                    check_result = check_create_chat_session(session, chat_session)
+                    check_result = check_create_chat_session(session, chat_session, target_lang)
                     if check_result[0]:
                         rw_result = rw_chat_session(session, chat_session, 'r', messages0)
                         if rw_result[0]:
