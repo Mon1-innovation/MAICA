@@ -19,7 +19,7 @@ def read_from_sf(userid, chat_session_num, key):
             return success, excepted, None
 
 if __name__ == "__main__":
-    print(read_from_sf(23, 1, "mas_player_bday"))
+    print(read_from_sf(23, 1, "mas_geolocation"))
 # 在这里列出可能被查找的所有条目:
 """
 mas_playername

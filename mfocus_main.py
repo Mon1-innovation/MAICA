@@ -4,10 +4,11 @@ import datetime
 import traceback
 import asyncio
 import ws
-import agent_modules # type: ignore
+import agent_modules
+import persistent_extraction
 from openai import OpenAI # type: ignore
 from loadenv import load_env
-async def agenting(input, sf_extraction, session, chat_session, mf_aggressive=False, websocket=None):
+async def agenting(input, sf_extraction, session, chat_session, tnd_aggressive=True, mf_aggressive=False, websocket=None):
     if websocket:
         loop = asyncio.get_event_loop()
     client = OpenAI(
@@ -195,8 +196,8 @@ Final Answer: 今天是情人节
         "stop": ['Observation:'],
         "temperature": 0.6,
         "top_p": 0.9,
-        "presence_penalty": 0.0,
-        "frequency_penalty": 0.0,
+        "presence_penalty": -0.5,
+        "frequency_penalty": 0.5,
         "seed": 42
     }
     if not mf_aggressive:
@@ -219,6 +220,12 @@ Final Answer: 今天是情人节
 
 
     instructed_final_answer = {}
+    if tnd_aggressive:
+        instructed_final_answer['time'] = f"[{agent_modules.time_acquire(None)[3]}]"
+        instructed_final_answer['date'] = f"[{agent_modules.date_acquire(None, sf_extraction, session, chat_session)[3]}]"
+        instructed_final_answer['event'] = f"[{agent_modules.event_acquire({'year': datetime.date.today().year, 'month': datetime.date.today().month, 'day': datetime.date.today().day}, sf_extraction, session, chat_session)[3]}]"
+        if persistent_extraction.read_from_sf(session[2], chat_session, 'mas_geolocation')[2]:
+            instructed_final_answer['weather'] = f"[{agent_modules.weather_acquire(None, sf_extraction, session, chat_session)[3]}]"
     # to be extended
     cycle = 0
     while tool_calls:
@@ -339,16 +346,7 @@ Final Answer: 今天是情人节
         if not exception_return:
             messages.append({'role': 'assistant', 'content': response})
             messages.append({'role': 'tool', 'content': return_instruction})
-            resp = client.chat.completions.create(
-                model=model_type,
-                messages=messages,
-                tools = tools,
-                stop=['Observation:'],
-                temperature=0.6,
-                top_p = 0.6,
-                presence_penalty = 1.9,
-                frequency_penalty = 1.9,
-                seed=42)
+            resp = client.chat.completions.create(**completion_args)
             if resp.choices[0].message.tool_calls:
                 if resp.choices[0].message.tool_calls['function']:
                     if resp.choices[0].message.tool_calls['function'] == tool_calls['function']:
@@ -389,7 +387,7 @@ Final Answer: 今天是情人节
         return 'FAIL', ''
 
 if __name__ == "__main__":
-    agented = asyncio.run(agenting('你好啊', True, [0,0,23], 1))
+    agented = asyncio.run(agenting('我们吃什么好', True, [0,0,23], 1))
     #print(agented[0])
     print(agented[1])
 

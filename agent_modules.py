@@ -71,7 +71,7 @@ def weather_acquire(params, sf_extraction, session, chat_session):
     if sf_extraction:
         try:
             user_id = session[2]
-            weather_location = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_geolocation')
+            weather_location = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_geolocation')[2]
             got_weather = weather_api_get(weather_location)
             content = json.dumps(got_weather[2], ensure_ascii=False)
             weather_friendly = f"当前气温是{got_weather[2]['当前温度']}度, 当前天气是{got_weather[2]['当前天气']}, 当前湿度是{got_weather[2]['当前湿度']}%"
