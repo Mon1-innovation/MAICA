@@ -7,7 +7,7 @@ import ws
 import agent_modules # type: ignore
 from openai import OpenAI # type: ignore
 from loadenv import load_env
-async def agenting(input, sf_extraction, session, chat_session, websocket=None):
+async def agenting(input, sf_extraction, session, chat_session, mf_aggressive=False, websocket=None):
     if websocket:
         loop = asyncio.get_event_loop()
     client = OpenAI(
@@ -111,7 +111,7 @@ Final Answer: 今天是情人节
         },
         {
             "name": "event_acquire",
-            "description": "Call this tool to get the event or holiday of a given date. 只要对话关于: 节日; 活动; 假期, 就使用此工具查询节日.",
+            "description": "Call this tool to get the event or holiday of a given date. 只要对话关于: 日期; 节日; 活动; 假期, 就使用此工具查询节日.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -178,7 +178,6 @@ Final Answer: 今天是情人节
                 ]
             }
         },
-
     ]
     messages = []
     messages_appending = [
@@ -189,16 +188,20 @@ Final Answer: 今天是情人节
     ]
     #messages.extend(messages_appending)
     messages.append({'role': 'user', 'content': input})
-    resp = client.chat.completions.create(
-        model=model_type,
-        messages=messages,
-        tools = tools,
-        stop=['Observation:'],
-        temperature=0.6,
-        top_p = 0.9,
-        presence_penalty = 0.0,
-        frequency_penalty = 0.0,
-        seed=42)
+    completion_args = {
+        "model": model_type,
+        "messages": messages,
+        "tools": tools,
+        "stop": ['Observation:'],
+        "temperature": 0.6,
+        "top_p": 0.9,
+        "presence_penalty": 0.0,
+        "frequency_penalty": 0.0,
+        "seed": 42
+    }
+    if not mf_aggressive:
+        completion_args['stop'].append('Final Answer:')
+    resp = client.chat.completions.create(**completion_args)
     response = resp.choices[0].message.content
     tool_calls = resp.choices[0].message.tool_calls
     if tool_calls:
@@ -386,7 +389,7 @@ Final Answer: 今天是情人节
         return 'FAIL', ''
 
 if __name__ == "__main__":
-    agented = asyncio.run(agenting('你记得我的生日吗', True, [0,0,23], 1))
+    agented = asyncio.run(agenting('你好啊', True, [0,0,23], 1))
     #print(agented[0])
     print(agented[1])
 

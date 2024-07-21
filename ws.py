@@ -590,6 +590,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
         traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
         bypass_mf = False
         sfe_aggressive = False
+        mf_aggressive = False
         checked_status = check_user_status(session)
         if not checked_status[0]:
             response_str = f"Account service failed to fetch, refer to administrator--your ray tracer ID is {traceray_id}"
@@ -663,6 +664,9 @@ async def do_communicate(websocket, session, client_actual, client_options):
             if 'sfe_aggressive' in request_json:
                 if request_json['sfe_aggressive']:
                     sfe_aggressive = True
+            if 'mf_aggressive' in request_json:
+                if request_json['mf_aggressive']:
+                    mf_aggressive = True
             global easter_exist
             if easter_exist:
                 easter_check = easter(query_in)
@@ -693,7 +697,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
 
                     try:
                         if client_options['full_maica'] and not bypass_mf:
-                            message_agent_wrapped = await mfocus_main.agenting(query_in, sf_extraction, session, chat_session, websocket)
+                            message_agent_wrapped = await mfocus_main.agenting(query_in, sf_extraction, session, chat_session, mf_aggressive, websocket)
                             if message_agent_wrapped[0] == 'FAIL' or len(message_agent_wrapped[0]) > 30 or len(message_agent_wrapped[1]) < 5:
                                 # We do not want answers without information
                                 response_str = f"MFocus returned corrupted guidance. This may or may not be a server failure, a corruption is kinda expected so keep cool--your ray tracer ID is {traceray_id}"
@@ -711,11 +715,8 @@ async def do_communicate(websocket, session, client_actual, client_options):
                                 info_agent_grabbed = None
                             else:
                                 # We are defaulting instructed guidance because its more clear pattern
-                                if 'mf_aggressive' in request_json:
-                                    if request_json['mf_aggressive']:
-                                        info_agent_grabbed = message_agent_wrapped[0]
-                                    else:
-                                        info_agent_grabbed = message_agent_wrapped[1]
+                                if mf_aggressive:
+                                    info_agent_grabbed = message_agent_wrapped[0]
                                 else:
                                     info_agent_grabbed = message_agent_wrapped[1]
                             try:
