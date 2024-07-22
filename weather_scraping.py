@@ -27,4 +27,4 @@ def weather_api_get(location):
 
 
 if __name__ == '__main__':
-    print(weather_api_get('湖北鄂州'))
+    print(weather_api_get('黄石'))

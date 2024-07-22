@@ -103,6 +103,11 @@ Final Answer: 今天是情人节
             "parameters": {
                 "type": "object",
                 "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "The location which you need to get the weather of, use Chinese.",
+                        "example_value": "湖北武汉"
+                    },
                 },
                 "required": [
                 ],
@@ -179,6 +184,19 @@ Final Answer: 今天是情人节
                 ]
             }
         },
+        {
+            "name": "none",
+            "description": "Call this tool if no tool is needed to answer.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                },
+                "required": [
+                ],
+                "optional": [
+                ]
+            }
+        },
     ]
     messages = []
     messages_appending = [
@@ -239,9 +257,9 @@ Final Answer: 今天是情人节
         try:
             predict_action_function = tool_calls['function']['name']
             try:
-                real_parameters_dict = json.loads(re.sub(r"(?!=\\)'", '"', tool_calls['function']['arguments']))
+                real_parameters_dict = json.loads(re.search(r'(\{.*\})', re.sub(r"(?!=\\)'", '"', tool_calls['function']['arguments']))[1])
             except:
-                real_parameters_dict = {"question": tool_calls['function']['arguments']}
+                real_parameters_dict = {"common": tool_calls['function']['arguments']}
             if re.search((r'time.*acquire'), predict_action_function, re.I):
                 time_acquired = agent_modules.time_acquire(real_parameters_dict)
                 if time_acquired[0]:
@@ -387,7 +405,7 @@ Final Answer: 今天是情人节
         return 'FAIL', ''
 
 if __name__ == "__main__":
-    agented = asyncio.run(agenting('我们吃什么好', True, [0,0,23], 1))
+    agented = asyncio.run(agenting('现在黄石的天气怎么样', True, [0,0,23], 1))
     #print(agented[0])
     print(agented[1])
 

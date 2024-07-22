@@ -43,43 +43,54 @@ def date_acquire(params, sf_extraction, session, chat_session):
                 if south_north[2]:
                     match content:
                         case date if 3 <= date.month < 6:
-                            date_friendly = f"[今天是{date.year}年秋季{date.month}月{date.day}日{weekday}]"
+                            date_friendly = f"今天是{date.year}年秋季{date.month}月{date.day}日{weekday}"
                         case date if 6 <= date.month < 9:
-                            date_friendly = f"[今天是{date.year}年冬季{date.month}月{date.day}日{weekday}]"
+                            date_friendly = f"今天是{date.year}年冬季{date.month}月{date.day}日{weekday}"
                         case date if 9 <= date.month < 12:
-                            date_friendly = f"[今天是{date.year}年春季{date.month}月{date.day}日{weekday}]"
+                            date_friendly = f"今天是{date.year}年春季{date.month}月{date.day}日{weekday}"
                         case date if 12 <= date.month or date.month < 3:
-                            date_friendly = f"[今天是{date.year}年夏季{date.month}月{date.day}日{weekday}]"
+                            date_friendly = f"今天是{date.year}年夏季{date.month}月{date.day}日{weekday}"
                     return success, exception, content, date_friendly
         except Exception as excepted:
             exception = excepted
             # continue on failure - hemisphere may not be specified
     match content:
         case date if 3 <= date.month < 6:
-            date_friendly = f"[今天是{date.year}年春季{date.month}月{date.day}日{weekday}]"
+            date_friendly = f"今天是{date.year}年春季{date.month}月{date.day}日{weekday}"
         case date if 6 <= date.month < 9:
-            date_friendly = f"[今天是{date.year}年夏季{date.month}月{date.day}日{weekday}]"
+            date_friendly = f"今天是{date.year}年夏季{date.month}月{date.day}日{weekday}"
         case date if 9 <= date.month < 12:
-            date_friendly = f"[今天是{date.year}年秋季{date.month}月{date.day}日{weekday}]"
+            date_friendly = f"今天是{date.year}年秋季{date.month}月{date.day}日{weekday}"
         case date if 12 <= date.month or date.month < 3:
-            date_friendly = f"[今天是{date.year}年冬季{date.month}月{date.day}日{weekday}]"
+            date_friendly = f"今天是{date.year}年冬季{date.month}月{date.day}日{weekday}"
     success = True
+    content = f'{content.year}.{content.month}.{content.day}'
     return success, exception, content, date_friendly
 def weather_acquire(params, sf_extraction, session, chat_session):
     success = True
     exception = None
-    if sf_extraction:
-        try:
-            user_id = session[2]
-            weather_location = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_geolocation')[2]
+    if params:
+        print(params)
+        for possible_key in {'location', 'query', 'search', 'common'}:
+            if possible_key in params:
+                likely_query = params[possible_key]
+                break
+    try:
+        user_id = session[2]
+        if likely_query:
+            weather_location = likely_query
+        else:
+            if sf_extraction:
+                weather_location = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_geolocation')[2]
+            else:
+                content = weather_friendly = '天气未知'
+        if likely_query or sf_extraction:
             got_weather = weather_api_get(weather_location)
             content = json.dumps(got_weather[2], ensure_ascii=False)
             weather_friendly = f"当前气温是{got_weather[2]['当前温度']}度, 当前天气是{got_weather[2]['当前天气']}, 当前湿度是{got_weather[2]['当前湿度']}%"
-        except Exception as excepted:
-            success = False
-            exception = excepted
-            content = weather_friendly = '天气未知'
-    else:
+    except Exception as excepted:
+        success = False
+        exception = excepted
         content = weather_friendly = '天气未知'
     return success, exception, content, weather_friendly
 def event_acquire(params, sf_extraction, session, chat_session):
@@ -181,7 +192,7 @@ def persistent_acquire(params, sf_extraction, session, chat_session):
     #print(params)
     success = True
     exception = None
-    for possible_key in {'question', 'query', 'search'}:
+    for possible_key in {'question', 'query', 'search', 'common'}:
         if possible_key in params:
             likely_query = params[possible_key]
             break
