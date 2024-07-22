@@ -8,7 +8,7 @@ import agent_modules
 import persistent_extraction
 from openai import OpenAI # type: ignore
 from loadenv import load_env
-async def agenting(input, sf_extraction, session, chat_session, tnd_aggressive=True, mf_aggressive=False, websocket=None):
+async def agenting(input, sf_extraction, session, chat_session, tnd_aggressive=1, mf_aggressive=False, websocket=None):
     if websocket:
         loop = asyncio.get_event_loop()
     client = OpenAI(
@@ -238,10 +238,11 @@ Final Answer: 今天是情人节
 
 
     instructed_final_answer = {}
-    if tnd_aggressive:
+    if int(tnd_aggressive) >= 1:
         instructed_final_answer['time'] = f"[{agent_modules.time_acquire(None)[3]}]"
-        instructed_final_answer['date'] = f"[{agent_modules.date_acquire(None, sf_extraction, session, chat_session)[3]}]"
         instructed_final_answer['event'] = f"[{agent_modules.event_acquire({'year': datetime.date.today().year, 'month': datetime.date.today().month, 'day': datetime.date.today().day}, sf_extraction, session, chat_session)[3]}]"
+    if int(tnd_aggressive) >= 2:
+        instructed_final_answer['date'] = f"[{agent_modules.date_acquire(None, sf_extraction, session, chat_session)[3]}]"
         if persistent_extraction.read_from_sf(session[2], chat_session, 'mas_geolocation')[2]:
             instructed_final_answer['weather'] = f"[{agent_modules.weather_acquire(None, sf_extraction, session, chat_session)[3]}]"
     # to be extended

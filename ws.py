@@ -591,7 +591,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
         bypass_mf = False
         sfe_aggressive = False
         mf_aggressive = False
-        tnd_aggressive = True
+        tnd_aggressive = 1
         checked_status = check_user_status(session)
         if not checked_status[0]:
             response_str = f"Account service failed to fetch, refer to administrator--your ray tracer ID is {traceray_id}"
