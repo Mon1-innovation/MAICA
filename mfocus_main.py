@@ -73,7 +73,7 @@ Final Answer: 今天是情人节
     tools =  [
         {
             "name": "time_acquire",
-            "description": "Call this tool to get the current time. 只要对话关于: 时间; 问候; 三餐; 休息, 就使用此工具查询时间.",
+            "description": "Call this tool to get the current time. 只要对话关于: 时间; 问候; 三餐; 休息, 就使用此工具查询时间. Always use this tool if the conversation mentions: time, greeting, meals, sleep, rest.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -86,7 +86,7 @@ Final Answer: 今天是情人节
         },
         {
             "name": "date_acquire",
-            "description": "Call this tool to get the current date. 只要对话关于: 日期; 季节; 年份, 就使用此工具查询日期.",
+            "description": "Call this tool to get the current date. 只要对话关于: 日期; 季节; 年份, 就使用此工具查询日期. Always use this tool if the conversation mentions: date, season, year.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -99,7 +99,7 @@ Final Answer: 今天是情人节
         },
         {
             "name": "weather_acquire",
-            "description": "Call this tool to get the current weather. 只要对话关于: 天气; 通勤; 户外活动, 就使用此工具查询天气.",
+            "description": "Call this tool to get the current weather. 只要对话关于: 天气; 通勤; 户外活动, 就使用此工具查询天气. Always use this tool if the conversation mentions: weather, commuting, outdoor activities.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -117,7 +117,7 @@ Final Answer: 今天是情人节
         },
         {
             "name": "event_acquire",
-            "description": "Call this tool to get the event or holiday of a given date. 只要对话关于: 日期; 节日; 活动; 假期, 就使用此工具查询节日.",
+            "description": "Call this tool to get the event or holiday of a given date. 只要对话关于: 日期; 节日; 活动; 假期, 就使用此工具查询节日. Always use this tool if the conversation mentions: date, holiday, anniversary, activities, vacation.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -148,7 +148,7 @@ Final Answer: 今天是情人节
         },
         {
             "name": "persistent_acquire",
-            "description": "Call this tool to get any additional information about the speakers, such as their preferences, hobbies, experiences, appearence or relationship. 只要你被问及你作为AI不具有的记忆, 经历, 人格, 感情, 喜好或任何其它事物, 就使用此工具查找记忆.",
+            "description": "Call this tool to get any additional information about the speakers, such as their preferences, hobbies, experiences, appearence or relationship. 只要你被问及你作为AI不具有的记忆, 经历, 人格, 感情, 喜好或任何其它事物, 就使用此工具查找记忆. Always use this tool if the conversation mentions memories, humanity, preferences, hobbies, experience or any other thing you don't have as an AI.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -167,13 +167,13 @@ Final Answer: 今天是情人节
         },
         {
             "name": "search_internet",
-            "description": "Call this tool to interact with the internet search API. This API will search your question on the internet.",
+            "description": "Call this tool to interact with the internet search API. This API will search your question on the internet. 只有当以上工具均不能提供有效信息时, 你才应使用此工具. Use this tool only if every other tool above cannot answer.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "question": {
                         "type": "string",
-                        "description": "The question needs to be searched on Google, which should not be too detailed. 只有当以上工具均不能提供有效信息时, 你才能使用此工具.",
+                        "description": "The question needs to be searched on Google, which should not be too detailed.",
                         "example_value": "附近有哪些餐馆"
                     }
                 },
@@ -406,7 +406,7 @@ Final Answer: 今天是情人节
         return 'FAIL', ''
 
 if __name__ == "__main__":
-    agented = asyncio.run(agenting('现在黄石的天气怎么样', True, [0,0,23], 1))
+    agented = asyncio.run(agenting('What do you like to eat', True, [0,0,23], 1))
     #print(agented[0])
     print(agented[1])
 
