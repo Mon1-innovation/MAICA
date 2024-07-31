@@ -12,7 +12,7 @@ import traceback
 import mspire
 import mfocus_main
 import persistent_extraction
-import maica_http
+#import maica_http
 from Crypto.Random import random as CRANDOM # type: ignore
 from Crypto.Cipher import PKCS1_OAEP # type: ignore
 from Crypto.PublicKey import RSA # type: ignore
@@ -701,7 +701,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
 
                     try:
                         if client_options['full_maica'] and not bypass_mf:
-                            message_agent_wrapped = await mfocus_main.agenting(query_in, sf_extraction, session, chat_session, tnd_aggressive, mf_aggressive, websocket)
+                            message_agent_wrapped = await mfocus_main.agenting(query_in, sf_extraction, session, chat_session, target_lang, tnd_aggressive, mf_aggressive, websocket)
                             if message_agent_wrapped[0] == 'FAIL' or len(message_agent_wrapped[0]) > 30 or len(message_agent_wrapped[1]) < 5:
                                 # We do not want answers without information
                                 response_str = f"MFocus returned corrupted guidance. This may or may not be a server failure, a corruption is kinda expected so keep cool--your ray tracer ID is {traceray_id}"

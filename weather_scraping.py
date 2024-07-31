@@ -19,9 +19,9 @@ def weather_api_get(location):
         else:
             json_res2 = json.loads(r2.content.decode('utf-8'))
             return_val = {}
-            return_val['当前温度'] = json_res2['lives'][0]['temperature']
-            return_val['当前天气'] = json_res2['lives'][0]['weather']
-            return_val['当前湿度'] = json_res2['lives'][0]['humidity']
+            return_val['temperature'] = json_res2['lives'][0]['temperature']
+            return_val['weather'] = json_res2['lives'][0]['weather']
+            return_val['humidity'] = json_res2['lives'][0]['humidity']
             success = True
             return success, None, return_val
 

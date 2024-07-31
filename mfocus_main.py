@@ -8,7 +8,7 @@ import agent_modules
 import persistent_extraction
 from openai import OpenAI # type: ignore
 from loadenv import load_env
-async def agenting(input, sf_extraction, session, chat_session, tnd_aggressive=1, mf_aggressive=False, websocket=None):
+async def agenting(input, sf_extraction, session, chat_session, target_lang='zh', tnd_aggressive=1, mf_aggressive=False, websocket=None):
     if websocket:
         loop = asyncio.get_event_loop()
     client = OpenAI(

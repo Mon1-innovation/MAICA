@@ -9,7 +9,9 @@ from Crypto.Cipher import PKCS1_OAEP # type: ignore
 from Crypto.PublicKey import RSA # type: ignore
 from loadenv import load_env
 
-# 通过methods设置POST请求
+app = Flask(import_name=__name__)
+
+
 @app.route('/savefile', methods=["POST"])
 def save_upload():
     success = True
@@ -137,8 +139,6 @@ def access():
     return json.dumps({"success": success, "exception": exception, "accessibility": accessibility}, ensure_ascii=False)
 
 if __name__ == '__main__':
-# 实例化app
-    app = Flask(import_name=__name__)
     with open("key/prv.key", "r") as privkey_file:
         global privkey
         privkey = privkey_file.read()
