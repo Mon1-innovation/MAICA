@@ -2,25 +2,12 @@ from flask import Flask, current_app, redirect, url_for, request
 import json
 import base64
 import traceback
-import ws
+import maica_ws
 from gevent import pywsgi
 from Crypto.Random import random as CRANDOM # type: ignore
 from Crypto.Cipher import PKCS1_OAEP # type: ignore
 from Crypto.PublicKey import RSA # type: ignore
 from loadenv import load_env
-
-# 实例化app
-app = Flask(import_name=__name__)
-
-with open("key/prv.key", "r") as privkey_file:
-    global privkey
-    privkey = privkey_file.read()
-with open("key/pub.key", "r") as pubkey_file:
-    global pubkey
-    pubkey = pubkey_file.read()
-privkey_loaded = RSA.import_key(privkey)
-pubkey_loaded = RSA.import_key(pubkey)
-
 
 # 通过methods设置POST请求
 @app.route('/savefile', methods=["POST"])
@@ -47,7 +34,7 @@ def save_upload():
         else:
             raise Exception('No Identity Provided')
         login_password = login_cridential['password']
-        verification_result = ws.run_hash_dcc(login_identity, login_is_email, login_password)
+        verification_result = maica_ws.run_hash_dcc(login_identity, login_is_email, login_password)
         if not verification_result[0]:
             raise Exception('Identity hashing failed')
         else:
@@ -89,12 +76,12 @@ def history_download():
         else:
             raise Exception('No Identity Provided')
         login_password = login_cridential['password']
-        verification_result = ws.run_hash_dcc(login_identity, login_is_email, login_password)
+        verification_result = maica_ws.run_hash_dcc(login_identity, login_is_email, login_password)
         if not verification_result[0]:
             raise Exception('Identity hashing failed')
         else:
             session = verification_result
-            hisjson = ws.rw_chat_session(session, chat_session, 'r', None)
+            hisjson = maica_ws.rw_chat_session(session, chat_session, 'r', None)
             print(hisjson)
             if hisjson[0]:
                 hisjson = json.loads(f"[{hisjson[3]}]")
@@ -150,6 +137,16 @@ def access():
     return json.dumps({"success": success, "exception": exception, "accessibility": accessibility}, ensure_ascii=False)
 
 if __name__ == '__main__':
+# 实例化app
+    app = Flask(import_name=__name__)
+    with open("key/prv.key", "r") as privkey_file:
+        global privkey
+        privkey = privkey_file.read()
+    with open("key/pub.key", "r") as pubkey_file:
+        global pubkey
+        pubkey = pubkey_file.read()
+    privkey_loaded = RSA.import_key(privkey)
+    pubkey_loaded = RSA.import_key(pubkey)
 #    app.run(
 #        host='0.0.0.0',
 #        port= 6000,

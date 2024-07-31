@@ -3,7 +3,7 @@ import json
 import datetime
 import traceback
 import asyncio
-import ws
+import maica_ws
 import agent_modules
 import persistent_extraction
 from openai import OpenAI # type: ignore
@@ -230,8 +230,8 @@ Final Answer: 今天是情人节
         response_str1 = f'MFocus preinit 1st round finished, response is:\n{response}\nEnding due to returning none or corruption.'
         response_str2 = f'No tool called by MFocus.'
     if websocket:
-        await websocket.send(ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug'))
-        await websocket.send(ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'debug'))
+        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug'))
+        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'debug'))
     print(response_str1)
     print(response_str2)
   
@@ -380,8 +380,8 @@ Final Answer: 今天是情人节
                 response_str1 = f'MFocus preinit {cycle+1}nd/rd/th round finished, response is:\n{response}\nEnding due to returning none or corruption.'
                 response_str2 = f'No tool called by MFocus.'
             if websocket:
-                await websocket.send(ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug'))
-                await websocket.send(ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'debug'))
+                await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug'))
+                await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'debug'))
             print(response_str1)
             print(response_str2)
         else:
@@ -391,17 +391,17 @@ Final Answer: 今天是情人节
     final_answer = re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.S)
     if final_answer and instructed_final_answer_joined:
         response_str3 = f"MFocus callback achieved, response is:\n{final_answer[1]}\nInfo acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."
-        if websocket: await websocket.send(ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug'))
+        if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug'))
         print(response_str3)
         return final_answer[1], instructed_final_answer_joined
     elif instructed_final_answer_joined:
         response_str3 = f"MFocus falling back, Info acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."
-        if websocket: await websocket.send(ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug'))
+        if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug'))
         print(response_str3)
         return 'FAIL', instructed_final_answer_joined
     else:
         response_str3 = f"MFocus failed or missed, Ending MFocus callback."
-        if websocket: await websocket.send(ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug'))
+        if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug'))
         print(response_str3)
         return 'FAIL', ''
 
