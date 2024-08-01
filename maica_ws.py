@@ -708,7 +708,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                     try:
                         if client_options['full_maica'] and not bypass_mf:
                             message_agent_wrapped = await mfocus_main.agenting(query_in, sf_extraction, session, chat_session, target_lang, tnd_aggressive, mf_aggressive, esc_aggressive, websocket)
-                            if message_agent_wrapped[0] == 'FAIL' or len(message_agent_wrapped[0]) > 30 or len(message_agent_wrapped[1]) < 5:
+                            if message_agent_wrapped[0] == 'FAIL' or len(message_agent_wrapped[0]) > 60 or len(message_agent_wrapped[1]) < 5:
                                 # We do not want answers without information
                                 response_str = f"MFocus returned corrupted guidance. This may or may not be a server failure, a corruption is kinda expected so keep cool--your ray tracer ID is {traceray_id}"
                                 print(f"出现如下异常18-{traceray_id}:Corruption")
@@ -734,10 +734,10 @@ async def do_communicate(websocket, session, client_actual, client_options):
                                 if not agent_insertion[0]:
                                     raise Exception(agent_insertion[1])
                             except Exception as excepted:
-                                response_str = f"Save file extraction failed, you may have not uploaded your savefile yet--your ray tracer ID is {traceray_id}"
+                                response_str = f"MFocus insertion failed, refer to administrator--your ray tracer ID is {traceray_id}"
                                 print(f"出现如下异常19-{traceray_id}:{excepted}")
-                                #traceback.print_exc()
-                                await websocket.send(wrap_ws_formatter('404', 'savefile_notfound', response_str, 'warn'))
+                                await websocket.send(wrap_ws_formatter('500', 'insertion_failed', response_str, 'error'))
+                                await websocket.close(1000, 'Stopping connection due to critical server failure')
                                 continue
                         else:
                             bypass_mf = False
