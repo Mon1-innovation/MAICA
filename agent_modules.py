@@ -230,7 +230,7 @@ def persistent_acquire(params, sf_extraction, session, chat_session, target_lang
     else:
         content = '没有相关信息' if target_lang == 'zh' else "No related information found"
     return success, exception, content, content
-def internet_acquire(params, sf_extraction, session, chat_session, target_lang='zh'):
+def internet_acquire(params, sf_extraction, session, chat_session, esc_aggressive, target_lang='zh'):
     success = True
     exception = None
     searched_friendly = ''
@@ -265,7 +265,7 @@ def internet_acquire(params, sf_extraction, session, chat_session, target_lang='
             pass
     try:
         print(f'Agent modules acquiring Internet search, query is:\n{likely_query}\nEnd of Internet search')
-        search_response = internet_search_limb(likely_query)
+        search_response = internet_search_limb(likely_query, esc_aggressive)
         if search_response[0]:
             content = json.dumps(search_response[2], ensure_ascii=False)
             searched_friendly = search_response[3]

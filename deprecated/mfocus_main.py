@@ -8,7 +8,7 @@ import agent_modules
 import persistent_extraction
 from openai import OpenAI # type: ignore
 from loadenv import load_env
-async def agenting(input, sf_extraction, session, chat_session, target_lang='zh', tnd_aggressive=1, mf_aggressive=False, esc_aggressive=True, websocket=None):
+async def agenting(input, sf_extraction, session, chat_session, target_lang='zh', tnd_aggressive=1, mf_aggressive=False, websocket=None):
     if websocket:
         loop = asyncio.get_event_loop()
     client = OpenAI(
@@ -16,7 +16,60 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         base_url=load_env('MFOCUS_ADDR'),
     )
     model_type = client.models.list().data[0].id
-    print(f'MFocus main addressing model, response is:\n{model_type}\nEnd of MFocus main addressing model')
+    print(f'MFocus preinit addressing model, response is:\n{model_type}\nEnd of MFocus addressing model')
+    system_init = """
+You are an assistant designed to sort and conclude from sentences. Proceed the following sentence accroding to rules provided below.
+You have access to following tools:
+1. time_acquire: Call this tool if you think the current time is needed to answer the sentence. Parameters: []
+
+2. date_acquire: Call this tool if you think the current date is needed to answer the sentence. Parameters: []
+
+3. event_acquire: Call this tool if you think the event or holiday of a given date is needed to answer the sentence. Parameters: [{"name": "date", "description": "The given date of which you need to know its event, leave empty for today", "required": "False"}]
+
+4. persistent_acquire: Call this tool if you think any additional information about the speakers is needed to answer the sentence, such as their preferences, hobbies, experiences, appearence or relationship. Parameters: [{"name": "question", "description": "The information needed to answer the sentence", "required": "True"}]
+
+5. search_internet: Call this tool to interact with the internet search API. This API will search the phase provided in the parameters on the internet. Parameters: [{"name": "question", "description": "The question needs to be searched on Google. This question should not be too detailed", "required": "True"}]
+
+If you are using search_internet tool, only include the location and the abstract information needed. Do not include too many details.
+
+If there is anything additional you want to know about the speakers, call persistent_acquire tool.
+
+Answer using the following format:
+
+Thought: you should always think about what to do
+Action: the action to take, should be one of the above tools[time_acquire, date_acquire, event_acquire, persistent_acquire, search_internet]
+Action Input: the parameters to pass in
+Observation: the result of the action
+... (this Thought/Action/Action Input/Observation can be repeated zero or more times)
+Thought: I now know the final answer
+Final Answer: sort up every information you acquired, and output directly.
+Begin!
+"""
+    weather_bkp = """
+3. weather_acquire: Call this tool if you think the current weather information or weather forcast is needed to answer the sentence. Parameters: []
+"""
+    init_example_1 = """Thought: 要回答干点什么好, 对话者必须知道当前的时间
+Action: time_acquire
+Action Input: []
+Observation: [{'time': '13:49'}]
+Thought: 要回答干点什么好, 对话者必须知道对方的爱好
+Action: persistent_acquire
+Action Input: {'question': '你的爱好是什么'}
+Observation: [{'personal_info': ['[player]喜欢运动']}]
+Thought: 我需要搜索互联网以获取合适的运动场地
+Action: search_internet
+Action Input: {"question": "附近的运动场馆"}
+Observation: [{'search_result': '信息1: 附近有一座体育馆'}]
+Thought: I now know the final answer
+Final Answer: [player]喜欢运动, 附近有一座体育馆, 且现在是下午13:49
+"""
+    init_example_2 = """Thought: 要回答今天是什么日子, 对话者必须知道今天的节日
+Action: event_acquire
+Action Input: {}
+Observation: [{'event': '情人节'}]
+Thought: I now know the final answer
+Final Answer: 今天是情人节
+"""
     tools =  [
         {
             "name": "time_acquire",
@@ -146,6 +199,13 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         },
     ]
     messages = []
+    messages_appending = [
+        {'role': 'user', 'content': '我们现在干点什么好呢?'},
+        {'role': 'assistant', 'content': init_example_1},
+        {'role': 'user', 'content': '你知道今天是什么日子吗?'},
+        {'role': 'assistant', 'content': init_example_2}
+    ]
+    #messages.extend(messages_appending)
     messages.append({'role': 'user', 'content': input})
     completion_args = {
         "model": model_type,
@@ -164,10 +224,10 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
     response = resp.choices[0].message.content
     tool_calls = resp.choices[0].message.tool_calls
     if tool_calls:
-        response_str1 = f'MFocus main 1st round finished, response is:\n{response}\nEnd of MFocus main 1st round.'
-        response_str2 = f'Acquiring tool call from MFocus main 1st round, response is:\n{tool_calls}\nEnd of tool call acquiration.'
+        response_str1 = f'MFocus preinit 1st round finished, response is:\n{response}\nEnd of MFocus preinit 1st round.'
+        response_str2 = f'Acquiring tool call from MFocus preinit 1st round, response is:\n{tool_calls}\nEnd of tool call acquiration.'
     else:
-        response_str1 = f'MFocus main 1st round finished, response is:\n{response}\nEnding due to returning none or corruption.'
+        response_str1 = f'MFocus preinit 1st round finished, response is:\n{response}\nEnding due to returning none or corruption.'
         response_str2 = f'No tool called by MFocus.'
     if websocket:
         await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug'))
@@ -202,7 +262,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
             except:
                 real_parameters_dict = {"common": tool_calls['function']['arguments']}
             if re.search((r'time.*acquire'), predict_action_function, re.I):
-                time_acquired = agent_modules.time_acquire(real_parameters_dict, target_lang)
+                time_acquired = agent_modules.time_acquire(real_parameters_dict)
                 if time_acquired[0]:
                     return_instruction = f"[{{'time': '{time_acquired[2].hour}:{time_acquired[2].minute}'}}]"
                     if time_acquired[3]:
@@ -211,7 +271,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                 else:
                     raise Exception(time_acquired[1])
             elif re.search((r'date.*acquire'), predict_action_function, re.I):
-                date_acquired = agent_modules.date_acquire(real_parameters_dict, sf_extraction, session, chat_session, target_lang)
+                date_acquired = agent_modules.date_acquire(real_parameters_dict, sf_extraction, session, chat_session)
                 if date_acquired[0]:
                     return_instruction = f"[{{'date': '{date_acquired[2].year}年{date_acquired[2].month}月{date_acquired[2].day}日'}}]"
                     instructed_final_answer['date'] = f"{date_acquired[3]}"
@@ -219,7 +279,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                 else:
                     raise Exception(date_acquired[1])
             elif re.search((r'weather.*acquire'), predict_action_function, re.I):
-                weather_acquired = agent_modules.weather_acquire(real_parameters_dict, sf_extraction, session, chat_session, target_lang)
+                weather_acquired = agent_modules.weather_acquire(real_parameters_dict, sf_extraction, session, chat_session)
                 if weather_acquired[0]:
                     return_instruction = f"[{{'weather': {weather_acquired[2]}}}]"
                     if weather_acquired[3]:
@@ -262,7 +322,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                         real_parameters_dict['day'] = datetime.date.today().day
                 else:
                     real_parameters_dict['day'] = datetime.date.today().day
-                event_acquired = agent_modules.event_acquire(real_parameters_dict, sf_extraction, session, chat_session, target_lang)
+                event_acquired = agent_modules.event_acquire(real_parameters_dict, sf_extraction, session, chat_session)
                 if event_acquired[0]:
                     return_instruction = f"[{{'event': '{event_acquired[2]}'}}]"
                     if event_acquired[3]:
@@ -271,7 +331,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                 else:
                     raise Exception(event_acquired[1])
             elif re.search((r'persistent.*acquire'), predict_action_function, re.I):
-                persistent_acquired = agent_modules.persistent_acquire(real_parameters_dict, sf_extraction, session, chat_session, target_lang)
+                persistent_acquired = agent_modules.persistent_acquire(real_parameters_dict, sf_extraction, session, chat_session)
                 if persistent_acquired[0]:
                     return_instruction = f"[{{'known_info': {persistent_acquired[2]}}}]"
                     if persistent_acquired[3]:
@@ -288,7 +348,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                 else:
                     raise Exception(persistent_acquired[1])
             elif re.search((r'search.*internet'), predict_action_function, re.I):
-                internet_acquired = agent_modules.internet_acquire(real_parameters_dict, sf_extraction, session, chat_session, esc_aggressive, target_lang)
+                internet_acquired = agent_modules.internet_acquire(real_parameters_dict, sf_extraction, session, chat_session)
                 if internet_acquired[0]:
                     return_instruction = f"[{{'search_result': '{internet_acquired[2]}'}}]"
                     if internet_acquired[3]:
@@ -301,7 +361,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         except Exception as excepted:
             exception_return = excepted
             #traceback.print_exc()
-            print(f'Exception occured during MFocus main: {exception_return}')
+            print(f'Exception occured during MFocus preinit: {exception_return}')
         if not exception_return:
             messages.append({'role': 'assistant', 'content': response})
             messages.append({'role': 'tool', 'content': return_instruction})
@@ -314,10 +374,10 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
             response = resp.choices[0].message.content
             tool_calls = resp.choices[0].message.tool_calls
             if tool_calls:
-                response_str1 = f'MFocus main {cycle+1}nd/rd/th round finished, response is:\n{response}\nEnd of MFocus main following round.'
-                response_str2 = f'Acquiring tool call from MFocus main {cycle+1}nd/rd/th round, response is:\n{tool_calls}\nEnd of tool call acquiration.'
+                response_str1 = f'MFocus preinit {cycle+1}nd/rd/th round finished, response is:\n{response}\nEnd of MFocus preinit following round.'
+                response_str2 = f'Acquiring tool call from MFocus preinit {cycle+1}nd/rd/th round, response is:\n{tool_calls}\nEnd of tool call acquiration.'
             else:
-                response_str1 = f'MFocus main {cycle+1}nd/rd/th round finished, response is:\n{response}\nEnding due to returning none or corruption.'
+                response_str1 = f'MFocus preinit {cycle+1}nd/rd/th round finished, response is:\n{response}\nEnding due to returning none or corruption.'
                 response_str2 = f'No tool called by MFocus.'
             if websocket:
                 await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug'))
