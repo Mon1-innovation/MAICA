@@ -65,8 +65,7 @@ Begin!
         success = False
         exception = excepted
         return success, exception, '', ''
-
-    return True, None, slt_default, slt_humane
+    return True, None, slt_humane, slt_humane
 
 if __name__ == '__main__':
     searched = internet_search_limb('附近有什么好吃的')
