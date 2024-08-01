@@ -5,12 +5,13 @@ from search_engines import Google, Bing
 from openai import OpenAI # type: ignore
 
 
-def internet_search_limb(query, esc_aggressive):
+def internet_search_limb(query, esc_aggressive=True):
     success = True
     exception = None
     engine = Bing(load_env('PROXY_ADDR'))
     engine.set_headers({'User-Agent':f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 OPR/109.0.0.0"})
-    results = engine.search(query, pages=2)
+    results = engine.search(query, pages=1)
+    slt_full = []
     slt_default = []
     slt_humane = ''
     rank = 0
@@ -18,10 +19,12 @@ def internet_search_limb(query, esc_aggressive):
         rank += 1
         title = item['title']
         text = re.sub(r'.*?(?=[\u4e00-\u9fa5])', '', item['text'], 1, re.I)
-        if rank <= 10:
+        slt_full.append({'rank': rank, 'title': title, 'text': text})
+        if rank <= 5:
             slt_default.append({'rank': rank, 'title': title, 'text': text})
         if rank <= 3:
             slt_humane += f'信息{rank} 标题:{title} 内容:{text}'
+    slt_full = str(slt_full)
     slt_default = str(slt_default).strip('[').strip(']')
     if not esc_aggressive:
         return True, None, slt_default, slt_humane
@@ -33,7 +36,7 @@ def internet_search_limb(query, esc_aggressive):
         model_type = client.models.list().data[0].id
         print(f'MFocus enet addressing model, response is:\n{model_type}\nEnd of MFocus enet addressing model')
         system_init = """你是一个人工智能助手, 你的任务是整理信息. 你接下来会收到一系列来自互联网的信息.
-请你将这些信息整理为一条简洁的总结, 不要编造信息, 并以单行自然语言的形式返回.
+请你将这些信息整理为一条简洁的总结, 不要编造信息, 并以单行自然语言的形式, 使用信息中的语言返回.
 如果你最终没有找到有意义的信息, 请返回none.
 使用以下格式回答:
 Thought: 简要地思考以上信息关于何种内容, 以及应当如何整理.
@@ -43,7 +46,7 @@ Answer: 最终将有用的信息以单行自然语言的形式返回.
 Begin!
 """
         messages = [{'role': 'system', 'content': system_init}]
-        messages.append({'role': 'user', 'content': f'information: {slt_default}'})
+        messages.append({'role': 'user', 'content': f'information: {slt_full}'})
         resp = client.chat.completions.create(
             model=model_type,
             messages=messages,
@@ -68,5 +71,5 @@ Begin!
     return True, None, slt_humane, slt_humane
 
 if __name__ == '__main__':
-    searched = internet_search_limb('附近有什么好吃的')
-    print(searched[2], searched[3])
+    searched = internet_search_limb('鄂州附近有什么好吃的')
+    print(searched[3])
