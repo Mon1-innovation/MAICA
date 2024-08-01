@@ -35,7 +35,7 @@ def internet_search_limb(query, esc_aggressive=True):
         )
         model_type = client.models.list().data[0].id
         print(f'MFocus enet addressing model, response is:\n{model_type}\nEnd of MFocus enet addressing model')
-        system_init = """你是一个人工智能助手, 你的任务是整理信息. 你接下来会收到一系列来自互联网的信息.
+        system_init = """你是一个人工智能助手, 你的任务是整理信息. 你接下来会收到一些来自搜索引擎的信息.
 请你将这些信息整理为一条简洁的总结, 不要编造信息, 并以单行自然语言的形式, 使用信息中的语言返回.
 如果你最终没有找到有意义的信息, 请返回none.
 使用以下格式回答:
