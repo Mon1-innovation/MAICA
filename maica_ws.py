@@ -380,7 +380,7 @@ def wrap_mod_system(session, chat_session_num, known_info, name_from_sf, languag
     else:
         player_name = '[player]'
     if known_info:
-        new_system = f"{global_init_system(player_name, language)} 以下是一些相关信息, 你可以利用其中有价值的部分作答: {known_info}."
+        new_system = f"{global_init_system(player_name, language)} 以下是一些相关信息, 你可以利用其中有价值的部分作答: {known_info}." if language == 'zh' else f"{global_init_system(player_name, language)} Here are some information you can use to make your answer: {known_info}."
     else:
         new_system = global_init_system(player_name, language)
     return mod_chat_session_system(session, chat_session_num, new_system, language)
