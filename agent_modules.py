@@ -219,18 +219,21 @@ def persistent_acquire(params, sf_extraction, session, chat_session, target_lang
             user_id = session[2]
             content = mfocus_sfe.mfocus_find_info(user_id, chat_session, query)
             if content[0]:
-                content = content[2]
+                content = persistent_friendly = content[2]
             else:
                 success = False
                 exception = content[1]
                 content = '没有相关信息' if target_lang == 'zh' else "No related information found"
+                persistent_friendly = ''
         except Exception as excepted:
             success = False
             exception = excepted
             content = '没有相关信息' if target_lang == 'zh' else "No related information found"
+            persistent_friendly = ''
     else:
         content = '没有相关信息' if target_lang == 'zh' else "No related information found"
-    return success, exception, content, content
+        persistent_friendly = ''
+    return success, exception, content, persistent_friendly
 def internet_acquire(params, sf_extraction, session, chat_session, esc_aggressive, target_lang='zh'):
     success = True
     exception = None
@@ -244,7 +247,8 @@ def internet_acquire(params, sf_extraction, session, chat_session, esc_aggressiv
     if not likely_query:
         success = False
         exception = 'NOQUERY'
-        content = searched_friendly = '未找到结果' if target_lang == 'zh' else "No result found"
+        content = '未找到结果' if target_lang == 'zh' else "No result found"
+        searched_friendly = ''
     if sf_extraction:
         try:
             user_id = session[2]
