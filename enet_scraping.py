@@ -52,8 +52,8 @@ Begin!
             messages=messages,
             temperature=0.1,
             top_p = 0.6,
-            presence_penalty = 0.0,
-            frequency_penalty = 0.0,
+            presence_penalty = -0.5,
+            frequency_penalty = 0.5,
             #stop=['<|endoftext|>'],
             seed=42)
         response = resp.choices[0].message.content

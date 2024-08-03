@@ -70,17 +70,17 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                 "properties": {
                     "year": {
                         "type": "int",
-                        "description": "The year of the given date, leave empty for the year now.",
+                        "description": "The year of the given date, leave empty for the year now. 如果问题涉及今年, 则留空.",
                         "example_value": "2024"
                     },
                     "month": {
                         "type": "int",
-                        "description": "The month of the given date, leave empty for the month now.",
+                        "description": "The month of the given date, leave empty for the month now. 如果问题涉及本月, 则留空.",
                         "example_value": "6"
                     },
                     "day": {
                         "type": "int",
-                        "description": "The day of the given date, leave empty for the day today.",
+                        "description": "The day of the given date, leave empty for the day today. 如果问题涉及今天, 则留空.",
                         "example_value": "26"
                     }
                 },
@@ -114,7 +114,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         },
         {
             "name": "search_internet",
-            "description": "Call this tool to interact with the internet search API. This API will search your question on the internet. 只有当以上工具均不能提供有效信息时, 你才应使用此工具. Use this tool only if every other tool above cannot answer.",
+            "description": "Call this tool to interact with the internet search API. This API will search your question on the internet. 当回答问题需要时效性或地区性的信息, 使用此工具查询. Use this tool if regional or timely information is needed to answer.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -152,8 +152,8 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         "messages": messages,
         "tools": tools,
         "stop": ['Observation:'],
-        "temperature": 0.6,
-        "top_p": 0.9,
+        "temperature": 0.1,
+        "top_p": 0.6,
         "presence_penalty": -0.5,
         "frequency_penalty": 0.5,
         "seed": 42
@@ -283,7 +283,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                                     persis_old_list.append(item_plus)
                             instructed_final_answer['persistent'] = re.sub('"',"'",json.dumps(persis_old_list, ensure_ascii=False))
                         else:
-                            instructed_final_answer['persistent'] = f'"{persistent_acquired[3]}"'
+                            instructed_final_answer['persistent'] = f'{persistent_acquired[3]}'
                         inst_pst = True
                 else:
                     raise Exception(persistent_acquired[1])
@@ -292,7 +292,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                 if internet_acquired[0]:
                     return_instruction = f"[{{'search_result': '{internet_acquired[2]}'}}]"
                     if internet_acquired[3]:
-                        instructed_final_answer['internet'] = f'"{internet_acquired[3]}]"'
+                        instructed_final_answer['internet'] = f'"{internet_acquired[3]}"'
                         inst_search= True
                 else:
                     raise Exception(internet_acquired[1])
