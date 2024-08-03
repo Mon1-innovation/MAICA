@@ -207,6 +207,7 @@ def persistent_acquire(params, sf_extraction, session, chat_session, target_lang
     #print(params)
     success = True
     exception = None
+    likely_query = None
     for possible_key in {'question', 'query', 'search', 'common'}:
         if possible_key in params:
             likely_query = params[possible_key]
@@ -233,9 +234,10 @@ def persistent_acquire(params, sf_extraction, session, chat_session, target_lang
 def internet_acquire(params, sf_extraction, session, chat_session, esc_aggressive, target_lang='zh'):
     success = True
     exception = None
+    likely_query = None
     searched_friendly = ''
     content = []
-    for possible_key in {'question', 'query', 'search'}:
+    for possible_key in {'question', 'query', 'search', 'common'}:
         if possible_key in params:
             likely_query = params[possible_key]
             break
