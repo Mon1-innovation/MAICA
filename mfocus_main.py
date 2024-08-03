@@ -71,7 +71,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                     "year": {
                         "type": "int",
                         "description": "The year of the given date, leave empty for the year now.",
-                        "example_value": "2023"
+                        "example_value": "2024"
                     },
                     "month": {
                         "type": "int",
@@ -283,7 +283,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                                     persis_old_list.append(item_plus)
                             instructed_final_answer['persistent'] = re.sub('"',"'",json.dumps(persis_old_list, ensure_ascii=False))
                         else:
-                            instructed_final_answer['persistent'] = f"{persistent_acquired[3]}"
+                            instructed_final_answer['persistent'] = f'"{persistent_acquired[3]}"'
                         inst_pst = True
                 else:
                     raise Exception(persistent_acquired[1])
@@ -292,7 +292,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                 if internet_acquired[0]:
                     return_instruction = f"[{{'search_result': '{internet_acquired[2]}'}}]"
                     if internet_acquired[3]:
-                        instructed_final_answer['internet'] = f"[{internet_acquired[3]}]"
+                        instructed_final_answer['internet'] = f'"{internet_acquired[3]}]"'
                         inst_search= True
                 else:
                     raise Exception(internet_acquired[1])

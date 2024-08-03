@@ -219,7 +219,7 @@ def persistent_acquire(params, sf_extraction, session, chat_session, target_lang
             user_id = session[2]
             content = mfocus_sfe.mfocus_find_info(user_id, chat_session, query)
             if content[0]:
-                content = content[2]
+                content = str(content[2]).strip('[').strip(']')
             else:
                 success = False
                 exception = content[1]
