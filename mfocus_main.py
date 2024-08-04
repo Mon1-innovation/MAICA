@@ -288,7 +288,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                 else:
                     raise Exception(persistent_acquired[1])
             elif re.search((r'search.*internet'), predict_action_function, re.I):
-                internet_acquired = agent_modules.internet_acquire(real_parameters_dict, sf_extraction, session, chat_session, esc_aggressive, target_lang)
+                internet_acquired = agent_modules.internet_acquire(real_parameters_dict, sf_extraction, session, chat_session, input, esc_aggressive, target_lang)
                 if internet_acquired[0]:
                     return_instruction = f"[{{'search_result': '{internet_acquired[2]}'}}]"
                     if internet_acquired[3]:

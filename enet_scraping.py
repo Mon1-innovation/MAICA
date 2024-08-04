@@ -5,7 +5,7 @@ from search_engines import Google, Bing
 from openai import OpenAI # type: ignore
 
 
-def internet_search_limb(query, esc_aggressive=True):
+def internet_search_limb(query, original_query, esc_aggressive=True):
     success = True
     exception = None
     engine = Bing(load_env('PROXY_ADDR'))
@@ -47,21 +47,44 @@ Begin!
 """
         messages = [{'role': 'system', 'content': system_init}]
         messages.append({'role': 'user', 'content': f'information: {slt_full}'})
-        resp = client.chat.completions.create(
-            model=model_type,
-            messages=messages,
-            temperature=0.1,
-            top_p = 0.6,
-            presence_penalty = -0.5,
-            frequency_penalty = 0.5,
-            #stop=['<|endoftext|>'],
-            seed=42)
+        completion_args = {
+            "model": model_type,
+            "messages": messages,
+            "temperature": 0.1,
+            "top_p": 0.6,
+            "presence_penalty": -0.5,
+            "frequency_penalty": 0.5,
+            "seed": 42
+        }
+        resp = client.chat.completions.create(**completion_args)
         response = resp.choices[0].message.content
-        print(f"MFocus enet searching persistent, response is:\n{response}\nEnd of MFocus enet searching persistent")
+        print(f"MFocus enet searching internet, response is:\n{response}\nEnd of MFocus enet searching internet")
         answer_re = re.search(r'Answer\s*:\s*(.*)', response, re.I)
         if answer_re:
             if not re.match('none', answer_re[1], re.I):
                 slt_humane = answer_re[1]
+        system_init2 = """你是一个人工智能助手, 你的任务是判断信息. 你接下来会收到一个句子和一段信息.
+请你检查给定信息是否对回答句子有用, 并返回True或False.
+使用以下格式回答:
+Thought: 简要地思考给定信息是否对回答句子有用.
+Answer: 输出True代表有用, 或输出False代表无用.
+"""
+        messages = [{'role': 'system', 'content': system_init2}]
+        messages.append({'role': 'user', 'content': f'sentence: {original_query}, information: '})
+        completion_args = {
+            "model": model_type,
+            "messages": messages,
+            "temperature": 0.1,
+            "top_p": 0.6,
+            "presence_penalty": -0.5,
+            "frequency_penalty": 0.5,
+            "seed": 42
+        }
+        resp = client.chat.completions.create(**completion_args)
+        response = resp.choices[0].message.content
+        print(f"MFocus enet judging result, response is:\n{response}\nEnd of MFocus enet judging result")
+        if re.search(r'Answer\s*:.*false', response, re.I):
+            slt_humane = ''
         # If corrupted we proceed anyway
     except Exception as excepted:
         traceback.print_exc()

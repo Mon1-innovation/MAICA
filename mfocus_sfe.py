@@ -841,15 +841,16 @@ Begin!
 """
         messages = [{'role': 'system', 'content': system_init}]
         messages.append({'role': 'user', 'content': f'sentence: [{query}], information: {information}'})
-        resp = client.chat.completions.create(
-            model=model_type,
-            messages=messages,
-            temperature=0.1,
-            top_p = 0.6,
-            presence_penalty = -0.5,
-            frequency_penalty = 0.5,
-            #stop=['<|endoftext|>'],
-            seed=42)
+        completion_args = {
+            "model": model_type,
+            "messages": messages,
+            "temperature": 0.1,
+            "top_p": 0.6,
+            "presence_penalty": -0.5,
+            "frequency_penalty": 0.5,
+            "seed": 42
+        }
+        resp = client.chat.completions.create(**completion_args)
         response = resp.choices[0].message.content
         print(f"MFocus sfe searching persistent, response is:\n{response}\nEnd of MFocus sfe searching persistent")
         answer_re = re.search(r'Answer\s*:\s*(\[.*\])', response, re.I)
