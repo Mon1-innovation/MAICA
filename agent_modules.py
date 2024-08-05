@@ -286,8 +286,8 @@ def internet_acquire(params, sf_extraction, session, chat_session, original_quer
 
 if __name__ == "__main__":
     print(time_acquire(None))
-    print(date_acquire(None, True, [0, 0, 23], 1))
+    #print(date_acquire(None, True, [0, 0, 23], 1))
     #print(event_acquire({"year": 2023, "month": 1, "day": 1}, True, ["0", "0", "23"], 1))
     #print(internet_acquire({"question": "番茄炒蛋怎么做"}))
-    print(weather_acquire({}, True, [0, 0, 23], 1, 'zh'))
+    #print(weather_acquire({}, True, [0, 0, 23], 1, 'zh'))
     #print(persistent_acquire({}, True, [0, 0, 23], 1, '你是谁'))

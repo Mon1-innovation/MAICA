@@ -204,7 +204,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
             if re.search((r'time.*acquire'), predict_action_function, re.I):
                 time_acquired = agent_modules.time_acquire(real_parameters_dict, target_lang)
                 if time_acquired[0]:
-                    return_instruction = f"[{{'time': '{time_acquired[2].hour}:{time_acquired[2].minute}'}}]"
+                    return_instruction = f"[{{'time': '{time_acquired[2]}'}}]"
                     if time_acquired[3]:
                         instructed_final_answer['time'] = f"[{time_acquired[3]}]"
                         inst_time = True
