@@ -114,7 +114,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         },
         {
             "name": "search_internet",
-            "description": "Call this tool to interact with the internet search API. This API will search your question on the internet. 当回答问题需要时效性或地区性的信息, 使用此工具查询. Use this tool if regional or timely information is needed to answer.",
+            "description": "Call this tool to interact with the internet search API. This API will search your question on the internet. 当回答问题需要时效性, 地区性, 知识性的信息或解释人名, 地名, 专有名词, 使用此工具查询. Use this tool if regional, informative, timely information or explaination of specific name, location or proper noun is needed to answer.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -346,7 +346,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         return 'FAIL', ''
 
 if __name__ == "__main__":
-    agented = asyncio.run(agenting('Where shall we go for dinner today', True, [0,0,23], 1))
+    agented = asyncio.run(agenting('你知道宫崎英高吗', True, [0,0,23], 1))
     #print(agented[0])
     print(agented[1])
 
