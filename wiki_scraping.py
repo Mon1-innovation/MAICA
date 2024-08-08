@@ -28,7 +28,7 @@ def get_page(title=None, target_lang='zh'):
     #print(random_url)
     #random_url = rf"https://randomincategory.toolforge.org/?category={category}&server=zh.wikipedia.org&cmnamespace=&cmtype=&returntype="
     #random_url = r"https://zh.wikipedia.org/wiki/Special:%E9%9A%8F%E6%9C%BA%E9%A1%B5%E9%9D%A2"
-    wiki_pointer = wikipediaapi.Wikipedia('MyProjectName (merlin@example.com)', target_lang)
+    wiki_pointer = wikipediaapi.Wikipedia('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36', target_lang)
     if not title:
         #title = unquote(re.search(r'/wiki/(.*)', get_redirect_url(random_url))[1], 'utf-8')
         title = unquote(re.search(r'title=(.*)&', get_redirect_url(random_url))[1], 'utf-8')
@@ -56,5 +56,5 @@ def get_page(title=None, target_lang='zh'):
     return title, summary
 
 if __name__ == '__main__':
-    page = get_page(None, 'en')
+    page = get_page(None, 'zh')
     print(page[0], page[1])
