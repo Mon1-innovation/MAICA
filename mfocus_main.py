@@ -215,7 +215,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
             elif re.search((r'date.*acquire'), predict_action_function, re.I):
                 date_acquired = agent_modules.date_acquire(real_parameters_dict, sf_extraction, session, chat_session, target_lang)
                 if date_acquired[0]:
-                    return_instruction = f"[{{'date': '{date_acquired[2].year}年{date_acquired[2].month}月{date_acquired[2].day}日'}}]"
+                    return_instruction = f"[{{'date': '{date_acquired[2]}'}}]"
                     instructed_final_answer['date'] = f"{date_acquired[3]}"
                     inst_date = True
                 else:
@@ -223,7 +223,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
             elif re.search((r'weather.*acquire'), predict_action_function, re.I):
                 weather_acquired = agent_modules.weather_acquire(real_parameters_dict, sf_extraction, session, chat_session, target_lang)
                 if weather_acquired[0]:
-                    return_instruction = f"[{{'weather': {weather_acquired[2]}}}]"
+                    return_instruction = f"[{{'weather': '{weather_acquired[2]}'}}]"
                     if weather_acquired[3]:
                         instructed_final_answer['weather'] = f"[{weather_acquired[3]}]"
                         inst_wea = True
