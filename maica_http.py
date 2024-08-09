@@ -131,7 +131,7 @@ def register():
         return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
 
 @app.route('/legality', methods=["POST"])
-def legan():
+def legal():
     success = True
     exception = ''
     try:
@@ -151,8 +151,15 @@ def legan():
             raise Exception('No Identity Provided')
         login_password = login_cridential['password']
         verification_result = maica_ws.run_hash_dcc(login_identity, login_is_email, login_password)
+        print(verification_result)
         if verification_result[0]:
             checked_status = maica_ws.check_user_status(verification_result)
+            if not checked_status[0]:
+                success = False
+                exception = f"Account service failed to fetch, refer to administrator"
+            elif checked_status[2]:
+                success = False
+                exception = f"Your account disobeied our terms of service and was permenantly banned"
         else:
             success = False
             if 'f2b' in verification_result[1]:
@@ -161,15 +168,9 @@ def legan():
                 exception = f"Your account Email not confirmed, check inbox and retry"
             elif 'pwdw' in verification_result[1]:
                 exception = f"Bcrypt hashing failed {verification_result[1]['pwdw']} times, check your password"
-        # Now check ban status
-        if not checked_status[0]:
-            success = False
-            exception = f"Account service failed to fetch, refer to administrator"
-        elif checked_status[2]:
-            success = False
-            exception = f"Your account disobeied our terms of service and was permenantly banned"
         return json.dumps({"success": success, "exception": exception})
     except Exception as excepted:
+        traceback.print_exc()
         success = False
         exception = excepted
         return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)

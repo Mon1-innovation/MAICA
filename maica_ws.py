@@ -533,6 +533,24 @@ async def check_permit(websocket):
             verification_result = run_hash_dcc(login_identity, login_is_email, login_password)
             if verification_result[0]:
                 checked_status = check_user_status(verification_result)
+                if not checked_status[0]:
+                    response_str = f"Account service failed to fetch, refer to administrator--your ray tracer ID is {traceray_id}"
+                    print(f"出现如下异常3-{traceray_id}:{checked_status[1]}")
+                    await websocket.send(wrap_ws_formatter('500', 'unable_verify', response_str, 'error'))
+                    await websocket.close(1000, 'Stopping connection due to critical server failure')
+                elif checked_status[2]:
+                    response_str = f"Your account disobeied our terms of service and was permenantly banned--your ray tracer ID is {traceray_id}"
+                    print(f"出现如下异常4-{traceray_id}:banned")
+                    await websocket.send(wrap_ws_formatter('403', 'account_banned', response_str, 'warn'))
+                    await websocket.close(1000, 'Permission denied')
+                else:
+                    await websocket.send(wrap_ws_formatter('206', 'session_created', "Authencation passed!", 'info'))
+                    await websocket.send(wrap_ws_formatter('200', 'user_id', f"{verification_result[2]}", 'debug'))
+                    await websocket.send(wrap_ws_formatter('200', 'username', f"{verification_result[3]}", 'debug'))
+                    await websocket.send(wrap_ws_formatter('200', 'nickname', f"{verification_result[4]}", 'debug'))
+                    #await websocket.send(wrap_ws_formatter('200', 'session_created', f"email {verification_result[5]}", 'debug'))
+                    #print(verification_result[0])
+                    return verification_result
             else:
                 if 'f2b' in verification_result[1]:
                     response_str = f"Fail2Ban locking {verification_result[1]['f2b']} seconds before release, wait and retry--your ray tracer ID is {traceray_id}"
@@ -553,25 +571,6 @@ async def check_permit(websocket):
                 print(f"出现如下异常2-{traceray_id}:{verification_result}")
                 await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
                 continue
-            # Now check ban status
-            if not checked_status[0]:
-                response_str = f"Account service failed to fetch, refer to administrator--your ray tracer ID is {traceray_id}"
-                print(f"出现如下异常3-{traceray_id}:{checked_status[1]}")
-                await websocket.send(wrap_ws_formatter('500', 'unable_verify', response_str, 'error'))
-                await websocket.close(1000, 'Stopping connection due to critical server failure')
-            elif checked_status[2]:
-                response_str = f"Your account disobeied our terms of service and was permenantly banned--your ray tracer ID is {traceray_id}"
-                print(f"出现如下异常4-{traceray_id}:banned")
-                await websocket.send(wrap_ws_formatter('403', 'account_banned', response_str, 'warn'))
-                await websocket.close(1000, 'Permission denied')
-            else:
-                await websocket.send(wrap_ws_formatter('206', 'session_created', "Authencation passed!", 'info'))
-                await websocket.send(wrap_ws_formatter('200', 'user_id', f"{verification_result[2]}", 'debug'))
-                await websocket.send(wrap_ws_formatter('200', 'username', f"{verification_result[3]}", 'debug'))
-                await websocket.send(wrap_ws_formatter('200', 'nickname', f"{verification_result[4]}", 'debug'))
-                #await websocket.send(wrap_ws_formatter('200', 'session_created', f"email {verification_result[5]}", 'debug'))
-                #print(verification_result[0])
-                return verification_result
         except Exception as excepted:
             response_str = f"Caught a serialization failure in hashing section, check possible typo--your ray tracer ID is {traceray_id}"
             print(f"出现如下异常5-{traceray_id}:{excepted}")
