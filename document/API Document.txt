@@ -40,6 +40,13 @@ t9vozy56WuHPfv3KZTwrvZaIVSAExEL17wIDAQAB
     加密模式是PKCS1_OEAP.
     加密完成后, 你会得到你的令牌.
 
+MAICA验证令牌的接口位于https://maicadev.monika.love/api/legality. 你应当遵循以下格式, 以POST形式上传你要验证的令牌:
+    {"access_token": "你的令牌"}
+令牌被校验后, 接口会返回形如:
+    {"success": 校验是否成功, "exception": "校验问题(如有)"}
+该接口上的校验错误也会被计入Fail2Ban.
+该接口与MAICA主程序共用校验方法, 可以排查注册登录中的问题. 若非必要不建议使用.
+
 当正式使用时, 第一轮通信为身份认证通信, 需要直接传入加密令牌.
 传入令牌之后, 服务器应当返回206 session_created, 并返回使用者的用户id, 用户名, 昵称等公开信息. 传入令牌不需要json格式.
 

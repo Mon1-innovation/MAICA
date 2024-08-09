@@ -9,6 +9,7 @@ import bcrypt
 import re
 import random
 import traceback
+import nest_asyncio
 import mspire
 import mfocus_main
 import persistent_extraction
@@ -68,6 +69,8 @@ def wrap_ws_formatter(code, status, content, type):
 #账号数据库查询方法
 
 def run_hash_dcc(identity, is_email, pwd):
+    success = True
+    exception = ''
     if is_email:
         sql_expression = 'SELECT * FROM users WHERE email = %s'
     else:
@@ -89,14 +92,35 @@ def run_hash_dcc(identity, is_email, pwd):
                 dbres_ecf = information[4]
                 dbres_pwd_bcrypt = information[5]
             verification = bcrypt.checkpw(pwd.encode(), dbres_pwd_bcrypt.encode())
+            verification_result_limited = [verification, None, dbres_id]
+            f2b_count = check_user_status(verification_result_limited, 'f2b_count')[3]
+            f2b_stamp = check_user_status(verification_result_limited, 'f2b_stamp')[3]
+            if f2b_stamp:
+                if time.time() - f2b_stamp < float(load_env('F2B_TIME')):
+                    # Waiting for F2B timeout
+                    verification = False
+                    exception = {'f2b': int(float(load_env('F2B_TIME'))+f2b_stamp-time.time())}
+                    return verification, exception
+                else:
+                    write_user_status(verification_result_limited, 'f2b_stamp', 0)
             if verification:
                 if not dbres_ecf:
                     verification = False
-                    return verification, "Email not verified"
+                    exception = {'necf': True}
+                    return verification, exception
                 else:
                     return verification, None, dbres_id, dbres_username, dbres_nickname, dbres_email
             else:
-                return verification, 'Password wrong'
+                if not f2b_count:
+                    f2b_count = 0
+                f2b_count += 1
+                if not exception:
+                    exception = {'pwdw': f2b_count}
+                if f2b_count >= int(load_env('F2B_COUNT')):
+                    write_user_status(verification_result_limited, 'f2b_stamp', time.time())
+                    f2b_count = 0
+                write_user_status(verification_result_limited, 'f2b_count', f2b_count)
+                return verification, exception
     except Exception as excepted:
         #traceback.print_exc()
         verification = False
@@ -405,14 +429,13 @@ def check_user_status(session, key='banned'):
                     stats_json = {}
                     for information in results:
                         stats_json.update(json.loads(information[2]))
-                    status = json.loads(stats_json)
-                    if key in status:
-                        if status[key]:
+                    if key in stats_json:
+                        if stats_json[key]:
                             success = True
-                            return success, None, True, status[key]
+                            return success, None, True, stats_json[key]
                         else:
                             success = True
-                            return success, None, False, status[key]
+                            return success, None, False, stats_json[key]
                     else:
                         success = True
                         return success, 'didnt really found', False, None
@@ -426,7 +449,46 @@ def check_user_status(session, key='banned'):
         success = False
         return success, excepted, False, None
 
-
+def write_user_status(session, key='banned', value=True):
+    success = False
+    user_id = session[2]
+    try:
+        with pymysql.connect(
+            host = load_env('DB_ADDR'),
+            user = load_env('DB_USER'),
+            password = load_env('DB_PASSWORD'),
+            db = load_env('MAICA_DB')
+        )as db_connection, db_connection.cursor() as db_cursor:
+            sql_expression1 = "SELECT * FROM account_status WHERE user_id = %s"
+            try:
+                db_cursor.execute(sql_expression1, (user_id))
+                results = db_cursor.fetchall()
+                if len(results) > 0:
+                    stats_json = {}
+                    for information in results:
+                        stats_json.update(json.loads(information[2]))
+                    stats_json[key] = value
+                    stats_insert = json.dumps(stats_json, ensure_ascii=False)
+                    sql_expression2 = "UPDATE account_status SET status = %s WHERE user_id = %s"
+                    sql_args = (stats_insert, user_id)
+                else:
+                    stats_insert = json.dumps({key: value})
+                    sql_expression2 = "INSERT INTO account_status (user_id, status, preferences) VALUES (%s, %s, '')"
+                    sql_args = (user_id, stats_insert)
+                try:
+                    db_cursor.execute(sql_expression2, sql_args)
+                    db_connection.commit()
+                    success = True
+                    return success, None
+                except Exception as excepted:
+                    success = False
+                    return success, excepted
+            except Exception as excepted:
+                success = False
+                return success, excepted
+    except Exception as excepted:
+        success = False
+        return success, excepted
 
 
 
@@ -442,6 +504,7 @@ def check_user_status(session, key='banned'):
 #面向api的第一层io: 身份验证, 获取session
 
 async def check_permit(websocket):
+    #nest_asyncio.apply()
     print('Someone started a connection')
     while True:
         traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
@@ -468,13 +531,30 @@ async def check_permit(websocket):
                 raise Exception('No Identity Provided')
             login_password = login_cridential['password']
             verification_result = run_hash_dcc(login_identity, login_is_email, login_password)
-            checked_status = check_user_status(verification_result)
-            if not verification_result[0]:
-                response_str = f"Bcrypt hashing failed, check if you have fully authorized your account--your ray tracer ID is {traceray_id}"
+            if verification_result[0]:
+                checked_status = check_user_status(verification_result)
+            else:
+                if 'f2b' in verification_result[1]:
+                    response_str = f"Fail2Ban locking {verification_result[1]['f2b']} seconds before release, wait and retry--your ray tracer ID is {traceray_id}"
+                    print(f"出现如下异常1.1-{traceray_id}:{verification_result}")
+                    await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
+                    continue
+                elif 'necf' in verification_result[1]:
+                    response_str = f"Your account Email not confirmed, check inbox and retry--your ray tracer ID is {traceray_id}"
+                    print(f"出现如下异常1.2-{traceray_id}:{verification_result}")
+                    await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
+                    continue
+                elif 'pwdw' in verification_result[1]:
+                    response_str = f"Bcrypt hashing failed {verification_result[1]['pwdw']} times, check your password--your ray tracer ID is {traceray_id}"
+                    print(f"出现如下异常1.3-{traceray_id}:{verification_result}")
+                    await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
+                    continue
+                response_str = f"Caught a serialization failure in hashing section, check if you have fully authorized your account--your ray tracer ID is {traceray_id}"
                 print(f"出现如下异常2-{traceray_id}:{verification_result}")
                 await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
                 continue
-            elif not checked_status[0]:
+            # Now check ban status
+            if not checked_status[0]:
                 response_str = f"Account service failed to fetch, refer to administrator--your ray tracer ID is {traceray_id}"
                 print(f"出现如下异常3-{traceray_id}:{checked_status[1]}")
                 await websocket.send(wrap_ws_formatter('500', 'unable_verify', response_str, 'error'))
@@ -493,14 +573,16 @@ async def check_permit(websocket):
                 #print(verification_result[0])
                 return verification_result
         except Exception as excepted:
-            response_str = f"JSON serialization failed, check possible typo--your ray tracer ID is {traceray_id}"
+            response_str = f"Caught a serialization failure in hashing section, check possible typo--your ray tracer ID is {traceray_id}"
             print(f"出现如下异常5-{traceray_id}:{excepted}")
+            #traceback.print_exc()
             await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
             continue
 
 #面向api的第二层io: 指定服务内容
 
 async def def_model(websocket, session):
+    #nest_asyncio.apply()
     await websocket.send(wrap_ws_formatter('200', 'ok', 'choose service like {"model": "maica_main", "sf_extraction": true, "stream_output": true, "target_lang": "zh"}', 'info'))
     while True:
         traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
@@ -585,6 +667,7 @@ async def def_model(websocket, session):
 #面向api的第三层io: 有效数据交换
 
 async def do_communicate(websocket, session, client_actual, client_options):
+    nest_asyncio.apply()
     await websocket.send(wrap_ws_formatter('200', 'ok', 'input json like {"chat_session": "1", "query": "你好啊"}', 'info'))
     while True:
         traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
@@ -707,7 +790,11 @@ async def do_communicate(websocket, session, client_actual, client_options):
 
                     try:
                         if client_options['full_maica'] and not bypass_mf:
-                            message_agent_wrapped = await mfocus_main.agenting(query_in, sf_extraction, session, chat_session, target_lang, tnd_aggressive, mf_aggressive, esc_aggressive, websocket)
+                            mfocus_async_args = [query_in, sf_extraction, session, chat_session, target_lang, tnd_aggressive, mf_aggressive, esc_aggressive, websocket]
+                            loop = asyncio.get_event_loop()
+                            mfocus_agent_task = asyncio.ensure_future(mfocus_main.agenting(*mfocus_async_args))
+                            loop.run_until_complete(mfocus_agent_task)
+                            message_agent_wrapped = mfocus_agent_task.result()
                             if message_agent_wrapped[0] == 'FAIL' or len(message_agent_wrapped[0]) > 60 or len(message_agent_wrapped[1]) < 5:
                                 # We do not want answers without information
                                 response_str = f"MFocus returned corrupted guidance. This may or may not be a server failure, a corruption is kinda expected so keep cool--your ray tracer ID is {traceray_id}"
