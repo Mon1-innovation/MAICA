@@ -151,7 +151,6 @@ def legal():
             raise Exception('No Identity Provided')
         login_password = login_cridential['password']
         verification_result = maica_ws.run_hash_dcc(login_identity, login_is_email, login_password)
-        print(verification_result)
         if verification_result[0]:
             checked_status = maica_ws.check_user_status(verification_result)
             if not checked_status[0]:
