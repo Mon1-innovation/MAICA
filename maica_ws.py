@@ -109,13 +109,13 @@ def run_hash_dcc(identity, is_email, pwd):
                     exception = {'necf': True}
                     return verification, exception
                 else:
+                    write_user_status(verification_result_limited, 'f2b_stamp', 0)
                     return verification, None, dbres_id, dbres_username, dbres_nickname, dbres_email
             else:
                 if not f2b_count:
                     f2b_count = 0
                 f2b_count += 1
-                if not exception:
-                    exception = {'pwdw': f2b_count}
+                exception = {'pwdw': f2b_count}
                 if f2b_count >= int(load_env('F2B_COUNT')):
                     write_user_status(verification_result_limited, 'f2b_stamp', time.time())
                     f2b_count = 0
@@ -552,25 +552,27 @@ async def check_permit(websocket):
                     #print(verification_result[0])
                     return verification_result
             else:
-                if 'f2b' in verification_result[1]:
-                    response_str = f"Fail2Ban locking {verification_result[1]['f2b']} seconds before release, wait and retry--your ray tracer ID is {traceray_id}"
-                    print(f"出现如下异常1.1-{traceray_id}:{verification_result}")
+                if isinstance(verification_result[1], dict):
+                    if 'f2b' in verification_result[1]:
+                        response_str = f"Fail2Ban locking {verification_result[1]['f2b']} seconds before release, wait and retry--your ray tracer ID is {traceray_id}"
+                        print(f"出现如下异常1.1-{traceray_id}:{verification_result}")
+                        await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
+                        continue
+                    elif 'necf' in verification_result[1]:
+                        response_str = f"Your account Email not confirmed, check inbox and retry--your ray tracer ID is {traceray_id}"
+                        print(f"出现如下异常1.2-{traceray_id}:{verification_result}")
+                        await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
+                        continue
+                    elif 'pwdw' in verification_result[1]:
+                        response_str = f"Bcrypt hashing failed {verification_result[1]['pwdw']} times, check your password--your ray tracer ID is {traceray_id}"
+                        print(f"出现如下异常1.3-{traceray_id}:{verification_result}")
+                        await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
+                        continue
+                else:
+                    response_str = f"Caught a serialization failure in hashing section, check if you have fully authorized your account--your ray tracer ID is {traceray_id}"
+                    print(f"出现如下异常2-{traceray_id}:{verification_result}")
                     await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
                     continue
-                elif 'necf' in verification_result[1]:
-                    response_str = f"Your account Email not confirmed, check inbox and retry--your ray tracer ID is {traceray_id}"
-                    print(f"出现如下异常1.2-{traceray_id}:{verification_result}")
-                    await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
-                    continue
-                elif 'pwdw' in verification_result[1]:
-                    response_str = f"Bcrypt hashing failed {verification_result[1]['pwdw']} times, check your password--your ray tracer ID is {traceray_id}"
-                    print(f"出现如下异常1.3-{traceray_id}:{verification_result}")
-                    await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
-                    continue
-                response_str = f"Caught a serialization failure in hashing section, check if you have fully authorized your account--your ray tracer ID is {traceray_id}"
-                print(f"出现如下异常2-{traceray_id}:{verification_result}")
-                await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
-                continue
         except Exception as excepted:
             response_str = f"Caught a serialization failure in hashing section, check possible typo--your ray tracer ID is {traceray_id}"
             print(f"出现如下异常5-{traceray_id}:{excepted}")

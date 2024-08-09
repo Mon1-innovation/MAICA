@@ -162,15 +162,17 @@ def legal():
                 exception = f"Your account disobeied our terms of service and was permenantly banned"
         else:
             success = False
-            if 'f2b' in verification_result[1]:
-                exception = f"Fail2Ban locking {verification_result[1]['f2b']} seconds before release"
-            elif 'necf' in verification_result[1]:
-                exception = f"Your account Email not confirmed, check inbox and retry"
-            elif 'pwdw' in verification_result[1]:
-                exception = f"Bcrypt hashing failed {verification_result[1]['pwdw']} times, check your password"
+            if isinstance(verification_result[1], dict):
+                if 'f2b' in verification_result[1]:
+                    exception = f"Fail2Ban locking {verification_result[1]['f2b']} seconds before release"
+                elif 'necf' in verification_result[1]:
+                    exception = f"Your account Email not confirmed, check inbox and retry"
+                elif 'pwdw' in verification_result[1]:
+                    exception = f"Bcrypt hashing failed {verification_result[1]['pwdw']} times, check your password"
+            else:
+                exception = f"Caught a serialization failure in hashing section, check possible typo"
         return json.dumps({"success": success, "exception": exception})
     except Exception as excepted:
-        traceback.print_exc()
         success = False
         exception = excepted
         return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
