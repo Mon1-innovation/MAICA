@@ -876,4 +876,4 @@ Begin!
 
 if __name__ == "__main__":
     #print(mfocus_form_info(18270,1))
-    print(mfocus_find_info(23, 1, '你喜欢吃什么'))
+    print(mfocus_find_info(21062, 1, '你喜欢吃什么'))
