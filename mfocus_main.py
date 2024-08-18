@@ -181,10 +181,10 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
 
     instructed_final_answer = {}
     if int(tnd_aggressive) >= 1:
-        instructed_final_answer['time'] = f"[{agent_modules.time_acquire(None)[3]}]"
+        instructed_final_answer['time'] = f"[{agent_modules.time_acquire(None, target_lang)[3]}]"
         instructed_final_answer['event'] = f"[{agent_modules.event_acquire({'year': datetime.date.today().year, 'month': datetime.date.today().month, 'day': datetime.date.today().day}, sf_extraction, session, chat_session)[3]}]"
     if int(tnd_aggressive) >= 2:
-        instructed_final_answer['date'] = f"[{agent_modules.date_acquire(None, sf_extraction, session, chat_session)[3]}]"
+        instructed_final_answer['date'] = f"[{agent_modules.date_acquire(None, sf_extraction, session, chat_session, target_lang)[3]}]"
         if persistent_extraction.read_from_sf(session[2], chat_session, 'mas_geolocation')[2]:
             instructed_final_answer['weather'] = f"[{agent_modules.weather_acquire(None, sf_extraction, session, chat_session)[3]}]"
     # to be extended
