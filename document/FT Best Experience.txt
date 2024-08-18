@@ -35,7 +35,6 @@ torchrun \
     --dataset $ds1' '$ds2' '$ds3' '$ds4' '$ds5 \
     --system None \
     --val_dataset 'dataset/moni_dataset.jsonl#50' \
-    --lora_target_modules ALL \
     --lora_rank 16 \
     --lora_alpha 32 \
     --lora_dropout_p 0.06 \
