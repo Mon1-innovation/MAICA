@@ -164,11 +164,8 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         completion_args['stop'].append('Final Answer:')
     resp = client.chat.completions.create(**completion_args)
     response = resp.choices[0].message.content
-    if resp.choices[0].message.tool_calls:
-        tool_calls = resp.choices[0].message.tool_calls[0]
-    else:
-        tool_calls = None
-    if tool_calls and tool_calls.function.name != 'none':
+    tool_calls = resp.choices[0].message.tool_calls
+    if tool_calls:
         response_str1 = f'MFocus main 1st round finished, response is:\n{response}\nEnd of MFocus main 1st round.'
         response_str2 = f'Acquiring tool call from MFocus main 1st round, response is:\n{tool_calls}\nEnd of tool call acquiration.'
     else:
@@ -201,11 +198,11 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         # to be added
         return_instruction = ''
         try:
-            predict_action_function = tool_calls.function.name
+            predict_action_function = tool_calls['function']['name']
             try:
-                real_parameters_dict = json.loads(re.search(r'(\{.*\})', re.sub(r"(?!=\\)'", '"', tool_calls.function.arguments))[1])
+                real_parameters_dict = json.loads(re.search(r'(\{.*\})', re.sub(r"(?!=\\)'", '"', tool_calls['function']['arguments']))[1])
             except:
-                real_parameters_dict = {"common": tool_calls.function.arguments}
+                real_parameters_dict = {"common": tool_calls['function']['arguments']}
             if re.search((r'time.*acquire'), predict_action_function, re.I):
                 time_acquired = agent_modules.time_acquire(real_parameters_dict, target_lang)
                 if time_acquired[0]:
@@ -312,15 +309,12 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
             messages.append({'role': 'tool', 'content': return_instruction})
             resp = client.chat.completions.create(**completion_args)
             if resp.choices[0].message.tool_calls:
-                if resp.choices[0].message.tool_calls[0].function:
-                    if resp.choices[0].message.tool_calls[0].function == tool_calls.function:
+                if resp.choices[0].message.tool_calls['function']:
+                    if resp.choices[0].message.tool_calls['function'] == tool_calls['function']:
                         print('Total repetition detected, aborting')
                         break
             response = resp.choices[0].message.content
-            if resp.choices[0].message.tool_calls:
-                tool_calls = resp.choices[0].message.tool_calls[0]
-            else:
-                tool_calls = None
+            tool_calls = resp.choices[0].message.tool_calls
             if tool_calls:
                 response_str1 = f'MFocus main {cycle+1}nd/rd/th round finished, response is:\n{response}\nEnd of MFocus main following round.'
                 response_str2 = f'Acquiring tool call from MFocus main {cycle+1}nd/rd/th round, response is:\n{tool_calls}\nEnd of tool call acquiration.'
