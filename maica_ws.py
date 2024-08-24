@@ -783,7 +783,6 @@ async def do_communicate(websocket, session, client_actual, client_options):
                         #traceback.print_exc()
                         continue
                 case i if i == 0:
-                    print(query_in)
                     messages = [{'role': 'system', 'content': global_init_system('[player]', target_lang)}, {'role': 'user', 'content': query_in}]
                 case i if 0 < i < 10 and i % 1 == 0:
 
@@ -921,6 +920,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
                             raise Exception(f'{super_param} must fall on 0.0~1.0')
             if not super_param in completion_args:
                 completion_args[super_param] = eval(f'default_{super_param}')
+        print(f"Query ready to go, last query line is:\n{query_in}\nSending query.")
         stream_resp = client_actual.chat.completions.create(**completion_args)
         if client_options['stream']:
         #print(f'query: {query}')

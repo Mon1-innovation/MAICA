@@ -88,7 +88,7 @@ def weather_acquire(params, sf_extraction, session, chat_session, target_lang='z
             if sf_extraction:
                 weather_location = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_geolocation')[2]
             else:
-                content = weather_friendly = '天气未知'
+                content = weather_friendly = '天气未知' if target_lang == 'zh' else "Weather unknown"
         if likely_query or sf_extraction:
             got_weather = weather_api_get(weather_location)
             content = json.dumps(got_weather[2], ensure_ascii=False)
@@ -96,7 +96,7 @@ def weather_acquire(params, sf_extraction, session, chat_session, target_lang='z
     except Exception as excepted:
         success = False
         exception = excepted
-        content = weather_friendly = '天气未知'
+        content = weather_friendly = '天气未知' if target_lang == 'zh' else "Weather unknown"
     return success, exception, content, weather_friendly
 def event_acquire(params, sf_extraction, session, chat_session, target_lang='zh'):
     success = True
