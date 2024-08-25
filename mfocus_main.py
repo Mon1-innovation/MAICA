@@ -356,7 +356,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         return 'FAIL', ''
 
 if __name__ == "__main__":
-    agented = asyncio.run(agenting('你知道我的生日吗', True, [0,0,21834], 1))
+    agented = asyncio.run(agenting('你的生日是哪天', True, [0,0,21834], 1))
     #print(agented[0])
     print(agented[1])
 

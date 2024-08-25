@@ -831,7 +831,7 @@ async def mfocus_find_info(user_id, chat_session, query):
         model_list = await client.models.list()
         model_type = model_list.data[0].id
         print(f'MFocus sfe addressing model, response is:\n{model_type}\nEnd of MFocus sfe addressing model')
-        system_init = """你叫莫妮卡, 你的任务是检索信息. 你接下来会收到一个来自[player]的句子和一系列信息, 这些信息是Python列表的形式.
+        system_init = """你是一个人工智能助手, 名叫莫妮卡, 你的任务是检索信息. 你接下来会收到一个来自[player]的句子和一系列信息, 这些信息是Python列表的形式.
 请你从信息中挑选1至5条与句子最相关的信息, 互不重复, 并以单行Python列表的形式返回. 如果你最终认为没有信息与句子相关, 回答None.
 使用以下格式回答:
 Thought: 简要地思考如何选取信息, 以及这些信息与句子有何关联.
