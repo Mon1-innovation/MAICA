@@ -55,7 +55,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                 "properties": {
                     "location": {
                         "type": "string",
-                        "description": "The location which you need to get the weather of, use Chinese.",
+                        "description": "The location which you need to get the weather of, using Chinese.",
                         "example_value": "湖北武汉"
                     },
                 },
@@ -98,13 +98,13 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         },
         {
             "name": "persistent_acquire",
-            "description": "Call this tool to get any additional information about the speakers, such as their preferences, hobbies, experiences, appearence or relationship. 只要你被问及你作为AI不具有的记忆, 经历, 人格, 感情, 喜好或任何其它事物, 就使用此工具查找记忆. Always use this tool if the conversation mentions memories, humanity, preferences, hobbies, experience or any other thing you don't have as an AI.",
+            "description": "Call this tool to get any additional information about user and yourself as human character, such as their preferences, hobbies, experiences, appearence or relationship. 只要你被问及你作为AI不具有的记忆, 经历, 人格, 感情, 喜好或任何其它事物, 就使用此工具查找记忆. Always use this tool if the conversation mentions memories, humanity, preferences, hobbies, experience or any other thing you don't have as an AI.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "question": {
                         "type": "string",
-                        "description": "The question you want to ask the speakers.",
+                        "description": "The question you want to know about user or yourself as human character. Ask about 'me' for information about yourself as human character, ask about 'you' for information about user.",
                         "example_value": "你喜欢吃什么?"
                     }
                 },
@@ -356,7 +356,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         return 'FAIL', ''
 
 if __name__ == "__main__":
-    agented = asyncio.run(agenting('你的生日是哪天', True, [0,0,21834], 1))
+    agented = asyncio.run(agenting('你还记得我的生日吗', True, [0,0,21834], 1))
     #print(agented[0])
     print(agented[1])
 
