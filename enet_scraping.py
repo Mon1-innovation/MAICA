@@ -2,10 +2,10 @@ import re
 import traceback
 from loadenv import load_env
 from search_engines import Google, Bing
-from openai import OpenAI # type: ignore
+from openai import AsyncOpenAI # type: ignore
 
 
-def internet_search_limb(query, original_query, esc_aggressive=True):
+async def internet_search_limb(query, original_query, esc_aggressive=True):
     success = True
     exception = None
     engine = Bing(load_env('PROXY_ADDR'))
@@ -30,11 +30,12 @@ def internet_search_limb(query, original_query, esc_aggressive=True):
     if not esc_aggressive:
         return True, None, slt_default, slt_humane
     try:
-        client = OpenAI(
+        client = AsyncOpenAI(
             api_key='EMPTY',
             base_url=load_env('MFOCUS_ADDR'),
         )
-        model_type = client.models.list().data[0].id
+        model_list = await client.models.list()
+        model_type = model_list.data[0].id
         print(f'MFocus enet addressing model, response is:\n{model_type}\nEnd of MFocus enet addressing model')
         system_init = """你是一个人工智能助手, 你的任务是整理信息. 你接下来会收到一个问题和一些来自搜索引擎的信息.
 请你将这些信息整理为一条内容总结, 用以回答问题. 请不要编造信息, 并以单行自然语言的形式, 使用信息中的语言返回.
@@ -57,7 +58,7 @@ Begin!
             "frequency_penalty": 0.5,
             "seed": 42
         }
-        resp = client.chat.completions.create(**completion_args)
+        resp = await client.chat.completions.create(**completion_args)
         response = resp.choices[0].message.content
         print(f"MFocus enet searching internet, response is:\n{response}\nEnd of MFocus enet searching internet")
         answer_re = re.search(r'Answer\s*:\s*(.*)', response, re.I)

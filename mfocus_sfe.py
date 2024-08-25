@@ -2,7 +2,7 @@ import re
 import json
 import traceback
 from random import sample
-from openai import OpenAI # type: ignore
+from openai import AsyncOpenAI # type: ignore
 import persistent_extraction
 from loadenv import load_env
 def mfocus_form_info(user_id, chat_session):
@@ -819,16 +819,17 @@ def conclude_cb_sf(user_id, chat_session, cb):
         data_exp = sample(data_exp, cb)
     return data_exp
 
-def mfocus_find_info(user_id, chat_session, query):
+async def mfocus_find_info(user_id, chat_session, query):
     success = True
     exception = ''
     try:
         information = mfocus_form_info(user_id, chat_session)[2]
-        client = OpenAI(
+        client = AsyncOpenAI(
             api_key='EMPTY',
             base_url=load_env('MFOCUS_ADDR'),
         )
-        model_type = client.models.list().data[0].id
+        model_list = await client.models.list()
+        model_type = model_list.data[0].id
         print(f'MFocus sfe addressing model, response is:\n{model_type}\nEnd of MFocus sfe addressing model')
         system_init = """你叫莫妮卡, 你的任务是检索信息. 你接下来会收到一个来自[player]的句子和一系列信息, 这些信息是Python列表的形式.
 请你从信息中挑选1至5条与句子最相关的信息, 互不重复, 并以单行Python列表的形式返回. 如果你最终认为没有信息与句子相关, 回答None.
@@ -850,7 +851,7 @@ Begin!
             "frequency_penalty": 0.5,
             "seed": 42
         }
-        resp = client.chat.completions.create(**completion_args)
+        resp = await client.chat.completions.create(**completion_args)
         response = resp.choices[0].message.content
         print(f"MFocus sfe searching persistent, response is:\n{response}\nEnd of MFocus sfe searching persistent")
         answer_re = re.search(r'Answer\s*:\s*(\[.*\])', response, re.I)

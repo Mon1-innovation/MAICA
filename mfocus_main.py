@@ -7,17 +7,18 @@ import nest_asyncio
 import maica_ws
 import agent_modules
 import persistent_extraction
-from openai import OpenAI # type: ignore
+from openai import AsyncOpenAI # type: ignore
 from loadenv import load_env
 async def agenting(input, sf_extraction, session, chat_session, target_lang='zh', tnd_aggressive=1, mf_aggressive=False, esc_aggressive=True, websocket=None):
     #nest_asyncio.apply()
     if websocket:
         loop = asyncio.get_event_loop()
-    client = OpenAI(
+    client = AsyncOpenAI(
         api_key='EMPTY',
         base_url=load_env('MFOCUS_ADDR'),
     )
-    model_type = client.models.list().data[0].id
+    model_list = await client.models.list()
+    model_type = model_list.data[0].id
     print(f'MFocus main addressing model, response is:\n{model_type}\nEnd of MFocus main addressing model')
     tools =  [
         {
@@ -162,7 +163,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
     }
     if not mf_aggressive:
         completion_args['stop'].append('Final Answer:')
-    resp = client.chat.completions.create(**completion_args)
+    resp = await client.chat.completions.create(**completion_args)
     response = resp.choices[0].message.content
     if resp.choices[0].message.tool_calls:
         tool_calls = resp.choices[0].message.tool_calls[0]
@@ -184,12 +185,12 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
 
     instructed_final_answer = {}
     if int(tnd_aggressive) >= 1:
-        instructed_final_answer['time'] = f"[{agent_modules.time_acquire(None, target_lang)[3]}]"
-        instructed_final_answer['event'] = f"[{agent_modules.event_acquire({'year': datetime.date.today().year, 'month': datetime.date.today().month, 'day': datetime.date.today().day}, sf_extraction, session, chat_session, target_lang)[3]}]"
+        instructed_final_answer['time'] = f"[{(await agent_modules.time_acquire(None, target_lang))[3]}]"
+        instructed_final_answer['event'] = f"[{(await agent_modules.event_acquire({'year': datetime.date.today().year, 'month': datetime.date.today().month, 'day': datetime.date.today().day}, sf_extraction, session, chat_session, target_lang))[3]}]"
     if int(tnd_aggressive) >= 2:
-        instructed_final_answer['date'] = f"[{agent_modules.date_acquire(None, sf_extraction, session, chat_session, target_lang)[3]}]"
+        instructed_final_answer['date'] = f"[{(await agent_modules.date_acquire(None, sf_extraction, session, chat_session, target_lang))[3]}]"
         if persistent_extraction.read_from_sf(session[2], chat_session, 'mas_geolocation')[2]:
-            instructed_final_answer['weather'] = f"[{agent_modules.weather_acquire(None, sf_extraction, session, chat_session, target_lang)[3]}]"
+            instructed_final_answer['weather'] = f"[{(await agent_modules.weather_acquire(None, sf_extraction, session, chat_session, target_lang))[3]}]"
     # to be extended
     cycle = 0
     while tool_calls:
@@ -207,7 +208,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
             except:
                 real_parameters_dict = {"common": tool_calls.function.arguments}
             if re.search((r'time.*acquire'), predict_action_function, re.I):
-                time_acquired = agent_modules.time_acquire(real_parameters_dict, target_lang)
+                time_acquired = await agent_modules.time_acquire(real_parameters_dict, target_lang)
                 if time_acquired[0]:
                     return_instruction = f"[{{'time': '{time_acquired[2]}'}}]"
                     if time_acquired[3]:
@@ -216,7 +217,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                 else:
                     raise Exception(time_acquired[1])
             elif re.search((r'date.*acquire'), predict_action_function, re.I):
-                date_acquired = agent_modules.date_acquire(real_parameters_dict, sf_extraction, session, chat_session, target_lang)
+                date_acquired = await agent_modules.date_acquire(real_parameters_dict, sf_extraction, session, chat_session, target_lang)
                 if date_acquired[0]:
                     return_instruction = f"[{{'date': '{date_acquired[2]}'}}]"
                     instructed_final_answer['date'] = f"{date_acquired[3]}"
@@ -224,7 +225,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                 else:
                     raise Exception(date_acquired[1])
             elif re.search((r'weather.*acquire'), predict_action_function, re.I):
-                weather_acquired = agent_modules.weather_acquire(real_parameters_dict, sf_extraction, session, chat_session, target_lang)
+                weather_acquired = await agent_modules.weather_acquire(real_parameters_dict, sf_extraction, session, chat_session, target_lang)
                 if weather_acquired[0]:
                     return_instruction = f"[{{'weather': '{weather_acquired[2]}'}}]"
                     if weather_acquired[3]:
@@ -267,7 +268,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                         real_parameters_dict['day'] = datetime.date.today().day
                 else:
                     real_parameters_dict['day'] = datetime.date.today().day
-                event_acquired = agent_modules.event_acquire(real_parameters_dict, sf_extraction, session, chat_session, target_lang)
+                event_acquired = await agent_modules.event_acquire(real_parameters_dict, sf_extraction, session, chat_session, target_lang)
                 if event_acquired[0]:
                     return_instruction = f"[{{'event': '{event_acquired[2]}'}}]"
                     if event_acquired[3]:
@@ -276,7 +277,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                 else:
                     raise Exception(event_acquired[1])
             elif re.search((r'persistent.*acquire'), predict_action_function, re.I):
-                persistent_acquired = agent_modules.persistent_acquire(real_parameters_dict, sf_extraction, session, chat_session, target_lang)
+                persistent_acquired = await agent_modules.persistent_acquire(real_parameters_dict, sf_extraction, session, chat_session, target_lang)
                 if persistent_acquired[0]:
                     return_instruction = f"[{{'known_info': {persistent_acquired[2]}}}]"
                     if persistent_acquired[3]:
@@ -293,7 +294,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                 else:
                     raise Exception(persistent_acquired[1])
             elif re.search((r'search.*internet'), predict_action_function, re.I):
-                internet_acquired = agent_modules.internet_acquire(real_parameters_dict, sf_extraction, session, chat_session, input, esc_aggressive, target_lang)
+                internet_acquired = await agent_modules.internet_acquire(real_parameters_dict, sf_extraction, session, chat_session, input, esc_aggressive, target_lang)
                 if internet_acquired[0]:
                     return_instruction = f"[{{'search_result': '{internet_acquired[2]}'}}]"
                     if internet_acquired[3]:
@@ -310,7 +311,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         if not exception_return:
             messages.append({'role': 'assistant', 'content': response})
             messages.append({'role': 'tool', 'content': return_instruction})
-            resp = client.chat.completions.create(**completion_args)
+            resp = await client.chat.completions.create(**completion_args)
             if resp.choices[0].message.tool_calls:
                 if resp.choices[0].message.tool_calls[0].function:
                     if resp.choices[0].message.tool_calls[0].function == tool_calls.function:

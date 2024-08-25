@@ -8,7 +8,7 @@ import persistent_extraction
 import mfocus_sfe
 from enet_scraping import internet_search_limb
 from weather_scraping import weather_api_get
-def time_acquire(params, target_lang='zh'):
+async def time_acquire(params, target_lang='zh'):
     success = True
     exception = None
     time = datetime.datetime.now()
@@ -32,7 +32,7 @@ def time_acquire(params, target_lang='zh'):
     time_friendly = f"现在是{time_range}{time.hour}点{str(time.minute).zfill(2)}分" if target_lang == 'zh' else f"It's now {str(time.hour).zfill(2)}:{str(time.minute).zfill(2)} {time_range}"
     content = f'{str(time.hour).zfill(2)}:{str(time.minute).zfill(2)}'
     return success, exception, content, time_friendly
-def date_acquire(params, sf_extraction, session, chat_session, target_lang='zh'):
+async def date_acquire(params, sf_extraction, session, chat_session, target_lang='zh'):
     success = True
     exception = None
     date = datetime.datetime.today()
@@ -71,7 +71,7 @@ def date_acquire(params, sf_extraction, session, chat_session, target_lang='zh')
     date_friendly = f"今天是{date.year}年{season}{date.month}月{date.day}日{weekday}" if target_lang == 'zh' else f"Today is {date.year}.{date.month}.{date.day} {season}, {weekday}"
     content = f'{date.year}.{date.month}.{date.day}'
     return success, exception, content, date_friendly
-def weather_acquire(params, sf_extraction, session, chat_session, target_lang='zh'):
+async def weather_acquire(params, sf_extraction, session, chat_session, target_lang='zh'):
     success = True
     exception = None
     likely_query = None
@@ -98,7 +98,7 @@ def weather_acquire(params, sf_extraction, session, chat_session, target_lang='z
         exception = excepted
         content = weather_friendly = '天气未知' if target_lang == 'zh' else "Weather unknown"
     return success, exception, content, weather_friendly
-def event_acquire(params, sf_extraction, session, chat_session, target_lang='zh'):
+async def event_acquire(params, sf_extraction, session, chat_session, target_lang='zh'):
     success = True
     exception = None
     holiday_friendly = ''
@@ -203,7 +203,7 @@ def event_acquire(params, sf_extraction, session, chat_session, target_lang='zh'
         content = "[None]"
         holiday_friendly = "今天不是特殊节日" if target_lang == 'zh' else "Today is not a special event or holiday"
     return success, exception, content, holiday_friendly
-def persistent_acquire(params, sf_extraction, session, chat_session, target_lang='zh'):
+async def persistent_acquire(params, sf_extraction, session, chat_session, target_lang='zh'):
     #print(params)
     success = True
     exception = None
@@ -217,7 +217,7 @@ def persistent_acquire(params, sf_extraction, session, chat_session, target_lang
     if sf_extraction:
         try:
             user_id = session[2]
-            content = mfocus_sfe.mfocus_find_info(user_id, chat_session, query)
+            content = await mfocus_sfe.mfocus_find_info(user_id, chat_session, query)
             if content[0]:
                 content = persistent_friendly = content[2]
             else:
@@ -234,7 +234,7 @@ def persistent_acquire(params, sf_extraction, session, chat_session, target_lang
         content = '没有相关信息' if target_lang == 'zh' else "No related information found"
         persistent_friendly = ''
     return success, exception, content, persistent_friendly
-def internet_acquire(params, sf_extraction, session, chat_session, original_query, esc_aggressive, target_lang='zh'):
+async def internet_acquire(params, sf_extraction, session, chat_session, original_query, esc_aggressive, target_lang='zh'):
     success = True
     exception = None
     likely_query = None
@@ -271,7 +271,7 @@ def internet_acquire(params, sf_extraction, session, chat_session, original_quer
             pass
     try:
         print(f'Agent modules acquiring Internet search, query is:\n{likely_query}\nEnd of Internet search')
-        search_response = internet_search_limb(likely_query, original_query, esc_aggressive)
+        search_response = await internet_search_limb(likely_query, original_query, esc_aggressive)
         if search_response[0]:
             content = json.dumps(search_response[2], ensure_ascii=False)
             searched_friendly = search_response[3]

@@ -17,7 +17,7 @@ import persistent_extraction
 from Crypto.Random import random as CRANDOM # type: ignore
 from Crypto.Cipher import PKCS1_OAEP # type: ignore
 from Crypto.PublicKey import RSA # type: ignore
-from openai import OpenAI # type: ignore
+from openai import AsyncOpenAI # type: ignore
 from loadenv import load_env
 try:
     from easter_egg import easter
@@ -39,7 +39,7 @@ def global_init_system(player_name, target_lang='zh'):
 #其实好像没用上, 但是让他去吧
 
 def get_agent_answer(query, client):
-    client = OpenAI(
+    client = AsyncOpenAI(
         api_key=client.api_key,
         base_url=client.base_url,
     )
@@ -622,11 +622,12 @@ async def def_model(websocket, session):
                 target_lang = 'zh'
             match using_model:
                 case 'maica_main':
-                    client_actual = OpenAI(
+                    client_actual = AsyncOpenAI(
                         api_key='EMPTY',
                         base_url=load_env('MCORE_ADDR'),
                     )
-                    model_type_actual = client_actual.models.list().data[0].id
+                    model_list_actual = await client_actual.models.list()
+                    model_type_actual = model_list_actual.data[0].id
                     client_options = {
                         "model" : model_type_actual,
                         "stream" : stream_output,
@@ -635,11 +636,12 @@ async def def_model(websocket, session):
                         "target_lang": target_lang
                     }
                 case 'maica_core':
-                    client_actual = OpenAI(
+                    client_actual = AsyncOpenAI(
                         api_key='EMPTY',
                         base_url=load_env('MCORE_ADDR'),
                     )
-                    model_type_actual = client_actual.models.list().data[0].id
+                    model_list_actual = await client_actual.models.list()
+                    model_type_actual = model_list_actual.data[0].id
                     client_options = {
                         "model" : model_type_actual,
                         "stream" : stream_output,
@@ -791,10 +793,11 @@ async def do_communicate(websocket, session, client_actual, client_options):
                     try:
                         if client_options['full_maica'] and not bypass_mf:
                             mfocus_async_args = [query_in, sf_extraction, session, chat_session, target_lang, tnd_aggressive, mf_aggressive, esc_aggressive, websocket]
-                            loop = asyncio.get_event_loop()
-                            mfocus_agent_task = asyncio.ensure_future(mfocus_main.agenting(*mfocus_async_args))
-                            loop.run_until_complete(mfocus_agent_task)
-                            message_agent_wrapped = mfocus_agent_task.result()
+                            #loop = asyncio.get_event_loop()
+                            #mfocus_agent_task = asyncio.ensure_future(mfocus_main.agenting(*mfocus_async_args))
+                            #loop.run_until_complete(mfocus_agent_task)
+                            #message_agent_wrapped = mfocus_agent_task.result()
+                            message_agent_wrapped = await mfocus_main.agenting(*mfocus_async_args)
                             if message_agent_wrapped[0] == 'FAIL' or len(message_agent_wrapped[0]) > 60 or len(message_agent_wrapped[1]) < 5:
                                 # We do not want answers without information
                                 response_str = f"MFocus returned corrupted guidance. This may or may not be a server failure, a corruption is kinda expected so keep cool--your ray tracer ID is {traceray_id}"
@@ -880,7 +883,7 @@ async def do_communicate(websocket, session, client_actual, client_options):
         default_temperature = 0.4
         default_max_tokens = 1024
         default_frequency_penalty = 0.3
-        default_presence_penalty = 0.0
+        default_presence_penalty = 0.1
         default_seed = random.randint(0,999)
         #default_seed = 42
         completion_args = {
@@ -921,11 +924,11 @@ async def do_communicate(websocket, session, client_actual, client_options):
             if not super_param in completion_args:
                 completion_args[super_param] = eval(f'default_{super_param}')
         print(f"Query ready to go, last query line is:\n{query_in}\nSending query.")
-        stream_resp = client_actual.chat.completions.create(**completion_args)
+        stream_resp = await client_actual.chat.completions.create(**completion_args)
         if client_options['stream']:
         #print(f'query: {query}')
             reply_appended = ''
-            for chunk in stream_resp:
+            async for chunk in stream_resp:
                 token = chunk.choices[0].delta.content
                 await asyncio.sleep(0)
                 print(token, end='', flush=True)
@@ -1018,16 +1021,18 @@ async def main_logic(websocket, path):
 # 修改被回调函数定义，增加相应参数
 # async def main_logic(websocket, path, other_param)
 
-if __name__ == '__main__':
-
-    #默认的客户端, 用于maica核心
-
-    client = OpenAI(
+async def prepare_thread():
+    client = AsyncOpenAI(
         api_key='EMPTY',
         base_url=load_env('MCORE_ADDR'),
     )
-    model_type = client.models.list().data[0].id
+    model_list = await client.models.list()
+    model_type = model_list.data[0].id
     print(f"First time confirm--model type is {model_type}")
+
+if __name__ == '__main__':
+
+    asyncio.run(prepare_thread())
 
     #启动时初始化密钥, 创建解密程序
 
@@ -1040,7 +1045,8 @@ if __name__ == '__main__':
     privkey_loaded = RSA.import_key(privkey)
 
     print('Server started!')
-    
+    new_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(new_loop)
     start_server = websockets.serve(functools.partial(main_logic), '0.0.0.0', 5000)
     asyncio.get_event_loop().run_until_complete(start_server)
     asyncio.get_event_loop().run_forever()
