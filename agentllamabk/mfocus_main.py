@@ -165,7 +165,6 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         completion_args['stop'].append('Final Answer:')
     resp = await client.chat.completions.create(**completion_args)
     response = resp.choices[0].message.content
-    #print(resp.choices[0].message.tool_calls)
     if resp.choices[0].message.tool_calls:
         tool_calls = resp.choices[0].message.tool_calls[0]
     else:
