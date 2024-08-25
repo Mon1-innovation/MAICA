@@ -291,7 +291,7 @@ MAICA下载历史记录存档的接口位于https://maicadev.monika.love/api/his
     {"code": "100", "status": "continue", "content": "PONG", "type": "heartbeat", "time_ms": 时间戳(毫秒)}
 在开发中, 你可以通过生成心跳连接避免连接被切断, 检测客户端与服务器的连接情况, 以及确定延迟水平.
 当一项任务正在进行中时, 传入的心跳连接不会被回应.
-任何自动发送的心跳连接间隔不应短于10s, 否则会造成不必要的服务器压力.
+任何自动发送的心跳连接间隔不应短于10s, 以避免造成不必要的服务器压力.
 任何心跳连接都会在服务器端记录发起者的session信息. 在身份认证令牌交换完毕前, 服务器不接受心跳连接.
 
 MAICA的核心能力基于llm, 而任何llm的输入总长度都是有限的. 就MAICA核心模型而言, 能够解析的最大输入长度为32768token, 在中文情况下约四万字.
@@ -302,4 +302,4 @@ MAICA的每一个chat_session实际上保留28672字符总内容(去除包装后
 如果chat_session存储字符数已达到2.4万, 接口将会在内容输出结束后输出提醒:
     {"code": "200", "status": "delete_hint", "content": "Session {chat_session} of user {username} exceeded 24k characters, which will be chopped after exceeding 28k, make backups if you want to--your ray tracer ID is {traceray_id}.", "type": "info", "time_ms": 时间戳(毫秒)}
 如果你希望记录该chat_session的完整内容, 应当在收到提醒后及时下载到本地并备份.
-为防止滥用, MAICA预计将不会允许从本地上传session记录.
+为防止滥用, MAICA预计将不会允许从本地上传session记录. 如希望自行管理session, 请使用chat_session -1功能, 但其长度与轮次会受更严格的限制.
