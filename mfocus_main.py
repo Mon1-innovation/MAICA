@@ -55,7 +55,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                 "properties": {
                     "location": {
                         "type": "string",
-                        "description": "The location which you need to get the weather of, using Chinese.",
+                        "description": "The location which you need to get the weather of, using Chinese. Leave empty for local weather. 如果查询本地天气, 则留空.",
                         "example_value": "湖北武汉"
                     },
                 },
@@ -356,7 +356,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         return 'FAIL', ''
 
 if __name__ == "__main__":
-    agented = asyncio.run(agenting('你还记得我的生日吗', True, [0,0,21834], 1))
+    agented = asyncio.run(agenting('帮我看看今天的天气怎么样', True, [0,0,21834], 1))
     #print(agented[0])
     print(agented[1])
 
