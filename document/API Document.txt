@@ -87,7 +87,7 @@ MAICA验证令牌的接口位于https://maicadev.monika.love/api/legality. 你�
         如果sf_extraction为true, tnd_aggressive为2, 且mas_geolocation存在, tnd_aggressive还会额外调用当前天气工具.
         此功能强度越高, 越可能补偿MFocus命中率低下的问题, 但也越可能会干扰模型对部分问题性质的判断.
         实验性功能: 用户可以在传入信息中添加键"mf_aggressive", 其应为boolean, 若未传入默认为false.
-        指定mf_aggressive为true将总是尽可能使用MFocus的最终输出替代指导构型信息. 启用此功能可能提升模型的复杂信息梳理能力, 但也可能会造成人称或格式的混乱.
+        指定mf_aggressive为true将总是尽可能使用MFocus的总结输出替代指导构型信息. 启用此功能可能提升模型的复杂信息梳理能力, 但也可能会造成速度下降或专注扰乱.
         实验性功能: 用户可以在传入信息中添加键"sfe_aggressive", 其应为boolean, 若未传入则默认为false.
         指定sfe_aggressive为true将总是以用户的真名替代prompt中的"[player]"字段. 启用此功能可能有利于模型理解玩家的姓名, 但也可能会造成总体拟合能力的下降和信息编造.
         实验性功能: 用户可以在传入信息中添加超参数键, 其包括"top_p", "temperature", "max_tokens", "frequency_penalty", "presence_penalty", "seed".
