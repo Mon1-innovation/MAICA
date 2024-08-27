@@ -104,8 +104,8 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                 "properties": {
                     "question": {
                         "type": "string",
-                        "description": "The question you want to know about user or yourself as human character. Ask about 'me' for information about yourself as human character, ask about 'you' for information about user.",
-                        "example_value": "你喜欢吃什么?"
+                        "description": "The question you want to know about user or yourself as human character, which is called Monika. Ask about 'Monika' for information about yourself as human character, ask about 'you' for information about user. 若问题关于你的角色则以'莫妮卡'发问, 若问题关于用户则以'你'发问.",
+                        "example_value": "莫妮卡喜欢吃什么?"
                     }
                 },
                 "required": [
@@ -356,7 +356,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         return 'FAIL', ''
 
 if __name__ == "__main__":
-    agented = asyncio.run(agenting('帮我看看今天的天气怎么样', True, [0,0,21834], 1))
+    agented = asyncio.run(agenting('除了沙拉和抹茶冰激凌，你还喜欢吃什么？', True, [0,0,21038], 1))
     #print(agented[0])
     print(agented[1])
 
