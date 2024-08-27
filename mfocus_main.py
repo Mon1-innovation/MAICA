@@ -373,8 +373,8 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         instructed_final_answer['persistent'] = f"\"{str(instructed_final_answer['persistent']).strip('[').strip(']')}\""
     instructed_final_answer_joined = ''.join(str(x) for x in instructed_final_answer.values())
     if not inst_conc:
-        final_answer += f"\"{re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.S)}\""
-    if final_answer and instructed_final_answer_joined:
+        final_answer += f"\"{str(re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.S) or '')}\""
+    if mf_aggressive and instructed_final_answer_joined:
         response_str3 = f"MFocus callback achieved, response is:\n{final_answer}\nInfo acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."
         if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug'))
         print(response_str3)
