@@ -798,27 +798,35 @@ async def do_communicate(websocket, session, client_actual, client_options):
                             #loop.run_until_complete(mfocus_agent_task)
                             #message_agent_wrapped = mfocus_agent_task.result()
                             message_agent_wrapped = await mfocus_main.agenting(*mfocus_async_args)
-                            if message_agent_wrapped[0] == 'FAIL' or len(message_agent_wrapped[0]) > 60 or len(message_agent_wrapped[1]) < 5:
+                            if message_agent_wrapped[0] == 'EMPTY':
                                 # We do not want answers without information
-                                response_str = f"MFocus returned corrupted guidance. This may or may not be a server failure, a corruption is kinda expected so keep cool--your ray tracer ID is {traceray_id}"
-                                print(f"出现如下异常18-{traceray_id}:Corruption")
-                                await websocket.send(wrap_ws_formatter('200', 'agent_corrupted', response_str, 'debug'))
+                                response_str = f"MFocus using instructed final guidance, suggesting LLM conclusion is empty--your ray tracer ID is {traceray_id}"
+                                await websocket.send(wrap_ws_formatter('200', 'agent_prog', response_str, 'debug'))
                                 if len(message_agent_wrapped[1]) > 5:
-                                    response_str = f"Due to agent particular failure, falling back to instructed guidance and continuing."
+                                    response_str = f"Due to LLM conclusion absence, falling back to instructed guidance and continuing."
                                     await websocket.send(wrap_ws_formatter('200', 'failsafe', response_str, 'debug'))
                                     info_agent_grabbed = message_agent_wrapped[1]
                                 else:
                                     response_str = f"Due to agent failure, falling back to default guidance and continuing anyway."
                                     await websocket.send(wrap_ws_formatter('200', 'force_failsafe', response_str, 'debug'))
+                                    print(f"出现如下异常18-{traceray_id}:Corruption")
                                     info_agent_grabbed = None
-                            elif message_agent_wrapped[0] == 'EMPTY':
+                            elif message_agent_wrapped[0] == 'FAIL':
+                                response_str = f"MFocus did not use a tool, suggesting unnecessary--your ray tracer ID is {traceray_id}"
+                                await websocket.send(wrap_ws_formatter('200', 'agent_none', response_str, 'debug'))
                                 info_agent_grabbed = None
                             else:
                                 # We are defaulting instructed guidance because its more clear pattern
-                                if mf_aggressive:
+                                # But if pointer entered this section, user must used mf_aggressive or something went wrong
+                                if len(message_agent_wrapped[1]) > 5 and len(message_agent_wrapped[0]) > 5:
+                                    response_str = f"MFocus using LLM conclusion guidance."
+                                    await websocket.send(wrap_ws_formatter('200', 'agent_aggr', response_str, 'debug'))
                                     info_agent_grabbed = message_agent_wrapped[0]
                                 else:
-                                    info_agent_grabbed = message_agent_wrapped[1]
+                                    response_str = f"Due to agent failure, falling back to default guidance and continuing anyway."
+                                    await websocket.send(wrap_ws_formatter('200', 'force_failsafe', response_str, 'debug'))
+                                    print(f"出现如下异常18.5-{traceray_id}:Corruption")
+                                    info_agent_grabbed = None
                             try:
                                 agent_insertion = wrap_mod_system(session, chat_session, info_agent_grabbed, sf_extraction, target_lang, sfe_aggressive)
                                 if not agent_insertion[0]:

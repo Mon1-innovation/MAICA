@@ -104,7 +104,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                 "properties": {
                     "question": {
                         "type": "string",
-                        "description": "The question you want to know about user or yourself as human character, which is called Monika. Ask about 'Monika' for information about yourself as human character, ask about 'you' for information about user. 若问题关于你的角色则以'莫妮卡'发问, 若问题关于用户则以'你'发问.",
+                        "description": "The question you want to know about user or yourself as human character, which is called Monika. 若问题关于你的角色则以'莫妮卡'发问, 若问题关于用户则以'你'发问. Ask about 'Monika' for information about yourself as human character, ask about 'you' for information about user.",
                         "example_value": "莫妮卡喜欢吃什么?"
                     }
                 },
@@ -136,7 +136,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         },
         {
             "name": "none",
-            "description": "Call this tool if no tool is needed to answer.",
+            "description": "Call this tool if no tool is needed to answer. 若你不需要任何工具就能作出回答, 则使用此工具.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -148,6 +148,28 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
             }
         },
     ]
+    if mf_aggressive:
+        tools.append(
+        {
+            "name": "conclude_information",
+            "description": "Call this tool if you have used every necessary tool and ready to give final answer. 若你已经使用了所有必要的工具并准备好给出最终答案, 则使用此工具.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "conclusion": {
+                        "type": "string",
+                        "description": "Conclude all information you have acquired and reasonings you have made into a concise sentence.",
+                        "example_value": "现在是上午九点, 适合吃早餐, 且天气凉爽, 适合户外活动"
+                    }
+                },
+                "required": [
+                    "conclusion"
+                ],
+                "optional": [
+                ]
+            }
+        },
+        )
     messages = []
     messages.append({'role': 'user', 'content': input})
     completion_args = {
@@ -183,7 +205,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
     print(response_str2)
   
 
-
+    final_answer = ''
     instructed_final_answer = {}
     if int(tnd_aggressive) >= 1:
         instructed_final_answer['time'] = f"[{(await agent_modules.time_acquire(None, target_lang))[3]}]"
@@ -192,6 +214,8 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         instructed_final_answer['date'] = f"[{(await agent_modules.date_acquire(None, sf_extraction, session, chat_session, target_lang))[3]}]"
         if persistent_extraction.read_from_sf(session[2], chat_session, 'mas_geolocation')[2]:
             instructed_final_answer['weather'] = f"[{(await agent_modules.weather_acquire(None, sf_extraction, session, chat_session, target_lang))[3]}]"
+    for key in instructed_final_answer.keys():
+        final_answer += instructed_final_answer[key]
     # to be extended
     cycle = 0
     while tool_calls:
@@ -303,12 +327,17 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                         inst_search= True
                 else:
                     raise Exception(internet_acquired[1])
+            elif re.search((r'conclude.*information'), predict_action_function, re.I):
+                #print(real_parameters_dict)
+                final_answer += f"\"{real_parameters_dict[list(real_parameters_dict.keys())[0]]}\""
+                inst_conc = True
+                raise Exception('Final conclusion provided, making early break')
             else:
-                raise Exception('None Function Actually Matched')
+                raise Exception('No function matched, making early break')
         except Exception as excepted:
             exception_return = excepted
             #traceback.print_exc()
-            print(f'Exception occured during MFocus main: {exception_return}')
+            print(f'MFocus main early broke: {exception_return}')
         if not exception_return:
             messages.append({'role': 'assistant', 'content': response})
             messages.append({'role': 'tool', 'content': return_instruction})
@@ -334,21 +363,26 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                 await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'debug'))
             print(response_str1)
             print(response_str2)
+            if not tool_calls:
+                break
         else:
             break
     #print(instructed_final_answer)
+    if 'persistent' in instructed_final_answer:
+        instructed_final_answer['persistent'] = f"\"{str(instructed_final_answer['persistent']).strip('[').strip(']')}\""
     instructed_final_answer_joined = ''.join(str(x) for x in instructed_final_answer.values())
-    final_answer = re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.S)
+    if not inst_conc:
+        final_answer += f"\"{re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.S)}\""
     if final_answer and instructed_final_answer_joined:
-        response_str3 = f"MFocus callback achieved, response is:\n{final_answer[1]}\nInfo acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."
+        response_str3 = f"MFocus callback achieved, response is:\n{final_answer}\nInfo acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."
         if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug'))
         print(response_str3)
-        return final_answer[1], instructed_final_answer_joined
+        return final_answer, instructed_final_answer_joined
     elif instructed_final_answer_joined:
         response_str3 = f"MFocus falling back, Info acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."
         if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug'))
         print(response_str3)
-        return 'FAIL', instructed_final_answer_joined
+        return 'EMPTY', instructed_final_answer_joined
     else:
         response_str3 = f"MFocus failed or missed, Ending MFocus callback."
         if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug'))
@@ -356,8 +390,8 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         return 'FAIL', ''
 
 if __name__ == "__main__":
-    agented = asyncio.run(agenting('除了沙拉和抹茶冰激凌，你还喜欢吃什么？', True, [0,0,21038], 1))
-    #print(agented[0])
+    agented = asyncio.run(agenting('除了沙拉和抹茶冰激凌，你还喜欢吃什么？', True, [0,0,21038], 1, mf_aggressive=True))
+    print(agented[0])
     print(agented[1])
 
 
