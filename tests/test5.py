@@ -2,8 +2,9 @@ import asyncio
 import websockets
 import time
 import nest_asyncio
-import mfocus_main
-import test6
+#import mfocus_main
+import atexit
+#import test6
 
 async def hello(websocket, path):
     nest_asyncio.apply()
@@ -16,12 +17,17 @@ async def hello(websocket, path):
         #result = loop.run_until_complete(waiting())
         #await asyncio.sleep(3)
         #res = await mfocus_main.agenting('你知道我的生日吗', True, [0,0,21834], 1)
-        res = await test6.waste_some_time()
-        print(res)
+        #res = await test6.waste_some_time()
+        print('1')
         await websocket.send("1 recv")
 async def waiting():
     await asyncio.sleep(3)
     return 100
+
+
+@atexit.register
+def echo():
+    print('111!')
 
 def main():
 
