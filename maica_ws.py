@@ -4,7 +4,6 @@ import time
 import functools
 import base64
 import json
-import pymysql
 import aiomysql
 import bcrypt
 import re
@@ -26,7 +25,7 @@ try:
 except:
     easter_exist = False
 
-#打补丁:sql异步化
+#与sql有关的异步化类
 
 class sub_threading_instance:
 
@@ -53,6 +52,8 @@ class sub_threading_instance:
 
     def __del__(self):
         self.loop.run_until_complete(self._close_pools())
+
+    #以下是抽象方法
 
     def check_essentials(self) -> None:
         if not self.kwargs['user_id'] or not self.verified:
@@ -97,7 +98,7 @@ class sub_threading_instance:
                 await conn.commit()
                 return cur.lastrowid
             
-    #实用方法
+    #以下是实用方法
 
     def alter_identity(self, **kwargs) -> None:
         for key in kwargs.keys():
@@ -153,6 +154,11 @@ class sub_threading_instance:
 
     async def hashing_verify(self, access_token) -> list[bool, Exception, int, str, str, str]:
         try:
+            with open("key/prv.key", "r") as privkey_file:
+                privkey = privkey_file.read()
+            with open("key/pub.key", "r") as pubkey_file:
+                pubkey = pubkey_file.read()
+            privkey_loaded = RSA.import_key(privkey)
             decryptor = PKCS1_OAEP.new(privkey_loaded)
             decrypted_token =decryptor.decrypt(base64.b64decode(access_token)).decode("utf-8")
         except Exception as excepted:
@@ -426,9 +432,7 @@ class sub_threading_instance:
             success = False
             return success, excepted
 
-
-
-#省得到处找
+#没有必要实例化的方法
 
 def global_init_system(player_name, target_lang='zh'):
     if target_lang == 'zh':
@@ -436,8 +440,6 @@ def global_init_system(player_name, target_lang='zh'):
     else:
         system_init = f"You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Answer the following query from {player_name} properly as Monika. You should only answer in casual natural tone with English, do not make up things you don't know, and express your emotion at the beginning of each sentence by wrapping them in square brackets."
     return system_init
-
-#输出包装方法
 
 def wrap_ws_formatter(code, status, content, type):
     output = {
@@ -455,14 +457,7 @@ async def wrap_run_in_exc(func, *args, **kwargs):
         None, func(*args, **kwargs))
     return result
 
-
-
-
-#自此定义包装全部完成
-
-
-
-
+#与websocket绑定的异步化类, 继承sql类
 
 class ws_threading_instance(sub_threading_instance):
 
@@ -952,10 +947,7 @@ class ws_threading_instance(sub_threading_instance):
             success = True
             print(f"Finished non-recording loop-{self.traceray_id}:{session[3]}")
 
-
-
-
-#异步标记程序, 不是必要的
+#异步标记程序, 不是必要的. 万一要用呢?
 
 def callback_func_switch(future):
     print(f'!Stage2 passed abnormally:\n{future.result()}')
@@ -983,13 +975,6 @@ async def main_logic(websocket, path):
     except Exception as excepted:
         print(f'Exception: {excepted}. Likely connection loss.')
 
-# 如果要给被回调的main_logic传递自定义参数，可使用以下形式
-# 一、修改回调形式
-# import functools
-# start_server = websockets.serve(functools.partial(main_logic, other_param="test_value"), '10.10.6.91', 5678)
-# 修改被回调函数定义，增加相应参数
-# async def main_logic(websocket, path, other_param)
-
 async def prepare_thread():
     client = AsyncOpenAI(
         api_key='EMPTY',
@@ -1002,20 +987,12 @@ async def prepare_thread():
 if __name__ == '__main__':
 
     asyncio.run(prepare_thread())
-
-    #启动时初始化密钥, 创建解密程序
-
-    with open("key/prv.key", "r") as privkey_file:
-        global privkey
-        privkey = privkey_file.read()
-    with open("key/pub.key", "r") as pubkey_file:
-        global pubkey
-        pubkey = pubkey_file.read()
-    privkey_loaded = RSA.import_key(privkey)
-
     print('Server started!')
+
     new_loop = asyncio.new_event_loop()
     asyncio.set_event_loop(new_loop)
-    start_server = websockets.serve(functools.partial(main_logic), '0.0.0.0', 5000)
+
+    start_server = websockets.serve(functools.partial(main_logic, None), '0.0.0.0', 5000)
+    
     asyncio.get_event_loop().run_until_complete(start_server)
     asyncio.get_event_loop().run_forever()
