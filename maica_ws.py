@@ -46,7 +46,7 @@ class sub_threading_instance:
     ):
         self.host, self.user, self.password, self.authdb, self.maicadb = host, user, password, authdb, maicadb
         self.verified = False
-        self.sub_maica_instance.traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
+        self.traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
         self.kwargs = {"user_id": None, "target_lang": "zh", "sfe_aggressive": False}
         self.loop = asyncio.new_event_loop()
         asyncio.run(self._init_pools())
@@ -102,6 +102,9 @@ class sub_threading_instance:
     def alter_identity(self, **kwargs) -> None:
         for key in kwargs.keys():
             self.kwargs[key] = kwargs[key]
+
+    def flush_traceray(self) -> None:
+        self.traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
 
     async def run_hash_dcc(self, identity, is_email, pwd) -> list[bool, Exception, int, str, str, str] :
         success = True
@@ -317,14 +320,14 @@ class sub_threading_instance:
             success = False
             return success, excepted
 
-    async def wrap_mod_system(self, chat_session_num, known_info, name_from_sf) -> list[bool, Exception, int]:
+    async def wrap_mod_system(self, chat_session_num, known_info) -> list[bool, Exception, int]:
         user_id = self.kwargs['user_id']
         try:
             self.check_essentials()
-            if name_from_sf:
+            if self.kwargs['sf_extraction']:
                 player_name_get = persistent_extraction.read_from_sf(user_id, chat_session_num, 'mas_playername')
                 if player_name_get[0]:
-                    if self.kwargs['sfe_aggressive']:
+                    if 'sfe_aggressive' in self.kwargs and self.kwargs['sfe_aggressive']:
                         player_name = player_name_get[2]
                         if known_info:
                             known_info = re.sub(r'\[player\]', player_name, known_info)
@@ -339,7 +342,35 @@ class sub_threading_instance:
                 new_system = f"{global_init_system(player_name, self.kwargs['target_lang'])} 以下是一些相关信息, 你可以利用其中有价值的部分作答: {known_info}." if self.kwargs['target_lang'] == 'zh' else f"{global_init_system(player_name, self.kwargs['target_lang'])} Here are some information you can use to make your answer: {known_info}."
             else:
                 new_system = global_init_system(player_name, self.kwargs['target_lang'])
-            return mod_chat_session_system(chat_session_num, new_system)
+            return await self.mod_chat_session_system(chat_session_num, new_system)
+        except Exception as excepted:
+            success = False
+            return success, excepted
+        
+    async def mod_once_system(self, chat_session_num, known_info) -> list[bool, Exception, int]:
+        user_id = self.kwargs['user_id']
+        try:
+            self.check_essentials()
+            if self.kwargs['sf_extraction']:
+                player_name_get = persistent_extraction.read_from_sf(user_id, chat_session_num, 'mas_playername')
+                if player_name_get[0]:
+                    if 'sfe_aggressive' in self.kwargs and self.kwargs['sfe_aggressive']:
+                        player_name = player_name_get[2]
+                        if known_info:
+                            known_info = re.sub(r'\[player\]', player_name, known_info)
+                    else:
+                        player_name = '[player]'
+                else:
+                    player_name = '[player]'
+                    # continue on failure - playername may not be specified
+            else:
+                player_name = '[player]'
+            if known_info:
+                new_system = f"{global_init_system(player_name, self.kwargs['target_lang'])} 以下是一些相关信息, 你可以利用其中有价值的部分作答: {known_info}." if self.kwargs['target_lang'] == 'zh' else f"{global_init_system(player_name, self.kwargs['target_lang'])} Here are some information you can use to make your answer: {known_info}."
+            else:
+                new_system = global_init_system(player_name, self.kwargs['target_lang'])
+            success = True
+            return success, None, new_system
         except Exception as excepted:
             success = False
             return success, excepted
@@ -394,7 +425,7 @@ class sub_threading_instance:
         except Exception as excepted:
             success = False
             return success, excepted
-        
+
 
 
 #省得到处找
@@ -405,26 +436,6 @@ def global_init_system(player_name, target_lang='zh'):
     else:
         system_init = f"You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Answer the following query from {player_name} properly as Monika. You should only answer in casual natural tone with English, do not make up things you don't know, and express your emotion at the beginning of each sentence by wrapping them in square brackets."
     return system_init
-
-#灵活客户端, 用于获取agent回答
-#此类用于直接输出, agent的流式输出没有意义
-#其实好像没用上, 但是让他去吧
-
-def get_agent_answer(query, client):
-    client = AsyncOpenAI(
-        api_key=client.api_key,
-        base_url=client.base_url,
-    )
-    messages = [{
-        'role': 'user',
-        'content': query
-    }]
-    resp = client.chat.completions.create(
-        model='default-lora',
-        messages=messages,
-        seed=42)
-    response = resp.choices[0].message.content
-    return response
 
 #输出包装方法
 
@@ -438,430 +449,11 @@ def wrap_ws_formatter(code, status, content, type):
     }
     return json.dumps(output, ensure_ascii=False)
 
-#账号数据库查询方法
-
-def run_hash_dcc(identity, is_email, pwd):
-    success = True
-    exception = ''
-    if is_email:
-        sql_expression = 'SELECT * FROM users WHERE email = %s'
-    else:
-        sql_expression = 'SELECT * FROM users WHERE username = %s'
-    try:
-        with pymysql.connect(
-            host = load_env('DB_ADDR'),
-            user = load_env('DB_USER'),
-            password = load_env('DB_PASSWORD'),
-            db = load_env('AUTHENTICATOR_DB')
-        )as db_connection, db_connection.cursor() as db_cursor:
-            db_cursor.execute(sql_expression, (identity))
-            results = db_cursor.fetchall()
-            for information in results:
-                dbres_id = information[0]
-                dbres_username = information[1]
-                dbres_nickname = information[2]
-                dbres_email = information[3]
-                dbres_ecf = information[4]
-                dbres_pwd_bcrypt = information[5]
-            verification = bcrypt.checkpw(pwd.encode(), dbres_pwd_bcrypt.encode())
-            verification_result_limited = [verification, None, dbres_id]
-            f2b_count = check_user_status(verification_result_limited, 'f2b_count')[3]
-            f2b_stamp = check_user_status(verification_result_limited, 'f2b_stamp')[3]
-            if f2b_stamp:
-                if time.time() - f2b_stamp < float(load_env('F2B_TIME')):
-                    # Waiting for F2B timeout
-                    verification = False
-                    exception = {'f2b': int(float(load_env('F2B_TIME'))+f2b_stamp-time.time())}
-                    return verification, exception
-                else:
-                    write_user_status(verification_result_limited, 'f2b_stamp', 0)
-            if verification:
-                if not dbres_ecf:
-                    verification = False
-                    exception = {'necf': True}
-                    return verification, exception
-                else:
-                    write_user_status(verification_result_limited, 'f2b_stamp', 0)
-                    return verification, None, dbres_id, dbres_username, dbres_nickname, dbres_email
-            else:
-                if not f2b_count:
-                    f2b_count = 0
-                f2b_count += 1
-                exception = {'pwdw': f2b_count}
-                if f2b_count >= int(load_env('F2B_COUNT')):
-                    write_user_status(verification_result_limited, 'f2b_stamp', time.time())
-                    f2b_count = 0
-                write_user_status(verification_result_limited, 'f2b_count', f2b_count)
-                return verification, exception
-    except Exception as excepted:
-        #traceback.print_exc()
-        verification = False
-        return verification, excepted
-    
-#chat_session数据库存取方法
-
-def rw_chat_session(session, chat_session_num, rw, content_append):
-    success = False
-    user_id = session[2]
-    try:
-        with pymysql.connect(
-            host = load_env('DB_ADDR'),
-            user = load_env('DB_USER'),
-            password = load_env('DB_PASSWORD'),
-            db = load_env('MAICA_DB')
-        )as db_connection, db_connection.cursor() as db_cursor:
-            if rw == 'r':
-                sql_expression = "SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
-                try:
-                    db_cursor.execute(sql_expression, (user_id, chat_session_num))
-                    results = db_cursor.fetchall()
-                    for information in results:
-                        if content_append is None:
-                            content_append = ''
-                        elif len(information[3]) != 0:
-                            content_append = ',' + content_append
-                        chat_session_id = information[0]
-                        content = information[3] + content_append
-                        success = True
-                    return success, None, chat_session_id, content
-                except Exception as excepted:
-                    success = False
-                    return success, excepted
-            elif rw == 'w':
-                sql_expression1 = "SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
-                try:
-                    db_cursor.execute(sql_expression1, (user_id, chat_session_num))
-                    results = db_cursor.fetchall()
-                    for information in results:
-                        #success = True
-                        chat_session_id = information[0]
-                        content = information[3]
-                except Exception as excepted:
-                    success = False
-                    return success, excepted
-                sql_expression2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-                if len(content) != 0:
-                    content = content + ',' + content_append
-                else:
-                    content = content_append
-                len_content_actual = len(content) - len(json.loads(f'[{content}]')) * 31
-                if len_content_actual >= int(load_env('SESSION_MAX_TOKEN')):
-                    try:
-                        cutting_mat = json.loads(f"[{content}]")
-                    except Exception as excepted:
-                        success = False
-                        return success, excepted
-                    while len_content_actual >= int(load_env('SESSION_WARN_TOKEN')) or cutting_mat[1]['role'] == "assistant":
-                        len_content_actual = len(content) - len(cutting_mat) * 31
-                        cutting_mat.pop(1)
-                    content = json.dumps(cutting_mat, ensure_ascii=False).strip('[').strip(']')
-                    cutted = 1
-                elif len_content_actual >= int(load_env('SESSION_WARN_TOKEN')):
-                    cutted = 2
-                else:
-                    cutted = 0
-                try:
-                    #print(content)
-                    db_cursor.execute(sql_expression2, (content, chat_session_id))
-                    results = db_cursor.fetchall()
-                    if len(results) == 0:
-                        db_connection.commit()
-                        success = True
-                        return success, None, chat_session_id, None, cutted
-                    else:
-                        raise Exception('Insert Not Successful')
-
-                    #for information in results:
-                    #    if information[0] and information[1]:
-                    #        db_connection.commit()
-                    #        success = True
-                    #        return success, None, chat_session_id, information[1]
-                    #    else:
-                    #        raise Exception('Update Not Successful')
-                except Exception as excepted:
-                    success = False
-                    return success, excepted
-    except Exception as excepted:
-        success = False
-        return success, excepted
-
-#清空一个chat_session的方法
-
-def purge_chat_session(user_id, chat_session_num, target_lang='zh'):
-    success = False
-    try:
-        with pymysql.connect(
-            host = load_env('DB_ADDR'),
-            user = load_env('DB_USER'),
-            password = load_env('DB_PASSWORD'),
-            db = load_env('MAICA_DB')
-        )as db_connection, db_connection.cursor() as db_cursor:
-            sql_expression1 = "SELECT chat_session_id, content FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
-            try:
-                db_cursor.execute(sql_expression1, (user_id, chat_session_num))
-                results = db_cursor.fetchall()
-                if len(results) == 0:
-                    success = True
-                    inexist = True
-                    return success, None, inexist
-                else:
-                    for information in results:
-                        chat_session_id = information[0]
-                        content_to_archive = information[1]
-                    sql_expression2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-                    content = f'{{"role": "system", "content": "{global_init_system('[player]', target_lang)}"}}'
-                    try:
-                        db_cursor.execute(sql_expression2, (content, chat_session_id))
-                        results = db_cursor.fetchall()
-                        if len(results) == 0:
-                            db_connection.commit()
-                            sql_expression3 = "INSERT INTO csession_archived (chat_session_id, content) VALUES (%s, %s)"
-                            try:
-                                db_cursor.execute(sql_expression3, (chat_session_id, content_to_archive))
-                                results = db_cursor.fetchall()
-                                if len(results) == 0:
-                                    db_connection.commit()
-                                    success = True
-                                    inexist = False
-                                    return success, None, inexist
-                                else:
-                                    raise Exception('Insert Not Successful')
-                            except Exception as excepted:
-                                success = False
-                                return success, excepted
-                        else:
-                            raise Exception('Insert Not Successful')
-                    except Exception as excepted:
-                        success = False
-                        return success, excepted
-            except Exception as excepted:
-                success = False
-                return success, excepted
-    except Exception as excepted:
-        success = False
-        return success, excepted
-
-#如果chat_session不存在, 那就创建一个呗
-
-def check_create_chat_session(session, chat_session_num, target_lang='zh'):
-    success = False
-    exist =None
-    chat_session_id = None
-    user_id = session[2]
-    try:
-        with pymysql.connect(
-            host = load_env('DB_ADDR'),
-            user = load_env('DB_USER'),
-            password = load_env('DB_PASSWORD'),
-            db = load_env('MAICA_DB')
-        )as db_connection, db_connection.cursor() as db_cursor:
-            sql_expression1 = "SELECT chat_session_id FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
-            try:
-                db_cursor.execute(sql_expression1, (user_id, chat_session_num))
-                results = db_cursor.fetchall()
-                if len(results) != 0:
-                    for information in results:
-                        chat_session_id = information[0]
-                    success = True
-                    exist = True
-                    return success, None, exist, chat_session_id
-                else:
-                    sql_expression2 = "INSERT INTO chat_session VALUES (NULL, %s, %s, '')"
-                    try:
-                        db_cursor.execute(sql_expression2, (user_id, chat_session_num))
-                        results = db_cursor.fetchall()
-                        if len(results) == 0:
-                            chat_session_id = db_cursor.lastrowid
-                            db_connection.commit()
-                            sql_expression3 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-                            content = f'{{"role": "system", "content": "{global_init_system('[player]', target_lang)}"}}'
-                            try:
-                                db_cursor.execute(sql_expression3, (content, chat_session_id))
-                                results = db_cursor.fetchall()
-                                if len(results) == 0:
-                                    db_connection.commit()
-                                    success = True
-                                    exist = False
-                                    return success, None, exist, chat_session_id
-                                else:
-                                    raise Exception('Insert Not Successful')
-                            except Exception as excepted:
-                                success = False
-                                return success, excepted, exist, chat_session_id
-                        else:
-                            raise Exception('Insert Not Successful')
-                    except Exception as excepted:
-                        success = False
-                        return success, excepted, exist, chat_session_id
-            except Exception as excepted:
-                success = False
-                return success, excepted, exist, chat_session_id
-    except Exception as excepted:
-        success = False
-        return success, excepted, exist, chat_session_id
-    
-#修改特定session的system. 只能希望模型会看一眼了.
-
-def mod_chat_session_system(session, chat_session_num, new_system_init, target_lang='zh'):
-    success = False
-    chat_session_id = None
-    user_id = session[2]
-    try:
-        with pymysql.connect(
-            host = load_env('DB_ADDR'),
-            user = load_env('DB_USER'),
-            password = load_env('DB_PASSWORD'),
-            db = load_env('MAICA_DB')
-        )as db_connection, db_connection.cursor() as db_cursor:
-            sql_expression1 = "SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
-            try:
-                db_cursor.execute(sql_expression1, (user_id, chat_session_num))
-                results = db_cursor.fetchall()
-                if len(results) == 0:
-                    try_create = check_create_chat_session(session, chat_session_num, target_lang)
-                    db_connection.commit()
-                    #print(try_create)
-                    sql_expression2 = "SELECT * FROM chat_session WHERE chat_session_id = %s"
-                    db_cursor.execute(sql_expression2, try_create[3])
-                    results = db_cursor.fetchall()
-                    #print(results)
-                for information in results:
-                    #success = True
-                    chat_session_id = information[0]
-                    content = information[3]
-                    #print(content)
-            except Exception as excepted:
-                success = False
-                #traceback.print_exc()
-                return success, excepted
-            modding_mat = json.loads(f'[{content}]')
-            modding_mat[0]['content'] = new_system_init
-            content = json.dumps(modding_mat, ensure_ascii=False).strip('[').strip(']')
-            sql_expression3 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-            try:
-                #print(content)
-                db_cursor.execute(sql_expression3, (content, chat_session_id))
-                results = db_cursor.fetchall()
-                if len(results) == 0:
-                    db_connection.commit()
-                    success = True
-                    return success, None, chat_session_id
-                else:
-                    raise Exception('Insert Not Successful')
-            except Exception as excepted:
-                success = False
-                return success, excepted
-    except Exception as excepted:
-        success = False
-        #traceback.print_exc()
-        return success, excepted
-
-#这个修改system太麻烦了, 再包装一下吧
-
-def wrap_mod_system(session, chat_session_num, known_info, name_from_sf, language='zh', sfe_aggressive=False):
-    user_id = session[2]
-    #print(name_from_sf)
-    if name_from_sf:
-        player_name_get = persistent_extraction.read_from_sf(user_id, chat_session_num, 'mas_playername')
-        if player_name_get[0]:
-            if sfe_aggressive:
-                player_name = player_name_get[2]
-                if known_info:
-                    known_info = re.sub(r'\[player\]', player_name, known_info)
-            else:
-                player_name = '[player]'
-        else:
-            player_name = '[player]'
-            # continue on failure - playername may not be specified
-    else:
-        player_name = '[player]'
-    if known_info:
-        new_system = f"{global_init_system(player_name, language)} 以下是一些相关信息, 你可以利用其中有价值的部分作答: {known_info}." if language == 'zh' else f"{global_init_system(player_name, language)} Here are some information you can use to make your answer: {known_info}."
-    else:
-        new_system = global_init_system(player_name, language)
-    return mod_chat_session_system(session, chat_session_num, new_system, language)
-
-#检查用户账号的即时状态
-
-def check_user_status(session, key='banned'):
-    success = False
-    user_id = session[2]
-    try:
-        with pymysql.connect(
-            host = load_env('DB_ADDR'),
-            user = load_env('DB_USER'),
-            password = load_env('DB_PASSWORD'),
-            db = load_env('MAICA_DB')
-        )as db_connection, db_connection.cursor() as db_cursor:
-            sql_expression1 = "SELECT * FROM account_status WHERE user_id = %s"
-            try:
-                db_cursor.execute(sql_expression1, (user_id))
-                results = db_cursor.fetchall()
-                if len(results) > 0:
-                    stats_json = {}
-                    for information in results:
-                        stats_json.update(json.loads(information[2]))
-                    if key in stats_json:
-                        if stats_json[key]:
-                            success = True
-                            return success, None, True, stats_json[key]
-                        else:
-                            success = True
-                            return success, None, False, stats_json[key]
-                    else:
-                        success = True
-                        return success, 'didnt really found', False, None
-                else:
-                    success = True
-                    return success, 'didnt really exist', False, None
-            except Exception as excepted:
-                success = False
-                return success, excepted, False, None
-    except Exception as excepted:
-        success = False
-        return success, excepted, False, None
-
-def write_user_status(session, key='banned', value=True):
-    success = False
-    user_id = session[2]
-    try:
-        with pymysql.connect(
-            host = load_env('DB_ADDR'),
-            user = load_env('DB_USER'),
-            password = load_env('DB_PASSWORD'),
-            db = load_env('MAICA_DB')
-        )as db_connection, db_connection.cursor() as db_cursor:
-            sql_expression1 = "SELECT * FROM account_status WHERE user_id = %s"
-            try:
-                db_cursor.execute(sql_expression1, (user_id))
-                results = db_cursor.fetchall()
-                if len(results) > 0:
-                    stats_json = {}
-                    for information in results:
-                        stats_json.update(json.loads(information[2]))
-                    stats_json[key] = value
-                    stats_insert = json.dumps(stats_json, ensure_ascii=False)
-                    sql_expression2 = "UPDATE account_status SET status = %s WHERE user_id = %s"
-                    sql_args = (stats_insert, user_id)
-                else:
-                    stats_insert = json.dumps({key: value})
-                    sql_expression2 = "INSERT INTO account_status (user_id, status, preferences) VALUES (%s, %s, '')"
-                    sql_args = (user_id, stats_insert)
-                try:
-                    db_cursor.execute(sql_expression2, sql_args)
-                    db_connection.commit()
-                    success = True
-                    return success, None
-                except Exception as excepted:
-                    success = False
-                    return success, excepted
-            except Exception as excepted:
-                success = False
-                return success, excepted
-    except Exception as excepted:
-        success = False
-        return success, excepted
-
+async def wrap_run_in_exc(func, *args, **kwargs):
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(
+        None, func(*args, **kwargs))
+    return result
 
 
 
@@ -872,33 +464,34 @@ def write_user_status(session, key='banned', value=True):
 
 
 
-
-#面向api的第一层io: 身份验证, 获取session
-class ws_threading_instance:
+class ws_threading_instance(sub_threading_instance):
 
     nest_asyncio.apply()
 
     def __init__(self, websocket):
         self.websocket = websocket
+        super().__init__()
+
+    #身份验证
 
     async def check_permit(self):
         websocket = self.websocket
-        self.sub_maica_instance = sub_maica_instance = sub_threading_instance()
         print('Someone started a connection')
         while True:
             try:
+                self.flush_traceray()
                 recv_text = await websocket.recv()
-                verification_result = await sub_maica_instance.hashing_verify(access_token=recv_text)
+                verification_result = await self.hashing_verify(access_token=recv_text)
                 if verification_result[0]:
-                    checked_status = await sub_maica_instance.check_user_status(key='banned')
+                    checked_status = await self.check_user_status(key='banned')
                     if not checked_status[0]:
-                        response_str = f"Account service failed to fetch, refer to administrator--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                        print(f"出现如下异常3-{sub_maica_instance.traceray_id}:{checked_status[1]}")
+                        response_str = f"Account service failed to fetch, refer to administrator--your ray tracer ID is {self.traceray_id}"
+                        print(f"出现如下异常3-{self.traceray_id}:{checked_status[1]}")
                         await websocket.send(wrap_ws_formatter('500', 'unable_verify', response_str, 'error'))
                         await websocket.close(1000, 'Stopping connection due to critical server failure')
                     elif checked_status[2]:
-                        response_str = f"Your account disobeied our terms of service and was permenantly banned--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                        print(f"出现如下异常4-{sub_maica_instance.traceray_id}:banned")
+                        response_str = f"Your account disobeied our terms of service and was permenantly banned--your ray tracer ID is {self.traceray_id}"
+                        print(f"出现如下异常4-{self.traceray_id}:banned")
                         await websocket.send(wrap_ws_formatter('403', 'account_banned', response_str, 'warn'))
                         await websocket.close(1000, 'Permission denied')
                     else:
@@ -913,432 +506,459 @@ class ws_threading_instance:
                 else:
                     if isinstance(verification_result[1], dict):
                         if 'f2b' in verification_result[1]:
-                            response_str = f"Fail2Ban locking {verification_result[1]['f2b']} seconds before release, wait and retry--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                            print(f"出现如下异常1.1-{sub_maica_instance.traceray_id}:{verification_result}")
+                            response_str = f"Fail2Ban locking {verification_result[1]['f2b']} seconds before release, wait and retry--your ray tracer ID is {self.traceray_id}"
+                            print(f"出现如下异常1.1-{self.traceray_id}:{verification_result}")
                             await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
                             continue
                         elif 'necf' in verification_result[1]:
-                            response_str = f"Your account Email not verified, check inbox and retry--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                            print(f"出现如下异常1.2-{sub_maica_instance.traceray_id}:{verification_result}")
+                            response_str = f"Your account Email not verified, check inbox and retry--your ray tracer ID is {self.traceray_id}"
+                            print(f"出现如下异常1.2-{self.traceray_id}:{verification_result}")
                             await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
                             continue
                         elif 'pwdw' in verification_result[1]:
-                            response_str = f"Bcrypt hashing failed {verification_result[1]['pwdw']} times, check your password--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                            print(f"出现如下异常1.3-{sub_maica_instance.traceray_id}:{verification_result}")
+                            response_str = f"Bcrypt hashing failed {verification_result[1]['pwdw']} times, check your password--your ray tracer ID is {self.traceray_id}"
+                            print(f"出现如下异常1.3-{self.traceray_id}:{verification_result}")
                             await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
                             continue
                     else:
-                        response_str = f"RSA cognition failed, check possible typo--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                        print(f"出现如下异常2-{sub_maica_instance.traceray_id}:{verification_result}")
+                        response_str = f"RSA cognition failed, check possible typo--your ray tracer ID is {self.traceray_id}"
+                        print(f"出现如下异常2-{self.traceray_id}:{verification_result}")
                         await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
                         continue
             except Exception as excepted:
-                response_str = f"Caught a serialization failure in hashing section, check possible typo--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                print(f"出现如下异常5-{sub_maica_instance.traceray_id}:{excepted}")
+                response_str = f"Caught a serialization failure in hashing section, check possible typo--your ray tracer ID is {self.traceray_id}"
+                print(f"出现如下异常5-{self.traceray_id}:{excepted}")
                 #traceback.print_exc()
                 await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
                 continue
+    
+    #接管输入
 
-#面向api的第二层io: 指定服务内容
-
-    async def def_model(self):
-        websocket, session, sub_maica_instance = self.websocket, self.verification_result, self.sub_maica_instance
-        await websocket.send(wrap_ws_formatter('200', 'ok', 'choose service like {"model": "maica_main", "sf_extraction": true, "stream_output": true, "target_lang": "zh"}', 'info'))
+    async def function_switch(self):
+        websocket, session = self.websocket, self.verification_result
+        self.client_actual = client_actual = AsyncOpenAI(
+            api_key='EMPTY',
+            base_url=load_env('MCORE_ADDR'),
+        )
+        self.client_options = client_options = {
+            "model" : "maica_main",
+            "stream" : True,
+            "full_maica": True,
+            "sf_extraction": True,
+            "target_lang": 'zh'
+        }
+        sfe_aggressive = False
+        mf_aggressive = False
+        tnd_aggressive = 1
+        esc_aggressive = True
+        self.alter_identity(sfe_aggressive=sfe_aggressive, mf_aggressive=mf_aggressive, tnd_aggressive=tnd_aggressive, esc_aggressive=esc_aggressive)
+        self.alter_identity(**client_options)
         while True:
-            checked_status = await sub_maica_instance.check_user_status(key='banned')
+            checked_status = await self.check_user_status(key='banned')
             if not checked_status[0]:
-                response_str = f"Account service failed to fetch, refer to administrator--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                print(f"出现如下异常3-{sub_maica_instance.traceray_id}:{checked_status[1]}")
+                response_str = f"Account service failed to fetch, refer to administrator--your ray tracer ID is {self.traceray_id}"
+                print(f"出现如下异常3-{self.traceray_id}:{checked_status[1]}")
                 await websocket.send(wrap_ws_formatter('500', 'unable_verify', response_str, 'error'))
                 await websocket.close(1000, 'Stopping connection due to critical server failure')
             elif checked_status[2]:
-                response_str = f"Your account disobeied our terms of service and was permenantly banned--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                print(f"出现如下异常4-{sub_maica_instance.traceray_id}:banned")
+                response_str = f"Your account disobeied our terms of service and was permenantly banned--your ray tracer ID is {self.traceray_id}"
+                print(f"出现如下异常4-{self.traceray_id}:banned")
                 await websocket.send(wrap_ws_formatter('403', 'account_banned', response_str, 'warn'))
                 await websocket.close(1000, 'Permission denied')
-            recv_text = await websocket.recv()
-            while recv_text == 'PING':
-                await websocket.send(wrap_ws_formatter('100', 'continue', "PONG", 'heartbeat'))
-                print(f"recieved PING from {session[3]}")
+            await websocket.send(wrap_ws_formatter('206', 'thread_ready', "Thread is ready for input or setting adjustment", 'info'))
+            while True:
                 recv_text = await websocket.recv()
-            try:
-                model_choice = json.loads(recv_text)
+                if len(recv_text) > 4096:
+                    response_str = f"Input exceeding 4096 characters, which is not permitted--your ray tracer ID is {self.traceray_id}"
+                    print(f"出现如下异常12-{self.traceray_id}:length exceeded")
+                    await websocket.send(wrap_ws_formatter('403', 'length_exceeded', response_str, 'warn'))
+                    continue
+                try:
+                    try:
+                        recv_loaded_json = json.loads(recv_text)
+                    except:
+                        recv_loaded_json = {}
+                    match recv_text:
+                        case 'PING':
+                            await websocket.send(wrap_ws_formatter('100', 'continue', "PONG", 'heartbeat'))
+                            print(f"recieved PING from {session[3]}")
+                        case placeholder if "model" in recv_loaded_json:
+                            await self.def_model(recv_loaded_json)
+                        case placeholder if "chat_session" in recv_loaded_json:
+                            await self.do_communicate(recv_loaded_json)
+                        case _:
+                            response_str = f"Input is unrecognizable, check possible typo--your ray tracer ID is {self.traceray_id}"
+                            print(f"出现如下异常6.1-{self.traceray_id}:{excepted}")
+                            await websocket.send(wrap_ws_formatter('405', 'wrong_form', response_str, 'warn')) 
+                            continue                       
+                except Exception as excepted:
+                    response_str = f"Input is unrecognizable, check possible typo--your ray tracer ID is {self.traceray_id}"
+                    print(f"出现如下异常6-{self.traceray_id}:{excepted}")
+                    #traceback.print_exc()
+                    await websocket.send(wrap_ws_formatter('405', 'wrong_form', response_str, 'warn'))
+                    continue
+
+    #交互设置
+
+    async def def_model(self, recv_json):
+        websocket, session = self.websocket, self.verification_result
+        try:
+            model_choice = recv_json
+            if model_choice['model']:
                 using_model = model_choice['model']
-                if 'sf_extraction' in model_choice:
-                    sf_extraction = model_choice['sf_extraction']
-                else:
-                    sf_extraction = True
-                if 'stream_output' in model_choice:
-                    stream_output = model_choice['stream_output']
-                else:
-                    stream_output = True
-                if 'target_lang' in model_choice:
-                    target_lang = model_choice['target_lang']
-                else:
-                    target_lang = 'zh'
-                self.client_actual = client_actual = AsyncOpenAI(
-                    api_key='EMPTY',
-                    base_url=load_env('MCORE_ADDR'),
-                )
-                model_list_actual = await client_actual.models.list()
-                self.model_type_actual = model_type_actual = model_list_actual.data[0].id
-                match using_model:
-                    case 'maica_main':
-                        self.client_options = client_options = {
-                            "model" : model_type_actual,
-                            "stream" : stream_output,
-                            "full_maica": True,
-                            "sf_extraction": sf_extraction,
-                            "target_lang": target_lang
-                        }
-                    case 'maica_core':
-                        self.client_options = client_options = {
-                            "model" : model_type_actual,
-                            "stream" : stream_output,
-                            "full_maica": False,
-                            "sf_extraction": sf_extraction,
-                            "target_lang": target_lang
-                        }
-                    case _:
-                        response_str = f"Bad model choice, check possible typo--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                        print(f"出现如下异常8-{sub_maica_instance.traceray_id}:{response_str}")
-                        await websocket.send(wrap_ws_formatter('404', 'not_found', response_str, 'warn'))
-                        continue
-                await websocket.send(wrap_ws_formatter('200', 'ok', f"service provider is {load_env('DEV_IDENTITY')}", 'info'))
-                if using_model == 'maica_main':
-                    await websocket.send(wrap_ws_formatter('200', 'ok', f"model chosen is {using_model} with full MAICA LLM functionality", 'info'))
-                elif using_model == 'maica_core':
-                    await websocket.send(wrap_ws_formatter('200', 'ok', f"model chosen is {using_model} based on {model_type_actual}", 'info'))
-                return client_actual, client_options
-            except Exception as excepted:
-                response_str = f"Choice serialization failed, check possible typo--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                print(f"出现如下异常9-{sub_maica_instance.traceray_id}:{excepted}")
-                await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
-                continue
+            else:
+                using_model = 'maica_main' if self.kwargs['full_maica'] else 'maica_core'
+            if 'sf_extraction' in model_choice:
+                sf_extraction = bool(model_choice['sf_extraction'])
+            else:
+                sf_extraction = True
+            if 'stream_output' in model_choice:
+                stream_output = bool(model_choice['stream_output'])
+            else:
+                stream_output = True
+            if 'target_lang' in model_choice:
+                target_lang = 'en' if model_choice['target_lang'] == 'en' else 'zh'
+            else:
+                target_lang = 'zh'
+            self.client_actual = client_actual = AsyncOpenAI(
+                api_key='EMPTY',
+                base_url=load_env('MCORE_ADDR'),
+            )
+            model_list_actual = await client_actual.models.list()
+            self.model_type_actual = model_type_actual = model_list_actual.data[0].id
+            match using_model:
+                case 'maica_main':
+                    self.client_options = client_options = {
+                        "model" : model_type_actual,
+                        "stream" : stream_output,
+                        "full_maica": True,
+                        "sf_extraction": sf_extraction,
+                        "target_lang": target_lang
+                    }
+                case 'maica_core':
+                    self.client_options = client_options = {
+                        "model" : model_type_actual,
+                        "stream" : stream_output,
+                        "full_maica": False,
+                        "sf_extraction": sf_extraction,
+                        "target_lang": target_lang
+                    }
+                case _:
+                    response_str = f"Bad model choice, check possible typo--your ray tracer ID is {self.traceray_id}"
+                    print(f"出现如下异常8-{self.traceray_id}:{response_str}")
+                    await websocket.send(wrap_ws_formatter('404', 'not_found', response_str, 'warn'))
+                    return False
+            if 'sfe_aggressive' in model_choice:
+                if model_choice['sfe_aggressive']:
+                    sfe_aggressive = True
+            if 'mf_aggressive' in model_choice:
+                if model_choice['mf_aggressive']:
+                    mf_aggressive = True
+            if 'tnd_aggressive' in model_choice:
+                if not model_choice['tnd_aggressive']:
+                    tnd_aggressive = False
+                elif int(model_choice['tnd_aggressive']):
+                    tnd_aggressive = int(model_choice['tnd_aggressive'])
+            if 'esc_aggressive' in model_choice:
+                if not model_choice['esc_aggressive']:
+                    esc_aggressive = False
+            for super_param in ['top_p', 'temperature', 'max_tokens', 'frequency_penalty', 'presence_penalty', 'seed']:
+                if super_param in model_choice:
+                    self.kwargs[super_param] = model_choice[super_param]
+            self.alter_identity(sfe_aggressive=sfe_aggressive, mf_aggressive=mf_aggressive, tnd_aggressive=tnd_aggressive, esc_aggressive=esc_aggressive)
+            self.alter_identity(**client_options)
+            await websocket.send(wrap_ws_formatter('200', 'ok', f"service provider is {load_env('DEV_IDENTITY')}", 'info'))
+            if using_model == 'maica_main':
+                await websocket.send(wrap_ws_formatter('200', 'ok', f"model chosen is {using_model} with full MAICA functionality", 'info'))
+            elif using_model == 'maica_core':
+                await websocket.send(wrap_ws_formatter('200', 'ok', f"model chosen is {using_model} based on {model_type_actual}", 'info'))
+            return client_actual, client_options
+        except Exception as excepted:
+            response_str = f"Choice serialization failed, check possible typo--your ray tracer ID is {self.traceray_id}"
+            print(f"出现如下异常9-{self.traceray_id}:{excepted}")
+            await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
+            return False
 
-        
-#面向api的第三层io: 有效数据交换
+    #交互会话
 
-    async def do_communicate(self):
-        websocket, session, client_actual, client_options, sub_maica_instance = self.websocket, self.verification_result, self.client_actual, self.client_options, self.sub_maica_instance
-        await websocket.send(wrap_ws_formatter('200', 'ok', 'input json like {"chat_session": "1", "query": "你好啊"}', 'info'))
-        while True:
-            bypass_mf = False
-            sfe_aggressive = False
-            mf_aggressive = False
-            tnd_aggressive = 1
-            esc_aggressive = True
-            checked_status = await sub_maica_instance.check_user_status(key='banned')
-            if not checked_status[0]:
-                response_str = f"Account service failed to fetch, refer to administrator--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                print(f"出现如下异常3-{sub_maica_instance.traceray_id}:{checked_status[1]}")
-                await websocket.send(wrap_ws_formatter('500', 'unable_verify', response_str, 'error'))
-                await websocket.close(1000, 'Stopping connection due to critical server failure')
-            elif checked_status[2]:
-                response_str = f"Your account disobeied our terms of service and was permenantly banned--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                print(f"出现如下异常4-{sub_maica_instance.traceray_id}:banned")
-                await websocket.send(wrap_ws_formatter('403', 'account_banned', response_str, 'warn'))
-                await websocket.close(1000, 'Permission denied')
-            recv_text = await websocket.recv()
-            while recv_text == 'PING':
-                await websocket.send(wrap_ws_formatter('100', 'continue', "PONG", 'heartbeat'))
-                print(f"recieved PING from {session[3]}")
-                recv_text = await websocket.recv()
-            if len(recv_text) > 4096:
-                response_str = f"Input exceeding 4096 characters, which is not permitted--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                print(f"出现如下异常12-{sub_maica_instance.traceray_id}:length exceeded")
-                await websocket.send(wrap_ws_formatter('403', 'length_exceeded', response_str, 'warn'))
-                continue
-            try:
-                request_json = json.loads(recv_text)
-                chat_session = request_json['chat_session']
-                username = session[3]
-                sf_extraction = client_options['sf_extraction']
-                target_lang = client_options['target_lang']
-                if target_lang != 'zh' and target_lang != 'en':
-                    raise Exception('Language choice unrecognized')
-                if 'purge' in request_json:
-                    if request_json['purge']:
-                        try:
-                            user_id = session[2]
-                            purge_result = purge_chat_session(user_id, chat_session, target_lang)
-                            if not purge_result[0]:
-                                raise Exception(purge_result[1])
-                            elif purge_result[2]:
-                                response_str = f"Determined chat session not exist, check possible typo--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                                print(f"出现如下异常13-{sub_maica_instance.traceray_id}:{excepted}")
-                                await websocket.send(wrap_ws_formatter('404', 'session_notfound', response_str, 'warn'))
-                                continue
-                            else:
-                                response_str = f"finished swiping user id {user_id} chat session {chat_session}"
-                                await websocket.send(wrap_ws_formatter('204', 'deleted', response_str, 'info'))
-                                continue
-                        except Exception as excepted:
-                            response_str = f"Purging chat session failed, refer to administrator--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                            print(f"出现如下异常14-{sub_maica_instance.traceray_id}:{excepted}")
-                            await websocket.send(wrap_ws_formatter('404', 'savefile_notfound', response_str, 'warn'))
-                            #traceback.print_exc()
-                            continue
-                if 'inspire' in request_json:
-                    if request_json['inspire']:
-                        if isinstance(request_json['inspire'], str):
-                            query_insp = mspire.make_inspire(request_json['inspire'], target_lang)
+    async def do_communicate(self, recv_json):
+        websocket, session, client_actual, client_options = self.websocket, self.verification_result, self.client_actual, self.client_options
+        sfe_aggressive=self.kwargs['sfe_aggressive'], mf_aggressive=self.kwargs['mf_aggressive'], tnd_aggressive=self.kwargs['tnd_aggressive'], esc_aggressive=self.kwargs['esc_aggressive']
+        bypass_mf = False
+        try:
+            request_json = recv_json
+            chat_session = int(request_json['chat_session'])
+            username = session[3]
+            sf_extraction = client_options['sf_extraction']
+            target_lang = client_options['target_lang']
+            if target_lang != 'zh' and target_lang != 'en':
+                raise Exception('Language choice unrecognized')
+            if 'purge' in request_json:
+                if request_json['purge']:
+                    try:
+                        user_id = session[2]
+                        purge_result = await self.purge_chat_session(user_id, chat_session, target_lang)
+                        if not purge_result[0]:
+                            raise Exception(purge_result[1])
+                        elif purge_result[2]:
+                            response_str = f"Determined chat session not exist, check possible typo--your ray tracer ID is {self.traceray_id}"
+                            print(f"出现如下异常13-{self.traceray_id}:{excepted}")
+                            await websocket.send(wrap_ws_formatter('404', 'session_notfound', response_str, 'warn'))
+                            return False
                         else:
-                            query_insp = mspire.make_inspire(target_lang=target_lang)
-                        bypass_mf = True
-                        if not query_insp[0]:
-                            response_str = f"MSpire generation failed, refer to administrator--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                            print(f"出现如下异常15-{sub_maica_instance.traceray_id}:{query_insp[1]}")
-                            await websocket.send(wrap_ws_formatter('503', 'mspire_failed', response_str, 'error'))
-                            continue
-                        query_in = query_insp[2]
+                            response_str = f"finished swiping user id {user_id} chat session {chat_session}"
+                            await websocket.send(wrap_ws_formatter('204', 'deleted', response_str, 'info'))
+                            return True
+                    except Exception as excepted:
+                        response_str = f"Purging chat session failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
+                        print(f"出现如下异常14-{self.traceray_id}:{excepted}")
+                        await websocket.send(wrap_ws_formatter('500', 'unable_purge', response_str, 'error'))
+                        await websocket.close(1000, 'Stopping connection due to critical server failure')
+            if 'inspire' in request_json:
+                if request_json['inspire']:
+                    if isinstance(request_json['inspire'], str):
+                        query_insp = await wrap_run_in_exc(mspire.make_inspire, title_in=request_json['inspire'], target_lang=target_lang)
                     else:
-                        query_in = request_json['query']
+                        query_insp = await wrap_run_in_exc(mspire.make_inspire, target_lang=target_lang)
+                    bypass_mf = True
+                    if not query_insp[0]:
+                        response_str = f"MSpire generation failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
+                        print(f"出现如下异常15-{self.traceray_id}:{query_insp[1]}")
+                        await websocket.send(wrap_ws_formatter('503', 'mspire_failed', response_str, 'warn'))
+                        return False
+                    query_in = query_insp[2]
                 else:
                     query_in = request_json['query']
-                if 'sfe_aggressive' in request_json:
-                    if request_json['sfe_aggressive']:
-                        sfe_aggressive = True
-                if 'mf_aggressive' in request_json:
-                    if request_json['mf_aggressive']:
-                        mf_aggressive = True
-                if 'tnd_aggressive' in request_json:
-                    if not request_json['tnd_aggressive']:
-                        tnd_aggressive = False
-                    elif int(request_json['tnd_aggressive']):
-                        tnd_aggressive = int(request_json['tnd_aggressive'])
-                if 'esc_aggressive' in request_json:
-                    if not request_json['esc_aggressive']:
-                        esc_aggressive = False
-                global easter_exist
-                if easter_exist:
-                    easter_check = easter(query_in)
-                    if easter_check:
-                        await websocket.send(wrap_ws_formatter('299', 'easter_egg', easter_check, 'info'))
-                messages0 = json.dumps({'role': 'user', 'content': query_in}, ensure_ascii=False)
-                match int(chat_session):
-                    case i if i == -1:
-                        try:
-                            messages = query_in
-                            if len(messages) > 10:
-                                response_str = f"Input exceeding 10 rounds, which is not permitted--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                                print(f"出现如下异常16-{sub_maica_instance.traceray_id}:rounds exceeded")
-                                await websocket.send(wrap_ws_formatter('403', 'rounds_exceeded', response_str, 'warn'))
-                                continue
-                        except Exception as excepted:
-                            response_str = f"Input serialization failed, check possible type--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                            print(f"出现如下异常17-{sub_maica_instance.traceray_id}:{excepted}")
-                            await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
-                            #traceback.print_exc()
-                            continue
-                    case i if i == 0:
-                        messages = [{'role': 'system', 'content': global_init_system('[player]', target_lang)}, {'role': 'user', 'content': query_in}]
-                    case i if 0 < i < 10 and i % 1 == 0:
+            else:
+                query_in = request_json['query']
+            global easter_exist
+            if easter_exist:
+                easter_check = easter(query_in)
+                if easter_check:
+                    await websocket.send(wrap_ws_formatter('299', 'easter_egg', easter_check, 'info'))
+            messages0 = json.dumps({'role': 'user', 'content': query_in}, ensure_ascii=False)
+            match int(chat_session):
+                case i if i == -1:
+                    session_type = -1
+                    try:
+                        messages = json.loads(query_in)
+                        if len(messages) > 10:
+                            response_str = f"Input exceeding 10 rounds, which is not permitted--your ray tracer ID is {self.traceray_id}"
+                            print(f"出现如下异常16-{self.traceray_id}:rounds exceeded")
+                            await websocket.send(wrap_ws_formatter('403', 'rounds_exceeded', response_str, 'warn'))
+                            return False
+                    except Exception as excepted:
+                        response_str = f"Input serialization failed, check possible type--your ray tracer ID is {self.traceray_id}"
+                        print(f"出现如下异常17-{self.traceray_id}:{excepted}")
+                        await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
+                        return False
+                case i if i == 0 or (0 < i < 10 and i % 1 == 0):
+                    session_type = 0 if i == 0 else 1
 
-                        #MAICA_agent 在这里调用
+                    #MAICA_agent 在这里调用
 
-                        try:
-                            if client_options['full_maica'] and not bypass_mf:
-                                mfocus_async_args = [query_in, sf_extraction, session, chat_session, target_lang, tnd_aggressive, mf_aggressive, esc_aggressive, websocket]
-                                #loop = asyncio.get_event_loop()
-                                #mfocus_agent_task = asyncio.ensure_future(mfocus_main.agenting(*mfocus_async_args))
-                                #loop.run_until_complete(mfocus_agent_task)
-                                #message_agent_wrapped = mfocus_agent_task.result()
-                                message_agent_wrapped = await mfocus_main.agenting(*mfocus_async_args)
-                                if message_agent_wrapped[0] == 'EMPTY':
-                                    # We do not want answers without information
-                                    response_str = f"MFocus using instructed final guidance, suggesting LLM conclusion is empty--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                                    await websocket.send(wrap_ws_formatter('200', 'agent_prog', response_str, 'debug'))
-                                    if len(message_agent_wrapped[1]) > 5:
-                                        response_str = f"Due to LLM conclusion absence, falling back to instructed guidance and continuing."
-                                        await websocket.send(wrap_ws_formatter('200', 'failsafe', response_str, 'debug'))
-                                        info_agent_grabbed = message_agent_wrapped[1]
-                                    else:
-                                        response_str = f"Due to agent failure, falling back to default guidance and continuing anyway."
-                                        await websocket.send(wrap_ws_formatter('200', 'force_failsafe', response_str, 'debug'))
-                                        print(f"出现如下异常18-{sub_maica_instance.traceray_id}:Corruption")
-                                        info_agent_grabbed = None
-                                elif message_agent_wrapped[0] == 'FAIL':
-                                    response_str = f"MFocus did not use a tool, suggesting unnecessary--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                                    await websocket.send(wrap_ws_formatter('200', 'agent_none', response_str, 'debug'))
-                                    info_agent_grabbed = None
+                    try:
+                        if client_options['full_maica'] and not bypass_mf:
+                            mfocus_async_args = [query_in, sf_extraction, session, chat_session, target_lang, tnd_aggressive, mf_aggressive, esc_aggressive, websocket]
+                            message_agent_wrapped = await mfocus_main.agenting(*mfocus_async_args)
+                            if message_agent_wrapped[0] == 'EMPTY':
+                                # We do not want answers without information
+                                response_str = f"MFocus using instructed final guidance, suggesting LLM conclusion is empty--your ray tracer ID is {self.traceray_id}"
+                                await websocket.send(wrap_ws_formatter('200', 'agent_prog', response_str, 'debug'))
+                                if len(message_agent_wrapped[1]) > 5:
+                                    response_str = f"Due to LLM conclusion absence, falling back to instructed guidance and continuing."
+                                    await websocket.send(wrap_ws_formatter('200', 'failsafe', response_str, 'debug'))
+                                    info_agent_grabbed = message_agent_wrapped[1]
                                 else:
-                                    # We are defaulting instructed guidance because its more clear pattern
-                                    # But if pointer entered this section, user must used mf_aggressive or something went wrong
-                                    if len(message_agent_wrapped[1]) > 5 and len(message_agent_wrapped[0]) > 5:
-                                        response_str = f"MFocus using LLM conclusion guidance."
-                                        await websocket.send(wrap_ws_formatter('200', 'agent_aggr', response_str, 'debug'))
-                                        info_agent_grabbed = message_agent_wrapped[0]
-                                    else:
-                                        response_str = f"Due to agent failure, falling back to default guidance and continuing anyway."
-                                        await websocket.send(wrap_ws_formatter('200', 'force_failsafe', response_str, 'debug'))
-                                        print(f"出现如下异常18.5-{sub_maica_instance.traceray_id}:Corruption")
-                                        info_agent_grabbed = None
+                                    response_str = f"Due to agent failure, falling back to default guidance and continuing anyway."
+                                    await websocket.send(wrap_ws_formatter('200', 'force_failsafe', response_str, 'debug'))
+                                    print(f"出现如下异常18-{self.traceray_id}:Corruption")
+                                    info_agent_grabbed = None
+                            elif message_agent_wrapped[0] == 'FAIL':
+                                response_str = f"MFocus did not use a tool, suggesting unnecessary--your ray tracer ID is {self.traceray_id}"
+                                await websocket.send(wrap_ws_formatter('200', 'agent_none', response_str, 'debug'))
+                                info_agent_grabbed = None
+                            else:
+                                # We are defaulting instructed guidance because its more clear pattern
+                                # But if pointer entered this section, user must used mf_aggressive or something went wrong
+                                if len(message_agent_wrapped[1]) > 5 and len(message_agent_wrapped[0]) > 5:
+                                    response_str = f"MFocus using LLM conclusion guidance."
+                                    await websocket.send(wrap_ws_formatter('200', 'agent_aggr', response_str, 'debug'))
+                                    info_agent_grabbed = message_agent_wrapped[0]
+                                else:
+                                    response_str = f"Due to agent failure, falling back to default guidance and continuing anyway."
+                                    await websocket.send(wrap_ws_formatter('200', 'force_failsafe', response_str, 'debug'))
+                                    print(f"出现如下异常18.5-{self.traceray_id}:Corruption")
+                                    info_agent_grabbed = None
+                            # Everything should be grabbed by now
+                            if session_type:
                                 try:
-                                    agent_insertion = wrap_mod_system(session, chat_session, info_agent_grabbed, sf_extraction, target_lang, sfe_aggressive)
+                                    agent_insertion = await self.wrap_mod_system(chat_session_num=chat_session, known_info=info_agent_grabbed)
                                     if not agent_insertion[0]:
                                         raise Exception(agent_insertion[1])
                                 except Exception as excepted:
-                                    response_str = f"MFocus insertion failed, refer to administrator--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                                    print(f"出现如下异常19-{sub_maica_instance.traceray_id}:{excepted}")
+                                    response_str = f"MFocus insertion failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
+                                    print(f"出现如下异常19-{self.traceray_id}:{excepted}")
                                     await websocket.send(wrap_ws_formatter('500', 'insertion_failed', response_str, 'error'))
                                     await websocket.close(1000, 'Stopping connection due to critical server failure')
-                                    continue
                             else:
-                                bypass_mf = False
+                                messages = [{'role': 'system', 'content': (await self.mod_once_system(chat_session_num=chat_session, known_info=info_agent_grabbed))[2]}, {'role': 'user', 'content': query_in}]
+                        else:
+                            bypass_mf = False
+                            if session_type:
                                 try:
-                                    agent_insertion = wrap_mod_system(session, chat_session, None, sf_extraction, target_lang, sfe_aggressive)
+                                    agent_insertion = await self.wrap_mod_system(chat_session_num=chat_session, known_info=None)
                                     if not agent_insertion[0]:
                                         raise Exception(agent_insertion[1])
                                 except Exception as excepted:
-                                    response_str = f"Save file extraction failed, you may have not uploaded your savefile yet--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                                    print(f"出现如下异常20-{sub_maica_instance.traceray_id}:{excepted}")
-                                    await websocket.send(wrap_ws_formatter('404', 'savefile_notfound', response_str, 'warn'))
-                                    continue
-                        except Exception as excepted:
-                            response_str = f"Agent response acquiring failed, refer to administrator--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                            print(f"出现如下异常21-{sub_maica_instance.traceray_id}:{excepted}")
-                            #traceback.print_exc()
-                            await websocket.send(wrap_ws_formatter('503', 'agent_unavailable', response_str, 'error'))
-                            continue
-                        check_result = check_create_chat_session(session, chat_session, target_lang)
+                                    response_str = f"Prompt initialization failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
+                                    print(f"出现如下异常20-{self.traceray_id}:{excepted}")
+                                    await websocket.send(wrap_ws_formatter('500', 'insertion_failed', response_str, 'error'))
+                                    await websocket.close(1000, 'Stopping connection due to critical server failure')
+                            else:
+                                messages = [{'role': 'system', 'content': global_init_system('[player]', target_lang)}, {'role': 'user', 'content': query_in}]
+                    except Exception as excepted:
+                        response_str = f"Agent response acquiring failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
+                        print(f"出现如下异常21-{self.traceray_id}:{excepted}")
+                        #traceback.print_exc()
+                        await websocket.send(wrap_ws_formatter('500', 'agent_unavailable', response_str, 'error'))
+                        return False
+                    if session_type:
+                        check_result = await self.check_create_chat_session(chat_session)
                         if check_result[0]:
-                            rw_result = rw_chat_session(session, chat_session, 'r', messages0)
+                            rw_result = await self.rw_chat_session(chat_session, 'r', messages0)
                             if rw_result[0]:
                                 messages = f'[{rw_result[3]}]'
                             else:
-                                response_str = f"Chat session reading failed, refer to administrator--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                                print(f"出现如下异常22-{sub_maica_instance.traceray_id}:{rw_result[1]}")
+                                response_str = f"Chat session reading failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
+                                print(f"出现如下异常22-{self.traceray_id}:{rw_result[1]}")
                                 await websocket.send(wrap_ws_formatter('500', 'read_failed', response_str, 'error'))
                                 await websocket.close(1000, 'Stopping connection due to critical server failure')
                         else:
-                            response_str = f"Chat session creation failed, refer to administrator--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                            print(f"出现如下异常23-{sub_maica_instance.traceray_id}:{check_result[1]}")
+                            response_str = f"Chat session creation failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
+                            print(f"出现如下异常23-{self.traceray_id}:{check_result[1]}")
                             await websocket.send(wrap_ws_formatter('500', 'creation_failed', response_str, 'error'))
                             await websocket.close(1000, 'Stopping connection due to critical server failure')
                         try:
                             messages = json.loads(messages)
                         except Exception as excepted:
-                            response_str = f"Chat input serialization failed, check possible typo--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                            print(f"出现如下异常24-{sub_maica_instance.traceray_id}:{excepted}")
+                            response_str = f"Chat input serialization failed, check possible typo--your ray tracer ID is {self.traceray_id}"
+                            print(f"出现如下异常24-{self.traceray_id}:{excepted}")
                             await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
-                            continue
-                    case _:
-                        response_str = f"Chat session num mistaken, check possible typo--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                        print(f"出现如下异常25-{sub_maica_instance.traceray_id}:{chat_session}")
-                        await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
-                        continue
-            except Exception as excepted:
-                #traceback.print_exc()
-                response_str = f"Query serialization failed, check possible typo--your ray tracer ID is {sub_maica_instance.traceray_id}"
-                print(f"出现如下异常26-{sub_maica_instance.traceray_id}:{excepted}")
-                await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
-                continue
-            default_top_p = 0.7
-            default_temperature = 0.4
-            default_max_tokens = 1024
-            default_frequency_penalty = 0.3
-            default_presence_penalty = 0.1
-            default_seed = random.randint(0,999)
-            #default_seed = 42
-            completion_args = {
-                "model": client_options['model'],
-                "messages": messages,
-                "stream": client_options['stream'],
-                "stop": ['<|im_end|>', '<|endoftext|>'],
-            }
-            for super_param in ['top_p', 'temperature', 'max_tokens', 'frequency_penalty', 'presence_penalty', 'seed']:
-                if super_param in request_json:
-                    super_value = request_json[super_param]
-                    match super_param:
-                        case 'max_tokens':
-                            if 0 < int(super_value) <= 1024:
-                                completion_args['max_tokens'] = int(super_value)
-                            else:
-                                raise Exception('max_tokens must fall on 1~1024')
-                        case 'seed':
-                            if 0 <= int(super_value) <= 999:
-                                completion_args['seed'] = int(super_value)
-                            else:
-                                raise Exception('seed must fall on 0~999')      
-                        case 'top_p':
-                            if 0.1 <= float(super_value) <= 1.0:
-                                completion_args['top_p'] = float(super_value)
-                            else:
-                                raise Exception('top_p must fall on 0.1~1.0')
-                        case 'frequency_penalty':
-                            if 0.2 <= float(super_value) <= 1.0:
-                                completion_args['frequency_penalty'] = float(super_value)
-                            else:
-                                raise Exception('frequency_penalty must fall on 0.2~1.0')
-                        case _:
-                            if 0.0 <= float(super_value) <= 1.0:
-                                completion_args[super_param] = float(super_value)
-                            else:
-                                raise Exception(f'{super_param} must fall on 0.0~1.0')
-                if not super_param in completion_args:
-                    completion_args[super_param] = eval(f'default_{super_param}')
-            print(f"Query ready to go, last query line is:\n{query_in}\nSending query.")
-            stream_resp = await client_actual.chat.completions.create(**completion_args)
-            if client_options['stream']:
-            #print(f'query: {query}')
-                reply_appended = ''
-                async for chunk in stream_resp:
-                    token = chunk.choices[0].delta.content
-                    await asyncio.sleep(0)
-                    print(token, end='', flush=True)
-                    if token != '':
-                        if not '<|' in token:
-                            reply_appended = reply_appended + token
-                            await websocket.send(wrap_ws_formatter('100', 'continue', token, 'carriage'))
+                            return False
+                case _:
+                    response_str = f"Chat session num mistaken, check possible typo--your ray tracer ID is {self.traceray_id}"
+                    print(f"出现如下异常25-{self.traceray_id}:{chat_session}")
+                    await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
+                    return False
+        except Exception as excepted:
+            #traceback.print_exc()
+            response_str = f"Query serialization failed, check possible typo--your ray tracer ID is {self.traceray_id}"
+            print(f"出现如下异常26-{self.traceray_id}:{excepted}")
+            await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
+            return False
+        default_top_p = 0.7
+        default_temperature = 0.4
+        default_max_tokens = 1024
+        default_frequency_penalty = 0.3
+        default_presence_penalty = 0.1
+        default_seed = random.randint(0,999)
+        #default_seed = 42
+        completion_args = {
+            "model": client_options['model'],
+            "messages": messages,
+            "stream": client_options['stream'],
+            "stop": ['<|im_end|>', '<|endoftext|>'],
+        }
+        for super_param in ['top_p', 'temperature', 'max_tokens', 'frequency_penalty', 'presence_penalty', 'seed']:
+            if super_param in self.kwargs:
+                super_value = self.kwargs[super_param]
+                match super_param:
+                    case 'max_tokens':
+                        if 0 < int(super_value) <= 1024:
+                            completion_args['max_tokens'] = int(super_value)
                         else:
-                            break
-                await websocket.send(wrap_ws_formatter('1000', 'streaming_done', f"streaming has finished with seed {completion_args['seed']}", 'info'))
-                reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
-                print(f"Finished replying-{sub_maica_instance.traceray_id}:{session[3]}, with seed {completion_args['seed']}")
-            else:
-                token_combined = stream_resp.choices[0].message.content
-                print(token_combined)
-                await websocket.send(wrap_ws_formatter('200', 'reply', token_combined, 'carriage'))
-                reply_appended_insertion = json.dumps({'role': 'assistant', 'content': token_combined}, ensure_ascii=False)
-            if int(chat_session) > 0:
-                stored = rw_chat_session(session, chat_session, 'w', messages0)
-                #print(stored)
-                if stored[0]:
-                    stored = rw_chat_session(session, chat_session, 'w', reply_appended_insertion)
-                    if stored[0]:
-                        success = True
-                        if stored[4]:
-                            match stored[4]:
-                                case 1:
-                                    await websocket.send(wrap_ws_formatter('204', 'deleted', f"Since session {chat_session} of user {username} exceeded {load_env('SESSION_MAX_TOKEN')} characters, The former part has been deleted to save storage--your ray tracer ID is {sub_maica_instance.traceray_id}.", 'info'))
-                                case 2:
-                                    await websocket.send(wrap_ws_formatter('200', 'delete_hint', f"Session {chat_session} of user {username} exceeded {load_env('SESSION_WARN_TOKEN')} characters, which will be chopped after exceeding {load_env('SESSION_MAX_TOKEN')}, make backups if you want to--your ray tracer ID is {sub_maica_instance.traceray_id}.", 'info'))
+                            raise Exception('max_tokens must fall on 1~1024')
+                    case 'seed':
+                        if 0 <= int(super_value) <= 999:
+                            completion_args['seed'] = int(super_value)
+                        else:
+                            raise Exception('seed must fall on 0~999')      
+                    case 'top_p':
+                        if 0.1 <= float(super_value) <= 1.0:
+                            completion_args['top_p'] = float(super_value)
+                        else:
+                            raise Exception('top_p must fall on 0.1~1.0')
+                    case 'frequency_penalty':
+                        if 0.2 <= float(super_value) <= 1.0:
+                            completion_args['frequency_penalty'] = float(super_value)
+                        else:
+                            raise Exception('frequency_penalty must fall on 0.2~1.0')
+                    case _:
+                        if 0.0 <= float(super_value) <= 1.0:
+                            completion_args[super_param] = float(super_value)
+                        else:
+                            raise Exception(f'{super_param} must fall on 0.0~1.0')
+            if not super_param in completion_args:
+                completion_args[super_param] = eval(f'default_{super_param}')
+        print(f"Query ready to go, last query line is:\n{query_in}\nSending query.")
+        stream_resp = await client_actual.chat.completions.create(**completion_args)
+        if client_options['stream']:
+        #print(f'query: {query}')
+            reply_appended = ''
+            async for chunk in stream_resp:
+                token = chunk.choices[0].delta.content
+                await asyncio.sleep(0)
+                print(token, end='', flush=True)
+                if token != '':
+                    if not '<|' in token:
+                        reply_appended = reply_appended + token
+                        await websocket.send(wrap_ws_formatter('100', 'continue', token, 'carriage'))
                     else:
-                        response_str = f"Chat reply recording failed, refer to administrator--your ray tracer ID is {sub_maica_instance.traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
-                        print(f"出现如下异常27-{sub_maica_instance.traceray_id}:{stored[1]}")
-                        await websocket.send(wrap_ws_formatter('500', 'store_failed', response_str, 'error'))
-                        await websocket.close(1000, 'Stopping connection due to critical server failure')
+                        break
+            await websocket.send(wrap_ws_formatter('1000', 'streaming_done', f"streaming has finished with seed {completion_args['seed']}", 'info'))
+            reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
+            print(f"Finished replying-{self.traceray_id}:{session[3]}, with seed {completion_args['seed']}")
+        else:
+            token_combined = stream_resp.choices[0].message.content
+            print(token_combined)
+            await websocket.send(wrap_ws_formatter('200', 'reply', token_combined, 'carriage'))
+            reply_appended_insertion = json.dumps({'role': 'assistant', 'content': token_combined}, ensure_ascii=False)
+        if int(chat_session) > 0:
+            stored = await self.rw_chat_session(chat_session, 'w', messages0)
+            #print(stored)
+            if stored[0]:
+                stored = await self.rw_chat_session(chat_session, 'w', reply_appended_insertion)
+                if stored[0]:
+                    success = True
+                    if stored[4]:
+                        match stored[4]:
+                            case 1:
+                                await websocket.send(wrap_ws_formatter('204', 'deleted', f"Since session {chat_session} of user {username} exceeded {load_env('SESSION_MAX_TOKEN')} characters, The former part has been deleted to save storage--your ray tracer ID is {self.traceray_id}.", 'info'))
+                            case 2:
+                                await websocket.send(wrap_ws_formatter('200', 'delete_hint', f"Session {chat_session} of user {username} exceeded {load_env('SESSION_WARN_TOKEN')} characters, which will be chopped after exceeding {load_env('SESSION_MAX_TOKEN')}, make backups if you want to--your ray tracer ID is {self.traceray_id}.", 'info'))
                 else:
-                    response_str = f"Chat query recording failed, refer to administrator--your ray tracer ID is {sub_maica_instance.traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
-                    print(f"出现如下异常28-{sub_maica_instance.traceray_id}:{stored[1]}")
+                    response_str = f"Chat reply recording failed, refer to administrator--your ray tracer ID is {self.traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
+                    print(f"出现如下异常27-{self.traceray_id}:{stored[1]}")
                     await websocket.send(wrap_ws_formatter('500', 'store_failed', response_str, 'error'))
                     await websocket.close(1000, 'Stopping connection due to critical server failure')
-                print(f"Finished entire loop-{sub_maica_instance.traceray_id}:{session[3]}")
             else:
-                success = True
-                print(f"Finished non-recording loop-{sub_maica_instance.traceray_id}:{session[3]}")
+                response_str = f"Chat query recording failed, refer to administrator--your ray tracer ID is {self.traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
+                print(f"出现如下异常28-{self.traceray_id}:{stored[1]}")
+                await websocket.send(wrap_ws_formatter('500', 'store_failed', response_str, 'error'))
+                await websocket.close(1000, 'Stopping connection due to critical server failure')
+            print(f"Finished entire loop-{self.traceray_id}:{session[3]}")
+        else:
+            success = True
+            print(f"Finished non-recording loop-{self.traceray_id}:{session[3]}")
 
 
 
 
 #异步标记程序, 不是必要的
 
-def callback_do_communicate(future):
-    print(f'Result_callback_do_communicate: {future.result()}')
-
-def callback_def_model(future):
-    print(f'Stage2 passed:\n{future.result()}')
+def callback_func_switch(future):
+    print(f'!Stage2 passed abnormally:\n{future.result()}')
 
 def callback_check_permit(future):
     print(f'Stage1 passed:\n{future.result()}')
@@ -1348,23 +968,17 @@ def callback_check_permit(future):
 async def main_logic(websocket, path):
     try:
         loop = asyncio.get_event_loop()
+        thread_instance = ws_threading_instance(websocket)
 
-        task_check_permit = loop.create_task(check_permit(websocket))
+        task_check_permit = loop.create_task(thread_instance.check_permit())
         task_check_permit.add_done_callback(functools.partial(callback_check_permit))
         
         permit = await asyncio.gather(task_check_permit)
-        if permit[0][0] != True:
+        if not isinstance(permit[0], list) or not permit[0][0]:
             raise Exception('Security exception occured')
 
-        task_def_model = loop.create_task(def_model(websocket, permit[0]))
-        task_def_model.add_done_callback(functools.partial(callback_def_model))
-
-        defed_model = await asyncio.gather(task_def_model)
-            #print(defed_model)
-        task_do_communicate = loop.create_task(do_communicate(websocket, permit[0], defed_model[0][1], defed_model[0][2]))
-        task_do_communicate.add_done_callback(functools.partial(callback_do_communicate))
-
-        returnslt = await asyncio.gather(task_do_communicate)
+        task_def_model = loop.create_task(thread_instance.function_switch())
+        task_def_model.add_done_callback(functools.partial(callback_func_switch))
         
     except Exception as excepted:
         print(f'Exception: {excepted}. Likely connection loss.')
