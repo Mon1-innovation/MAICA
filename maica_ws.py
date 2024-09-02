@@ -325,7 +325,7 @@ class sub_threading_instance:
         try:
             self.check_essentials()
             if self.kwargs['sf_extraction']:
-                player_name_get = persistent_extraction.read_from_sf(user_id, chat_session_num, 'mas_playername')
+                player_name_get = await wrap_run_in_exc(persistent_extraction.read_from_sf, user_id, chat_session_num, 'mas_playername')
                 if player_name_get[0]:
                     if 'sfe_aggressive' in self.kwargs and self.kwargs['sfe_aggressive']:
                         player_name = player_name_get[2]
@@ -352,7 +352,7 @@ class sub_threading_instance:
         try:
             self.check_essentials()
             if self.kwargs['sf_extraction']:
-                player_name_get = persistent_extraction.read_from_sf(user_id, chat_session_num, 'mas_playername')
+                player_name_get = await wrap_run_in_exc(persistent_extraction.read_from_sf, user_id, chat_session_num, 'mas_playername')
                 if player_name_get[0]:
                     if 'sfe_aggressive' in self.kwargs and self.kwargs['sfe_aggressive']:
                         player_name = player_name_get[2]
