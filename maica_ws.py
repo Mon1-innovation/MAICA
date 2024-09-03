@@ -61,9 +61,7 @@ class sub_threading_instance:
 
     async def _init_pools(self) -> None:
         global authpool, maicapool
-        future = asyncio.gather(aiomysql.create_pool(host=self.host,user=self.user, password=self.password,db=self.authdb),aiomysql.create_pool(host=self.host,user=self.user, password=self.password,db=self.maicadb))
-        await future
-        [authpool, maicapool] = future.result()
+        authpool, maicapool = (await asyncio.gather(aiomysql.create_pool(host=self.host,user=self.user, password=self.password,db=self.authdb),aiomysql.create_pool(host=self.host,user=self.user, password=self.password,db=self.maicadb)))
 
     async def _close_pools(self) -> None:
         global authpool, maicapool
@@ -119,7 +117,8 @@ class sub_threading_instance:
             dbres_id, dbres_username, dbres_nickname, dbres_email, dbres_ecf, dbres_pwd_bcrypt, *dbres_args = result
             verification = bcrypt.checkpw(pwd.encode(), dbres_pwd_bcrypt.encode())
             self.alter_identity(user_id=dbres_id, username=dbres_username, email=dbres_email)
-            f2b_count, f2b_stamp = asyncio.gather(self.check_user_status('f2b_count')[3], self.check_user_status('f2b_stamp')[3])
+            f2b_count, f2b_stamp = (await asyncio.gather(self.check_user_status('f2b_count'), self.check_user_status('f2b_stamp')))
+            f2b_count, f2b_stamp = f2b_count[3], f2b_stamp[3]
             if f2b_stamp:
                 if time.time() - f2b_stamp < float(load_env('F2B_TIME')):
                     # Waiting for F2B timeout
@@ -200,7 +199,7 @@ class sub_threading_instance:
             elif rw == 'w':
                 sql_expression1 = "SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
                 try:
-                    result = await self.send_query(expression=sql_expression, values=(user_id, chat_session_num), pool='maicapool')
+                    result = await self.send_query(expression=sql_expression1, values=(user_id, chat_session_num), pool='maicapool')
                     #success = True
                     chat_session_id = result[0]
                     content = result[3]
@@ -259,9 +258,8 @@ class sub_threading_instance:
                 inexist = True
                 return success, None, inexist
             else:
-                for information in result:
-                    chat_session_id = information[0]
-                    content_to_archive = information[1]
+                chat_session_id = result[0]
+                content_to_archive = result[1]
                 sql_expression2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
                 content = f'{{"role": "system", "content": "{global_init_system('[player]', self.kwargs['target_lang'])}"}}'
                 await self.send_modify(expression=sql_expression2, values=(content, chat_session_id), pool='maicapool')
@@ -351,6 +349,7 @@ class sub_threading_instance:
             return await self.mod_chat_session_system(chat_session_num, new_system)
         except Exception as excepted:
             success = False
+            #traceback.print_exc()
             return success, excepted
         
     async def mod_once_system(self, chat_session_num, known_info) -> list[bool, Exception, int]:
@@ -454,7 +453,7 @@ def wrap_ws_formatter(code, status, content, type):
 async def wrap_run_in_exc(func, *args, **kwargs):
     loop = asyncio.get_running_loop()
     result = await loop.run_in_executor(
-        None, func(*args, **kwargs))
+        None, functools.partial(func, *args, **kwargs))
     return result
 
 #与websocket绑定的异步化类, 继承sql类
@@ -473,8 +472,8 @@ class ws_threading_instance(sub_threading_instance):
         websocket = self.websocket
         print('Someone started a connection')
         while True:
+            self.flush_traceray()
             try:
-                self.flush_traceray()
                 recv_text = await websocket.recv()
                 verification_result = await self.hashing_verify(access_token=recv_text)
                 if verification_result[0]:
@@ -535,20 +534,25 @@ class ws_threading_instance(sub_threading_instance):
             api_key='EMPTY',
             base_url=load_env('MCORE_ADDR'),
         )
+        model_list_actual = await client_actual.models.list()
+        self.model_type_actual = model_type_actual = model_list_actual.data[0].id
         self.client_options = client_options = {
-            "model" : "maica_main",
+            "model" : self.model_type_actual,
             "stream" : True,
             "full_maica": True,
             "sf_extraction": True,
             "target_lang": 'zh'
         }
-        sfe_aggressive = False
-        mf_aggressive = False
-        tnd_aggressive = 1
-        esc_aggressive = True
-        self.alter_identity(sfe_aggressive=sfe_aggressive, mf_aggressive=mf_aggressive, tnd_aggressive=tnd_aggressive, esc_aggressive=esc_aggressive)
-        self.alter_identity(**client_options)
+        client_extra_options = {
+            "sfe_aggressive": False,
+            "mf_aggressive": False,
+            "tnd_aggressive": 1,
+            "esc_aggressive": True
+        }
+        self.alter_identity(**client_options, **client_extra_options)
+        await websocket.send(wrap_ws_formatter('206', 'thread_ready', "Thread is ready for input or setting adjustment", 'info'))
         while True:
+            self.flush_traceray()
             checked_status = await self.check_user_status(key='banned')
             if not checked_status[0]:
                 response_str = f"Account service failed to fetch, refer to administrator--your ray tracer ID is {self.traceray_id}"
@@ -560,38 +564,36 @@ class ws_threading_instance(sub_threading_instance):
                 print(f"出现如下异常4-{self.traceray_id}:banned")
                 await websocket.send(wrap_ws_formatter('403', 'account_banned', response_str, 'warn'))
                 await websocket.close(1000, 'Permission denied')
-            await websocket.send(wrap_ws_formatter('206', 'thread_ready', "Thread is ready for input or setting adjustment", 'info'))
-            while True:
-                recv_text = await websocket.recv()
-                if len(recv_text) > 4096:
-                    response_str = f"Input exceeding 4096 characters, which is not permitted--your ray tracer ID is {self.traceray_id}"
-                    print(f"出现如下异常12-{self.traceray_id}:length exceeded")
-                    await websocket.send(wrap_ws_formatter('403', 'length_exceeded', response_str, 'warn'))
-                    continue
+            recv_text = await websocket.recv()
+            if len(recv_text) > 4096:
+                response_str = f"Input exceeding 4096 characters, which is not permitted--your ray tracer ID is {self.traceray_id}"
+                print(f"出现如下异常12-{self.traceray_id}:length exceeded")
+                await websocket.send(wrap_ws_formatter('403', 'length_exceeded', response_str, 'warn'))
+                continue
+            try:
                 try:
-                    try:
-                        recv_loaded_json = json.loads(recv_text)
-                    except:
-                        recv_loaded_json = {}
-                    match recv_text:
-                        case 'PING':
-                            await websocket.send(wrap_ws_formatter('100', 'continue', "PONG", 'heartbeat'))
-                            print(f"recieved PING from {session[3]}")
-                        case placeholder if "model" in recv_loaded_json:
-                            await self.def_model(recv_loaded_json)
-                        case placeholder if "chat_session" in recv_loaded_json:
-                            await self.do_communicate(recv_loaded_json)
-                        case _:
-                            response_str = f"Input is unrecognizable, check possible typo--your ray tracer ID is {self.traceray_id}"
-                            print(f"出现如下异常6.1-{self.traceray_id}:{excepted}")
-                            await websocket.send(wrap_ws_formatter('405', 'wrong_form', response_str, 'warn')) 
-                            continue                       
-                except Exception as excepted:
-                    response_str = f"Input is unrecognizable, check possible typo--your ray tracer ID is {self.traceray_id}"
-                    print(f"出现如下异常6-{self.traceray_id}:{excepted}")
-                    #traceback.print_exc()
-                    await websocket.send(wrap_ws_formatter('405', 'wrong_form', response_str, 'warn'))
-                    continue
+                    recv_loaded_json = json.loads(recv_text)
+                except:
+                    recv_loaded_json = {}
+                match recv_text:
+                    case 'PING':
+                        await websocket.send(wrap_ws_formatter('100', 'continue', "PONG", 'heartbeat'))
+                        print(f"recieved PING from {session[3]}")
+                    case placeholder if "model" in recv_loaded_json:
+                        await self.def_model(recv_loaded_json)
+                    case placeholder if "chat_session" in recv_loaded_json:
+                        await self.do_communicate(recv_loaded_json)
+                    case _:
+                        response_str = f"Input is unrecognizable, check possible typo--your ray tracer ID is {self.traceray_id}"
+                        print(f"出现如下异常6.1-{self.traceray_id}:{excepted}")
+                        await websocket.send(wrap_ws_formatter('405', 'wrong_form', response_str, 'warn')) 
+                        continue                       
+            except Exception as excepted:
+                response_str = f"A common failure was caught in main logic, refer to administrator--your ray tracer ID is {self.traceray_id}"
+                print(f"出现如下异常6-{self.traceray_id}:{excepted}")
+                #traceback.print_exc()
+                await websocket.send(wrap_ws_formatter('503', 'server_failed', response_str, 'warn'))
+                continue
 
     #交互设置
 
@@ -619,12 +621,10 @@ class ws_threading_instance(sub_threading_instance):
                 api_key='EMPTY',
                 base_url=load_env('MCORE_ADDR'),
             )
-            model_list_actual = await client_actual.models.list()
-            self.model_type_actual = model_type_actual = model_list_actual.data[0].id
             match using_model:
                 case 'maica_main':
                     self.client_options = client_options = {
-                        "model" : model_type_actual,
+                        "model" : self.model_type_actual,
                         "stream" : stream_output,
                         "full_maica": True,
                         "sf_extraction": sf_extraction,
@@ -643,25 +643,25 @@ class ws_threading_instance(sub_threading_instance):
                     print(f"出现如下异常8-{self.traceray_id}:{response_str}")
                     await websocket.send(wrap_ws_formatter('404', 'not_found', response_str, 'warn'))
                     return False
+            client_extra_options = {}
             if 'sfe_aggressive' in model_choice:
                 if model_choice['sfe_aggressive']:
-                    sfe_aggressive = True
+                    client_extra_options['sfe_aggressive'] = True
             if 'mf_aggressive' in model_choice:
                 if model_choice['mf_aggressive']:
-                    mf_aggressive = True
+                    client_extra_options['mf_aggressive'] = True
             if 'tnd_aggressive' in model_choice:
                 if not model_choice['tnd_aggressive']:
-                    tnd_aggressive = False
+                    client_extra_options['tnd_aggressive'] = False
                 elif int(model_choice['tnd_aggressive']):
-                    tnd_aggressive = int(model_choice['tnd_aggressive'])
+                    client_extra_options['tnd_aggressive'] = int(model_choice['tnd_aggressive'])
             if 'esc_aggressive' in model_choice:
                 if not model_choice['esc_aggressive']:
-                    esc_aggressive = False
+                    client_extra_options['esc_aggressive'] = False
             for super_param in ['top_p', 'temperature', 'max_tokens', 'frequency_penalty', 'presence_penalty', 'seed']:
                 if super_param in model_choice:
                     self.kwargs[super_param] = model_choice[super_param]
-            self.alter_identity(sfe_aggressive=sfe_aggressive, mf_aggressive=mf_aggressive, tnd_aggressive=tnd_aggressive, esc_aggressive=esc_aggressive)
-            self.alter_identity(**client_options)
+            self.alter_identity(**client_options, **client_extra_options)
             await websocket.send(wrap_ws_formatter('200', 'ok', f"service provider is {load_env('DEV_IDENTITY')}", 'info'))
             if using_model == 'maica_main':
                 await websocket.send(wrap_ws_formatter('200', 'ok', f"model chosen is {using_model} with full MAICA functionality", 'info'))
@@ -678,7 +678,7 @@ class ws_threading_instance(sub_threading_instance):
 
     async def do_communicate(self, recv_json):
         websocket, session, client_actual, client_options = self.websocket, self.verification_result, self.client_actual, self.client_options
-        sfe_aggressive=self.kwargs['sfe_aggressive'], mf_aggressive=self.kwargs['mf_aggressive'], tnd_aggressive=self.kwargs['tnd_aggressive'], esc_aggressive=self.kwargs['esc_aggressive']
+        sfe_aggressive, mf_aggressive, tnd_aggressive, esc_aggressive = self.kwargs['sfe_aggressive'], self.kwargs['mf_aggressive'], self.kwargs['tnd_aggressive'], self.kwargs['esc_aggressive']
         bypass_mf = False
         try:
             request_json = recv_json
@@ -692,7 +692,7 @@ class ws_threading_instance(sub_threading_instance):
                 if request_json['purge']:
                     try:
                         user_id = session[2]
-                        purge_result = await self.purge_chat_session(user_id, chat_session, target_lang)
+                        purge_result = await self.purge_chat_session(chat_session)
                         if not purge_result[0]:
                             raise Exception(purge_result[1])
                         elif purge_result[2]:
@@ -950,7 +950,7 @@ class ws_threading_instance(sub_threading_instance):
 #异步标记程序, 不是必要的. 万一要用呢?
 
 def callback_func_switch(future):
-    print(f'!Stage2 passed abnormally:\n{future.result()}')
+    print(f'!Stage2 passed abnormally!')
 
 def callback_check_permit(future):
     print(f'Stage1 passed:\n{future.result()}')
@@ -962,16 +962,13 @@ async def main_logic(websocket, path):
         loop = asyncio.get_event_loop()
         thread_instance = ws_threading_instance(websocket)
 
-        task_check_permit = loop.create_task(thread_instance.check_permit())
-        task_check_permit.add_done_callback(functools.partial(callback_check_permit))
-        
-        permit = await asyncio.gather(task_check_permit)
-        if not isinstance(permit[0], list) or not permit[0][0]:
+        permit = await thread_instance.check_permit()
+        print(permit)
+        if not isinstance(permit, tuple) or not permit[0]:
             raise Exception('Security exception occured')
 
-        task_def_model = loop.create_task(thread_instance.function_switch())
-        task_def_model.add_done_callback(functools.partial(callback_func_switch))
-        
+        await thread_instance.function_switch()
+
     except Exception as excepted:
         print(f'Exception: {excepted}. Likely connection loss.')
 
@@ -992,7 +989,9 @@ if __name__ == '__main__':
     new_loop = asyncio.new_event_loop()
     asyncio.set_event_loop(new_loop)
 
-    start_server = websockets.serve(functools.partial(main_logic, None), '0.0.0.0', 5000)
-    
-    asyncio.get_event_loop().run_until_complete(start_server)
-    asyncio.get_event_loop().run_forever()
+    start_server = websockets.serve(functools.partial(main_logic, path=None), '0.0.0.0', 5000)
+    try:
+        asyncio.get_event_loop().run_until_complete(start_server)
+        asyncio.get_event_loop().run_forever()
+    except KeyboardInterrupt:
+        print("Server stopped!")
