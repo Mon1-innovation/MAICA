@@ -73,6 +73,8 @@ class sub_threading_instance:
     async def send_query(self, expression, values=None, pool='maicapool', fetchall=False) -> list:
         global authpool, maicapool
         pool = authpool if pool == 'authpool' else maicapool
+        if pool.closed:
+            self._init_pools()
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:
                 if not values:
@@ -87,6 +89,8 @@ class sub_threading_instance:
     async def send_modify(self, expression, values=None, pool='maicapool', fetchall=False) -> int:
         global authpool, maicapool
         pool = authpool if pool == 'authpool' else maicapool
+        if pool.closed:
+            self._init_pools()
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:
                 if not values:
@@ -906,7 +910,7 @@ class ws_threading_instance(sub_threading_instance):
                 await asyncio.sleep(0)
                 print(token, end='', flush=True)
                 if token != '':
-                    if not '<|' in token:
+                    if True:
                         reply_appended = reply_appended + token
                         await websocket.send(wrap_ws_formatter('100', 'continue', token, 'carriage'))
                     else:
