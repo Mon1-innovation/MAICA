@@ -246,7 +246,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                 date_acquired = await agent_modules.date_acquire(real_parameters_dict, sf_extraction, session, chat_session, target_lang)
                 if date_acquired[0]:
                     return_instruction = f"[{{'date': '{date_acquired[2]}'}}]"
-                    instructed_final_answer['date'] = f"{date_acquired[3]}"
+                    instructed_final_answer['date'] = f"[{date_acquired[3]}]"
                     inst_date = True
                 else:
                     raise Exception(date_acquired[1])

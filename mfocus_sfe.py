@@ -856,7 +856,7 @@ Begin!
         response = resp.choices[0].message.content
         print(f"MFocus sfe searching persistent, response is:\n{response}\nEnd of MFocus sfe searching persistent")
         answer_re = re.search(r'Answer\s*:\s*(\[.*\])', response, re.I)
-        if answer_re and not re.match(rf'\s*none', answer_re, re.I):
+        if answer_re and not re.match(rf'\s*none', answer_re[1], re.I):
             response = answer_re[1]
         else:
             success = False
