@@ -84,7 +84,7 @@ class sub_threading_instance:
                 #print(cur.description)
                 results = await cur.fetchone() if not fetchall else await cur.fetchall()
                 #print(results)
-                return results
+        return results
 
     async def send_modify(self, expression, values=None, pool='maicapool', fetchall=False) -> int:
         global authpool, maicapool
@@ -98,7 +98,8 @@ class sub_threading_instance:
                 else:
                     await cur.execute(expression, values)
                 await conn.commit()
-                return cur.lastrowid
+                lrid = cur.lastrowid
+        return lrid
             
     #以下是实用方法
 
@@ -232,17 +233,9 @@ class sub_threading_instance:
                     cutted = 0
                 sql_expression2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
                 try:
-                    #print(content)
                     await self.send_modify(expression=sql_expression2, values=(content, chat_session_id), pool='maicapool')
                     success = True
                     return success, None, chat_session_id, None, cutted
-                    #for information in results:
-                    #    if information[0] and information[1]:
-                    #        db_connection.commit()
-                    #        success = True
-                    #        return success, None, chat_session_id, information[1]
-                    #    else:
-                    #        raise Exception('Update Not Successful')
                 except Exception as excepted:
                     success = False
                     return success, excepted
@@ -925,6 +918,7 @@ class ws_threading_instance(sub_threading_instance):
             reply_appended_insertion = json.dumps({'role': 'assistant', 'content': token_combined}, ensure_ascii=False)
         if int(chat_session) > 0:
             stored = await self.rw_chat_session(chat_session, 'w', messages0)
+            await self.rw_chat_session(chat_session, 'r', None)
             #print(stored)
             if stored[0]:
                 stored = await self.rw_chat_session(chat_session, 'w', reply_appended_insertion)
