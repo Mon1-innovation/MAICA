@@ -629,7 +629,7 @@ class ws_threading_instance(sub_threading_instance):
                     }
                 case 'maica_core':
                     self.client_options = client_options = {
-                        "model" : model_type_actual,
+                        "model" : self.model_type_actual,
                         "stream" : stream_output,
                         "full_maica": False,
                         "sf_extraction": sf_extraction,
@@ -663,7 +663,7 @@ class ws_threading_instance(sub_threading_instance):
             if using_model == 'maica_main':
                 await websocket.send(wrap_ws_formatter('200', 'ok', f"model chosen is {using_model} with full MAICA functionality", 'info'))
             elif using_model == 'maica_core':
-                await websocket.send(wrap_ws_formatter('200', 'ok', f"model chosen is {using_model} based on {model_type_actual}", 'info'))
+                await websocket.send(wrap_ws_formatter('200', 'ok', f"model chosen is {using_model} based on {self.model_type_actual}", 'info'))
             return client_actual, client_options
         except Exception as excepted:
             response_str = f"Choice serialization failed, check possible typo--your ray tracer ID is {self.traceray_id}"
