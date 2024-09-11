@@ -837,7 +837,7 @@ async def mfocus_find_info(user_id, chat_session, query):
 使用以下格式回答:
 Thought: 简要地思考如何选取信息, 以及这些信息与句子有何关联.
 Try: 尝试将以上信息作为一个单行Python列表返回.
-Thought Again: 再次思考上面输出的信息. 对于不能直接用于回答或提供直接信息的条目, 将其去除. 你不能在此步骤中加入上一步没有的信息.
+Thought Again: 再次思考上面输出的信息, 去除其中不能用于回答的部分. 你不能在此步骤中加入上一步没有的信息.
 Answer: 最终将剩余的有用的信息作为一个单行Python列表返回. 如果你最终认为没有信息符合条件, 回答None.
 Begin!
 """
@@ -864,6 +864,7 @@ Begin!
             response = ''
         return success, exception, response, response
     except Exception as excepted:
+        traceback.print_exc()
         success = False
         exception = excepted
         return success, exception, '', ''
@@ -878,4 +879,5 @@ Begin!
 
 if __name__ == "__main__":
     #print(mfocus_form_info(18270,1))
-    print(mfocus_find_info(21062, 1, '你喜欢吃什么'))
+    import asyncio
+    print(asyncio.run(mfocus_find_info(21062, 1, '你喜欢吃什么')))
