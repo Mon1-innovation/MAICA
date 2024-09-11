@@ -11,19 +11,57 @@ If you want to read in English, use a translator.
     下载MAICA开源基本数据集: https://huggingface.co/datasets/edgeinfinity/MAICA_ds_basis.
 
 #以下为训练脚本示例:
-ds1='dataset/moni_dataset.jsonl dataset/moni_dataset.jsonl dataset/moni_dataset.jsonl dataset/moni_dataset.jsonl'
-ds2='dataset/moni_dataset_en.jsonl dataset/moni_dataset_en.jsonl'
-ds3='dataset/covid_new.jsonl dataset/covid_new.jsonl dataset/covid_new.jsonl dataset/covid_new.jsonl'
-ds4='dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl'
-ds5='iic/ms_bench#2500 HF::roleplay-base#1500 iic/MSAgent-MultiRole#1500 AI-ModelScope/ruozhiba#1000 modelscope/chinese-poetry-collection#500'
-nproc_per_node=1
-#PYTHONPATH=../../.. \
+echo 'nproc nums?'
+read npn
+echo 'which basis to use? 1: q2-72b-i 2: q2-7b-i'
+read cho
+echo 'is this a test?'
+read tes
+echo 'resume from path, leave empty for using model directly:'
+read rfc
+echo 'training epoches, leave empty for 1:'
+read nte
+ds1='dataset/moni_dataset.jsonl'
+ds2='dataset/moni_dataset_en.jsonl'
+ds3='dataset/covid_new.jsonl'
+ds4='dataset/ds_new.jsonl dataset/ds_new.jsonl'
+ds5='AI-ModelScope/deepctrl-sft-data:default#1600 AI-ModelScope/deepctrl-sft-data:en#1100 AI-ModelScope/ruozhiba#250'
+ctdp=$ds1' '$ds2' '$ds3' '$ds4' '$ds5
+if [ ! -n "$cho" ]
+then
+    cho='qwen2-72b-instruct'
+elif [ "$cho" == 1 ]
+then
+    cho='qwen2-72b-instruct'
+elif [ "$cho" == 2 ]
+then
+    cho='qwen2-7b-instruct'
+fi
+if [ ! -n "$tes" ]
+then
+    tes='False' 
+else
+    tes='True'
+fi
+if [ ! -n "$rfc" ]
+then
+    rfc=''
+else
+    rfc="--resume_from_checkpoint $rfc"
+fi
+if [ ! -n "$nte" ]
+then
+    nte=1
+fi
+nproc_per_node=$npn
+export HTTPS_PROXY=192.168.3.254:7890
+#PYTHONPATH=/root/swift \
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 torchrun \
     --nproc_per_node=$nproc_per_node \
     --master_port 29500 \
-    llm_sft.py \
-    --model_type qwen2-72b-instruct \
+    /root/swift/examples/pytorch/llm/llm_sft.py \
+    --model_type $cho \
     --model_revision master \
     --sft_type lora \
     --freeze_parameters 0 \
@@ -32,31 +70,34 @@ torchrun \
     --dtype AUTO \
     --output_dir output \
     --ddp_backend nccl \
-    --dataset $ds1' '$ds2' '$ds3' '$ds4' '$ds5 \
-    --system None \
+    --dataset $ctdp \
     --val_dataset 'dataset/moni_dataset.jsonl#50' \
-    --lora_rank 16 \
+    --system None \
+    --lora_rank 8 \
     --lora_alpha 32 \
-    --lora_dropout_p 0.06 \
+    --lora_dropout_p 0.05 \
+    --batch_size 1 \
     --train_dataset_sample -1 \
-    --num_train_epochs 8 \
-    --max_length 1500 \
+    --num_train_epochs $nte \
+    --max_length 1344 \
     --truncation_strategy delete \
     --check_dataset_strategy warning \
-    --lora_target_modules DEFAULT \
+    --lora_target_modules 'ALL' \
     --gradient_checkpointing true \
-    --batch_size 1 \
     --weight_decay 0.1 \
     --learning_rate 1e-4 \
-    --gradient_accumulation_steps $(expr 16 / $nproc_per_node) \
-    --max_grad_norm 0.5 \
+    --gradient_accumulation_steps 16 \
+    --max_grad_norm 1 \
     --warmup_ratio 0.03 \
+    --eval_batch_size 1 \
     --eval_steps 50 \
     --save_steps 50 \
     --save_total_limit -1 \
     --logging_steps 5 \
     --use_flash_attn true \
-    --custom_dataset_info dataset/ds_info.json \
+    --custom_dataset_info /root/swift/dataset/ds_info.json \
+    --test_oom_error $tes \
+    $rfc \
 #请自行调整相对路径, 设备数量等参数.
 
 以上脚本是MAICAv0-LIA-72b的最佳实践流程. 在训练结束后, 模型评估loss应为0.8左右.
