@@ -1,4 +1,5 @@
 from flask import Flask, current_app, redirect, url_for, request
+import asyncio
 import json
 import base64
 import traceback
@@ -37,7 +38,7 @@ def save_upload():
             raise Exception('No Identity Provided')
         login_password = login_cridential['password']
         hduplex_instance = maica_ws.sub_threading_instance()
-        verification_result = hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password)
+        verification_result = asyncio.run(hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password))
         if not verification_result[0]:
             raise Exception('Identity hashing failed')
         else:
@@ -80,12 +81,12 @@ def history_download():
             raise Exception('No Identity Provided')
         login_password = login_cridential['password']
         hduplex_instance = maica_ws.sub_threading_instance()
-        verification_result = hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password)
+        verification_result = asyncio.run(hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password))
         if not verification_result[0]:
             raise Exception('Identity hashing failed')
         else:
             session = verification_result
-            hisjson = hduplex_instance.rw_chat_session(chat_session, 'r', None)
+            hisjson = asyncio.run(hduplex_instance.rw_chat_session(chat_session, 'r', None))
             print(hisjson)
             if hisjson[0]:
                 hisjson = json.loads(f"[{hisjson[3]}]")
@@ -153,9 +154,9 @@ def legal():
             raise Exception('No Identity Provided')
         login_password = login_cridential['password']
         hduplex_instance = maica_ws.sub_threading_instance()
-        verification_result = hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password)
+        verification_result = asyncio.run(hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password))
         if verification_result[0]:
-            checked_status = hduplex_instance.check_user_status('banned')
+            checked_status = asyncio.run(hduplex_instance.check_user_status('banned'))
             if not checked_status[0]:
                 success = False
                 exception = f"Account service failed to fetch, refer to administrator"
