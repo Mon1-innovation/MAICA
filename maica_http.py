@@ -36,7 +36,8 @@ def save_upload():
         else:
             raise Exception('No Identity Provided')
         login_password = login_cridential['password']
-        verification_result = maica_ws.run_hash_dcc(login_identity, login_is_email, login_password)
+        hduplex_instance = maica_ws.sub_threading_instance()
+        verification_result = hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password)
         if not verification_result[0]:
             raise Exception('Identity hashing failed')
         else:
@@ -78,12 +79,13 @@ def history_download():
         else:
             raise Exception('No Identity Provided')
         login_password = login_cridential['password']
-        verification_result = maica_ws.run_hash_dcc(login_identity, login_is_email, login_password)
+        hduplex_instance = maica_ws.sub_threading_instance()
+        verification_result = hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password)
         if not verification_result[0]:
             raise Exception('Identity hashing failed')
         else:
             session = verification_result
-            hisjson = maica_ws.rw_chat_session(session, chat_session, 'r', None)
+            hisjson = hduplex_instance.rw_chat_session(chat_session, 'r', None)
             print(hisjson)
             if hisjson[0]:
                 hisjson = json.loads(f"[{hisjson[3]}]")
@@ -150,9 +152,10 @@ def legal():
         else:
             raise Exception('No Identity Provided')
         login_password = login_cridential['password']
-        verification_result = maica_ws.run_hash_dcc(login_identity, login_is_email, login_password)
+        hduplex_instance = maica_ws.sub_threading_instance()
+        verification_result = hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password)
         if verification_result[0]:
-            checked_status = maica_ws.check_user_status(verification_result)
+            checked_status = hduplex_instance.check_user_status('banned')
             if not checked_status[0]:
                 success = False
                 exception = f"Account service failed to fetch, refer to administrator"
