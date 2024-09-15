@@ -697,7 +697,7 @@ class ws_threading_instance(sub_threading_instance):
                             raise Exception(purge_result[1])
                         elif purge_result[2]:
                             response_str = f"Determined chat session not exist, check possible typo--your ray tracer ID is {self.traceray_id}"
-                            print(f"出现如下异常13-{self.traceray_id}:{excepted}")
+                            print(f"出现如下异常13-{self.traceray_id}:{purge_result[1]}")
                             await websocket.send(wrap_ws_formatter('404', 'session_notfound', response_str, 'warn'))
                             return False
                         else:
