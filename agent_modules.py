@@ -211,14 +211,14 @@ async def event_acquire(params, sf_extraction, session, chat_session, pred_lengt
                     holiday_friendly += ', 也是'
                 else:
                     holiday_friendly += f'{today}是'
-                holiday_friendly += f"中国的{cn_holidays.get(time_defined)}"
+                holiday_friendly += f"{cn_holidays.get(time_defined)}"
                 content += f"[{today}是{cn_holidays.get(time_defined)}]"
             elif time_defined in tw_holidays and target_lang == 'zh':
                 if holiday_friendly:
                     holiday_friendly += ', 也是'
                 else:
                     holiday_friendly += f'{today}是'
-                holiday_friendly += f"中国的{tw_holidays.get(time_defined)}"
+                holiday_friendly += f"{tw_holidays.get(time_defined)}"
                 content += f"[{today}是{tw_holidays.get(time_defined)}]"
             if time_defined in us_holidays:
                 if holiday_friendly:
@@ -316,7 +316,7 @@ if __name__ == "__main__":
     import asyncio
     print(asyncio.run(time_acquire(None)))
     #print(date_acquire(None, True, [0, 0, 23], 1))
-    print(asyncio.run(event_acquire({"year": 2024, "month": 9, "day": 30}, True, ["0", "0", "23"], 1, 2)))
+    print(asyncio.run(event_acquire({"year": 2024, "month": 9, "day": 15}, True, ["0", "0", "23"], 1)))
     #print(internet_acquire({"question": "番茄炒蛋怎么做"}))
     #print(weather_acquire({}, True, [0, 0, 23], 1, 'zh'))
     #print(persistent_acquire({}, True, [0, 0, 23], 1, '你是谁'))
