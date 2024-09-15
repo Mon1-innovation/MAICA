@@ -114,13 +114,13 @@ async def event_acquire(params, sf_extraction, session, chat_session, pred_lengt
     tw_holidays = holidays.TW(years=time_today.year, language='zh-CN')
     time_instance = datetime.datetime(int(params['year']), int(params['month']), int(params['day']))
     match [pred_length, target_lang]:
-        case [p, t] if int(p) >= 0 and t == 'zh':
+        case [p, t] if p >= 0 and t == 'zh':
             today_or_not = "今天"
-        case [p, t] if int(p) >= 0 and t == 'en':
+        case [p, t] if p >= 0 and t == 'en':
             today_or_not = "Today"
-        case [p, t] if int(p) < 0 and t == 'zh':
+        case [p, t] if p < 0 and t == 'zh':
             today_or_not = "这一天"
-        case [p, t] if int(p) < 0 and t == 'en':
+        case [p, t] if p < 0 and t == 'en':
             today_or_not = "This day"
     for nextdays in [0, 1, 2]:
         if (nextdays == 0 or nextdays <= pred_length) and not content:
