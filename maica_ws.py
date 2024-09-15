@@ -74,7 +74,7 @@ class sub_threading_instance:
         global authpool, maicapool
         pool = authpool if pool == 'authpool' else maicapool
         if pool.closed:
-            self._init_pools()
+            await self._init_pools()
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:
                 if not values:
