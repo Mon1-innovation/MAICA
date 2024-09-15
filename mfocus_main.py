@@ -294,7 +294,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                         real_parameters_dict['day'] = datetime.date.today().day
                 else:
                     real_parameters_dict['day'] = datetime.date.today().day
-                event_acquired = await agent_modules.event_acquire(real_parameters_dict, sf_extraction, session, chat_session, target_lang)
+                event_acquired = await agent_modules.event_acquire(real_parameters_dict, sf_extraction, session, chat_session, 0, target_lang)
                 if event_acquired[0]:
                     return_instruction = f"[{{'event': '{event_acquired[2]}'}}]"
                     if event_acquired[3]:

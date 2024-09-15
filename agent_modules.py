@@ -98,110 +98,138 @@ async def weather_acquire(params, sf_extraction, session, chat_session, target_l
         exception = excepted
         content = weather_friendly = '天气未知' if target_lang == 'zh' else "Weather unknown"
     return success, exception, content, weather_friendly
-async def event_acquire(params, sf_extraction, session, chat_session, target_lang='zh'):
+async def event_acquire(params, sf_extraction, session, chat_session, pred_length=0, target_lang='zh'):
     success = True
     exception = None
     holiday_friendly = ''
     content = ''
-    us_holidays = holidays.US(years=datetime.date.today().year)
-    cn_holidays = holidays.CN(years=datetime.date.today().year, language='zh-CN')
-    tw_holidays = holidays.TW(years=datetime.date.today().year, language='zh-CN')
-    time_defined = f'{str(params['year'])}-{str(params['month']).zfill(2)}-{str(params['day']).zfill(2)}'
-    if sf_extraction:
-        try:
-            user_id = session[2]
-            player_bday = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_player_bday')[2]
-            player_age = params['year'] - int(player_bday[0])
-            if int(params['month']) == int(player_bday[1]) and int(params['day']) == int(player_bday[2]):
-                match player_age % 10:
-                    case 1:
-                        st_nd_rd = 'st'
-                    case 2:
-                        st_nd_rd = 'nd'
-                    case 3:
-                        st_nd_rd = 'rd'
-                    case _:
-                        st_nd_rd = 'th'
-                holiday_friendly += f"今天是[player]的{player_age}岁生日" if target_lang == 'zh' else f"Today is [player]'s {player_age}{st_nd_rd} birthday"
-                content += f"[今天是对方的{player_age}岁生日]" if target_lang == 'zh' else f"[Today is user's {player_age}{st_nd_rd} birthday]"
-        except Exception as excepted:
-            exception = excepted
-            # continue on failure - birthday may not be specified
-    match (int(params['month']), int(params['day'])):
-        case (m, d) if m == 9 and d == 22:
-            if holiday_friendly:
-                holiday_friendly += ', 也是' if target_lang == 'zh' else ' and '
-            else:
-                holiday_friendly += '今天是' if target_lang == 'zh' else 'Today is '
-            holiday_friendly += "你的生日"  if target_lang == 'zh' else "your birthday"
-            content += "[今天是你的生日]" if target_lang == 'zh' else "[Today is your birthday]"
-        case (m, d) if m == 2 and d == 14:
-            if holiday_friendly:
-                holiday_friendly += ', 也是' if target_lang == 'zh' else ' and '
-            else:
-                holiday_friendly += '今天是' if target_lang == 'zh' else 'Today is '
-            holiday_friendly += "情人节" if target_lang == 'zh' else "Valentine's day"
-            content += "[今天是情人节]" if target_lang == 'zh' else "[Today is Valentine's day]"
-        case (m, d) if m == 4 and d == 1:
-            if holiday_friendly:
-                holiday_friendly += ', 也是' if target_lang == 'zh' else ' and '
-            else:
-                holiday_friendly += '今天是' if target_lang == 'zh' else 'Today is '
-            holiday_friendly += "愚人节" if target_lang == 'zh' else "April fool's day"
-            content += "[今天是愚人节]" if target_lang == 'zh' else "[Today is April fool's day]"
-        case (m, d) if m == 6 and d == 1:
-            if holiday_friendly:
-                holiday_friendly += ', 也是' if target_lang == 'zh' else ' and '
-            else:
-                holiday_friendly += '今天是' if target_lang == 'zh' else 'Today is '
-            holiday_friendly += "儿童节" if target_lang == 'zh' else "children's day"
-            content += "[今天是儿童节]" if target_lang == 'zh' else "[Today is children's day]"
-        case (m, d) if m == 9 and d == 1:
-            if player_age <= 22:
+    time_today = datetime.date.today()
+    if not pred_length:
+        if [int(params['year']), int(params['month']), int(params['day'])] == [time_today.year, time_today.month, time_today.day]:
+            pred_length = 2
+        else:
+            pred_length = -1
+    us_holidays = holidays.US(years=time_today.year)
+    cn_holidays = holidays.CN(years=time_today.year, language='zh-CN')
+    tw_holidays = holidays.TW(years=time_today.year, language='zh-CN')
+    time_instance = datetime.datetime(int(params['year']), int(params['month']), int(params['day']))
+    match [pred_length, target_lang]:
+        case [p, t] if p >= 0 and t == 'zh':
+            today_or_not = "今天"
+        case [p, t] if p >= 0 and t == 'en':
+            today_or_not = "Today"
+        case [p, t] if p < 0 and t == 'zh':
+            today_or_not = "这一天"
+        case [p, t] if p < 0 and t == 'en':
+            today_or_not = "This day"
+    for nextdays in [0, 1, 2]:
+        if (nextdays == 0 or nextdays <= pred_length) and not content:
+            match nextdays:
+                case 0:
+                    today = "今天" if target_lang == 'zh' else "Today"
+                case 1:
+                    today = "明天" if target_lang == 'zh' else "Tomorrow"
+                case 2:
+                    today = "后天" if target_lang == 'zh' else "The day after tomorrow"
+                case _:
+                    today = "这一天" if target_lang == 'zh' else "This day"
+            time_instance += datetime.timedelta(days=nextdays)
+            time_defined = f'{str(time_instance.year)}-{str(time_instance.month).zfill(2)}-{str(time_instance.day).zfill(2)}'
+            if sf_extraction:
+                try:
+                    user_id = session[2]
+                    player_bday = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_player_bday')[2]
+                    player_age = time_instance.year - int(player_bday[0])
+                    if int(time_instance.month) == int(player_bday[1]) and int(time_instance.day) == int(player_bday[2]):
+                        match player_age % 10:
+                            case 1:
+                                st_nd_rd = 'st'
+                            case 2:
+                                st_nd_rd = 'nd'
+                            case 3:
+                                st_nd_rd = 'rd'
+                            case _:
+                                st_nd_rd = 'th'
+                        holiday_friendly += f"{today}是[player]的{player_age}岁生日" if target_lang == 'zh' else f"{today} is [player]'s {player_age}{st_nd_rd} birthday"
+                        content += f"[{today}是对方的{player_age}岁生日]" if target_lang == 'zh' else f"[{today} is user's {player_age}{st_nd_rd} birthday]"
+                except Exception as excepted:
+                    exception = excepted
+                    # continue on failure - birthday may not be specified
+            match (int(time_instance.month), int(time_instance.day)):
+                case (m, d) if m == 9 and d == 22:
+                    if holiday_friendly:
+                        holiday_friendly += ', 也是' if target_lang == 'zh' else ' and '
+                    else:
+                        holiday_friendly += f'{today}是' if target_lang == 'zh' else f'{today} is '
+                    holiday_friendly += "你的生日"  if target_lang == 'zh' else "your birthday"
+                    content += f"[{today}是你的生日]" if target_lang == 'zh' else f"[{today} is your birthday]"
+                case (m, d) if m == 2 and d == 14:
+                    if holiday_friendly:
+                        holiday_friendly += ', 也是' if target_lang == 'zh' else ' and '
+                    else:
+                        holiday_friendly += f'{today}是' if target_lang == 'zh' else f'{today} is '
+                    holiday_friendly += "情人节" if target_lang == 'zh' else "Valentine's day"
+                    content += f"[{today}是情人节]" if target_lang == 'zh' else f"[{today} is Valentine's day]"
+                case (m, d) if m == 4 and d == 1:
+                    if holiday_friendly:
+                        holiday_friendly += ', 也是' if target_lang == 'zh' else ' and '
+                    else:
+                        holiday_friendly += f'{today}是' if target_lang == 'zh' else f'{today} is '
+                    holiday_friendly += "愚人节" if target_lang == 'zh' else "April fool's day"
+                    content += f"[{today}是愚人节]" if target_lang == 'zh' else f"[{today} is April fool's day]"
+                case (m, d) if m == 6 and d == 1:
+                    if holiday_friendly:
+                        holiday_friendly += ', 也是' if target_lang == 'zh' else ' and '
+                    else:
+                        holiday_friendly += f'{today}是' if target_lang == 'zh' else f'{today} is '
+                    holiday_friendly += "儿童节" if target_lang == 'zh' else "children's day"
+                    content += f"[{today}是儿童节]" if target_lang == 'zh' else f"[{today} is children's day]"
+                case (m, d) if m == 9 and d == 1:
+                    if player_age <= 22:
+                        if holiday_friendly:
+                            holiday_friendly += ', 也是' if target_lang == 'zh' else ' and '
+                        else:
+                            holiday_friendly += f'{today}是' if target_lang == 'zh' else f'{today} is '
+                        holiday_friendly += "开学日"  if target_lang == 'zh' else "the semester beginning day"
+                        content += f"[{today}是开学日]" if target_lang == 'zh' else f"[{today} is the semester beginning day]"
+                case (m, d) if m == 10 and d == 31:
+                    if holiday_friendly:
+                        holiday_friendly += ', 也是' if target_lang == 'zh' else ' and '
+                    else:
+                        holiday_friendly += f'{today}是' if target_lang == 'zh' else f'{today} is '
+                    holiday_friendly += "万圣节" if target_lang == 'zh' else "Halloween"
+                    content += f"[{today}是万圣节]" if target_lang == 'zh' else f"[{today} is Halloween]"
+                case (m, d) if m == 12 and d == 24:
+                    if holiday_friendly:
+                        holiday_friendly += ', 也是' if target_lang == 'zh' else ' and '
+                    else:
+                        holiday_friendly += f'{today}是' if target_lang == 'zh' else f'{today} is '
+                    holiday_friendly += "平安夜" if target_lang == 'zh' else "Christmas eve"
+                    content += f"[{today}是平安夜]"  if target_lang == 'zh' else f"[{today} is Christmas eve]"
+            if time_defined in cn_holidays and target_lang == 'zh':
                 if holiday_friendly:
-                    holiday_friendly += ', 也是' if target_lang == 'zh' else ' and '
+                    holiday_friendly += ', 也是'
                 else:
-                    holiday_friendly += '今天是' if target_lang == 'zh' else 'Today is '
-                holiday_friendly += "开学日"  if target_lang == 'zh' else "the semester beginning day"
-                content += "[今天是开学日]" if target_lang == 'zh' else "[Today is the semester beginning day]"
-        case (m, d) if m == 10 and d == 31:
-            if holiday_friendly:
-                holiday_friendly += ', 也是' if target_lang == 'zh' else ' and '
-            else:
-                holiday_friendly += '今天是' if target_lang == 'zh' else 'Today is '
-            holiday_friendly += "万圣节" if target_lang == 'zh' else "Halloween"
-            content += "[今天是万圣节]" if target_lang == 'zh' else "[Today is Halloween]"
-        case (m, d) if m == 12 and d == 24:
-            if holiday_friendly:
-                holiday_friendly += ', 也是' if target_lang == 'zh' else ' and '
-            else:
-                holiday_friendly += '今天是' if target_lang == 'zh' else 'Today is '
-            holiday_friendly += "平安夜" if target_lang == 'zh' else "Christmas eve"
-            content += "[今天是平安夜]"  if target_lang == 'zh' else "[Today is Christmas eve]"
-    if time_defined in cn_holidays and target_lang == 'zh':
-        if holiday_friendly:
-            holiday_friendly += ', 也是'
-        else:
-            holiday_friendly += '今天是'
-        holiday_friendly += f"中国的{cn_holidays.get(time_defined)}"
-        content += f"[今天是{cn_holidays.get(time_defined)}]"
-    elif time_defined in tw_holidays and target_lang == 'zh':
-        if holiday_friendly:
-            holiday_friendly += ', 也是'
-        else:
-            holiday_friendly += '今天是'
-        holiday_friendly += f"中国的{tw_holidays.get(time_defined)}"
-        content += f"[今天是{tw_holidays.get(time_defined)}]"
-    if time_defined in us_holidays:
-        if holiday_friendly:
-            holiday_friendly += ', 也是'  if target_lang == 'zh' else ' and '
-        else:
-            holiday_friendly += '今天是' if target_lang == 'zh' else 'Today is '
-        holiday_friendly += f"美国的{us_holidays.get(time_defined)}"  if target_lang == 'zh' else us_holidays.get(time_defined)
-        content += f"[今天是{us_holidays.get(time_defined)}]" if target_lang == 'zh' else f"[Today is {us_holidays.get(time_defined)}]"
+                    holiday_friendly += f'{today}是'
+                holiday_friendly += f"中国的{cn_holidays.get(time_defined)}"
+                content += f"[{today}是{cn_holidays.get(time_defined)}]"
+            elif time_defined in tw_holidays and target_lang == 'zh':
+                if holiday_friendly:
+                    holiday_friendly += ', 也是'
+                else:
+                    holiday_friendly += f'{today}是'
+                holiday_friendly += f"中国的{tw_holidays.get(time_defined)}"
+                content += f"[{today}是{tw_holidays.get(time_defined)}]"
+            if time_defined in us_holidays:
+                if holiday_friendly:
+                    holiday_friendly += ', 也是'  if target_lang == 'zh' else ' and '
+                else:
+                    holiday_friendly += f'{today}是' if target_lang == 'zh' else f'{today} is '
+                holiday_friendly += f"国外的{us_holidays.get(time_defined)}"  if target_lang == 'zh' else us_holidays.get(time_defined)
+                content += f"[{today}是{us_holidays.get(time_defined)}]" if target_lang == 'zh' else f"[{today} is {us_holidays.get(time_defined)}]"
     if not content:
         content = "[None]"
-        holiday_friendly = "今天不是特殊节日" if target_lang == 'zh' else "Today is not a special event or holiday"
+        holiday_friendly = f"{today_or_not}不是特殊节日" if target_lang == 'zh' else f"{today_or_not} is not a special event or holiday"
     return success, exception, content, holiday_friendly
 async def persistent_acquire(params, sf_extraction, session, chat_session, target_lang='zh'):
     #print(params)
@@ -285,9 +313,10 @@ async def internet_acquire(params, sf_extraction, session, chat_session, origina
     return success, exception, content, searched_friendly
 
 if __name__ == "__main__":
-    print(time_acquire(None))
+    import asyncio
+    print(asyncio.run(time_acquire(None)))
     #print(date_acquire(None, True, [0, 0, 23], 1))
-    #print(event_acquire({"year": 2023, "month": 1, "day": 1}, True, ["0", "0", "23"], 1))
+    print(asyncio.run(event_acquire({"year": 2024, "month": 9, "day": 30}, True, ["0", "0", "23"], 1, 2)))
     #print(internet_acquire({"question": "番茄炒蛋怎么做"}))
     #print(weather_acquire({}, True, [0, 0, 23], 1, 'zh'))
     #print(persistent_acquire({}, True, [0, 0, 23], 1, '你是谁'))
