@@ -90,7 +90,7 @@ class sub_threading_instance:
         global authpool, maicapool
         pool = authpool if pool == 'authpool' else maicapool
         if pool.closed:
-            self._init_pools()
+            await self._init_pools()
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:
                 if not values:
@@ -305,7 +305,7 @@ class sub_threading_instance:
             self.check_essentials()
             result = await self.send_query(expression=sql_expression1, values=(user_id, chat_session_num), pool='maicapool')
             if not result:
-                self.check_create_chat_session(chat_session_num)
+                chat_session_id = (await self.check_create_chat_session(chat_session_num))[3]
                 sql_expression2 = "SELECT * FROM chat_session WHERE chat_session_id = %s"
                 result = await self.send_query(expression=sql_expression2, values=(chat_session_id), pool='maicapool')
             chat_session_id = result[0]
@@ -318,6 +318,7 @@ class sub_threading_instance:
             success = True
             return success, None, chat_session_id
         except Exception as excepted:
+            traceback.print_exc()
             success = False
             return success, excepted
 
