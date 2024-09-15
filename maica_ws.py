@@ -140,7 +140,7 @@ class sub_threading_instance:
                     exception = {'necf': True}
                     return verification, exception
                 else:
-                    await self.write_user_status('f2b_stamp', 0)
+                    await self.write_user_status('f2b_count', 0)
                     self.verified = True
                     return verification, None, dbres_id, dbres_username, dbres_nickname, dbres_email
             else:
@@ -172,10 +172,10 @@ class sub_threading_instance:
             verification = False
             return verification, excepted
         login_cridential = json.loads(decrypted_token)
-        if 'username' in login_cridential:
+        if 'username' in login_cridential and login_cridential['username']:
             login_identity = login_cridential['username']
             login_is_email = False
-        elif 'email' in login_cridential:
+        elif 'email' in login_cridential and login_cridential['email']:
             login_identity = login_cridential['email']
             login_is_email = True
         else:
@@ -252,7 +252,7 @@ class sub_threading_instance:
         try:
             self.check_essentials()
             result = await self.send_query(expression=sql_expression1, values=(user_id, chat_session_num), pool='maicapool')
-            if len(result) == 0:
+            if not result or len(result) == 0:
                 success = True
                 inexist = True
                 return success, None, inexist
@@ -585,7 +585,7 @@ class ws_threading_instance(sub_threading_instance):
                         await self.do_communicate(recv_loaded_json)
                     case _:
                         response_str = f"Input is unrecognizable, check possible typo--your ray tracer ID is {self.traceray_id}"
-                        print(f"出现如下异常6.1-{self.traceray_id}:{excepted}")
+                        print(f"出现如下异常6.1-{self.traceray_id}:{recv_text}")
                         await websocket.send(wrap_ws_formatter('405', 'wrong_form', response_str, 'warn')) 
                         continue                       
             except Exception as excepted:
@@ -855,8 +855,8 @@ class ws_threading_instance(sub_threading_instance):
         default_top_p = 0.7
         default_temperature = 0.4
         default_max_tokens = 1024
-        default_frequency_penalty = 0.3
-        default_presence_penalty = 0.1
+        default_frequency_penalty = 0.4
+        default_presence_penalty = 0.2
         default_seed = random.randint(0,999)
         #default_seed = 42
         completion_args = {

@@ -123,7 +123,7 @@ async def event_acquire(params, sf_extraction, session, chat_session, pred_lengt
         case [p, t] if p < 0 and t == 'en':
             today_or_not = "This day"
     for nextdays in [0, 1, 2]:
-        if (nextdays == 0 or nextdays <= pred_length) and not content:
+        if (nextdays == 0 or nextdays < pred_length) and not content:
             match nextdays:
                 case 0:
                     today = "今天" if target_lang == 'zh' else "Today"
