@@ -37,6 +37,12 @@ MFOCUS_ADDR = 'http://127.0.0.1:8001/v1'
     #若你使用低显存部署方案且没有独立MFOCUS模型, 你可以填入上一条相同地址
     #此接口必须为标准openai接口, 且必须支持Agent react格式, 推荐使用ms-swift部署
     #若该部署位于不同设备上, 请预先确保可访问性
+MFOCUS_AGENT_TOOLS = 'https://mfocusdev.edgemonix.top:28991'
+    #此处应填入MFocus工具组的api接口
+    #该接口至少应该拥有以下结构:
+        #目录/event/
+            #部署项目https://github.com/edgeinfinity1/MFocus_eventApi
+    #如无特别需求可以保留默认值
 AUTHENTICATOR_DB = 'flarum_db'
     #此处应填入MAICA使用的认证数据库名
     #该数据库至少应该拥有以下结构:

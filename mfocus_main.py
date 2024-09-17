@@ -210,7 +210,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
     inst_wea = inst_time = inst_date = inst_event = inst_pst = inst_search = inst_conc = False
     if int(tnd_aggressive) >= 1:
         instructed_final_answer['time'] = f"[{(await agent_modules.time_acquire(None, target_lang))[3]}]"
-        instructed_final_answer['event'] = f"[{(await agent_modules.event_acquire({'year': datetime.date.today().year, 'month': datetime.date.today().month, 'day': datetime.date.today().day}, sf_extraction, session, chat_session, 1, target_lang))[3]}]"
+        instructed_final_answer['event'] = f"[{(await agent_modules.event_acquire({'year': datetime.date.today().year, 'month': datetime.date.today().month, 'day': datetime.date.today().day}, sf_extraction, session, chat_session, -1, target_lang))[3]}]"
     if int(tnd_aggressive) >= 2:
         instructed_final_answer['date'] = f"[{(await agent_modules.date_acquire(None, sf_extraction, session, chat_session, target_lang))[3]}]"
         if persistent_extraction.read_from_sf(session[2], chat_session, 'mas_geolocation')[2]:
@@ -294,7 +294,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                         real_parameters_dict['day'] = datetime.date.today().day
                 else:
                     real_parameters_dict['day'] = datetime.date.today().day
-                event_acquired = await agent_modules.event_acquire(real_parameters_dict, sf_extraction, session, chat_session, 0, target_lang)
+                event_acquired = await agent_modules.event_acquire(real_parameters_dict, sf_extraction, session, chat_session, -1, target_lang)
                 if event_acquired[0]:
                     return_instruction = f"[{{'event': '{event_acquired[2]}'}}]"
                     if event_acquired[3]:
