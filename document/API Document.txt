@@ -299,6 +299,7 @@ MAICA托管账号附加数据的接口位于https://maicadev.monika.love/api/pre
 如果操作成功完成, 接口会返回:
     {"success": true, "exception": "", "preferences": "json string格式的附加数据"}
     其中preferences键仅当读取时会存在.
+    附加数据json的总长度不能超过10万字符, 超长会被拒收. 请避免开发中发生泄漏.
 
 为降低开发和调试难度, MAICA websocket接口不强制, 也不会主动发送心跳连接. 但如果有需要, MAICA接口能够接收和响应心跳连接.
 在身份认证完成后, 向服务器发送大写单词PING即可收到来自服务器的心跳连接包:
