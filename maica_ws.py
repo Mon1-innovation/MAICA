@@ -583,6 +583,9 @@ class ws_threading_instance(sub_threading_instance):
                         print(f"出现如下异常2-{self.traceray_id}:{verification_result}")
                         await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
                         continue
+            except websockets.exceptions.ConnectionClosed:
+                print("Someone disconnected")
+                raise Exception('Force closure of connection')
             except Exception as excepted:
                 response_str = f"Caught a serialization failure in hashing section, check possible typo--your ray tracer ID is {self.traceray_id}"
                 print(f"出现如下异常5-{self.traceray_id}:{excepted}")
@@ -651,7 +654,10 @@ class ws_threading_instance(sub_threading_instance):
                         response_str = f"Input is unrecognizable, check possible typo--your ray tracer ID is {self.traceray_id}"
                         print(f"出现如下异常6.1-{self.traceray_id}:{recv_text}")
                         await websocket.send(wrap_ws_formatter('405', 'wrong_form', response_str, 'warn')) 
-                        continue                       
+                        continue
+            except websockets.exceptions.ConnectionClosed:
+                print("Someone disconnected")
+                raise Exception('Force closure of connection')
             except Exception as excepted:
                 response_str = f"A common failure was caught in main logic, refer to administrator--your ray tracer ID is {self.traceray_id}"
                 print(f"出现如下异常6-{self.traceray_id}:{excepted}")
