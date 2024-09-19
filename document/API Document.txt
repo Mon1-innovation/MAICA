@@ -146,7 +146,7 @@ MSpire的chat_session可以被设为0-9, 不能使用-1. 如果不需要对MSpir
 对于任何规范的客户端应用, 都应当将此请求排在任何其它请求之前.
 
 MAICA上传存档的接口位于https://maicadev.monika.love/api/savefile. 你应当遵循以下格式, 以POST形式上传从存档中解读的信息:
-    {"access_token": "你的令牌", "chat_session": "指定对应的chat_session", "content":"json格式的存档内容"}
+    {"access_token": "你的令牌", "chat_session": "指定对应的chat_session", "content": "json格式的存档内容"}
     需要注意, json格式的存档内容中应当全部使用双引号且必须转义, 形如{\"mas_player_bday\": [\"2004\", \"06\", \"10\"]}
 如果存档被成功接收, 接口会返回:
     {"success": true, "exception": ""}
@@ -289,6 +289,16 @@ MAICA下载历史记录存档的接口位于https://maicadev.monika.love/api/his
         当lines为0时, 接口返回全部对话历史--可能会很长.
 如果历史被成功下载, 接口会返回:
     {"success": true, "exception": "", "history": "json string格式的历史"}
+
+MAICA托管账号附加数据的接口位于https://maicadev.monika.love/api/preferences. 你应当遵循以下格式, 以POST形式发起增删, 调整, 清除或读取:
+    {"access_token": "你的令牌", "read": 是否读取, "purge": 是否清空, "write": "json格式的写入键字典", "delete": "json格式的删除键列表"}
+    这些数据不会与MAICA发生直接交互, 但可以被用于前端的设置同步等设计, 具体可以由开发者自行发挥.
+    需要注意, json格式的写入或删除内容中应当全部使用双引号且必须转义. 其中write键的原始值是dict, 而delete键的原始值是list.
+    建议将附加数据限制在单层, 因为嵌套的数据内部键显然无法被单独删除.
+    需要注意, 除access_token外的键仅有write与delete可以共存, 其余键同时存在只会执行最靠前的一个.
+如果操作成功完成, 接口会返回:
+    {"success": true, "exception": "", "preferences": "json string格式的附加数据"}
+    其中preferences键仅当读取时会存在.
 
 为降低开发和调试难度, MAICA websocket接口不强制, 也不会主动发送心跳连接. 但如果有需要, MAICA接口能够接收和响应心跳连接.
 在身份认证完成后, 向服务器发送大写单词PING即可收到来自服务器的心跳连接包:

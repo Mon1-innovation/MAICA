@@ -14,7 +14,7 @@ app = Flask(import_name=__name__)
 
 
 @app.route('/savefile', methods=["POST"])
-def save_upload():
+async def save_upload():
     success = True
     exception = ''
     try:
@@ -38,7 +38,7 @@ def save_upload():
             raise Exception('No Identity Provided')
         login_password = login_cridential['password']
         hduplex_instance = maica_ws.sub_threading_instance()
-        verification_result = asyncio.run(hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password))
+        verification_result = await hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password)
         if not verification_result[0]:
             raise Exception('Identity hashing failed')
         else:
@@ -46,18 +46,16 @@ def save_upload():
                 with open(f'persistents/{verification_result[2]}_{chat_session}.json', 'w+', encoding = 'utf-8') as sf:
                     sf.write(json.dumps(content, ensure_ascii=False))
             else:
-                success = False
-                exception = "Content length exceeded"
-                return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
+                raise Exception('Content length exceeded')
         return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
     except Exception as excepted:
         #traceback.print_exc()
         success = False
         exception = excepted
         return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
-
+    
 @app.route('/history', methods=["POST"])
-def history_download():
+async def history_download():
     success = True
     exception = ''
     try:
@@ -81,12 +79,12 @@ def history_download():
             raise Exception('No Identity Provided')
         login_password = login_cridential['password']
         hduplex_instance = maica_ws.sub_threading_instance()
-        verification_result = asyncio.run(hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password))
+        verification_result = await hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password)
         if not verification_result[0]:
             raise Exception('Identity hashing failed')
         else:
             session = verification_result
-            hisjson = asyncio.run(hduplex_instance.rw_chat_session(chat_session, 'r', None))
+            hisjson = await hduplex_instance.rw_chat_session(chat_session, 'r', None)
             print(hisjson)
             if hisjson[0]:
                 hisjson = json.loads(f"[{hisjson[3]}]")
@@ -107,8 +105,61 @@ def history_download():
         exception = excepted
         return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
 
+@app.route('/preferences', methods=["POST"])
+async def sl_prefs():
+    success = True
+    exception = ''
+    try:
+        data = json.loads(request.data)
+        access_token = data['access_token']
+        print(access_token)
+        decryptor = PKCS1_OAEP.new(privkey_loaded)
+        decrypted_token =decryptor.decrypt(base64.b64decode(access_token)).decode("utf-8")
+        login_cridential = json.loads(decrypted_token)
+        if 'username' in login_cridential:
+            login_identity = login_cridential['username']
+            login_is_email = False
+        elif 'email' in login_cridential:
+            login_identity = login_cridential['email']
+            login_is_email = True
+        else:
+            raise Exception('No Identity Provided')
+        login_password = login_cridential['password']
+        hduplex_instance = maica_ws.sub_threading_instance()
+        verification_result = await hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password)
+        if not verification_result[0]:
+            raise Exception('Identity hashing failed')
+        else:
+            overall_prefs = await hduplex_instance.check_user_preferences(key=False)
+            user_prof_exist, prefs_old = overall_prefs[2], overall_prefs[3]
+            if not prefs_old:
+                prefs_old = {}
+            if 'read' in data and data['read']:
+                prefs_str = json.dumps(prefs_old, ensure_ascii=False)
+                return json.dumps({"success": success, "exception": exception, "preferences": prefs_str}, ensure_ascii=False)
+            if 'purge' in data and data['purge']:
+                prefs_old = {}
+            else:
+                if 'write' in data and data['write']:
+                    prefs_new = json.loads(data['write'])
+                    prefs_old.update(prefs_new)
+                if 'delete' in data and data['delete']:
+                    for popper in json.loads(data['delete']):
+                        prefs_old.pop(popper, None)
+            prefs_str = json.dumps(prefs_old, ensure_ascii=False)
+            if len(prefs_str) < 100000:
+                await hduplex_instance.write_user_preferences(prefs_old, enforce=True)
+            else:
+                raise Exception('Content length exceeded')
+        return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
+    except Exception as excepted:
+        #traceback.print_exc()
+        success = False
+        exception = excepted
+        return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
+
 @app.route('/register', methods=["POST"])
-def register():
+async def register():
     success = True
     exception = ''
     try:
@@ -134,7 +185,7 @@ def register():
         return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
 
 @app.route('/legality', methods=["POST"])
-def legal():
+async def legal():
     success = True
     exception = ''
     try:
@@ -154,13 +205,13 @@ def legal():
             raise Exception('No Identity Provided')
         login_password = login_cridential['password']
         hduplex_instance = maica_ws.sub_threading_instance()
-        verification_result = asyncio.run(hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password))
+        verification_result = await hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password)
         if verification_result[0]:
-            checked_status = asyncio.run(hduplex_instance.check_user_status('banned'))
+            checked_status = await hduplex_instance.check_user_status('banned')
             if not checked_status[0]:
                 success = False
                 exception = f"Account service failed to fetch, refer to administrator"
-            elif checked_status[2]:
+            elif checked_status[3]:
                 success = False
                 exception = f"Your account disobeied our terms of service and was permenantly banned"
         else:
@@ -181,7 +232,7 @@ def legal():
         return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
 
 @app.route('/accessibility', methods=["POST"])
-def access():
+async def access():
     success = True
     exception = ''
     accessibility = load_env('DEV_STATUS')

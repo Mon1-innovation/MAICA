@@ -133,14 +133,14 @@ class sub_threading_instance:
                     exception = {'f2b': int(float(load_env('F2B_TIME'))+f2b_stamp-time.time())}
                     return verification, exception
                 else:
-                    await self.write_user_status('f2b_stamp', 0)
+                    await self.write_user_status({'f2b_stamp': 0})
             if verification:
                 if not dbres_ecf:
                     verification = False
                     exception = {'necf': True}
                     return verification, exception
                 else:
-                    await self.write_user_status('f2b_count', 0)
+                    await self.write_user_status({'f2b_count': 0})
                     self.verified = True
                     return verification, None, dbres_id, dbres_username, dbres_nickname, dbres_email
             else:
@@ -149,9 +149,9 @@ class sub_threading_instance:
                 f2b_count += 1
                 exception = {'pwdw': f2b_count}
                 if f2b_count >= int(load_env('F2B_COUNT')):
-                    await self.write_user_status('f2b_stamp', time.time())
+                    await self.write_user_status({'f2b_stamp', time.time()})
                     f2b_count = 0
-                await self.write_user_status('f2b_count', f2b_count)
+                await self.write_user_status({'f2b_count', f2b_count})
                 return verification, exception
         except Exception as excepted:
             #traceback.print_exc()
@@ -380,49 +380,55 @@ class sub_threading_instance:
             success = False
             return success, excepted
 
-    async def check_user_status(self, key='banned') -> list[bool, Exception, int, str]:
+    async def check_user_status(self, key) -> list[bool, Exception, bool, str]:
         success = False
+        user_prof_exist = False
         user_id = self.kwargs['user_id']
         sql_expression1 = "SELECT * FROM account_status WHERE user_id = %s"
         try:
             results = await self.send_query(expression=sql_expression1, values=(user_id), pool='maicapool', fetchall=True)
             if results:
+                user_prof_exist = True
                 stats_json = {}
                 for result in results:
                     stats_json.update(json.loads(result[2]))
                 if not key:
                     success = True
-                    return success, None, True, stats_json
+                    return success, None, user_prof_exist, stats_json
                 if key in stats_json:
                     if stats_json[key]:
                         success = True
-                        return success, None, True, stats_json[key]
+                        return success, None, user_prof_exist, stats_json[key]
                     else:
                         success = True
-                        return success, None, False, stats_json[key]
+                        return success, None, user_prof_exist, stats_json[key]
                 else:
                     success = True
-                    return success, None, False, None
+                    return success, None, user_prof_exist, None
             else:
                 success = True
-                return success, None, False, None
+                return success, None, user_prof_exist, None
         except Exception as excepted:
             success = False
-            return success, excepted, False, None
+            return success, excepted, user_prof_exist, None
 
-    async def write_user_status(self, key='banned', value=True) -> list[bool, Exception]:
+    async def write_user_status(self, dict, enforce=False) -> list[bool, Exception]:
         success = False
         user_id = self.kwargs['user_id']
         try:
-            stats_json = (await self.check_user_status(key=False))[3]
-            if stats_json:
-                stats_json[key] = value
+            stats = await self.check_user_status(key=False)
+            stats_exist, stats_json = stats[2], stats[3]
+            if stats_exist:
+                if not enforce:
+                    stats_json.update(dict)
+                else:
+                    stats_json = dict
                 stats_insert = json.dumps(stats_json, ensure_ascii=False)
                 sql_expression2 = "UPDATE account_status SET status = %s WHERE user_id = %s"
                 sql_args = (stats_insert, user_id)
             else:
-                stats_insert = json.dumps({key: value})
-                sql_expression2 = "INSERT INTO account_status (user_id, status, preferences) VALUES (%s, %s, '')"
+                stats_insert = json.dumps(dict)
+                sql_expression2 = "INSERT INTO account_status (user_id, status) VALUES (%s, %s)"
                 sql_args = (user_id, stats_insert)
             await self.send_modify(expression=sql_expression2, values=sql_args, pool='maicapool')
             success = True
@@ -430,6 +436,64 @@ class sub_threading_instance:
         except Exception as excepted:
             success = False
             return success, excepted
+        
+    async def check_user_preferences(self, key) -> list[bool, Exception, bool, str]:
+        success = False
+        user_prof_exist = False
+        user_id = self.kwargs['user_id']
+        sql_expression1 = "SELECT * FROM account_status WHERE user_id = %s"
+        try:
+            results = await self.send_query(expression=sql_expression1, values=(user_id), pool='maicapool', fetchall=True)
+            if results:
+                user_prof_exist = True
+                stats_json = {}
+                for result in results:
+                    stats_json.update(json.loads(result[3]))
+                if not key:
+                    success = True
+                    return success, None, user_prof_exist, stats_json
+                if key in stats_json:
+                    if stats_json[key]:
+                        success = True
+                        return success, None, user_prof_exist, stats_json[key]
+                    else:
+                        success = True
+                        return success, None, user_prof_exist, stats_json[key]
+                else:
+                    success = True
+                    return success, None, user_prof_exist, None
+            else:
+                success = True
+                return success, None, user_prof_exist, None
+        except Exception as excepted:
+            success = False
+            return success, excepted, user_prof_exist, None
+
+    async def write_user_preferences(self, dict, enforce=False) -> list[bool, Exception]:
+        success = False
+        user_id = self.kwargs['user_id']
+        try:
+            stats = await self.check_user_preferences(key=False)
+            stats_exist, stats_json = stats[2], stats[3]
+            if stats_exist:
+                if not enforce:
+                    stats_json.update(dict)
+                else:
+                    stats_json = dict
+                stats_insert = json.dumps(stats_json, ensure_ascii=False)
+                sql_expression2 = "UPDATE account_status SET preferences = %s WHERE user_id = %s"
+                sql_args = (stats_insert, user_id)
+            else:
+                stats_insert = json.dumps(dict)
+                sql_expression2 = "INSERT INTO account_status (user_id, preferences) VALUES (%s, %s)"
+                sql_args = (user_id, stats_insert)
+            await self.send_modify(expression=sql_expression2, values=sql_args, pool='maicapool')
+            success = True
+            return success, None
+        except Exception as excepted:
+            success = False
+            return success, excepted
+
 
 #没有必要实例化的方法
 
@@ -483,7 +547,7 @@ class ws_threading_instance(sub_threading_instance):
                         print(f"出现如下异常3-{self.traceray_id}:{checked_status[1]}")
                         await websocket.send(wrap_ws_formatter('500', 'unable_verify', response_str, 'error'))
                         await websocket.close(1000, 'Stopping connection due to critical server failure')
-                    elif checked_status[2]:
+                    elif checked_status[3]:
                         response_str = f"Your account disobeied our terms of service and was permenantly banned--your ray tracer ID is {self.traceray_id}"
                         print(f"出现如下异常4-{self.traceray_id}:banned")
                         await websocket.send(wrap_ws_formatter('403', 'account_banned', response_str, 'warn'))
@@ -559,7 +623,7 @@ class ws_threading_instance(sub_threading_instance):
                 print(f"出现如下异常3-{self.traceray_id}:{checked_status[1]}")
                 await websocket.send(wrap_ws_formatter('500', 'unable_verify', response_str, 'error'))
                 await websocket.close(1000, 'Stopping connection due to critical server failure')
-            elif checked_status[2]:
+            elif checked_status[3]:
                 response_str = f"Your account disobeied our terms of service and was permenantly banned--your ray tracer ID is {self.traceray_id}"
                 print(f"出现如下异常4-{self.traceray_id}:banned")
                 await websocket.send(wrap_ws_formatter('403', 'account_banned', response_str, 'warn'))
