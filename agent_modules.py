@@ -186,7 +186,7 @@ async def event_acquire(params, sf_extraction, session, chat_session, pred_lengt
 
             # Check common events
             for desc in evday['describe']:
-                if 'Start' in desc:
+                if 'Start' in desc and (thisday == 1  or desc['IsNotWork']):
                     evname = desc['Name'] if target_lang == 'zh' else desc['EnglishName']
                     event_day_list.append(evname)
 
