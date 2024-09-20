@@ -195,7 +195,7 @@ async def event_acquire(params, sf_extraction, session, chat_session, pred_lengt
             event_day = today_is_exp + join_exp.join(event_day_list) if len(event_day_list) else ''
             if event_day:
                 event_days_list.append(event_day)
-            elif thisday == 0:
+            elif thisday == 1:
                 today_non_spec = f"{today}不是特殊节日" if target_lang == 'zh' else f"{today} is not a special event or holiday"
                 event_days_list.append(today_non_spec)
         
