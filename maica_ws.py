@@ -1041,8 +1041,8 @@ async def main_logic(websocket, path):
         await thread_instance.function_switch()
 
     except Exception as excepted:
-        print(f'Exception: {excepted}. Likely connection loss.')
         await websocket.close(1010, 'Destroying ws due to connection loss')
+        print(f'Exception: {excepted}. Likely connection loss.')
         return
 
 async def prepare_thread():
