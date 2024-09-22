@@ -1117,7 +1117,6 @@ async def main_logic(websocket, path):
 
     except websockets.exceptions.ConnectionClosed:
         print("Someone disconnected")
-        raise Exception('Force closure of connection')
     except Exception as excepted:
         await websocket.close(1010, 'Destroying ws due to connection loss')
         print(f'Exception: {excepted}. Likely connection loss.')
