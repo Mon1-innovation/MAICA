@@ -815,7 +815,7 @@ def conclude_moni_sf():
 
 def conclude_cb_sf(user_id, chat_session, cb):
     data_exp = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_player_additions')[2]
-    if len(data_exp) > cb:
+    if data_exp and len(data_exp) > cb:
         data_exp = sample(data_exp, cb)
     return data_exp
 
