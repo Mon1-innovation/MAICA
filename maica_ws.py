@@ -1,3 +1,5 @@
+import nest_asyncio
+nest_asyncio.apply()
 import asyncio
 import websockets
 import time
@@ -9,7 +11,6 @@ import bcrypt
 import re
 import random
 import traceback
-import nest_asyncio
 import mspire
 import mfocus_main
 import persistent_extraction
@@ -31,7 +32,6 @@ class sub_threading_instance:
 
     # Initialization
 
-    nest_asyncio.apply()
     authpool = None
     maicapool = None
 
@@ -571,8 +571,6 @@ async def wrap_run_in_exc(func, *args, **kwargs):
 #与websocket绑定的异步化类, 继承sql类
 
 class ws_threading_instance(sub_threading_instance):
-
-    nest_asyncio.apply()
 
     def __init__(self, websocket):
         self.websocket = websocket
