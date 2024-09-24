@@ -1113,14 +1113,10 @@ async def main_logic(websocket, path):
 
         await thread_instance.function_switch()
 
-    except websockets.exceptions.ConnectionClosed:
-        await websocket.close(1010, 'Destroying ws due to connection loss')
-        print("Someone disconnected")
-        return
     except Exception as excepted:
         await websocket.close(1010, 'Destroying ws due to connection loss')
         print(f'Exception: {excepted}. Likely connection loss.')
-        return
+        raise Exception('Force closure of connection')
 
 async def prepare_thread():
     client = AsyncOpenAI(
