@@ -145,6 +145,23 @@ MSpire的chat_session可以被设为0-9, 不能使用-1. 如果不需要对MSpir
 此服务状态由后端管理人员填写, 并不一定代表服务器实际状态. 但当此接口认为服务不适用时, 任何形式的客户端都应当停止向服务器发起任何连接.
 对于任何规范的客户端应用, 都应当将此请求排在任何其它请求之前.
 
+为便于管理开源社区与自建服务, MAICA提供一个节点列表接口, 其位于https://maicadev.monika.love/api/servers. 你应当以空白的POST形式请求节点列表.
+如果成功请求, 接口会返回:
+    {"success": true, "exception": "", "servers": "json string格式的节点列表"}
+    其中, 节点列表形如:
+    {
+        "isMaicaNameServer": true,
+        #节点是否通告自身为递归节点
+        "servers": [
+            {"id": "序号", "name": "节点名称", "deviceName": "设备名称", "isOfficial": 是否为权威节点, "portalPage":"门户地址", "servingModel": "服务模型", "modelLink": "模型仓库地址", "wsInterface": "长连接接口地址", "httpInterface": "短连接接口地址"},
+            {"id": "序号", "name": "节点名称", "deviceName": "设备名称", "isOfficial": 是否为权威节点, "portalPage":"门户地址", "servingModel": "服务模型", "modelLink": "模型仓库地址", "wsInterface": "长连接接口地址", "httpInterface": "短连接接口地址"}
+            #...
+        ]
+    }
+    该功能可以方便用户选择服务节点. 其中servers列表下的第一项应为自声明, 其余项为注册声明.
+    在前端开发中, 开发者应指定可信的节点作为递归节点, 只接受其递归声明. 其可以是或不是官方服务节点.
+如果你以MAICA标准后端形式搭建并公开了一个节点, 可以联系我们将其注册为社区服务节点. 通过此方法, 你可以便利地使用自训练模型或设计负载均衡功能.
+
 MAICA上传存档的接口位于https://maicadev.monika.love/api/savefile. 你应当遵循以下格式, 以POST形式上传从存档中解读的信息:
     {"access_token": "你的令牌", "chat_session": "指定对应的chat_session", "content": "json格式的存档内容"}
     需要注意, json格式的存档内容中应当全部使用双引号且必须转义, 形如{\"mas_player_bday\": [\"2004\", \"06\", \"10\"]}

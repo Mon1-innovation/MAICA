@@ -233,6 +233,12 @@ async def legal():
         exception = excepted
         return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
 
+@app.route('/servers', methods=["POST"])
+async def nameserv():
+    success = True
+    exception = ''
+    return json.dumps({"success": success, "exception": exception, "servers": known_servers}, ensure_ascii=False)
+
 @app.route('/accessibility', methods=["POST"])
 async def access():
     success = True
@@ -241,12 +247,16 @@ async def access():
     return json.dumps({"success": success, "exception": exception, "accessibility": accessibility}, ensure_ascii=False)
 
 if __name__ == '__main__':
+
     with open("key/prv.key", "r") as privkey_file:
-        global privkey
         privkey = privkey_file.read()
     with open("key/pub.key", "r") as pubkey_file:
-        global pubkey
         pubkey = pubkey_file.read()
+    try:
+        with open(".servers", "r", encoding='utf-8') as servers_file:
+            known_servers = servers_file.read()
+    except:
+        known_servers = False
     privkey_loaded = RSA.import_key(privkey)
     pubkey_loaded = RSA.import_key(pubkey)
 #    app.run(
