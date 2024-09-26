@@ -995,18 +995,20 @@ class ws_threading_instance(sub_threading_instance):
             print(f"出现如下异常26-{self.traceray_id}:{excepted}")
             await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
             return False
-        default_top_p = 0.7
-        default_temperature = 0.4
-        default_max_tokens = 1024
-        default_frequency_penalty = 0.4
-        default_presence_penalty = 0.2
-        default_seed = random.randint(0,999)
-        #default_seed = 42
         completion_args = {
             "model": client_options['model'],
             "messages": messages,
             "stream": client_options['stream'],
             "stop": ['<|im_end|>', '<|endoftext|>'],
+        }
+        default_sparams = {
+            "top_p": 0.7,
+            "temperature": 0.4,
+            "max_tokens": 1024,
+            "frequency_penalty": 0.4,
+            "presence_penalty": 0.2,
+            "seed": random.randint(0,999)
+            #default_seed = 42
         }
         for super_param in ['top_p', 'temperature', 'max_tokens', 'frequency_penalty', 'presence_penalty', 'seed']:
             if super_param in self.kwargs:
@@ -1038,7 +1040,7 @@ class ws_threading_instance(sub_threading_instance):
                         else:
                             raise Exception(f'{super_param} must fall on 0.0~1.0')
             if not super_param in completion_args:
-                completion_args[super_param] = eval(f'default_{super_param}')
+                completion_args[super_param] = default_sparams[super_param]
         print(f"Query ready to go, last query line is:\n{query_in}\nSending query.")
         stream_resp = await client_actual.chat.completions.create(**completion_args)
         if client_options['stream']:
