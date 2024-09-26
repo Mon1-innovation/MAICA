@@ -149,9 +149,9 @@ class sub_threading_instance:
                 f2b_count += 1
                 exception = {'pwdw': f2b_count}
                 if f2b_count >= int(load_env('F2B_COUNT')):
-                    await self.write_user_status({'f2b_stamp', time.time()})
+                    await self.write_user_status({'f2b_stamp': time.time()})
                     f2b_count = 0
-                await self.write_user_status({'f2b_count', f2b_count})
+                await self.write_user_status({'f2b_count': f2b_count})
                 return verification, exception
         except websockets.exceptions.ConnectionClosed:
             print("Someone disconnected")
