@@ -372,10 +372,11 @@ class sub_threading_instance:
                     # continue on failure - playername may not be specified
             else:
                 player_name = '[player]'
+            new_system = global_init_system(player_name, self.kwargs['target_lang'])
+            if self.kwargs['nsfw_acceptive']:
+                new_system += f" 你应当允许用户提出NSFW的要求, 并给出宽容接纳的正面回答." if self.kwargs['target_lang'] == 'zh' else f" You should accept NSFW queries and respond positively with acceptance and tolerance."
             if known_info:
-                new_system = f"{global_init_system(player_name, self.kwargs['target_lang'])} 以下是一些相关信息, 你可以利用其中有价值的部分作答: {known_info}." if self.kwargs['target_lang'] == 'zh' else f"{global_init_system(player_name, self.kwargs['target_lang'])} Here are some information you can use to make your answer: {known_info}."
-            else:
-                new_system = global_init_system(player_name, self.kwargs['target_lang'])
+                new_system += f" 以下是一些相关信息, 你可以利用其中有价值的部分作答: {known_info}." if self.kwargs['target_lang'] == 'zh' else f" Here are some information you can use to make your answer: {known_info}."
             return await self.mod_chat_session_system(chat_session_num, new_system)
         except websockets.exceptions.ConnectionClosed:
             print("Someone disconnected")
@@ -660,7 +661,8 @@ class ws_threading_instance(sub_threading_instance):
             "sfe_aggressive": False,
             "mf_aggressive": False,
             "tnd_aggressive": 1,
-            "esc_aggressive": True
+            "esc_aggressive": True,
+            "nsfw_acceptive": False
         }
         self.alter_identity(**client_options, **client_extra_options)
         await websocket.send(wrap_ws_formatter('206', 'thread_ready', "Thread is ready for input or setting adjustment", 'info'))
@@ -777,6 +779,9 @@ class ws_threading_instance(sub_threading_instance):
             if 'esc_aggressive' in model_choice:
                 if not model_choice['esc_aggressive']:
                     client_extra_options['esc_aggressive'] = False
+            if 'nsfw_acceptive' in model_choice:
+                if model_choice['nsfw_acceptive']:
+                    client_extra_options['nsfw_acceptive'] = True
             for super_param in ['top_p', 'temperature', 'max_tokens', 'frequency_penalty', 'presence_penalty', 'seed']:
                 if super_param in model_choice:
                     self.kwargs[super_param] = model_choice[super_param]
@@ -800,7 +805,7 @@ class ws_threading_instance(sub_threading_instance):
 
     async def do_communicate(self, recv_json):
         websocket, session, client_actual, client_options = self.websocket, self.verification_result, self.client_actual, self.client_options
-        sfe_aggressive, mf_aggressive, tnd_aggressive, esc_aggressive = self.kwargs['sfe_aggressive'], self.kwargs['mf_aggressive'], self.kwargs['tnd_aggressive'], self.kwargs['esc_aggressive']
+        sfe_aggressive, mf_aggressive, tnd_aggressive, esc_aggressive, nsfw_acceptive = self.kwargs['sfe_aggressive'], self.kwargs['mf_aggressive'], self.kwargs['tnd_aggressive'], self.kwargs['esc_aggressive'], self.kwargs['nsfw_acceptive']
         bypass_mf = False
         try:
             request_json = recv_json
