@@ -66,17 +66,20 @@ MAICA验证令牌的接口位于https://maicadev.monika.love/api/legality. 你�
     仅当同时启用sf_extraction和MAICA完全能力时, 用户可以体验MAICA的最佳表现. 你可以出于隐私或响应速度起见关闭这些功能, 但当然会导致能力缺失.
     target_lang只能传入zh或en. 此方法通过修改system prompt实现, 并不能保证输出语言严格正确.
     以上参数的缺省值分别为"maica_main", true, true, "zh".
-        实验性功能: 用户可以在传入选择中添加键"esc_aggressive", 其应为boolean, 若未传入默认为true.
+        高级选项: 用户可以在传入选择中添加键"esc_aggressive", 其应为boolean, 若未传入默认为true.
         当esc_aggressive为true时会调用agent模型对MFocus联网搜集的信息整理一次. 启用此功能会改善模型对联网检索信息的专注能力, 但也会降低涉及联网搜索query的响应速度.
-        实验性功能: 用户可以在传入选择中添加键"tnd_aggressive", 其应为int, 若未传入默认为1.
+        高级选项: 用户可以在传入选择中添加键"tnd_aggressive", 其应为int, 若未传入默认为1.
         当tnd_aggressive为0时只调用MFocus直接选择的工具. 当其为1时总是会调用时间与节日工具. 当其为2时还会额外调用日期工具.
         如果sf_extraction为true, tnd_aggressive为2, 且mas_geolocation存在, tnd_aggressive还会额外调用当前天气工具.
         此功能强度越高, 越可能补偿MFocus命中率低下的问题, 但也越可能会干扰模型对部分问题性质的判断.
-        实验性功能: 用户可以在传入选择中添加键"mf_aggressive", 其应为boolean, 若未传入默认为false.
+        高级选项: 用户可以在传入选择中添加键"mf_aggressive", 其应为boolean, 若未传入默认为false.
         指定mf_aggressive为true将总是尽可能使用MFocus的总结输出替代指导构型信息. 启用此功能可能提升模型的复杂信息梳理能力, 但也可能会造成速度下降或专注扰乱.
-        实验性功能: 用户可以在传入选择中添加键"sfe_aggressive", 其应为boolean, 若未传入则默认为false.
+        高级选项: 用户可以在传入选择中添加键"sfe_aggressive", 其应为boolean, 若未传入则默认为false.
         指定sfe_aggressive为true将总是以用户的真名替代prompt中的"[player]"字段. 启用此功能可能有利于模型理解玩家的姓名, 但也可能会造成总体拟合能力的下降和信息编造.
-        实验性功能: 用户可以在传入选择中添加超参数键, 其包括"top_p", "temperature", "max_tokens", "frequency_penalty", "presence_penalty", "seed".
+        实验性功能: 用户可以在传入选择中添加键"nsfw_acceptive", 其应为boolean, 若未传入则默认为false.
+        当nsfw_acceptive为true时会改变system指引, 使模型对NSFW场景更为宽容. 启用此功能可能提高特定场合表现, 但也可能会造成模型核心能力下降和注意力混乱.
+        请注意, 目前为止MAICA尚未使用任何NSFW数据集进行训练, 因此nsfw_acceptive的效果十分薄弱. 此后或许会有针对性的改善.
+        超参数键: 用户可以在传入选择中添加超参数键, 其包括"top_p", "temperature", "max_tokens", "frequency_penalty", "presence_penalty", "seed".
         超参数将被传递到核心模型, 具体效果可以查阅OpenAI文档. 超参数有以下限制:
             0.1 <= float(top_p) <= 1.0, 默认值为0.7
             0.0 <= float(temperature) <= 1.0, 默认值为0.4
