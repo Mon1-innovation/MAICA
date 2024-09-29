@@ -806,7 +806,7 @@ class ws_threading_instance(sub_threading_instance):
     async def do_communicate(self, recv_json):
         websocket, session, client_actual, client_options = self.websocket, self.verification_result, self.client_actual, self.client_options
         sfe_aggressive, mf_aggressive, tnd_aggressive, esc_aggressive, nsfw_acceptive = self.kwargs['sfe_aggressive'], self.kwargs['mf_aggressive'], self.kwargs['tnd_aggressive'], self.kwargs['esc_aggressive'], self.kwargs['nsfw_acceptive']
-        bypass_mf = False
+        bypass_mf = False; overall_info_system = ''
         try:
             request_json = recv_json
             chat_session = int(request_json['chat_session'])
@@ -854,6 +854,18 @@ class ws_threading_instance(sub_threading_instance):
                     query_in = query_insp[2]
                 else:
                     query_in = request_json['query']
+            elif 'vision' in request_json:
+                if request_json['vision']:
+                    if isinstance(request_json['vision'], str):
+                        pass
+                    else:
+                        pass
+                    if not query_vise[0]:
+                        response_str = f"MVise generation failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
+                        print(f"出现如下异常15-{self.traceray_id}:{query_vise[1]}")
+                        await websocket.send(wrap_ws_formatter('503', 'mvise_failed', response_str, 'warn'))
+                        return False
+                    query_in = query_vise[2]
             else:
                 query_in = request_json['query']
             global easter_exist
@@ -918,10 +930,14 @@ class ws_threading_instance(sub_threading_instance):
                                     await websocket.send(wrap_ws_formatter('200', 'force_failsafe', response_str, 'debug'))
                                     print(f"出现如下异常18.5-{self.traceray_id}:Corruption")
                                     info_agent_grabbed = None
+
                             # Everything should be grabbed by now
+
+                            overall_info_system += info_agent_grabbed
+
                             if session_type:
                                 try:
-                                    agent_insertion = await self.wrap_mod_system(chat_session_num=chat_session, known_info=info_agent_grabbed)
+                                    agent_insertion = await self.wrap_mod_system(chat_session_num=chat_session, known_info=overall_info_system)
                                     if not agent_insertion[0]:
                                         raise Exception(agent_insertion[1])
                                 except websockets.exceptions.ConnectionClosed:
@@ -933,7 +949,7 @@ class ws_threading_instance(sub_threading_instance):
                                     await websocket.send(wrap_ws_formatter('500', 'insertion_failed', response_str, 'error'))
                                     await websocket.close(1000, 'Stopping connection due to critical server failure')
                             else:
-                                messages = [{'role': 'system', 'content': (await self.mod_once_system(chat_session_num=chat_session, known_info=info_agent_grabbed))[2]}, {'role': 'user', 'content': query_in}]
+                                messages = [{'role': 'system', 'content': (await self.mod_once_system(chat_session_num=chat_session, known_info=overall_info_system))[2]}, {'role': 'user', 'content': query_in}]
                         else:
                             bypass_mf = False
                             if session_type:

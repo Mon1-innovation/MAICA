@@ -17,6 +17,7 @@ app = Flask(import_name=__name__)
 
 @app.route('/savefile', methods=["POST"])
 async def save_upload():
+    global privkey_loaded
     success = True
     exception = ''
     try:
@@ -58,6 +59,7 @@ async def save_upload():
     
 @app.route('/history', methods=["POST"])
 async def history_download():
+    global privkey_loaded
     success = True
     exception = ''
     try:
@@ -109,6 +111,7 @@ async def history_download():
 
 @app.route('/preferences', methods=["POST"])
 async def sl_prefs():
+    global privkey_loaded
     success = True
     exception = ''
     try:
@@ -162,6 +165,7 @@ async def sl_prefs():
 
 @app.route('/register', methods=["POST"])
 async def register():
+    global pubkey_loaded
     success = True
     exception = ''
     try:
@@ -188,6 +192,7 @@ async def register():
 
 @app.route('/legality', methods=["POST"])
 async def legal():
+    global privkey_loaded
     success = True
     exception = ''
     try:
@@ -235,6 +240,7 @@ async def legal():
 
 @app.route('/servers', methods=["POST"])
 async def nameserv():
+    global known_servers
     success = True
     exception = ''
     return json.dumps({"success": success, "exception": exception, "servers": known_servers}, ensure_ascii=False)
@@ -247,14 +253,14 @@ async def access():
     return json.dumps({"success": success, "exception": exception, "accessibility": accessibility}, ensure_ascii=False)
 
 if __name__ == '__main__':
-
+    global pubkey_loaded, privkey_loaded
     with open("key/prv.key", "r") as privkey_file:
         privkey = privkey_file.read()
     with open("key/pub.key", "r") as pubkey_file:
         pubkey = pubkey_file.read()
     try:
         with open(".servers", "r", encoding='utf-8') as servers_file:
-            known_servers = servers_file.read()
+            known_servers = json.dumps(json.loads(servers_file.read()), ensure_ascii=False)
     except:
         known_servers = False
     privkey_loaded = RSA.import_key(privkey)

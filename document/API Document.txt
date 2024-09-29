@@ -150,7 +150,7 @@ MSpire的chat_session可以被设为0-9, 不能使用-1. 如果不需要对MSpir
 
 为便于管理开源社区与自建服务, MAICA提供一个节点列表接口, 其位于https://maicadev.monika.love/api/servers. 你应当以空白的POST形式请求节点列表.
 如果成功请求, 接口会返回:
-    {"success": true, "exception": "", "servers": "json string格式的节点列表"}
+    {"success": true, "exception": "", "servers": "json格式的节点列表"}
     其中, 节点列表形如:
     {
         "isMaicaNameServer": true,
@@ -308,7 +308,7 @@ MAICA下载历史记录存档的接口位于https://maicadev.monika.love/api/his
         当lines为负整数-n时, 接口只返回对话历史的后n项, 此时返回的对话历史仍然以正序排列.
         当lines为0时, 接口返回全部对话历史--可能会很长.
 如果历史被成功下载, 接口会返回:
-    {"success": true, "exception": "", "history": "json string格式的历史"}
+    {"success": true, "exception": "", "history": "json格式的历史"}
 
 MAICA托管账号附加数据的接口位于https://maicadev.monika.love/api/preferences. 你应当遵循以下格式, 以POST形式发起增删, 调整, 清除或读取:
     {"access_token": "你的令牌", "read": 是否读取, "purge": 是否清空, "write": "json格式的写入键字典", "delete": "json格式的删除键列表"}
@@ -317,7 +317,7 @@ MAICA托管账号附加数据的接口位于https://maicadev.monika.love/api/pre
     建议将附加数据限制在单层, 因为嵌套的数据内部键显然无法被单独删除.
     需要注意, 除access_token外的键仅有write与delete可以共存, 其余键同时存在只会执行最靠前的一个.
 如果操作成功完成, 接口会返回:
-    {"success": true, "exception": "", "preferences": "json string格式的附加数据"}
+    {"success": true, "exception": "", "preferences": "json格式的附加数据"}
     其中preferences键仅当读取时会存在.
     附加数据json的总长度不能超过10万字符, 超长会被拒收. 请避免开发中发生泄漏.
 
