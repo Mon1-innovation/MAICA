@@ -153,7 +153,7 @@ class sub_threading_instance:
                     f2b_count = 0
                 await self.write_user_status({'f2b_count': f2b_count})
                 return verification, exception
-        except websockets.exceptions.ConnectionClosed:
+        except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
             print("Someone disconnected")
             raise Exception('Force closure of connection')
         except Exception as excepted:
@@ -170,7 +170,7 @@ class sub_threading_instance:
             privkey_loaded = RSA.import_key(privkey)
             decryptor = PKCS1_OAEP.new(privkey_loaded)
             decrypted_token =decryptor.decrypt(base64.b64decode(access_token)).decode("utf-8")
-        except websockets.exceptions.ConnectionClosed:
+        except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
             print("Someone disconnected")
             raise Exception('Force closure of connection')
         except Exception as excepted:
@@ -206,7 +206,7 @@ class sub_threading_instance:
                     content = result[3] + content_append
                     success = True
                     return success, None, chat_session_id, content
-                except websockets.exceptions.ConnectionClosed:
+                except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
                     print("Someone disconnected")
                     raise Exception('Force closure of connection')
                 except Exception as excepted:
@@ -219,7 +219,7 @@ class sub_threading_instance:
                     #success = True
                     chat_session_id = result[0]
                     content = result[3]
-                except websockets.exceptions.ConnectionClosed:
+                except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
                     print("Someone disconnected")
                     raise Exception('Force closure of connection')
                 except Exception as excepted:
@@ -233,7 +233,7 @@ class sub_threading_instance:
                 if len_content_actual >= int(load_env('SESSION_MAX_TOKEN')):
                     try:
                         cutting_mat = json.loads(f"[{content}]")
-                    except websockets.exceptions.ConnectionClosed:
+                    except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
                         print("Someone disconnected")
                         raise Exception('Force closure of connection')
                     except Exception as excepted:
@@ -253,13 +253,13 @@ class sub_threading_instance:
                     await self.send_modify(expression=sql_expression2, values=(content, chat_session_id), pool='maicapool')
                     success = True
                     return success, None, chat_session_id, None, cutted
-                except websockets.exceptions.ConnectionClosed:
+                except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
                     print("Someone disconnected")
                     raise Exception('Force closure of connection')
                 except Exception as excepted:
                     success = False
                     return success, excepted
-        except websockets.exceptions.ConnectionClosed:
+        except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
             print("Someone disconnected")
             raise Exception('Force closure of connection')
         except Exception as excepted:
@@ -288,7 +288,7 @@ class sub_threading_instance:
                 success = True
                 inexist = False
                 return success, None, inexist
-        except websockets.exceptions.ConnectionClosed:
+        except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
             print("Someone disconnected")
             raise Exception('Force closure of connection')
         except Exception as excepted:
@@ -318,7 +318,7 @@ class sub_threading_instance:
                 success = True
                 exist = False
                 return success, None, exist, chat_session_id
-        except websockets.exceptions.ConnectionClosed:
+        except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
             print("Someone disconnected")
             raise Exception('Force closure of connection')
         except Exception as excepted:
@@ -346,7 +346,7 @@ class sub_threading_instance:
             await self.send_modify(expression=sql_expression3, values=(content, chat_session_id), pool='maicapool')
             success = True
             return success, None, chat_session_id
-        except websockets.exceptions.ConnectionClosed:
+        except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
             print("Someone disconnected")
             raise Exception('Force closure of connection')
         except Exception as excepted:
@@ -378,7 +378,7 @@ class sub_threading_instance:
             if known_info:
                 new_system += f" 以下是一些相关信息, 你可以利用其中有价值的部分作答: {known_info}." if self.kwargs['target_lang'] == 'zh' else f" Here are some information you can use to make your answer: {known_info}."
             return await self.mod_chat_session_system(chat_session_num, new_system)
-        except websockets.exceptions.ConnectionClosed:
+        except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
             print("Someone disconnected")
             raise Exception('Force closure of connection')
         except Exception as excepted:
@@ -410,7 +410,7 @@ class sub_threading_instance:
                 new_system = global_init_system(player_name, self.kwargs['target_lang'])
             success = True
             return success, None, new_system
-        except websockets.exceptions.ConnectionClosed:
+        except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
             print("Someone disconnected")
             raise Exception('Force closure of connection')
         except Exception as excepted:
@@ -445,7 +445,7 @@ class sub_threading_instance:
             else:
                 success = True
                 return success, None, user_prof_exist, None
-        except websockets.exceptions.ConnectionClosed:
+        except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
             print("Someone disconnected")
             raise Exception('Force closure of connection')
         except Exception as excepted:
@@ -473,7 +473,7 @@ class sub_threading_instance:
             await self.send_modify(expression=sql_expression2, values=sql_args, pool='maicapool')
             success = True
             return success, None
-        except websockets.exceptions.ConnectionClosed:
+        except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
             print("Someone disconnected")
             raise Exception('Force closure of connection')
         except Exception as excepted:
@@ -508,7 +508,7 @@ class sub_threading_instance:
             else:
                 success = True
                 return success, None, user_prof_exist, None
-        except websockets.exceptions.ConnectionClosed:
+        except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
             print("Someone disconnected")
             raise Exception('Force closure of connection')
         except Exception as excepted:
@@ -536,7 +536,7 @@ class sub_threading_instance:
             await self.send_modify(expression=sql_expression2, values=sql_args, pool='maicapool')
             success = True
             return success, None
-        except websockets.exceptions.ConnectionClosed:
+        except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
             print("Someone disconnected")
             raise Exception('Force closure of connection')
         except Exception as excepted:
@@ -630,7 +630,7 @@ class ws_threading_instance(sub_threading_instance):
                         print(f"出现如下异常2-{self.traceray_id}:{verification_result}")
                         await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
                         continue
-            except websockets.exceptions.ConnectionClosed:
+            except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
                 print("Someone disconnected")
                 raise Exception('Force closure of connection')
             except Exception as excepted:
@@ -703,10 +703,10 @@ class ws_threading_instance(sub_threading_instance):
                         print(f"出现如下异常6.1-{self.traceray_id}:{recv_text}")
                         await websocket.send(wrap_ws_formatter('405', 'wrong_form', response_str, 'warn')) 
                         continue
-            except websockets.exceptions.ConnectionClosed:
+            except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
                 print("Someone disconnected")
                 raise Exception('Force closure of connection')
-            except websockets.exceptions.ConnectionClosed:
+            except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
                 print("Someone disconnected")
                 raise Exception('Force closure of connection')
             except Exception as excepted:
@@ -792,7 +792,7 @@ class ws_threading_instance(sub_threading_instance):
             elif using_model == 'maica_core':
                 await websocket.send(wrap_ws_formatter('200', 'ok', f"model chosen is {using_model} based on {self.model_type_actual}", 'info'))
             return client_actual, client_options
-        except websockets.exceptions.ConnectionClosed:
+        except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
             print("Someone disconnected")
             raise Exception('Force closure of connection')
         except Exception as excepted:
@@ -831,7 +831,7 @@ class ws_threading_instance(sub_threading_instance):
                             response_str = f"finished swiping user id {user_id} chat session {chat_session}"
                             await websocket.send(wrap_ws_formatter('204', 'deleted', response_str, 'info'))
                             return True
-                    except websockets.exceptions.ConnectionClosed:
+                    except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
                         print("Someone disconnected")
                         raise Exception('Force closure of connection')
                     except Exception as excepted:
@@ -884,7 +884,7 @@ class ws_threading_instance(sub_threading_instance):
                             print(f"出现如下异常16-{self.traceray_id}:rounds exceeded")
                             await websocket.send(wrap_ws_formatter('403', 'rounds_exceeded', response_str, 'warn'))
                             return False
-                    except websockets.exceptions.ConnectionClosed:
+                    except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
                         print("Someone disconnected")
                         raise Exception('Force closure of connection')
                     except Exception as excepted:
@@ -940,7 +940,7 @@ class ws_threading_instance(sub_threading_instance):
                                     agent_insertion = await self.wrap_mod_system(chat_session_num=chat_session, known_info=overall_info_system)
                                     if not agent_insertion[0]:
                                         raise Exception(agent_insertion[1])
-                                except websockets.exceptions.ConnectionClosed:
+                                except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
                                     print("Someone disconnected")
                                     raise Exception('Force closure of connection')
                                 except Exception as excepted:
@@ -957,7 +957,7 @@ class ws_threading_instance(sub_threading_instance):
                                     agent_insertion = await self.wrap_mod_system(chat_session_num=chat_session, known_info=None)
                                     if not agent_insertion[0]:
                                         raise Exception(agent_insertion[1])
-                                except websockets.exceptions.ConnectionClosed:
+                                except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
                                     print("Someone disconnected")
                                     raise Exception('Force closure of connection')
                                 except Exception as excepted:
@@ -967,7 +967,7 @@ class ws_threading_instance(sub_threading_instance):
                                     await websocket.close(1000, 'Stopping connection due to critical server failure')
                             else:
                                 messages = [{'role': 'system', 'content': global_init_system('[player]', target_lang)}, {'role': 'user', 'content': query_in}]
-                    except websockets.exceptions.ConnectionClosed:
+                    except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
                         print("Someone disconnected")
                         raise Exception('Force closure of connection')
                     except Exception as excepted:
@@ -994,7 +994,7 @@ class ws_threading_instance(sub_threading_instance):
                             await websocket.close(1000, 'Stopping connection due to critical server failure')
                         try:
                             messages = json.loads(messages)
-                        except websockets.exceptions.ConnectionClosed:
+                        except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
                             print("Someone disconnected")
                             raise Exception('Force closure of connection')
                         except Exception as excepted:
@@ -1007,7 +1007,7 @@ class ws_threading_instance(sub_threading_instance):
                     print(f"出现如下异常25-{self.traceray_id}:{chat_session}")
                     await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
                     return False
-        except websockets.exceptions.ConnectionClosed:
+        except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError):
             print("Someone disconnected")
             raise Exception('Force closure of connection')
         except Exception as excepted:
@@ -1139,7 +1139,6 @@ async def main_logic(websocket, path):
     except Exception as excepted:
         await websocket.close(1010, 'Destroying ws due to connection loss')
         print(f'Exception: {excepted}. Likely connection loss.')
-        raise Exception('Force closure of connection')
 
 async def prepare_thread():
     client = AsyncOpenAI(
