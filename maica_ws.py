@@ -861,9 +861,9 @@ class ws_threading_instance(sub_threading_instance):
                     else:
                         pass
                     if not query_vise[0]:
-                        response_str = f"MVise generation failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
+                        response_str = f"MVista generation failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
                         print(f"出现如下异常15-{self.traceray_id}:{query_vise[1]}")
-                        await websocket.send(wrap_ws_formatter('503', 'mvise_failed', response_str, 'warn'))
+                        await websocket.send(wrap_ws_formatter('503', 'mvista_failed', response_str, 'warn'))
                         return False
                     query_in = query_vise[2]
             else:

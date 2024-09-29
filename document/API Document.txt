@@ -321,6 +321,29 @@ MAICA托管账号附加数据的接口位于https://maicadev.monika.love/api/pre
     其中preferences键仅当读取时会存在.
     附加数据json的总长度不能超过10万字符, 超长会被拒收. 请避免开发中发生泄漏.
 
+MFocus拥有一类额外接口, 用于向MAICA挂接二级功能. 由于功能和方法差异化程度大, 故单立. 其包括以下接口:
+    MF_events: https://mfocusdev.monika.love/event/api.php.
+    请求方式: GET
+    可用参数:
+        date=日期. 示例: 2020-01-01,2020-01-02
+    返回值示例:
+        [{"date":"2024-10-01","code":1,"info":"节假日","describe":[{"Time":"10月1日","Name":"国庆节","EnglishName":"Chinese National Day","IsNotWork":1,"Start":0,"End":6},{"Time":"10月1日","Name":"国际音乐日","EnglishName":"International Music Day","IsNotWork":0,"Start":0,"End":0}]}]
+    MV_upload: https://mfocusdev.monika.love/upload/upload.php.
+    请注意, 此方法上传的文件不会长久保存, 且仅限50MB以内的音频与图像文件.
+    请求方式: POST, multipart/form-data
+    可用参数:
+        server_id=服务器ID, 留空以选择1.
+        access_token=你的令牌.
+        任意键=要上传的文件.
+    返回值示例:
+        {"success": true,"exception": null,"files": ["1/23/10000000000"]}
+    MV_download: https://mfocusdev.monika.love/upload/download.php
+    请求方式: GET
+    可用参数:
+        路径, 在上传完毕后会返回. 示例: https://mfocusdev.monika.love/upload/upload.php/1/23/10000000000.
+    返回值示例:
+        (binary)
+
 为降低开发和调试难度, MAICA websocket接口不强制, 也不会主动发送心跳连接. 但如果有需要, MAICA接口能够接收和响应心跳连接.
 在身份认证完成后, 向服务器发送大写单词PING即可收到来自服务器的心跳连接包:
     {"code": "100", "status": "continue", "content": "PONG", "type": "heartbeat", "time_ms": 时间戳(毫秒)}
