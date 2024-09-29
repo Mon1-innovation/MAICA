@@ -860,12 +860,12 @@ class ws_threading_instance(sub_threading_instance):
                         pass
                     else:
                         pass
-                    if not query_vise[0]:
-                        response_str = f"MVista generation failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
-                        print(f"出现如下异常15-{self.traceray_id}:{query_vise[1]}")
-                        await websocket.send(wrap_ws_formatter('503', 'mvista_failed', response_str, 'warn'))
-                        return False
-                    query_in = query_vise[2]
+                    # if not query_vise[0]:
+                    #     response_str = f"MVista generation failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
+                    #     print(f"出现如下异常15.1-{self.traceray_id}:{query_vise[1]}")
+                    #     await websocket.send(wrap_ws_formatter('503', 'mvista_failed', response_str, 'warn'))
+                    #     return False
+                    # query_in = query_vise[2]
             else:
                 query_in = request_json['query']
             global easter_exist
