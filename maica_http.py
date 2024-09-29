@@ -232,7 +232,10 @@ async def legal():
                     exception = f"Bcrypt hashing failed {verification_result[1]['pwdw']} times, check your password"
             else:
                 exception = f"Caught a serialization failure in hashing section, check possible typo"
-        return json.dumps({"success": success, "exception": exception})
+        if success:
+            return json.dumps({"success": success, "exception": exception, "id": verification_result[2]})
+        else:
+            return json.dumps({"success": success, "exception": exception})
     except Exception as excepted:
         success = False
         exception = excepted
