@@ -586,6 +586,9 @@ class ws_threading_instance(sub_threading_instance):
             self.flush_traceray()
             try:
                 recv_text = await websocket.recv()
+                if not recv_text:
+                    print('Empty recieved, likely connection loss')
+                    await websocket.close()
                 verification_result = await self.hashing_verify(access_token=recv_text)
                 if verification_result[0]:
                     checked_status = await self.check_user_status(key='banned')
@@ -680,6 +683,9 @@ class ws_threading_instance(sub_threading_instance):
                 await websocket.send(wrap_ws_formatter('403', 'account_banned', response_str, 'warn'))
                 await websocket.close(1000, 'Permission denied')
             recv_text = await websocket.recv()
+            if not recv_text:
+                print('Empty recieved, likely connection loss')
+                await websocket.close()
             if len(recv_text) > 4096:
                 response_str = f"Input exceeding 4096 characters, which is not permitted--your ray tracer ID is {self.traceray_id}"
                 print(f"出现如下异常12-{self.traceray_id}:length exceeded")
@@ -1137,7 +1143,7 @@ async def main_logic(websocket, path):
         await thread_instance.function_switch()
 
     except Exception as excepted:
-        await websocket.close(1010, 'Destroying ws due to connection loss')
+        await websocket.close()
         print(f'Exception: {excepted}. Likely connection loss.')
 
 async def prepare_thread():
