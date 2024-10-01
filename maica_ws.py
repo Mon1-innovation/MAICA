@@ -589,6 +589,7 @@ class ws_threading_instance(sub_threading_instance):
                 if not recv_text:
                     print('Empty recieved, likely connection loss')
                     await websocket.close()
+                    await websocket.wait_closed()
                 verification_result = await self.hashing_verify(access_token=recv_text)
                 if verification_result[0]:
                     checked_status = await self.check_user_status(key='banned')
@@ -686,6 +687,7 @@ class ws_threading_instance(sub_threading_instance):
             if not recv_text:
                 print('Empty recieved, likely connection loss')
                 await websocket.close()
+                await websocket.wait_closed()
             if len(recv_text) > 4096:
                 response_str = f"Input exceeding 4096 characters, which is not permitted--your ray tracer ID is {self.traceray_id}"
                 print(f"出现如下异常12-{self.traceray_id}:length exceeded")
