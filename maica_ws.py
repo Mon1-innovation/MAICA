@@ -1144,6 +1144,7 @@ async def main_logic(websocket, path):
 
     except Exception as excepted:
         await websocket.close()
+        await websocket.wait_closed()
         print(f'Exception: {excepted}. Likely connection loss.')
 
 async def prepare_thread():
