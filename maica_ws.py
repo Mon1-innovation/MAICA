@@ -51,7 +51,10 @@ class sub_threading_instance:
         asyncio.run(self._init_pools())
 
     def __del__(self):
-        self.loop.run_until_complete(self._close_pools())
+        try:
+            self.loop.run_until_complete(self._close_pools())
+        except:
+            pass
 
     #以下是抽象方法
 
