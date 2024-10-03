@@ -1027,103 +1027,113 @@ class ws_threading_instance(sub_threading_instance):
             print(f"出现如下异常26-{self.traceray_id}:{excepted}")
             await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
             return False
-        completion_args = {
-            "model": client_options['model'],
-            "messages": messages,
-            "stream": client_options['stream'],
-            "stop": ['<|im_end|>', '<|endoftext|>'],
-        }
-        default_sparams = {
-            "top_p": 0.7,
-            "temperature": 0.4,
-            "max_tokens": 1024,
-            "frequency_penalty": 0.4,
-            "presence_penalty": 0.2,
-            "seed": random.randint(0,999)
-            #default_seed = 42
-        }
-        for super_param in ['top_p', 'temperature', 'max_tokens', 'frequency_penalty', 'presence_penalty', 'seed']:
-            if super_param in self.kwargs:
-                super_value = self.kwargs[super_param]
-                match super_param:
-                    case 'max_tokens':
-                        if 0 < int(super_value) <= 1024:
-                            completion_args['max_tokens'] = int(super_value)
+        try:
+            completion_args = {
+                "model": client_options['model'],
+                "messages": messages,
+                "stream": client_options['stream'],
+                "stop": ['<|im_end|>', '<|endoftext|>'],
+            }
+            default_sparams = {
+                "top_p": 0.7,
+                "temperature": 0.4,
+                "max_tokens": 1024,
+                "frequency_penalty": 0.4,
+                "presence_penalty": 0.2,
+                "seed": random.randint(0,999)
+                #default_seed = 42
+            }
+            for super_param in ['top_p', 'temperature', 'max_tokens', 'frequency_penalty', 'presence_penalty', 'seed']:
+                if super_param in self.kwargs:
+                    super_value = self.kwargs[super_param]
+                    match super_param:
+                        case 'max_tokens':
+                            if 0 < int(super_value) <= 1024:
+                                completion_args['max_tokens'] = int(super_value)
+                            else:
+                                raise Exception('max_tokens must fall on 1~1024')
+                        case 'seed':
+                            if 0 <= int(super_value) <= 999:
+                                completion_args['seed'] = int(super_value)
+                            else:
+                                raise Exception('seed must fall on 0~999')      
+                        case 'top_p':
+                            if 0.1 <= float(super_value) <= 1.0:
+                                completion_args['top_p'] = float(super_value)
+                            else:
+                                raise Exception('top_p must fall on 0.1~1.0')
+                        case 'frequency_penalty':
+                            if 0.2 <= float(super_value) <= 1.0:
+                                completion_args['frequency_penalty'] = float(super_value)
+                            else:
+                                raise Exception('frequency_penalty must fall on 0.2~1.0')
+                        case _:
+                            if 0.0 <= float(super_value) <= 1.0:
+                                completion_args[super_param] = float(super_value)
+                            else:
+                                raise Exception(f'{super_param} must fall on 0.0~1.0')
+                if not super_param in completion_args:
+                    completion_args[super_param] = default_sparams[super_param]
+            print(f"Query ready to go, last query line is:\n{query_in}\nSending query.")
+            stream_resp = await client_actual.chat.completions.create(**completion_args)
+            if client_options['stream']:
+            #print(f'query: {query}')
+                reply_appended = ''
+                async for chunk in stream_resp:
+                    token = chunk.choices[0].delta.content
+                    await asyncio.sleep(0)
+                    print(token, end='', flush=True)
+                    if token != '':
+                        if True:
+                            reply_appended = reply_appended + token
+                            await websocket.send(wrap_ws_formatter('100', 'continue', token, 'carriage'))
                         else:
-                            raise Exception('max_tokens must fall on 1~1024')
-                    case 'seed':
-                        if 0 <= int(super_value) <= 999:
-                            completion_args['seed'] = int(super_value)
-                        else:
-                            raise Exception('seed must fall on 0~999')      
-                    case 'top_p':
-                        if 0.1 <= float(super_value) <= 1.0:
-                            completion_args['top_p'] = float(super_value)
-                        else:
-                            raise Exception('top_p must fall on 0.1~1.0')
-                    case 'frequency_penalty':
-                        if 0.2 <= float(super_value) <= 1.0:
-                            completion_args['frequency_penalty'] = float(super_value)
-                        else:
-                            raise Exception('frequency_penalty must fall on 0.2~1.0')
-                    case _:
-                        if 0.0 <= float(super_value) <= 1.0:
-                            completion_args[super_param] = float(super_value)
-                        else:
-                            raise Exception(f'{super_param} must fall on 0.0~1.0')
-            if not super_param in completion_args:
-                completion_args[super_param] = default_sparams[super_param]
-        print(f"Query ready to go, last query line is:\n{query_in}\nSending query.")
-        stream_resp = await client_actual.chat.completions.create(**completion_args)
-        if client_options['stream']:
-        #print(f'query: {query}')
-            reply_appended = ''
-            async for chunk in stream_resp:
-                token = chunk.choices[0].delta.content
-                await asyncio.sleep(0)
-                print(token, end='', flush=True)
-                if token != '':
-                    if True:
-                        reply_appended = reply_appended + token
-                        await websocket.send(wrap_ws_formatter('100', 'continue', token, 'carriage'))
-                    else:
-                        break
-            await websocket.send(wrap_ws_formatter('1000', 'streaming_done', f"streaming has finished with seed {completion_args['seed']}", 'info'))
-            reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
-            print(f"Finished replying-{self.traceray_id}:{session[3]}, with seed {completion_args['seed']}")
-        else:
-            token_combined = stream_resp.choices[0].message.content
-            print(token_combined)
-            await websocket.send(wrap_ws_formatter('200', 'reply', token_combined, 'carriage'))
-            reply_appended_insertion = json.dumps({'role': 'assistant', 'content': token_combined}, ensure_ascii=False)
-        if int(chat_session) > 0:
-            stored = await self.rw_chat_session(chat_session, 'w', messages0)
-            await self.rw_chat_session(chat_session, 'r', None)
-            #print(stored)
-            if stored[0]:
-                stored = await self.rw_chat_session(chat_session, 'w', reply_appended_insertion)
+                            break
+                await websocket.send(wrap_ws_formatter('1000', 'streaming_done', f"streaming has finished with seed {completion_args['seed']}", 'info'))
+                reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
+                print(f"Finished replying-{self.traceray_id}:{session[3]}, with seed {completion_args['seed']}")
+            else:
+                token_combined = stream_resp.choices[0].message.content
+                print(token_combined)
+                await websocket.send(wrap_ws_formatter('200', 'reply', token_combined, 'carriage'))
+                reply_appended_insertion = json.dumps({'role': 'assistant', 'content': token_combined}, ensure_ascii=False)
+            if int(chat_session) > 0:
+                stored = await self.rw_chat_session(chat_session, 'w', messages0)
+                await self.rw_chat_session(chat_session, 'r', None)
+                #print(stored)
                 if stored[0]:
-                    success = True
-                    if stored[4]:
-                        match stored[4]:
-                            case 1:
-                                await websocket.send(wrap_ws_formatter('204', 'deleted', f"Since session {chat_session} of user {username} exceeded {load_env('SESSION_MAX_TOKEN')} characters, The former part has been deleted to save storage--your ray tracer ID is {self.traceray_id}.", 'info'))
-                            case 2:
-                                await websocket.send(wrap_ws_formatter('200', 'delete_hint', f"Session {chat_session} of user {username} exceeded {load_env('SESSION_WARN_TOKEN')} characters, which will be chopped after exceeding {load_env('SESSION_MAX_TOKEN')}, make backups if you want to--your ray tracer ID is {self.traceray_id}.", 'info'))
+                    stored = await self.rw_chat_session(chat_session, 'w', reply_appended_insertion)
+                    if stored[0]:
+                        success = True
+                        if stored[4]:
+                            match stored[4]:
+                                case 1:
+                                    await websocket.send(wrap_ws_formatter('204', 'deleted', f"Since session {chat_session} of user {username} exceeded {load_env('SESSION_MAX_TOKEN')} characters, The former part has been deleted to save storage--your ray tracer ID is {self.traceray_id}.", 'info'))
+                                case 2:
+                                    await websocket.send(wrap_ws_formatter('200', 'delete_hint', f"Session {chat_session} of user {username} exceeded {load_env('SESSION_WARN_TOKEN')} characters, which will be chopped after exceeding {load_env('SESSION_MAX_TOKEN')}, make backups if you want to--your ray tracer ID is {self.traceray_id}.", 'info'))
+                    else:
+                        response_str = f"Chat reply recording failed, refer to administrator--your ray tracer ID is {self.traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
+                        print(f"出现如下异常27-{self.traceray_id}:{stored[1]}")
+                        await websocket.send(wrap_ws_formatter('500', 'store_failed', response_str, 'error'))
+                        await websocket.close(1000, 'Stopping connection due to critical server failure')
                 else:
-                    response_str = f"Chat reply recording failed, refer to administrator--your ray tracer ID is {self.traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
-                    print(f"出现如下异常27-{self.traceray_id}:{stored[1]}")
+                    response_str = f"Chat query recording failed, refer to administrator--your ray tracer ID is {self.traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
+                    print(f"出现如下异常28-{self.traceray_id}:{stored[1]}")
                     await websocket.send(wrap_ws_formatter('500', 'store_failed', response_str, 'error'))
                     await websocket.close(1000, 'Stopping connection due to critical server failure')
+                print(f"Finished entire loop-{self.traceray_id}:{session[3]}")
             else:
-                response_str = f"Chat query recording failed, refer to administrator--your ray tracer ID is {self.traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
-                print(f"出现如下异常28-{self.traceray_id}:{stored[1]}")
-                await websocket.send(wrap_ws_formatter('500', 'store_failed', response_str, 'error'))
-                await websocket.close(1000, 'Stopping connection due to critical server failure')
-            print(f"Finished entire loop-{self.traceray_id}:{session[3]}")
-        else:
-            success = True
-            print(f"Finished non-recording loop-{self.traceray_id}:{session[3]}")
+                success = True
+                print(f"Finished non-recording loop-{self.traceray_id}:{session[3]}")
+        except websockets.exceptions.WebSocketException:
+            print("Someone disconnected")
+            raise Exception('Force closure of connection')
+        except Exception as excepted:
+            response_str = f"Core model failed to respond, refer to administrator--your ray tracer ID is {self.traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
+            print(f"出现如下异常29-{self.traceray_id}:{excepted}")
+            await websocket.send(wrap_ws_formatter('500', 'respond_failed', response_str, 'error'))
+            await websocket.close(1000, 'Stopping connection due to critical server failure')
+
 
 #异步标记程序, 不是必要的. 万一要用呢?
 
