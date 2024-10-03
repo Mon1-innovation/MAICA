@@ -1135,6 +1135,7 @@ class ws_threading_instance(sub_threading_instance):
             await websocket.close(1000, 'Stopping connection due to critical server failure')
 
 
+
 #异步标记程序, 不是必要的. 万一要用呢?
 
 def callback_func_switch(future):
@@ -1161,6 +1162,11 @@ async def main_logic(websocket, path):
         await websocket.close()
         await websocket.wait_closed()
         print(f'Exception: {excepted}. Likely connection loss.')
+    finally:
+        await websocket.close()
+        await websocket.wait_closed()
+        print(f'Exception fallback. Likely connection loss.')
+
 
 async def prepare_thread():
     client = AsyncOpenAI(
