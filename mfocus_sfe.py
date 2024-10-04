@@ -882,4 +882,4 @@ Begin!
 if __name__ == "__main__":
     #print(mfocus_form_info(18270,1))
     import asyncio
-    print(asyncio.run(mfocus_find_info(21062, 1, '你喜欢吃什么')))
+    print(asyncio.run(mfocus_find_info(22398, 1, '你喜欢吃什么')))
