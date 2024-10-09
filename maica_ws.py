@@ -49,6 +49,7 @@ class sub_threading_instance:
         self.kwargs = {"user_id": None, "target_lang": "zh", "sfe_aggressive": False}
         self.loop = asyncio.new_event_loop()
         asyncio.run(self._init_pools())
+        asyncio.run(self.get_keys())
 
     # def __del__(self):
     #     try:
@@ -164,14 +165,20 @@ class sub_threading_instance:
             verification = False
             return verification, excepted
 
+    async def get_keys(self) -> None:
+        with open("key/prv.key", "r") as privkey_file:
+            privkey = privkey_file.read()
+        with open("key/pub.key", "r") as pubkey_file:
+            pubkey = pubkey_file.read()
+        privkey_loaded = RSA.import_key(privkey)
+        decryptor = PKCS1_OAEP.new(privkey_loaded)
+        self.decryptor = decryptor
+
     async def hashing_verify(self, access_token) -> list[bool, Exception, int, str, str, str]:
         try:
-            with open("key/prv.key", "r") as privkey_file:
-                privkey = privkey_file.read()
-            with open("key/pub.key", "r") as pubkey_file:
-                pubkey = pubkey_file.read()
-            privkey_loaded = RSA.import_key(privkey)
-            decryptor = PKCS1_OAEP.new(privkey_loaded)
+            decryptor = self.decryptor
+            if not decryptor:
+                await self.get_keys()
             decrypted_token =decryptor.decrypt(base64.b64decode(access_token)).decode("utf-8")
         except websockets.exceptions.WebSocketException:
             print("Someone disconnected")
@@ -287,7 +294,7 @@ class sub_threading_instance:
                 content = f'{{"role": "system", "content": "{global_init_system('[player]', self.kwargs['target_lang'])}"}}'
                 await self.send_modify(expression=sql_expression2, values=(content, chat_session_id), pool='maicapool')
                 sql_expression3 = "INSERT INTO csession_archived (chat_session_id, content) VALUES (%s, %s)"
-                await self.send_modify(expression=sql_expression3, values=(chat_session_id, content), pool='maicapool')
+                await self.send_modify(expression=sql_expression3, values=(chat_session_id, content_to_archive), pool='maicapool')
                 success = True
                 inexist = False
                 return success, None, inexist
@@ -593,6 +600,7 @@ class ws_threading_instance(sub_threading_instance):
                     print('Empty recieved, likely connection loss')
                     await websocket.close()
                     await websocket.wait_closed()
+                print(f'Recieved an input on stage1: {recv_text}')
                 verification_result = await self.hashing_verify(access_token=recv_text)
                 if verification_result[0]:
                     checked_status = await self.check_user_status(key='banned')
@@ -691,6 +699,7 @@ class ws_threading_instance(sub_threading_instance):
                 print('Empty recieved, likely connection loss')
                 await websocket.close()
                 await websocket.wait_closed()
+            print(f'Recieved an input on stage2: {recv_text}')
             if len(recv_text) > 4096:
                 response_str = f"Input exceeding 4096 characters, which is not permitted--your ray tracer ID is {self.traceray_id}"
                 print(f"出现如下异常12-{self.traceray_id}:length exceeded")
@@ -1159,13 +1168,11 @@ async def main_logic(websocket, path):
         await thread_instance.function_switch()
 
     except Exception as excepted:
-        await websocket.close()
-        await websocket.wait_closed()
         print(f'Exception: {excepted}. Likely connection loss.')
     finally:
         await websocket.close()
         await websocket.wait_closed()
-        print(f'Exception fallback. Likely connection loss.')
+        print(f'Destroying connection.')
 
 
 async def prepare_thread():

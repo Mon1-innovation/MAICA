@@ -98,7 +98,7 @@ async def weather_acquire(params, sf_extraction, session, chat_session, target_l
         exception = excepted
         content = weather_friendly = '天气未知' if target_lang == 'zh' else "Weather unknown"
     return success, exception, content, weather_friendly
-async def event_acquire(params, sf_extraction, session, chat_session, pred_length=-1, target_lang='zh'):
+async def event_acquire(params, sf_extraction, session, chat_session, pred_length=-1, small_eves = False, target_lang='zh'):
     success = True
     exception = None
     holiday_friendly = ''
@@ -186,7 +186,7 @@ async def event_acquire(params, sf_extraction, session, chat_session, pred_lengt
 
             # Check common events
             for desc in evday['describe']:
-                if 'Start' in desc and (thisday == 1  or desc['IsNotWork']):
+                if 'Start' in desc and (desc['IsNotWork'] or (thisday == 1 and small_eves)):
                     evname = desc['Name'] if target_lang == 'zh' else desc['EnglishName']
                     event_day_list.append(evname)
 
