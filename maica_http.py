@@ -57,6 +57,11 @@ async def save_upload():
         success = False
         exception = excepted
         return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)
+    finally:
+        try:
+            await hduplex_instance._close_pools()
+        except:
+            pass
     
 @app.route('/history', methods=["POST"])
 async def history_download():
@@ -110,6 +115,11 @@ async def history_download():
         success = False
         exception = excepted
         return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)
+    finally:
+        try:
+            await hduplex_instance._close_pools()
+        except:
+            pass
 
 @app.route('/preferences', methods=["POST"])
 async def sl_prefs():
@@ -165,6 +175,11 @@ async def sl_prefs():
         success = False
         exception = excepted
         return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)
+    finally:
+        try:
+            await hduplex_instance._close_pools()
+        except:
+            pass
 
 @app.route('/register', methods=["POST"])
 async def register():
@@ -245,6 +260,11 @@ async def legal():
         success = False
         exception = excepted
         return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)
+    finally:
+        try:
+            await hduplex_instance._close_pools()
+        except:
+            pass
 
 @app.route('/servers', methods=["POST"])
 async def nameserv():
