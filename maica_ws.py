@@ -51,11 +51,11 @@ class sub_threading_instance:
         asyncio.run(self._init_pools())
         asyncio.run(self.get_keys())
 
-    # def __del__(self):
-    #     try:
-    #         self.loop.run_until_complete(self._close_pools())
-    #     except:
-    #         pass
+    def __del__(self):
+        try:
+            self.loop.run_until_complete(self._close_pools())
+        except:
+            pass
 
     #以下是抽象方法
 
@@ -927,7 +927,7 @@ class ws_threading_instance(sub_threading_instance):
                                 await websocket.send(wrap_ws_formatter('200', 'agent_prog', response_str, 'debug'))
                                 if len(message_agent_wrapped[1]) > 5:
                                     response_str = f"Due to LLM conclusion absence, falling back to instructed guidance and continuing."
-                                    await websocket.send(wrap_ws_formatter('200', 'failsafe', response_str, 'debug'))
+                                    await websocket.send(wrap_ws_formatter('200', 'agent_abse', response_str, 'debug'))
                                     info_agent_grabbed = message_agent_wrapped[1]
                                 else:
                                     response_str = f"Due to agent failure, falling back to default guidance and continuing anyway."

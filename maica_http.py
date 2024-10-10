@@ -50,12 +50,13 @@ async def save_upload():
                     sf.write(json.dumps(content, ensure_ascii=False))
             else:
                 raise Exception('Content length exceeded')
-        return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
+        return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)
     except Exception as excepted:
         #traceback.print_exc()
+        print('This one has failed')
         success = False
         exception = excepted
-        return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
+        return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)
     
 @app.route('/history', methods=["POST"])
 async def history_download():
@@ -102,12 +103,13 @@ async def history_download():
                 case _:
                     hisfine = hisjson
             hisstr = json.dumps(hisfine, ensure_ascii=False)
-        return json.dumps({"success": success, "exception": exception, "history": hisstr}, ensure_ascii=False)
+        return json.dumps({"success": success, "exception": str(exception), "history": hisstr}, ensure_ascii=False)
     except Exception as excepted:
         #traceback.print_exc()
+        print('This one has failed')
         success = False
         exception = excepted
-        return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
+        return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)
 
 @app.route('/preferences', methods=["POST"])
 async def sl_prefs():
@@ -141,7 +143,7 @@ async def sl_prefs():
                 prefs_old = {}
             if 'read' in data and data['read']:
                 prefs_str = json.dumps(prefs_old, ensure_ascii=False)
-                return json.dumps({"success": success, "exception": exception, "preferences": prefs_str}, ensure_ascii=False)
+                return json.dumps({"success": success, "exception": str(exception), "preferences": prefs_str}, ensure_ascii=False)
             if 'purge' in data and data['purge']:
                 prefs_old = {}
             else:
@@ -156,12 +158,13 @@ async def sl_prefs():
                 await hduplex_instance.write_user_preferences(prefs_old, enforce=True)
             else:
                 raise Exception('Content length exceeded')
-        return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
+        return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)
     except Exception as excepted:
         #traceback.print_exc()
+        print('This one has failed')
         success = False
         exception = excepted
-        return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
+        return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)
 
 @app.route('/register', methods=["POST"])
 async def register():
@@ -179,16 +182,17 @@ async def register():
         else:
             success = False
             exception = "No user cridential provided"
-            return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
+            return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)
         password = data['password']
         token_raw = json.dumps({type_usr: cridential, "password": password}, ensure_ascii=False)
         encryptor = PKCS1_OAEP.new(pubkey_loaded)
         encrypted_token = base64.b64encode(encryptor.encrypt(token_raw.encode('utf-8'))).decode('utf-8')
-        return json.dumps({"success": success, "exception": exception, "token": encrypted_token}, ensure_ascii=False)
+        return json.dumps({"success": success, "exception": str(exception), "token": encrypted_token}, ensure_ascii=False)
     except Exception as excepted:
+        print('This one has failed')
         success = False
         exception = excepted
-        return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
+        return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)
 
 @app.route('/legality', methods=["POST"])
 async def legal():
@@ -233,27 +237,28 @@ async def legal():
             else:
                 exception = f"Caught a serialization failure in hashing section, check possible typo"
         if success:
-            return json.dumps({"success": success, "exception": exception, "id": verification_result[2]})
+            return json.dumps({"success": success, "exception": str(exception), "id": verification_result[2]})
         else:
-            return json.dumps({"success": success, "exception": exception})
+            return json.dumps({"success": success, "exception": str(exception)})
     except Exception as excepted:
+        print('This one has failed')
         success = False
         exception = excepted
-        return json.dumps({"success": success, "exception": exception}, ensure_ascii=False)
+        return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)
 
 @app.route('/servers', methods=["POST"])
 async def nameserv():
     global known_servers
     success = True
     exception = ''
-    return json.dumps({"success": success, "exception": exception, "servers": known_servers}, ensure_ascii=False)
+    return json.dumps({"success": success, "exception": str(exception), "servers": known_servers}, ensure_ascii=False)
 
 @app.route('/accessibility', methods=["POST"])
 async def access():
     success = True
     exception = ''
     accessibility = load_env('DEV_STATUS')
-    return json.dumps({"success": success, "exception": exception, "accessibility": accessibility}, ensure_ascii=False)
+    return json.dumps({"success": success, "exception": str(exception), "accessibility": accessibility}, ensure_ascii=False)
 
 if __name__ == '__main__':
     global pubkey_loaded, privkey_loaded
