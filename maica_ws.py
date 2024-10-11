@@ -126,7 +126,10 @@ class sub_threading_instance:
         try:
             result = await self.send_query(expression=sql_expression, values=(identity), pool='authpool')
             dbres_id, dbres_username, dbres_nickname, dbres_email, dbres_ecf, dbres_pwd_bcrypt, *dbres_args = result
-            verification = bcrypt.checkpw(pwd.encode(), dbres_pwd_bcrypt.encode())
+            input_pwd, target_pwd = pwd.encode(), dbres_pwd_bcrypt.encode()
+            print(f'Ready to run hash: {identity} {pwd}')
+            verification = await wrap_run_in_exc(bcrypt.checkpw, input_pwd, target_pwd)
+            print(f'Hashing finished: {verification}')
             self.alter_identity(user_id=dbres_id, username=dbres_username, email=dbres_email)
             f2b_count, f2b_stamp = (await asyncio.gather(self.check_user_status('f2b_count'), self.check_user_status('f2b_stamp')))
             f2b_count, f2b_stamp = f2b_count[3], f2b_stamp[3]
@@ -179,7 +182,10 @@ class sub_threading_instance:
             decryptor = self.decryptor
             if not decryptor:
                 await self.get_keys()
-            decrypted_token =decryptor.decrypt(base64.b64decode(access_token)).decode("utf-8")
+            exec_unbase64_token = await wrap_run_in_exc(base64.b64decode, access_token)
+            exec_decrypted_token = await wrap_run_in_exc(decryptor.decrypt, exec_unbase64_token)
+            decrypted_token = exec_decrypted_token.decode("utf-8")
+            print(f'Token decrypted: {decrypted_token}')
         except websockets.exceptions.WebSocketException:
             print("Someone disconnected")
             raise Exception('Force closure of connection')
