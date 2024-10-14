@@ -299,7 +299,7 @@ def conclude_basic_sf(user_id, chat_session):
         if data1[2]:
             result.append('[player]有独特的音乐品位.')
             data2 = persistent_extraction.read_from_sf(user_id, chat_session, '_mas_pm_like_other_music_history')
-            if data2[0]:
+            if data2[0] and re.search("u'(.*)'", data2[2]):
                 result.append(f'[player]还喜欢{re.search("u'(.*)'", data2[2])[1]}音乐.')
     
 
@@ -880,6 +880,6 @@ Begin!
 """
 
 if __name__ == "__main__":
-    #print(mfocus_form_info(18270,1))
+    print(mfocus_form_info(18270,1))
     import asyncio
-    print(asyncio.run(mfocus_find_info(22398, 1, '你喜欢吃什么')))
+    #print(asyncio.run(mfocus_find_info(22398, 1, '你喜欢吃什么')))
