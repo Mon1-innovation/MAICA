@@ -1051,7 +1051,7 @@ class ws_threading_instance(sub_threading_instance):
             }
             default_sparams = {
                 "top_p": 0.7,
-                "temperature": 0.4,
+                "temperature": 0.2,
                 "max_tokens": 1024,
                 "frequency_penalty": 0.4,
                 "presence_penalty": 0.2,
