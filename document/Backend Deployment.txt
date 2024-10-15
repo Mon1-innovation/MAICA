@@ -115,4 +115,5 @@ WEATHER_KEY = 'whateveryousay'
 #如果上述配置全部顺利完成, 你可以启动"幻象引擎"了:
     .\start_windows.ps1
     #在启动前, 请确保与"幻象引擎"通信的一切结构能够正常工作
-    #对于linux, 通过任意方式同时启动ws.py与httpserv.py即可, 如screen或nohup
+    #若为linux环境, 使用以下命令启动:
+        #bash ./start_linux.sh
