@@ -41,9 +41,11 @@ class sub_threading_instance:
         user = load_env('DB_USER'),
         password = load_env('DB_PASSWORD'),
         authdb = load_env('AUTHENTICATOR_DB'),
-        maicadb = load_env('MAICA_DB')
+        maicadb = load_env('MAICA_DB'),
+        max_token = int(load_env('SESSION_MAX_TOKEN')),
+        warn_token = int(load_env('SESSION_WARN_TOKEN'))
     ):
-        self.host, self.user, self.password, self.authdb, self.maicadb = host, user, password, authdb, maicadb
+        self.host, self.user, self.password, self.authdb, self.maicadb, self.max_token, self.warn_token = host, user, password, authdb, maicadb, max_token, warn_token
         self.verified = False
         self.traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
         self.kwargs = {"user_id": None, "target_lang": "zh", "sfe_aggressive": False}
@@ -106,6 +108,37 @@ class sub_threading_instance:
                 await conn.commit()
                 lrid = cur.lastrowid
         return lrid
+    
+    def chop_session(self, chat_session_id, content) -> list[int, str]:
+        len_content_actual = len(content) - len(json.loads(f'[{content}]')) * 31
+        if len_content_actual >= self.max_token:
+            # First we check if there is a cchop avaliable
+            sql_expression = 'SELECT * FROM cchop_archived WHERE chat_session_id = %s'
+            results = asyncio.run(self.send_query(expression=sql_expression, values=(self.kwargs['user_id']), pool='maicapool', fetchall=True))
+            use_result = []
+            if len(results):
+                last_result = results[-1]
+                if not last_result[3]:
+                    use_result = last_result
+                    archive_id = use_result[0]
+            if not use_result:
+                sql_expression2 = 'INSERT INTO cchop_archived (archived) VALUES (0)'
+                archive_id = asyncio.run(self.send_modify(expression=sql_expression2, pool='maicapool'))
+                use_result = [archive_id, chat_session_id, '', 0]
+            archive_content = use_result[2]
+            # Now an avaliable cchop should be ready
+            cutting_mat = json.loads(f"[{content}]")
+            while len_content_actual >= self.warn_token or cutting_mat[1]['role'] == "assistant":
+                len_content_actual = len(content) - len(cutting_mat) * 31
+                archive_content += json.dumps(cutting_mat.pop(1), ensure_ascii=False)
+            content = json.dumps(cutting_mat, ensure_ascii=False).strip('[').strip(']')
+            sql_expression3 = 'UPDATE cchop_archived SET content = %s WHERE archive_id = %s'
+            asyncio.run(self.send_modify(expression=sql_expression3, values=(archive_content, archive_id), pool='maicapool'))
+            cutted = 1
+        elif len_content_actual >= self.warn_token:
+            cutted = 2
+        else:
+            cutted = 0
             
     #以下是实用方法
 
