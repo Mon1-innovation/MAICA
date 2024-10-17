@@ -8,7 +8,7 @@ from openai import AsyncOpenAI # type: ignore
 async def internet_search_limb(query, original_query, esc_aggressive=True):
     success = True
     exception = None
-    engine = Bing(load_env('PROXY_ADDR'))
+    engine = Bing()
     engine.set_headers({'User-Agent':f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 OPR/109.0.0.0"})
     results = engine.search(query, pages=1)
     slt_full = []
@@ -44,7 +44,7 @@ async def internet_search_limb(query, original_query, esc_aggressive=True):
 Thought: 简要地思考以上信息关于何种内容, 与内容是否存在相关性.
 Try: 尝试将你的总结以单行自然语言的形式返回.
 Thought Again: 再次思考上面输出的信息. 如果其中存在广告, 无意义, 无知识性, 无时效性或与问题无关的内容, 则将其去除.
-Answer: 最终将有用的信息以单行自然语言的形式返回. 如果没有找到任何有用信息, 则返回none.
+Answer: 最终将信息以单行自然语言的形式返回. 如果没有找到任何有用信息, 则返回none.
 Begin!
 """
         messages = [{'role': 'system', 'content': system_init}]
@@ -76,5 +76,6 @@ Begin!
     return True, None, slt_humane, slt_humane
 
 if __name__ == '__main__':
-    searched = internet_search_limb('今年的奥运会有什么新闻','你知道今年奥运会怎么样了吗', esc_aggressive=True)
+    import asyncio
+    searched = asyncio.run(internet_search_limb('今年的奥运会有什么新闻','你知道今年奥运会怎么样了吗', esc_aggressive=True))
     print(searched[3])

@@ -49,7 +49,7 @@ class sub_threading_instance:
         self.verified = False
         self.traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
         self.kwargs = {"user_id": None, "target_lang": "zh", "sfe_aggressive": False}
-        self.loop = asyncio.new_event_loop()
+        self.loop = asyncio.get_event_loop()
         asyncio.run(self._init_pools())
         asyncio.run(self.get_keys())
 
@@ -67,7 +67,7 @@ class sub_threading_instance:
 
     async def _init_pools(self) -> None:
         global authpool, maicapool
-        authpool, maicapool = (await asyncio.gather(aiomysql.create_pool(host=self.host,user=self.user, password=self.password,db=self.authdb,autocommit=True),aiomysql.create_pool(host=self.host,user=self.user, password=self.password,db=self.maicadb,autocommit=True)))
+        authpool, maicapool = (await asyncio.gather(aiomysql.create_pool(host=self.host,user=self.user, password=self.password,db=self.authdb,loop=self.loop,autocommit=True),aiomysql.create_pool(host=self.host,user=self.user, password=self.password,db=self.maicadb,loop=self.loop,autocommit=True)))
 
     async def _close_pools(self) -> None:
         global authpool, maicapool
@@ -113,32 +113,34 @@ class sub_threading_instance:
         len_content_actual = len(content) - len(json.loads(f'[{content}]')) * 31
         if len_content_actual >= self.max_token:
             # First we check if there is a cchop avaliable
-            sql_expression = 'SELECT * FROM cchop_archived WHERE chat_session_id = %s'
-            results = asyncio.run(self.send_query(expression=sql_expression, values=(self.kwargs['user_id']), pool='maicapool', fetchall=True))
+            sql_expression = 'SELECT * FROM cchop_archived WHERE chat_session_id = %s ORDER BY archive_id DESC'
+            result = self.loop.run_until_complete(self.send_query(expression=sql_expression, values=(chat_session_id), pool='maicapool'))
             use_result = []
-            if len(results):
-                last_result = results[-1]
-                if not last_result[3]:
-                    use_result = last_result
-                    archive_id = use_result[0]
+            if result and not result[3]:
+                use_result = result
+                archive_id = use_result[0]
             if not use_result:
-                sql_expression2 = 'INSERT INTO cchop_archived (archived) VALUES (0)'
-                archive_id = asyncio.run(self.send_modify(expression=sql_expression2, pool='maicapool'))
+                sql_expression2 = 'INSERT INTO cchop_archived (chat_session_id, content, archived) VALUES (%s, "", 0)'
+                archive_id = self.loop.run_until_complete(self.send_modify(expression=sql_expression2, values=(chat_session_id), pool='maicapool'))
                 use_result = [archive_id, chat_session_id, '', 0]
             archive_content = use_result[2]
             # Now an avaliable cchop should be ready
             cutting_mat = json.loads(f"[{content}]")
             while len_content_actual >= self.warn_token or cutting_mat[1]['role'] == "assistant":
-                len_content_actual = len(content) - len(cutting_mat) * 31
-                archive_content += json.dumps(cutting_mat.pop(1), ensure_ascii=False)
+                if archive_content:
+                    archive_content += ','
+                popped_dict = cutting_mat.pop(1)
+                archive_content += json.dumps(popped_dict, ensure_ascii=False)
+                len_content_actual -= (len(json.dumps(popped_dict, ensure_ascii=False)) - 31)
             content = json.dumps(cutting_mat, ensure_ascii=False).strip('[').strip(']')
-            sql_expression3 = 'UPDATE cchop_archived SET content = %s WHERE archive_id = %s'
-            asyncio.run(self.send_modify(expression=sql_expression3, values=(archive_content, archive_id), pool='maicapool'))
+            sql_expression3 = 'UPDATE cchop_archived SET content = %s WHERE archive_id = %s' if len(archive_content) <= 100000 else 'UPDATE cchop_archived SET content = %s, archived = 1 WHERE archive_id = %s'
+            self.loop.run_until_complete(self.send_modify(expression=sql_expression3, values=(archive_content, archive_id), pool='maicapool'))
             cutted = 1
         elif len_content_actual >= self.warn_token:
             cutted = 2
         else:
             cutted = 0
+        return cutted, content
             
     #以下是实用方法
 
@@ -161,7 +163,7 @@ class sub_threading_instance:
             dbres_id, dbres_username, dbres_nickname, dbres_email, dbres_ecf, dbres_pwd_bcrypt, *dbres_args = result
             input_pwd, target_pwd = pwd.encode(), dbres_pwd_bcrypt.encode()
             print(f'Ready to run hash: {identity} {pwd}')
-            verification = await wrap_run_in_exc(bcrypt.checkpw, input_pwd, target_pwd)
+            verification = await wrap_run_in_exc(None, bcrypt.checkpw, input_pwd, target_pwd)
             print(f'Hashing finished: {verification}')
             self.alter_identity(user_id=dbres_id, username=dbres_username, email=dbres_email)
             f2b_count, f2b_stamp = (await asyncio.gather(self.check_user_status('f2b_count'), self.check_user_status('f2b_stamp')))
@@ -215,8 +217,8 @@ class sub_threading_instance:
             decryptor = self.decryptor
             if not decryptor:
                 await self.get_keys()
-            exec_unbase64_token = await wrap_run_in_exc(base64.b64decode, access_token)
-            exec_decrypted_token = await wrap_run_in_exc(decryptor.decrypt, exec_unbase64_token)
+            exec_unbase64_token = await wrap_run_in_exc(None, base64.b64decode, access_token)
+            exec_decrypted_token = await wrap_run_in_exc(None, decryptor.decrypt, exec_unbase64_token)
             decrypted_token = exec_decrypted_token.decode("utf-8")
             print(f'Token decrypted: {decrypted_token}')
         except websockets.exceptions.WebSocketException:
@@ -278,25 +280,9 @@ class sub_threading_instance:
                     content = content + ',' + content_append
                 else:
                     content = content_append
-                len_content_actual = len(content) - len(json.loads(f'[{content}]')) * 31
-                if len_content_actual >= int(load_env('SESSION_MAX_TOKEN')):
-                    try:
-                        cutting_mat = json.loads(f"[{content}]")
-                    except websockets.exceptions.WebSocketException:
-                        print("Someone disconnected")
-                        raise Exception('Force closure of connection')
-                    except Exception as excepted:
-                        success = False
-                        return success, excepted
-                    while len_content_actual >= int(load_env('SESSION_WARN_TOKEN')) or cutting_mat[1]['role'] == "assistant":
-                        len_content_actual = len(content) - len(cutting_mat) * 31
-                        cutting_mat.pop(1)
-                    content = json.dumps(cutting_mat, ensure_ascii=False).strip('[').strip(']')
-                    cutted = 1
-                elif len_content_actual >= int(load_env('SESSION_WARN_TOKEN')):
-                    cutted = 2
-                else:
-                    cutted = 0
+
+                cutted, content = await wrap_run_in_exc(None, self.chop_session, chat_session_id, content)
+
                 sql_expression2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
                 try:
                     await self.send_modify(expression=sql_expression2, values=(content, chat_session_id), pool='maicapool')
@@ -334,6 +320,8 @@ class sub_threading_instance:
                 await self.send_modify(expression=sql_expression2, values=(content, chat_session_id), pool='maicapool')
                 sql_expression3 = "INSERT INTO csession_archived (chat_session_id, content) VALUES (%s, %s)"
                 await self.send_modify(expression=sql_expression3, values=(chat_session_id, content_to_archive), pool='maicapool')
+                sql_expression4 = "UPDATE cchop_archived SET archived = 1 WHERE chat_session_id = %s"
+                await self.send_modify(expression=sql_expression4, values=(chat_session_id), pool='maicapool')
                 success = True
                 inexist = False
                 return success, None, inexist
@@ -408,7 +396,7 @@ class sub_threading_instance:
         try:
             self.check_essentials()
             if self.kwargs['sf_extraction']:
-                player_name_get = await wrap_run_in_exc(persistent_extraction.read_from_sf, user_id, chat_session_num, 'mas_playername')
+                player_name_get = await wrap_run_in_exc(None, persistent_extraction.read_from_sf, user_id, chat_session_num, 'mas_playername')
                 if player_name_get[0]:
                     if 'sfe_aggressive' in self.kwargs and self.kwargs['sfe_aggressive']:
                         player_name = player_name_get[2]
@@ -440,7 +428,7 @@ class sub_threading_instance:
         try:
             self.check_essentials()
             if self.kwargs['sf_extraction']:
-                player_name_get = await wrap_run_in_exc(persistent_extraction.read_from_sf, user_id, chat_session_num, 'mas_playername')
+                player_name_get = await wrap_run_in_exc(None, persistent_extraction.read_from_sf, user_id, chat_session_num, 'mas_playername')
                 if player_name_get[0]:
                     if 'sfe_aggressive' in self.kwargs and self.kwargs['sfe_aggressive']:
                         player_name = player_name_get[2]
@@ -612,8 +600,9 @@ def wrap_ws_formatter(code, status, content, type):
     }
     return json.dumps(output, ensure_ascii=False)
 
-async def wrap_run_in_exc(func, *args, **kwargs):
-    loop = asyncio.get_running_loop()
+async def wrap_run_in_exc(loop, func, *args, **kwargs):
+    if not loop:
+        loop = asyncio.get_running_loop()
     result = await loop.run_in_executor(
         None, functools.partial(func, *args, **kwargs))
     return result
@@ -901,9 +890,9 @@ class ws_threading_instance(sub_threading_instance):
             if 'inspire' in request_json:
                 if request_json['inspire']:
                     if isinstance(request_json['inspire'], str):
-                        query_insp = await wrap_run_in_exc(mspire.make_inspire, title_in=request_json['inspire'], target_lang=target_lang)
+                        query_insp = await wrap_run_in_exc(None, mspire.make_inspire, title_in=request_json['inspire'], target_lang=target_lang)
                     else:
-                        query_insp = await wrap_run_in_exc(mspire.make_inspire, target_lang=target_lang)
+                        query_insp = await wrap_run_in_exc(None, mspire.make_inspire, target_lang=target_lang)
                     bypass_mf = True
                     if not query_insp[0]:
                         response_str = f"MSpire generation failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
@@ -1147,11 +1136,10 @@ class ws_threading_instance(sub_threading_instance):
                 reply_appended_insertion = json.dumps({'role': 'assistant', 'content': token_combined}, ensure_ascii=False)
             if int(chat_session) > 0:
                 stored = await self.rw_chat_session(chat_session, 'w', messages0)
-                await self.rw_chat_session(chat_session, 'r', None)
                 #print(stored)
                 if stored[0]:
-                    stored = await self.rw_chat_session(chat_session, 'w', reply_appended_insertion)
-                    if stored[0]:
+                    stored2 = await self.rw_chat_session(chat_session, 'w', reply_appended_insertion)
+                    if stored2[0]:
                         success = True
                         if stored[4]:
                             match stored[4]:

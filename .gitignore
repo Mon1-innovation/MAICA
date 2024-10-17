@@ -162,6 +162,8 @@ cython_debug/
 #.idea/
 
 # MAICA
+.essentials_generated.sh
+.essentials_generated.ps1
 .servers
 key/
 *.key
