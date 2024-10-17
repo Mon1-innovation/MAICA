@@ -215,8 +215,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         instructed_final_answer['date'] = f"[{(await agent_modules.date_acquire(None, sf_extraction, session, chat_session, target_lang))[3]}]"
         if persistent_extraction.read_from_sf(session[2], chat_session, 'mas_geolocation')[2]:
             instructed_final_answer['weather'] = f"[{(await agent_modules.weather_acquire(None, sf_extraction, session, chat_session, target_lang))[3]}]"
-    for key in instructed_final_answer.keys():
-        final_answer += instructed_final_answer[key]
+    instructed_first_answer = instructed_final_answer
     # to be extended
     cycle = 0
     while tool_calls:
@@ -246,8 +245,9 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                 date_acquired = await agent_modules.date_acquire(real_parameters_dict, sf_extraction, session, chat_session, target_lang)
                 if date_acquired[0]:
                     return_instruction = f"[{{'date': '{date_acquired[2]}'}}]"
-                    instructed_final_answer['date'] = f"[{date_acquired[3]}]"
-                    inst_date = True
+                    if date_acquired[3]:
+                        instructed_final_answer['date'] = f"[{date_acquired[3]}]"
+                        inst_date = True
                 else:
                     raise Exception(date_acquired[1])
             elif re.search((r'weather.*acquire'), predict_action_function, re.I):
@@ -330,7 +330,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
                     raise Exception(internet_acquired[1])
             elif re.search((r'conclude.*information'), predict_action_function, re.I):
                 #print(real_parameters_dict)
-                final_answer += f"\"{real_parameters_dict[list(real_parameters_dict.keys())[0]]}\""
+                conc_final_answer = f"\"{real_parameters_dict[list(real_parameters_dict.keys())[0]]}\""
                 inst_conc = True
                 raise Exception('Final conclusion provided, making early break')
             else:
@@ -372,20 +372,29 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
     if 'persistent' in instructed_final_answer:
         instructed_final_answer['persistent'] = f"\"{str(instructed_final_answer['persistent']).strip('[').strip(']')}\""
     instructed_final_answer_joined = ''.join(str(x) for x in instructed_final_answer.values())
+    if inst_time and 'time' in instructed_first_answer:
+        instructed_first_answer.pop('time')
+    if inst_event and 'event' in instructed_first_answer:
+        instructed_first_answer.pop('event')
+    if inst_date and 'date' in instructed_first_answer:
+        instructed_first_answer.pop('date')
+    if inst_wea and 'weather' in instructed_first_answer:
+        instructed_first_answer.pop('weather')
+    for key in instructed_first_answer.keys():
+        final_answer += instructed_first_answer[key]
     if inst_conc:
-        fin_final_answer = inst_conc
-        final_answer += f"\"{fin_final_answer[1]}\""
+        fin_final_answer = final_answer + conc_final_answer
     else:
         try:
-            fin_final_answer = re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.S)
-            final_answer += f"\"{fin_final_answer[1]}\""
+            conc_final_answer = re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.S)
+            fin_final_answer = final_answer + conc_final_answer
         except:
             fin_final_answer = ''
     if mf_aggressive and instructed_final_answer_joined:
         response_str3 = f"MFocus callback achieved, response is:\n{final_answer}\nInfo acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."
         if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug'))
         print(response_str3)
-        return final_answer, instructed_final_answer_joined
+        return fin_final_answer, instructed_final_answer_joined
     elif instructed_final_answer_joined:
         response_str3 = f"MFocus falling back, Info acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."
         if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug'))
