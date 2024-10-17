@@ -68,6 +68,11 @@ MAICA_DB = 'maica'
         #列"user_id"(int)
         #列"status"(text NULL DEFAULT NULL)
         #列"preferences"(text NULL DEFAULT NULL)
+    #表"cchop_archived"
+        #列"archive_id"(int AUTO_INCREMENT PRIMARY KEY)
+        #列"chat_session_id"(int)
+        #列"content"(longtext)
+        $列"archived"(int DEFAULT NULL)
     #表"chat_session"
         #列"chat_session_id"(int AUTO_INCREMENT PRIMARY KEY)
         #列"user_id"(int)
