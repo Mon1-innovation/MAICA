@@ -21,4 +21,8 @@ if proxyaddr:
                 emittion.write(f"export HTTP_PROXY={proxyaddr}\nexport HTTPS_PROXY={proxyaddr}\nexport http_proxy={proxyaddr}\nexport https_proxy={proxyaddr}")
             case 'Windows':
                 emittion.write(f"set http_proxy={proxyaddr}\nset https_proxy={proxyaddr}")
+else:
+    print("Global proxy absent")
+    with open(filename, 'w+') as emittion:
+        pass
 
