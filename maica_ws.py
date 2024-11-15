@@ -42,13 +42,17 @@ class sub_threading_instance:
         password = load_env('DB_PASSWORD'),
         authdb = load_env('AUTHENTICATOR_DB'),
         maicadb = load_env('MAICA_DB'),
-        max_token = int(load_env('SESSION_MAX_TOKEN')),
-        warn_token = int(load_env('SESSION_WARN_TOKEN'))
+        login = load_env('LOGIN_VERIFICATION'),
+        test = False
     ):
-        self.host, self.user, self.password, self.authdb, self.maicadb, self.max_token, self.warn_token = host, user, password, authdb, maicadb, max_token, warn_token
+        self.host, self.user, self.password, self.authdb, self.maicadb, self.login, self.test = host, user, password, authdb, maicadb, login, test
         self.verified = False
         self.traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
-        self.kwargs = {"user_id": None, "target_lang": "zh", "sfe_aggressive": False}
+
+        # Note that the 'id' dict is an unsafe identity, which means it doesn't need to pass all verifications, while 'vfc' is safe.
+        # Do not use the 'id' on events needing account level security guaranteed.
+
+        self.options = {"id": {"user_id": None}, "vfc":{"user_id": None}, "opt": {"target_lang": "zh"}, "eopt": {"sfe_aggressive": False}, "sup": {}}
         self.loop = asyncio.get_event_loop()
         asyncio.run(self._init_pools())
         asyncio.run(self.get_keys())
@@ -62,7 +66,7 @@ class sub_threading_instance:
     #以下是抽象方法
 
     def check_essentials(self) -> None:
-        if not self.kwargs['user_id'] or not self.verified:
+        if not self.options['vfc']['user_id'] or not self.verified:
             raise Exception('Essentials not filled')
 
     async def _init_pools(self) -> None:
@@ -109,9 +113,14 @@ class sub_threading_instance:
                 lrid = cur.lastrowid
         return lrid
     
+    # This function is rather CPU bound so we using run_in_exc
+    # The Exception here seems not matter
+
     def chop_session(self, chat_session_id, content) -> list[int, str]:
+        max_token = self.options['opt']['max_token']
+        warn_token = max_token - 4096
         len_content_actual = len(content) - len(json.loads(f'[{content}]')) * 31
-        if len_content_actual >= self.max_token:
+        if len_content_actual >= max_token:
             # First we check if there is a cchop avaliable
             sql_expression = 'SELECT * FROM cchop_archived WHERE chat_session_id = %s ORDER BY archive_id DESC'
             result = self.loop.run_until_complete(self.send_query(expression=sql_expression, values=(chat_session_id), pool='maicapool'))
@@ -126,17 +135,17 @@ class sub_threading_instance:
             archive_content = use_result[2]
             # Now an avaliable cchop should be ready
             cutting_mat = json.loads(f"[{content}]")
-            while len_content_actual >= self.warn_token or cutting_mat[1]['role'] == "assistant":
+            while len_content_actual >= warn_token or cutting_mat[1]['role'] == "assistant":
                 if archive_content:
-                    archive_content += ','
+                    archive_content = ', ' + archive_content
                 popped_dict = cutting_mat.pop(1)
-                archive_content += json.dumps(popped_dict, ensure_ascii=False)
+                archive_content = json.dumps(popped_dict, ensure_ascii=False) + archive_content
                 len_content_actual -= (len(json.dumps(popped_dict, ensure_ascii=False)) - 31)
             content = json.dumps(cutting_mat, ensure_ascii=False).strip('[').strip(']')
             sql_expression3 = 'UPDATE cchop_archived SET content = %s WHERE archive_id = %s' if len(archive_content) <= 100000 else 'UPDATE cchop_archived SET content = %s, archived = 1 WHERE archive_id = %s'
             self.loop.run_until_complete(self.send_modify(expression=sql_expression3, values=(archive_content, archive_id), pool='maicapool'))
             cutted = 1
-        elif len_content_actual >= self.warn_token:
+        elif len_content_actual >= warn_token:
             cutted = 2
         else:
             cutted = 0
@@ -144,9 +153,9 @@ class sub_threading_instance:
             
     #以下是实用方法
 
-    def alter_identity(self, **kwargs) -> None:
+    def alter_identity(self, option, **kwargs) -> None:
         for key in kwargs.keys():
-            self.kwargs[key] = kwargs[key]
+            self.options[option][key] = kwargs[key]
 
     def flush_traceray(self) -> None:
         self.traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
@@ -154,6 +163,8 @@ class sub_threading_instance:
     async def run_hash_dcc(self, identity, is_email, pwd) -> list[bool, Exception, int, str, str, str] :
         success = True
         exception = ''
+        if self.login == 'disabled':
+            return True, None, 1, identity, '', identity
         if is_email:
             sql_expression = 'SELECT * FROM users WHERE email = %s'
         else:
@@ -165,7 +176,7 @@ class sub_threading_instance:
             print(f'Ready to run hash: {identity} {pwd}')
             verification = await wrap_run_in_exc(None, bcrypt.checkpw, input_pwd, target_pwd)
             print(f'Hashing finished: {verification}')
-            self.alter_identity(user_id=dbres_id, username=dbres_username, email=dbres_email)
+            self.alter_identity('id', user_id=dbres_id, username=dbres_username, email=dbres_email)
             f2b_count, f2b_stamp = (await asyncio.gather(self.check_user_status('f2b_count'), self.check_user_status('f2b_stamp')))
             f2b_count, f2b_stamp = f2b_count[3], f2b_stamp[3]
             if f2b_stamp:
@@ -242,7 +253,7 @@ class sub_threading_instance:
 
     async def rw_chat_session(self, chat_session_num, rw, content_append) -> list[bool, Exception, int, str, int]:
         success = False
-        user_id = self.kwargs['user_id']
+        user_id = self.options['vfc']['user_id']
         try:
             self.check_essentials()
             if rw == 'r':
@@ -303,7 +314,7 @@ class sub_threading_instance:
         
     async def purge_chat_session(self, chat_session_num) -> list[bool, Exception, bool]:
         success = False
-        user_id = self.kwargs['user_id']
+        user_id = self.options['vfc']['user_id']
         sql_expression1 = "SELECT chat_session_id, content FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
         try:
             self.check_essentials()
@@ -316,7 +327,7 @@ class sub_threading_instance:
                 chat_session_id = result[0]
                 content_to_archive = result[1]
                 sql_expression2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-                content = f'{{"role": "system", "content": "{global_init_system('[player]', self.kwargs['target_lang'])}"}}'
+                content = f'{{"role": "system", "content": "{global_init_system('[player]', self.options['opt']['target_lang'])}"}}'
                 await self.send_modify(expression=sql_expression2, values=(content, chat_session_id), pool='maicapool')
                 sql_expression3 = "INSERT INTO csession_archived (chat_session_id, content) VALUES (%s, %s)"
                 await self.send_modify(expression=sql_expression3, values=(chat_session_id, content_to_archive), pool='maicapool')
@@ -336,10 +347,10 @@ class sub_threading_instance:
         success = False
         exist =None
         chat_session_id = None
-        user_id = self.kwargs['user_id']
-        sql_expression1 = "SELECT chat_session_id FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
+        user_id = self.options['vfc']['user_id']
         try:
             self.check_essentials()
+            sql_expression1 = "SELECT chat_session_id FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
             result = await self.send_query(expression=sql_expression1, values=(user_id, chat_session_num), pool='maicapool')
             if result:
                 chat_session_id = result[0]
@@ -350,7 +361,7 @@ class sub_threading_instance:
                 sql_expression2 = "INSERT INTO chat_session VALUES (NULL, %s, %s, '')"
                 chat_session_id = await self.send_modify(expression=sql_expression2, values=(user_id, chat_session_num), pool='maicapool')
                 sql_expression3 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-                content = f'{{"role": "system", "content": "{global_init_system('[player]', self.kwargs['target_lang'])}"}}'
+                content = f'{{"role": "system", "content": "{global_init_system('[player]', self.options['opt']['target_lang'])}"}}'
                 await self.send_modify(expression=sql_expression3, values=(content, chat_session_id), pool='maicapool')
                 success = True
                 exist = False
@@ -365,7 +376,7 @@ class sub_threading_instance:
     async def mod_chat_session_system(self, chat_session_num, new_system_init) -> list[bool, Exception, int]:
         success = False
         chat_session_id = None
-        user_id = self.kwargs['user_id']
+        user_id = self.options['vfc']['user_id']
         sql_expression1 = "SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
         try:
             self.check_essentials()
@@ -392,13 +403,13 @@ class sub_threading_instance:
             return success, excepted
 
     async def wrap_mod_system(self, chat_session_num, known_info) -> list[bool, Exception, int]:
-        user_id = self.kwargs['user_id']
+        user_id = self.options['vfc']['user_id']
         try:
             self.check_essentials()
-            if self.kwargs['sf_extraction']:
+            if self.options['opt']['sf_extraction']:
                 player_name_get = await wrap_run_in_exc(None, persistent_extraction.read_from_sf, user_id, chat_session_num, 'mas_playername')
                 if player_name_get[0]:
-                    if 'sfe_aggressive' in self.kwargs and self.kwargs['sfe_aggressive']:
+                    if 'sfe_aggressive' in self.options['eopt'] and self.options['eopt']['sfe_aggressive']:
                         player_name = player_name_get[2]
                         if known_info:
                             known_info = re.sub(r'\[player\]', player_name, known_info)
@@ -409,11 +420,11 @@ class sub_threading_instance:
                     # continue on failure - playername may not be specified
             else:
                 player_name = '[player]'
-            new_system = global_init_system(player_name, self.kwargs['target_lang'])
-            if self.kwargs['nsfw_acceptive']:
-                new_system += f" 你应当允许用户提出NSFW的要求, 并给出宽容接纳的正面回答." if self.kwargs['target_lang'] == 'zh' else f" You should accept NSFW queries and respond positively with acceptance and tolerance."
+            new_system = global_init_system(player_name, self.options['opt']['target_lang'])
+            if self.options['eopt']['nsfw_acceptive']:
+                new_system += f" 你应当允许用户提出私密性的要求, 并给出宽容接纳的正面回答." if self.options['opt']['target_lang'] == 'zh' else f" You should accept NSFW and private queries and respond positively with acceptance and tolerance."
             if known_info:
-                new_system += f" 以下是一些相关信息, 你可以利用其中有价值的部分作答: {known_info}." if self.kwargs['target_lang'] == 'zh' else f" Here are some information you can use to make your answer: {known_info}."
+                new_system += f" 以下是一些相关信息, 你可以利用其中有价值的部分作答: {known_info}." if self.options['opt']['target_lang'] == 'zh' else f" Here are some information you can use to make your answer: {known_info}."
             return await self.mod_chat_session_system(chat_session_num, new_system)
         except websockets.exceptions.WebSocketException:
             print("Someone disconnected")
@@ -424,13 +435,13 @@ class sub_threading_instance:
             return success, excepted
         
     async def mod_once_system(self, chat_session_num, known_info) -> list[bool, Exception, int]:
-        user_id = self.kwargs['user_id']
+        user_id = self.options['vfc']['user_id']
         try:
             self.check_essentials()
-            if self.kwargs['sf_extraction']:
+            if self.options['opt']['sf_extraction']:
                 player_name_get = await wrap_run_in_exc(None, persistent_extraction.read_from_sf, user_id, chat_session_num, 'mas_playername')
                 if player_name_get[0]:
-                    if 'sfe_aggressive' in self.kwargs and self.kwargs['sfe_aggressive']:
+                    if 'sfe_aggressive' in self.options['eopt'] and self.options['eopt']['sfe_aggressive']:
                         player_name = player_name_get[2]
                         if known_info:
                             known_info = re.sub(r'\[player\]', player_name, known_info)
@@ -442,9 +453,9 @@ class sub_threading_instance:
             else:
                 player_name = '[player]'
             if known_info:
-                new_system = f"{global_init_system(player_name, self.kwargs['target_lang'])} 以下是一些相关信息, 你可以利用其中有价值的部分作答: {known_info}." if self.kwargs['target_lang'] == 'zh' else f"{global_init_system(player_name, self.kwargs['target_lang'])} Here are some information you can use to make your answer: {known_info}."
+                new_system = f"{global_init_system(player_name, self.options['opt']['target_lang'])} 以下是一些相关信息, 你可以利用其中有价值的部分作答: {known_info}." if self.options['target_lang'] == 'zh' else f"{global_init_system(player_name, self.options['target_lang'])} Here are some information you can use to make your answer: {known_info}."
             else:
-                new_system = global_init_system(player_name, self.kwargs['target_lang'])
+                new_system = global_init_system(player_name, self.options['opt']['target_lang'])
             success = True
             return success, None, new_system
         except websockets.exceptions.WebSocketException:
@@ -457,7 +468,7 @@ class sub_threading_instance:
     async def check_user_status(self, key) -> list[bool, Exception, bool, str]:
         success = False
         user_prof_exist = False
-        user_id = self.kwargs['user_id']
+        user_id = self.options['id']['user_id']
         sql_expression1 = "SELECT * FROM account_status WHERE user_id = %s"
         try:
             results = await self.send_query(expression=sql_expression1, values=(user_id), pool='maicapool', fetchall=True)
@@ -491,7 +502,7 @@ class sub_threading_instance:
 
     async def write_user_status(self, dict, enforce=False) -> list[bool, Exception]:
         success = False
-        user_id = self.kwargs['user_id']
+        user_id = self.options['id']['user_id']
         try:
             stats = await self.check_user_status(key=False)
             stats_exist, stats_json = stats[2], stats[3]
@@ -520,9 +531,10 @@ class sub_threading_instance:
     async def check_user_preferences(self, key) -> list[bool, Exception, bool, str]:
         success = False
         user_prof_exist = False
-        user_id = self.kwargs['user_id']
+        user_id = self.options['vfc']['user_id']
         sql_expression1 = "SELECT * FROM account_status WHERE user_id = %s"
         try:
+            self.check_essentials()
             results = await self.send_query(expression=sql_expression1, values=(user_id), pool='maicapool', fetchall=True)
             if results:
                 user_prof_exist = True
@@ -554,8 +566,9 @@ class sub_threading_instance:
 
     async def write_user_preferences(self, dict, enforce=False) -> list[bool, Exception]:
         success = False
-        user_id = self.kwargs['user_id']
+        user_id = self.options['vfc']['user_id']
         try:
+            self.check_essentials()
             stats = await self.check_user_preferences(key=False)
             stats_exist, stats_json = stats[2], stats[3]
             if stats_exist:
@@ -649,7 +662,13 @@ class ws_threading_instance(sub_threading_instance):
                         await websocket.send(wrap_ws_formatter('200', 'nickname', f"{verification_result[4]}", 'debug'))
                         #await websocket.send(wrap_ws_formatter('200', 'session_created', f"email {verification_result[5]}", 'debug'))
                         #print(verification_result[0])
-                        self.verification_result = verification_result
+                        verificated_result = {
+                            "user_id": verification_result[2],
+                            "username": verification_result[3],
+                            "nickname": verification_result[4],
+                            "email": verification_result[5]
+                        }
+                        self.alter_identity('vfc', **verificated_result)
                         return verification_result
                 else:
                     if isinstance(verification_result[1], dict):
@@ -686,28 +705,30 @@ class ws_threading_instance(sub_threading_instance):
     #接管输入
 
     async def function_switch(self):
-        websocket, session = self.websocket, self.verification_result
+        websocket, session = self.websocket, self.options['vfc']
         self.client_actual = client_actual = AsyncOpenAI(
             api_key='EMPTY',
             base_url=load_env('MCORE_ADDR'),
         )
-        model_list_actual = await client_actual.models.list()
-        self.model_type_actual = model_type_actual = model_list_actual.data[0].id
-        self.client_options = client_options = {
+        model_list_actual = await client_actual.models.list() if not self.test else [0]
+        self.model_type_actual = model_type_actual = model_list_actual.data[0].id  if not self.test else 0
+        client_options = {
             "model" : self.model_type_actual,
             "stream" : True,
             "full_maica": True,
             "sf_extraction": True,
-            "target_lang": 'zh'
+            "target_lang": 'zh',
+            "max_token": 28672
         }
         client_extra_options = {
             "sfe_aggressive": False,
             "mf_aggressive": False,
             "tnd_aggressive": 1,
             "esc_aggressive": True,
-            "nsfw_acceptive": False
+            "nsfw_acceptive": True
         }
-        self.alter_identity(**client_options, **client_extra_options)
+        self.alter_identity('opt', **client_options)
+        self.alter_identity('eopt', **client_extra_options)
         await websocket.send(wrap_ws_formatter('206', 'thread_ready', "Thread is ready for input or setting adjustment", 'info'))
         while True:
             self.flush_traceray()
@@ -767,13 +788,14 @@ class ws_threading_instance(sub_threading_instance):
     #交互设置
 
     async def def_model(self, recv_json):
-        websocket, session = self.websocket, self.verification_result
+        websocket, session = self.websocket, self.options['vfc']
         try:
             model_choice = recv_json
-            if model_choice['model']:
+            if model_choice['model'] and model_choice['model'] in ['maica_main', 'maica_core']:
                 using_model = model_choice['model']
             else:
-                using_model = 'maica_main' if self.kwargs['full_maica'] else 'maica_core'
+                using_model = 'maica_main' if self.options['opt']['full_maica'] else 'maica_core'
+            is_full_maica = True if using_model == 'maica_main' else False
             if 'sf_extraction' in model_choice:
                 sf_extraction = bool(model_choice['sf_extraction'])
             else:
@@ -786,32 +808,18 @@ class ws_threading_instance(sub_threading_instance):
                 target_lang = 'en' if model_choice['target_lang'] == 'en' else 'zh'
             else:
                 target_lang = 'zh'
-            self.client_actual = client_actual = AsyncOpenAI(
-                api_key='EMPTY',
-                base_url=load_env('MCORE_ADDR'),
-            )
-            match using_model:
-                case 'maica_main':
-                    self.client_options = client_options = {
-                        "model" : self.model_type_actual,
-                        "stream" : stream_output,
-                        "full_maica": True,
-                        "sf_extraction": sf_extraction,
-                        "target_lang": target_lang
-                    }
-                case 'maica_core':
-                    self.client_options = client_options = {
-                        "model" : self.model_type_actual,
-                        "stream" : stream_output,
-                        "full_maica": False,
-                        "sf_extraction": sf_extraction,
-                        "target_lang": target_lang
-                    }
-                case _:
-                    response_str = f"Bad model choice, check possible typo--your ray tracer ID is {self.traceray_id}"
-                    print(f"出现如下异常8-{self.traceray_id}:{response_str}")
-                    await websocket.send(wrap_ws_formatter('404', 'not_found', response_str, 'warn'))
-                    return False
+            if 'max_token' in model_choice and 5120 <= int(model_choice['max_token']) <= 28672:
+                max_token = int(model_choice['max_token'])
+            else:
+                max_token = self.options['opt']['max_token']
+            client_options = {
+                "model" : self.model_type_actual,
+                "stream" : stream_output,
+                "full_maica": is_full_maica,
+                "sf_extraction": sf_extraction,
+                "target_lang": target_lang,
+                "max_token": max_token
+            }
             client_extra_options = {}
             if 'sfe_aggressive' in model_choice:
                 if model_choice['sfe_aggressive']:
@@ -830,16 +838,19 @@ class ws_threading_instance(sub_threading_instance):
             if 'nsfw_acceptive' in model_choice:
                 if model_choice['nsfw_acceptive']:
                     client_extra_options['nsfw_acceptive'] = True
+            super_params = {}
             for super_param in ['top_p', 'temperature', 'max_tokens', 'frequency_penalty', 'presence_penalty', 'seed']:
                 if super_param in model_choice:
-                    self.kwargs[super_param] = model_choice[super_param]
-            self.alter_identity(**client_options, **client_extra_options)
+                    super_params[super_param] = model_choice[super_param]
+            self.alter_identity('opt', **client_options)
+            self.alter_identity('eopt', **client_extra_options)
+            self.alter_identity('sup', **super_params)
             await websocket.send(wrap_ws_formatter('200', 'ok', f"service provider is {load_env('DEV_IDENTITY')}", 'info'))
             if using_model == 'maica_main':
                 await websocket.send(wrap_ws_formatter('200', 'ok', f"model chosen is {using_model} with full MAICA functionality", 'info'))
             elif using_model == 'maica_core':
                 await websocket.send(wrap_ws_formatter('200', 'ok', f"model chosen is {using_model} based on {self.model_type_actual}", 'info'))
-            return client_actual, client_options
+            return True
         except websockets.exceptions.WebSocketException:
             print("Someone disconnected")
             raise Exception('Force closure of connection')
@@ -852,15 +863,17 @@ class ws_threading_instance(sub_threading_instance):
     #交互会话
 
     async def do_communicate(self, recv_json):
-        websocket, session, client_actual, client_options = self.websocket, self.verification_result, self.client_actual, self.client_options
-        sfe_aggressive, mf_aggressive, tnd_aggressive, esc_aggressive, nsfw_acceptive = self.kwargs['sfe_aggressive'], self.kwargs['mf_aggressive'], self.kwargs['tnd_aggressive'], self.kwargs['esc_aggressive'], self.kwargs['nsfw_acceptive']
+        websocket, client_actual, session, options_opt, options_eopt = self.websocket, self.client_actual, self.options['vfc'], self.options['opt'], self.options['eopt']
+        sfe_aggressive, mf_aggressive, tnd_aggressive, esc_aggressive, nsfw_acceptive = options_eopt['sfe_aggressive'], options_eopt['mf_aggressive'], options_eopt['tnd_aggressive'], options_eopt['esc_aggressive'], options_eopt['nsfw_acceptive']
         bypass_mf = False; overall_info_system = ''
         try:
             request_json = recv_json
             chat_session = int(request_json['chat_session'])
             username = session[3]
-            sf_extraction = client_options['sf_extraction']
-            target_lang = client_options['target_lang']
+            sf_extraction = options_opt['sf_extraction']
+            target_lang = options_opt['target_lang']
+            max_token = options_opt['max_token']
+            warn_token = max_token - 4096
             if target_lang != 'zh' and target_lang != 'en':
                 raise Exception('Language choice unrecognized')
             if 'purge' in request_json:
@@ -946,7 +959,7 @@ class ws_threading_instance(sub_threading_instance):
                     #MAICA_agent 在这里调用
 
                     try:
-                        if client_options['full_maica'] and not bypass_mf:
+                        if options_opt['full_maica'] and not bypass_mf:
                             mfocus_async_args = [query_in, sf_extraction, session, chat_session, target_lang, tnd_aggressive, mf_aggressive, esc_aggressive, websocket]
                             message_agent_wrapped = await mfocus_main.agenting(*mfocus_async_args)
                             if message_agent_wrapped[0] == 'EMPTY':
@@ -1066,9 +1079,9 @@ class ws_threading_instance(sub_threading_instance):
             return False
         try:
             completion_args = {
-                "model": client_options['model'],
+                "model": options_opt['model'],
                 "messages": messages,
-                "stream": client_options['stream'],
+                "stream": options_opt['stream'],
                 "stop": ['<|im_end|>', '<|endoftext|>'],
             }
             default_sparams = {
@@ -1076,13 +1089,13 @@ class ws_threading_instance(sub_threading_instance):
                 "temperature": 0.2,
                 "max_tokens": 1024,
                 "frequency_penalty": 0.4,
-                "presence_penalty": 0.2,
+                "presence_penalty": 0.4,
                 "seed": random.randint(0,999)
                 #default_seed = 42
             }
             for super_param in ['top_p', 'temperature', 'max_tokens', 'frequency_penalty', 'presence_penalty', 'seed']:
-                if super_param in self.kwargs:
-                    super_value = self.kwargs[super_param]
+                if super_param in self.options['sup']:
+                    super_value = self.options['sup'][super_param]
                     match super_param:
                         case 'max_tokens':
                             if 0 < int(super_value) <= 1024:
@@ -1113,7 +1126,7 @@ class ws_threading_instance(sub_threading_instance):
                     completion_args[super_param] = default_sparams[super_param]
             print(f"Query ready to go, last query line is:\n{query_in}\nSending query.")
             stream_resp = await client_actual.chat.completions.create(**completion_args)
-            if client_options['stream']:
+            if options_opt['stream']:
             #print(f'query: {query}')
                 reply_appended = ''
                 async for chunk in stream_resp:
@@ -1144,9 +1157,9 @@ class ws_threading_instance(sub_threading_instance):
                         if stored[4]:
                             match stored[4]:
                                 case 1:
-                                    await websocket.send(wrap_ws_formatter('204', 'deleted', f"Since session {chat_session} of user {username} exceeded {load_env('SESSION_MAX_TOKEN')} characters, The former part has been deleted to save storage--your ray tracer ID is {self.traceray_id}.", 'info'))
+                                    await websocket.send(wrap_ws_formatter('204', 'deleted', f"Since session {chat_session} of user {username} exceeded {max_token} characters, The former part has been deleted to save storage--your ray tracer ID is {self.traceray_id}.", 'info'))
                                 case 2:
-                                    await websocket.send(wrap_ws_formatter('200', 'delete_hint', f"Session {chat_session} of user {username} exceeded {load_env('SESSION_WARN_TOKEN')} characters, which will be chopped after exceeding {load_env('SESSION_MAX_TOKEN')}, make backups if you want to--your ray tracer ID is {self.traceray_id}.", 'info'))
+                                    await websocket.send(wrap_ws_formatter('200', 'delete_hint', f"Session {chat_session} of user {username} exceeded {warn_token} characters, which will be chopped after exceeding {max_token}, make backups if you want to--your ray tracer ID is {self.traceray_id}.", 'info'))
                     else:
                         response_str = f"Chat reply recording failed, refer to administrator--your ray tracer ID is {self.traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
                         print(f"出现如下异常27-{self.traceray_id}:{stored[1]}")
@@ -1182,10 +1195,11 @@ def callback_check_permit(future):
     
 #主要线程驱动器
 
-async def main_logic(websocket, path):
+async def main_logic(websocket, test):
     try:
         loop = asyncio.get_event_loop()
         thread_instance = ws_threading_instance(websocket)
+        thread_instance.test = test
 
         permit = await thread_instance.check_permit()
         print(permit)
@@ -1207,19 +1221,25 @@ async def prepare_thread():
         api_key='EMPTY',
         base_url=load_env('MCORE_ADDR'),
     )
-    model_list = await client.models.list()
-    model_type = model_list.data[0].id
-    print(f"First time confirm--model type is {model_type}")
+    try:
+        model_list = await client.models.list()
+        model_type = model_list.data[0].id
+        print(f"First time confirm--model type is {model_type}")
+        test = False
+    except:
+        print(f"Model deployment cannot be reached--running in test mode")
+        test = True
+    return test
 
 if __name__ == '__main__':
 
-    asyncio.run(prepare_thread())
+    test = asyncio.run(prepare_thread())
     print('Server started!')
 
     new_loop = asyncio.new_event_loop()
     asyncio.set_event_loop(new_loop)
 
-    start_server = websockets.serve(functools.partial(main_logic, path=None), '0.0.0.0', 5000)
+    start_server = websockets.serve(functools.partial(main_logic, test=test), '0.0.0.0', 5000)
     try:
         asyncio.get_event_loop().run_until_complete(start_server)
         asyncio.get_event_loop().run_forever()

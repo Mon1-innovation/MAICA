@@ -55,37 +55,39 @@ MAICA验证令牌的接口位于https://maicadev.monika.love/api/legality. 你�
 进行对话输入必须包含"chat_session"键.
 
 若要调整设置, 你应当按以下格式输入选择:
-    {"model": "maica_main", "sf_extraction": true, "stream_output": true, "target_lang": "zh"}
-    其中, model为你选择使用的模型, sf_extraction代表是否从存档解析信息, stream_output代表是否使用流式输出, target_lang代表输出语言种类.
-    MAICA目前接受两种传入模型选择, 分别是maica_main和maica_core.
-    带有core字样的选择代表启用核心能力, 带有main字样的选择代表启用完全能力.
-    由于算力与设计结构的原因, MAICA完全能力的响应前置延迟显著高于核心能力, 在服务拥挤时可能更甚.
-    MFocus是MAICA的独特能力之一. 其能够帮助MAICA获取外界信息回答问题, 而通过使用submod上传存档, MAICA还能读取来自MAS的大多数记忆.
-    上传的存档与chat_session一一对应, 可以通过后面介绍的存档上传接口传入.
-    若当前指定的chat_session不存在对应存档, 则尝试使用chat_session为1的存档.
-    仅当同时启用sf_extraction和MAICA完全能力时, 用户可以体验MAICA的最佳表现. 你可以出于隐私或响应速度起见关闭这些功能, 但当然会导致能力缺失.
-    target_lang只能传入zh或en. 此方法通过修改system prompt实现, 并不能保证输出语言严格正确.
+    {"model": "maica_main", "sf_extraction": true, "stream_output": true, "target_lang": "zh", "max_token": 28672}
+    其中, model为你选择使用的模型, sf_extraction代表是否从存档解析信息, stream_output代表是否使用流式输出, target_lang代表输出语言种类, max_token代表单个chat_session保存的最大会话长度.
+    关于model: MAICA目前接受两种传入模型选择, 分别是maica_main和maica_core. 带有core字样的选择代表启用核心能力, 带有main字样的选择代表启用完全能力.
+        由于设计结构的原因, MAICA完全能力的响应前置延迟显著高于核心能力, 总体速度也更慢, 在服务拥挤时可能更甚.
+    关于sf_extraction: MFocus是MAICA的独特能力之一. 其能够帮助MAICA获取外界信息回答问题, 而通过使用submod上传存档, MAICA还能读取来自MAS的大多数记忆.
+        上传的存档与chat_session一一对应, 可以通过后面介绍的存档上传接口传入. 若当前指定的chat_session不存在对应存档, 则尝试使用chat_session为1的存档.
+        仅当同时启用sf_extraction和MAICA完全能力时, 用户可以体验MAICA的最佳表现. 你可以出于隐私或响应速度起见关闭这些功能, 但当然会导致能力缺失.
+    关于stream_output: 决定MAICA的输出模式, 后文中有两种模式的范例.
+    关于target_lang: target_lang只能传入zh或en. 此方法通过修改system prompt实现, 并不能保证输出语言严格正确.
+    关于max_token: 此参数决定MAICA保留单个session内容的长度, 其值限制在5120-28672. 默认值为上限28672. 此参数仅在使用托管的chat_session时生效.
+        此参数意在缓解对话历史累积导致的响应速度过慢问题. 其具体工作方式于后文中介绍. 请避免将其设置得过小, 否则可能影响模型的正常语言能力.
+        请不要混淆此设置与超参数中的max_tokens, 后者的作用是限制模型单次输出长度, 二者是不同的!
     以上参数的缺省值分别为"maica_main", true, true, "zh".
         高级选项: 用户可以在传入选择中添加键"esc_aggressive", 其应为boolean, 若未传入默认为true.
-        当esc_aggressive为true时会调用agent模型对MFocus联网搜集的信息整理一次. 启用此功能会改善模型对联网检索信息的专注能力, 但也会降低涉及联网搜索query的响应速度.
+            当esc_aggressive为true时会调用agent模型对MFocus联网搜集的信息整理一次. 启用此功能会改善模型对联网检索信息的专注能力, 但也会降低涉及联网搜索query的响应速度.
         高级选项: 用户可以在传入选择中添加键"tnd_aggressive", 其应为int, 若未传入默认为1.
-        当tnd_aggressive为0时只调用MFocus直接选择的工具. 当其为1时总是会调用时间与节日工具. 当其为2时还会额外调用日期工具.
-        如果sf_extraction为true, tnd_aggressive为2, 且mas_geolocation存在, tnd_aggressive还会额外调用当前天气工具.
-        此功能强度越高, 越可能补偿MFocus命中率低下的问题, 但也越可能会干扰模型对部分问题性质的判断.
+            当tnd_aggressive为0时只调用MFocus直接选择的工具. 当其为1时总是会调用时间与节日工具. 当其为2时还会额外调用日期工具.
+            如果sf_extraction为true, tnd_aggressive为2, 且mas_geolocation存在, tnd_aggressive还会额外调用当前天气工具.
+            此功能强度越高, 越可能补偿MFocus命中率低下的问题, 但也越可能会干扰模型对部分问题性质的判断.
         高级选项: 用户可以在传入选择中添加键"mf_aggressive", 其应为boolean, 若未传入默认为false.
-        指定mf_aggressive为true将总是尽可能使用MFocus的总结输出替代指导构型信息. 启用此功能可能提升模型的复杂信息梳理能力, 但也可能会造成速度下降或专注扰乱.
+            指定mf_aggressive为true将总是尽可能使用MFocus的总结输出替代指导构型信息. 启用此功能可能提升模型的复杂信息梳理能力, 但也可能会造成速度下降或专注扰乱.
         高级选项: 用户可以在传入选择中添加键"sfe_aggressive", 其应为boolean, 若未传入则默认为false.
-        指定sfe_aggressive为true将总是以用户的真名替代prompt中的"[player]"字段. 启用此功能可能有利于模型理解玩家的姓名, 但也可能会造成总体拟合能力的下降和信息编造.
-        实验性功能: 用户可以在传入选择中添加键"nsfw_acceptive", 其应为boolean, 若未传入则默认为false.
-        当nsfw_acceptive为true时会改变system指引, 使模型对NSFW场景更为宽容. 启用此功能可能提高特定场合表现, 但也可能会造成模型核心能力下降和注意力混乱.
-        请注意, 目前为止MAICA尚未使用任何NSFW数据集进行训练, 因此nsfw_acceptive的效果十分薄弱. 此后或许会有针对性的改善.
+            指定sfe_aggressive为true将总是以用户的真名替代prompt中的"[player]"字段. 启用此功能可能有利于模型理解玩家的姓名, 但也可能会造成总体拟合能力的下降和信息编造.
+        高级选项: 用户可以在传入选择中添加键"nsfw_acceptive", 其应为boolean, 若未传入则默认为true.
+            当nsfw_acceptive为true时会改变system指引, 使模型对"有毒性"场景更为宽容. 经测试启用此功能对模型总体表现(意外地)有利, 但也存在降低模型专注能力和造成混乱的风险.
+            请注意, 目前为止MAICA尚未使用任何系统性的NSFW数据集进行训练, 因此nsfw_acceptive的效果十分薄弱. 此后或许会有针对性的改善.
         超参数键: 用户可以在传入选择中添加超参数键, 其包括"top_p", "temperature", "max_tokens", "frequency_penalty", "presence_penalty", "seed".
         超参数将被传递到核心模型, 具体效果可以查阅OpenAI文档. 超参数有以下限制:
             0.1 <= float(top_p) <= 1.0, 默认值为0.7
-            0.0 <= float(temperature) <= 1.0, 默认值为0.4
+            0.0 <= float(temperature) <= 1.0, 默认值为0.2
             0 < int(max_tokens) <= 1024, 默认值为1024
             0.2 <= float(frequency_penalty) <= 1.0, 默认值为0.4
-            0.0 <= float(presence_penalty) <= 1.0, 默认值为0.2
+            0.0 <= float(presence_penalty) <= 1.0, 默认值为0.4
             0 <= int(seed) <= 999, 默认值为随机
         谨慎地使用超参数, 这些参数能对模型应答造成明显的影响. 如果在前端中包含此类选项, 应当向用户提供明确指示.
 传入选择之后, 服务器应当返回200 ok, 并返回服务设备与基本模型信息.
@@ -108,7 +110,7 @@ MAICA验证令牌的接口位于https://maicadev.monika.love/api/legality. 你�
     用户应当避免在query中使用特殊符号, 这可能会导致其格式化失败. 同时应当注意对必要的符号进行转义.
         实验性功能: 一些特定的query会触发彩蛋-目前有九个. 我很好奇什么时候会被全部找到.
 传入对话后:
-    maica_main使用流式输出传输内容, 因此模型应当开始传回连续的100 continue信息, 其载荷为流式传输所需要的chunk并标记为carriage:
+    若设置中stream_output设为true, 则模型应当开始传回连续的100 continue信息, 其载荷为流式传输所需要的chunk并标记为carriage:
     {"code": "100", "status": "continue", "content": "我", "type": "carriage", "time_ms": 时间戳(毫秒)}
     {"code": "100", "status": "continue", "content": "喜欢", "type": "carriage", "time_ms": 时间戳(毫秒)}
     {"code": "100", "status": "continue", "content": "的颜", "type": "carriage", "time_ms": 时间戳(毫秒)}
@@ -116,7 +118,7 @@ MAICA验证令牌的接口位于https://maicadev.monika.love/api/legality. 你�
     {"code": "100", "status": "continue", "content": "很多, ", "type": "carriage", "time_ms": 时间戳(毫秒)}
     ...
     一轮对话完成后, 模型会输出1000 streaming_done并再次提醒用户输入下一条对话.
-    若选择模型中stream_output设为false, 则模型应当在一段时间的等待后输出一条完整的回答:
+    若设置中stream_output设为false, 则模型应当在一段时间的等待后输出一条完整的回答:
     {"code": "200", "status": "reply", "content": "我想你了, [player]!", "type": "carriage", "time_ms": 时间戳(毫秒)}
 非流式输出模型具有微弱的总速度优势, 因此如果信息不直接递交给用户, 你应当优先考虑使用非流式输出. 除此之外二者的行为相同.
 maica_main和maica_core共用chat_session.
@@ -163,7 +165,8 @@ MSpire的chat_session可以被设为0-9, 不能使用-1. 如果不需要对MSpir
     }
     该功能可以方便用户选择服务节点. 其中servers列表下的第一项应为自声明, 其余项为注册声明.
     在前端开发中, 开发者应指定可信的节点作为递归节点, 只接受其递归声明. 其可以是或不是官方服务节点.
-如果你以MAICA标准后端形式搭建并公开了一个节点, 可以联系我们将其注册为社区服务节点. 通过此方法, 你可以便利地使用自训练模型或设计负载均衡功能.
+如果你以MAICA标准后端形式搭建并公开了一个节点, 可以联系我们将其注册为社区服务节点. 通过此方法, 你可以便利地使用自训练模型或设计负载均衡功能, 并与其他用户分享.
+MAICA官方递归节点默认提供一个本地部署节点选项. 当你在自行部署实例设备上运行前端时, 可以借此便捷地连接到自行部署的示例. 你当然也可以将其与端口转发等方式协同使用.
 
 MAICA上传存档的接口位于https://maicadev.monika.love/api/savefile. 你应当遵循以下格式, 以POST形式上传从存档中解读的信息:
     {"access_token": "你的令牌", "chat_session": "指定对应的chat_session", "content": "json格式的存档内容"}
@@ -353,11 +356,11 @@ MFocus拥有一类额外接口, 用于向MAICA挂接二级功能. 由于功能�
 任何心跳连接都会在服务器端记录发起者的session信息. 在身份认证令牌交换完毕前, 服务器不接受心跳连接.
 
 MAICA的核心能力基于llm, 而任何llm的输入总长度都是有限的. 就MAICA核心模型而言, 能够解析的最大输入长度为32768token, 在中文情况下约四万字.
-MAICA的每一个chat_session实际上保留28672字符总内容(去除包装后). 在正常聊天情况下, 其中大约会有2-2.5万有效汉字.
-超出28672字符后, 数据库交换驱动将自动删除最早的对话轮次以节省服务器存储空间. 为响应性能起见, 每次删除将使剩余字符数少于24576. 如果你希望保留这些数据, 你应当每隔一段时间自行下载到本地并备份.
+MAICA的每一个chat_session实际上默认保留28672字符总内容(去除包装后). 在正常聊天情况下, 其中大约会有2-2.5万有效汉字. 此参数可以通过设置max_token修改.
+超出保留字符数后, 数据库交换驱动将自动删除最早的对话轮次以节省服务器存储空间. 为响应性能起见, 每次删除将使剩余字符数少于(保留字符数-4096). 如果你希望保留这些数据, 你应当每隔一段时间自行下载到本地并备份.
 如果本次处理中已经删除了chat_session的一部分, 将会在内容输出结束后输出提醒:
-    {"code": "204", "status": "deleted", "content": "Since session {chat_session} of user {username} exceeded 28k characters, The former part has been deleted to save storage--your ray tracer ID is {traceray_id}.", "type": "info", "time_ms": 时间戳(毫秒)}
+    {"code": "204", "status": "deleted", "content": "Since session {chat_session} of user {username} exceeded {max_token} characters, The former part has been deleted to save storage--your ray tracer ID is {traceray_id}.", "type": "info", "time_ms": 时间戳(毫秒)}
 如果chat_session存储字符数已达到2.4万, 接口将会在内容输出结束后输出提醒:
-    {"code": "200", "status": "delete_hint", "content": "Session {chat_session} of user {username} exceeded 24k characters, which will be chopped after exceeding 28k, make backups if you want to--your ray tracer ID is {traceray_id}.", "type": "info", "time_ms": 时间戳(毫秒)}
+    {"code": "200", "status": "delete_hint", "content": "Session {chat_session} of user {username} exceeded {warn_token} characters, which will be chopped after exceeding {max_token}, make backups if you want to--your ray tracer ID is {traceray_id}.", "type": "info", "time_ms": 时间戳(毫秒)}
 如果你希望记录该chat_session的完整内容, 应当在收到提醒后及时下载到本地并备份.
 为防止滥用, MAICA预计将不会允许从本地上传session记录. 如希望自行管理session, 请使用chat_session -1功能, 但其长度与轮次会受更严格的限制.
