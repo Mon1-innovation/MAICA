@@ -838,13 +838,15 @@ class ws_threading_instance(sub_threading_instance):
             if 'nsfw_acceptive' in model_choice:
                 if model_choice['nsfw_acceptive']:
                     client_extra_options['nsfw_acceptive'] = True
-            super_params = {}
-            for super_param in ['top_p', 'temperature', 'max_tokens', 'frequency_penalty', 'presence_penalty', 'seed']:
-                if super_param in model_choice:
-                    super_params[super_param] = model_choice[super_param]
+            super_params_filtered = {}
+            if 'super_params' in model_choice:
+                super_params = model_choice['super_params']
+                for super_param in ['top_p', 'temperature', 'max_tokens', 'frequency_penalty', 'presence_penalty', 'seed']:
+                    if super_param in super_params:
+                        super_params_filtered[super_param] = super_params[super_param]
             self.alter_identity('opt', **client_options)
             self.alter_identity('eopt', **client_extra_options)
-            self.alter_identity('sup', **super_params)
+            self.alter_identity('sup', **super_params_filtered)
             await websocket.send(wrap_ws_formatter('200', 'ok', f"service provider is {load_env('DEV_IDENTITY')}", 'info'))
             if using_model == 'maica_main':
                 await websocket.send(wrap_ws_formatter('200', 'ok', f"model chosen is {using_model} with full MAICA functionality", 'info'))

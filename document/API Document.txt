@@ -81,7 +81,7 @@ MAICA验证令牌的接口位于https://maicadev.monika.love/api/legality. 你�
         高级选项: 用户可以在传入选择中添加键"nsfw_acceptive", 其应为boolean, 若未传入则默认为true.
             当nsfw_acceptive为true时会改变system指引, 使模型对"有毒性"场景更为宽容. 经测试启用此功能对模型总体表现(意外地)有利, 但也存在降低模型专注能力和造成混乱的风险.
             请注意, 目前为止MAICA尚未使用任何系统性的NSFW数据集进行训练, 因此nsfw_acceptive的效果十分薄弱. 此后或许会有针对性的改善.
-        超参数键: 用户可以在传入选择中添加超参数键, 其包括"top_p", "temperature", "max_tokens", "frequency_penalty", "presence_penalty", "seed".
+        超参数键: 用户可以在传入选择中添加键"super_params", 其应当是一个dict, 可携带的键包括"top_p", "temperature", "max_tokens", "frequency_penalty", "presence_penalty", "seed".
         超参数将被传递到核心模型, 具体效果可以查阅OpenAI文档. 超参数有以下限制:
             0.1 <= float(top_p) <= 1.0, 默认值为0.7
             0.0 <= float(temperature) <= 1.0, 默认值为0.2
