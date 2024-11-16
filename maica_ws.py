@@ -713,7 +713,7 @@ class ws_threading_instance(sub_threading_instance):
         model_list_actual = await client_actual.models.list() if not self.test else [0]
         self.model_type_actual = model_type_actual = model_list_actual.data[0].id  if not self.test else 0
         client_options = {
-            "model" : self.model_type_actual,
+            "model_actual" : self.model_type_actual,
             "stream" : True,
             "full_maica": True,
             "sf_extraction": True,
@@ -730,6 +730,7 @@ class ws_threading_instance(sub_threading_instance):
         self.alter_identity('opt', **client_options)
         self.alter_identity('eopt', **client_extra_options)
         await websocket.send(wrap_ws_formatter('206', 'thread_ready', "Thread is ready for input or setting adjustment", 'info'))
+        await websocket.send(wrap_ws_formatter('200', 'ok', f"Service provider is {load_env('DEV_IDENTITY')}", 'info'))
         while True:
             self.flush_traceray()
             checked_status = await self.check_user_status(key='banned')
@@ -763,7 +764,7 @@ class ws_threading_instance(sub_threading_instance):
                     case 'PING':
                         await websocket.send(wrap_ws_formatter('100', 'continue', "PONG", 'heartbeat'))
                         print(f"recieved PING from {session[3]}")
-                    case placeholder if "model" in recv_loaded_json:
+                    case placeholder if "model_params" in recv_loaded_json or "perf_params" in recv_loaded_json or "super_params" in recv_loaded_json:
                         await self.def_model(recv_loaded_json)
                     case placeholder if "chat_session" in recv_loaded_json:
                         await self.do_communicate(recv_loaded_json)
@@ -791,67 +792,71 @@ class ws_threading_instance(sub_threading_instance):
         websocket, session = self.websocket, self.options['vfc']
         try:
             model_choice = recv_json
-            if model_choice['model'] and model_choice['model'] in ['maica_main', 'maica_core']:
-                using_model = model_choice['model']
-            else:
-                using_model = 'maica_main' if self.options['opt']['full_maica'] else 'maica_core'
-            is_full_maica = True if using_model == 'maica_main' else False
-            if 'sf_extraction' in model_choice:
-                sf_extraction = bool(model_choice['sf_extraction'])
-            else:
-                sf_extraction = True
-            if 'stream_output' in model_choice:
-                stream_output = bool(model_choice['stream_output'])
-            else:
-                stream_output = True
-            if 'target_lang' in model_choice:
-                target_lang = 'en' if model_choice['target_lang'] == 'en' else 'zh'
-            else:
-                target_lang = 'zh'
-            if 'max_token' in model_choice and 5120 <= int(model_choice['max_token']) <= 28672:
-                max_token = int(model_choice['max_token'])
-            else:
-                max_token = self.options['opt']['max_token']
-            client_options = {
-                "model" : self.model_type_actual,
-                "stream" : stream_output,
-                "full_maica": is_full_maica,
-                "sf_extraction": sf_extraction,
-                "target_lang": target_lang,
-                "max_token": max_token
-            }
-            client_extra_options = {}
-            if 'sfe_aggressive' in model_choice:
-                if model_choice['sfe_aggressive']:
-                    client_extra_options['sfe_aggressive'] = True
-            if 'mf_aggressive' in model_choice:
-                if model_choice['mf_aggressive']:
-                    client_extra_options['mf_aggressive'] = True
-            if 'tnd_aggressive' in model_choice:
-                if not model_choice['tnd_aggressive']:
-                    client_extra_options['tnd_aggressive'] = False
-                elif int(model_choice['tnd_aggressive']):
-                    client_extra_options['tnd_aggressive'] = int(model_choice['tnd_aggressive'])
-            if 'esc_aggressive' in model_choice:
-                if not model_choice['esc_aggressive']:
-                    client_extra_options['esc_aggressive'] = False
-            if 'nsfw_acceptive' in model_choice:
-                if model_choice['nsfw_acceptive']:
-                    client_extra_options['nsfw_acceptive'] = True
-            super_params_filtered = {}
+            client_options, client_extra_options, super_params_filtered = {}, {}, {}
+            if 'model_params' in model_choice:
+                model_params = model_choice['model_params']
+                if 'model' in model_params and model_params['model'] in ['maica_main', 'maica_core']:
+                    using_model = model_params['model']
+                else:
+                    using_model = 'maica_main' if self.options['opt']['full_maica'] else 'maica_core'
+                is_full_maica = True if using_model == 'maica_main' else False
+                client_options['full_maica'] = is_full_maica
+                if 'sf_extraction' in model_params:
+                    client_options['sf_extraction'] = bool(model_params['sf_extraction'])
+                if 'stream_output' in model_params:
+                    client_options['stream'] = bool(model_params['stream_output'])
+                if 'target_lang' in model_params:
+                    client_options['target_lang'] = 'en' if model_params['target_lang'] == 'en' else 'zh'
+                if 'max_token' in model_params and 5120 <= int(model_params['max_token']) <= 28672:
+                    client_options['max_token'] = int(model_params['max_token'])
+                self.alter_identity('opt', **client_options)
+            if 'perf_params' in model_choice:
+                perf_params = model_choice['perf_params']
+                if 'sfe_aggressive' in perf_params:
+                    client_extra_options['sfe_aggressive'] = bool(perf_params['sfe_aggressive'])
+                if 'mf_aggressive' in perf_params:
+                    client_extra_options['mf_aggressive'] = bool(perf_params['mf_aggressive'])
+                if 'tnd_aggressive' in perf_params:
+                    client_extra_options['tnd_aggressive'] = int(perf_params['tnd_aggressive'])
+                if 'esc_aggressive' in perf_params:
+                    client_extra_options['esc_aggressive'] = bool(perf_params['esc_aggressive'])
+                if 'nsfw_acceptive' in perf_params:
+                    client_extra_options['nsfw_acceptive'] = bool(perf_params['nsfw_acceptive'])
+                self.alter_identity('eopt', **client_extra_options)
             if 'super_params' in model_choice:
                 super_params = model_choice['super_params']
-                for super_param in ['top_p', 'temperature', 'max_tokens', 'frequency_penalty', 'presence_penalty', 'seed']:
-                    if super_param in super_params:
-                        super_params_filtered[super_param] = super_params[super_param]
-            self.alter_identity('opt', **client_options)
-            self.alter_identity('eopt', **client_extra_options)
-            self.alter_identity('sup', **super_params_filtered)
-            await websocket.send(wrap_ws_formatter('200', 'ok', f"service provider is {load_env('DEV_IDENTITY')}", 'info'))
-            if using_model == 'maica_main':
-                await websocket.send(wrap_ws_formatter('200', 'ok', f"model chosen is {using_model} with full MAICA functionality", 'info'))
-            elif using_model == 'maica_core':
-                await websocket.send(wrap_ws_formatter('200', 'ok', f"model chosen is {using_model} based on {self.model_type_actual}", 'info'))
+                if 'max_tokens' in super_params:
+                    if isinstance(super_params['max_tokens'], int) and int(super_params['max_tokens']) == -1:
+                        self.options['sup'].pop('max_tokens')
+                    elif 0 < int(super_params['max_tokens']) <= 2048:
+                        super_params_filtered['max_tokens'] = int(super_params['max_tokens'])
+                if 'seed' in super_params:
+                    if isinstance(super_params['seed'], int) and int(super_params['seed']) == -1:
+                        self.options['sup'].pop('seed')
+                    elif 0 < int(super_params['seed']) <= 99999:
+                        super_params_filtered['seed'] = int(super_params['seed'])
+                if 'top_p' in super_params:
+                    if isinstance(super_params['top_p'], int) and int(super_params['top_p']) == -1:
+                        self.options['sup'].pop('top_p')
+                    elif 0.1 < float(super_params['top_p']) <= 1.0:
+                        super_params_filtered['top_p'] = float(super_params['max_tokens'])
+                if 'temperature' in super_params:
+                    if isinstance(super_params['temperature'], int) and int(super_params['temperature']) == -1:
+                        self.options['sup'].pop('temperature')
+                    elif 0.0 < float(super_params['temperature']) <= 1.0:
+                        super_params_filtered['temperature'] = float(super_params['temperature'])
+                if 'presence_penalty' in super_params:
+                    if isinstance(super_params['presence_penalty'], int) and int(super_params['presence_penalty']) == -1:
+                        self.options['sup'].pop('presence_penalty')
+                    elif 0.0 < float(super_params['presence_penalty']) <= 1.0:
+                        super_params_filtered['presence_penalty'] = float(super_params['presence_penalty'])
+                if 'frequency_penalty' in super_params:
+                    if isinstance(super_params['frequency_penalty'], int) and int(super_params['frequency_penalty']) == -1:
+                        self.options['sup'].pop('frequency_penalty')
+                    elif 0.2 < float(super_params['frequency_penalty']) <= 1.0:
+                        super_params_filtered['frequency_penalty'] = float(super_params['frequency_penalty'])
+                self.alter_identity('sup', **super_params_filtered)
+            await websocket.send(wrap_ws_formatter('200', 'ok', f"{len(client_options)+len(client_extra_options)+len(super_params_filtered)} settings passed in and taking effect", 'info'))
             return True
         except websockets.exceptions.WebSocketException:
             print("Someone disconnected")
@@ -1081,7 +1086,7 @@ class ws_threading_instance(sub_threading_instance):
             return False
         try:
             completion_args = {
-                "model": options_opt['model'],
+                "model": options_opt['model_actual'],
                 "messages": messages,
                 "stream": options_opt['stream'],
                 "stop": ['<|im_end|>', '<|endoftext|>'],
@@ -1089,42 +1094,16 @@ class ws_threading_instance(sub_threading_instance):
             default_sparams = {
                 "top_p": 0.7,
                 "temperature": 0.2,
-                "max_tokens": 1024,
+                "max_tokens": 1600,
                 "frequency_penalty": 0.4,
                 "presence_penalty": 0.4,
-                "seed": random.randint(0,999)
+                "seed": random.randint(0,99999)
                 #default_seed = 42
             }
             for super_param in ['top_p', 'temperature', 'max_tokens', 'frequency_penalty', 'presence_penalty', 'seed']:
                 if super_param in self.options['sup']:
-                    super_value = self.options['sup'][super_param]
-                    match super_param:
-                        case 'max_tokens':
-                            if 0 < int(super_value) <= 1024:
-                                completion_args['max_tokens'] = int(super_value)
-                            else:
-                                raise Exception('max_tokens must fall on 1~1024')
-                        case 'seed':
-                            if 0 <= int(super_value) <= 999:
-                                completion_args['seed'] = int(super_value)
-                            else:
-                                raise Exception('seed must fall on 0~999')      
-                        case 'top_p':
-                            if 0.1 <= float(super_value) <= 1.0:
-                                completion_args['top_p'] = float(super_value)
-                            else:
-                                raise Exception('top_p must fall on 0.1~1.0')
-                        case 'frequency_penalty':
-                            if 0.2 <= float(super_value) <= 1.0:
-                                completion_args['frequency_penalty'] = float(super_value)
-                            else:
-                                raise Exception('frequency_penalty must fall on 0.2~1.0')
-                        case _:
-                            if 0.0 <= float(super_value) <= 1.0:
-                                completion_args[super_param] = float(super_value)
-                            else:
-                                raise Exception(f'{super_param} must fall on 0.0~1.0')
-                if not super_param in completion_args:
+                    completion_args[super_param] = self.options['sup'][super_param]
+                else:
                     completion_args[super_param] = default_sparams[super_param]
             print(f"Query ready to go, last query line is:\n{query_in}\nSending query.")
             stream_resp = await client_actual.chat.completions.create(**completion_args)
