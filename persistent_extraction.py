@@ -1,5 +1,16 @@
+import asyncio
+import functools
 import json
+async def wrap_run_in_exc(loop, func, *args, **kwargs):
+    if not loop:
+        loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(
+        None, functools.partial(func, *args, **kwargs))
+    return result
 def read_from_sf(userid, chat_session_num, key):
+    result = asyncio.run(wrap_run_in_exc(None, read_from_sf_sync, userid, chat_session_num, key))
+    return result
+def read_from_sf_sync(userid, chat_session_num, key):
     success = False
     try:
         with open(f"persistents/{userid}_{chat_session_num}.json") as savefile:

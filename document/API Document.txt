@@ -93,10 +93,10 @@ MAICA验证令牌的接口位于https://maicadev.monika.love/api/legality. 你�
             当nsfw_acceptive为true时会改变system指引, 使模型对"有毒性"场景更为宽容. 经测试启用此功能对模型总体表现(意外地)有利, 但也存在降低模型专注能力和造成混乱的风险.
             请注意, 目前为止MAICA尚未使用任何系统性的NSFW数据集进行训练, 因此nsfw_acceptive的效果十分薄弱. 此后或许会有针对性的改善.
         int(pre_additive):
-            相当于pre_additive数值轮次的历史对话将被加入MFocus.
+            相当于pre_additive数值轮次的历史对话将被加入MFocus, 其值限制在0-5.
             此功能强度越高, 越可能提高MFocus在自然对话中的触发率, 但也越可能干扰MFocus的判断或导致其表现异常.
         int(post_additive):
-            相当于post_additive数值轮次的历史对话将被加入MTrigger.
+            相当于post_additive数值轮次的历史对话将被加入MTrigger, 其值限制在0-5.
             此功能强度越高, 越可能提高MTrigger在自然对话中的触发率, 但也越可能干扰MTrigger的判断或导致其表现异常.
         以上各参数的缺省值分别为true, 1, false, false, true, 1, 1.
     在super_params中:
@@ -152,6 +152,35 @@ maica_main和maica_core共用chat_session.
 重置在技术上并非删除, 而是将chat_session恢复到初始状态. 因此, 你不能重置一个尚不存在的chat_session. 尝试这样做不会影响连接正常运行, 但会收到404.
 被重置的chat_session内容不会被删除, 会被归档并可能用于后续的模型训练与改进. 这部分数据不再支持用户下载.
 要重新开始连接, 你需要重新进行认证和设置.
+
+在对话阶段, 用户可以发起带MTrigger的请求, 其能使MAICA作出决策以主动干预游戏内容. 你应当按以下格式范例发起请求:
+    {"chat_session": "1", "query": "你好啊", "trigger": [{"template": "common_affection_template"}]}
+    其中键trigger的值应为一个list, 每个触发器写为其中的一个dict.
+    触发器的编写有以下规范:
+        模板common_affection_template:
+            范例: {"template": "common_affection_template"}
+            该模板没有可选内容. 使用该模板的触发器会根据用户输入与上文内容, 决策对好感度应做的调整.
+            输出范例: {"code": "110", "status": "mtrigger_trigger", "content": ["alter_affection", {"affection": "+1.5"}], "type": "carriage", "time_ms": 时间戳(毫秒)}
+        模板common_switch_template:
+            范例: {"template": "common_switch_template","name": "change_clothes","exprop":{"item_name": {"zh": "衣服","en": "clothes"},"item_list": ["白色连衣裙", "黑色连衣裙"],"curr_item": "白色连衣裙"}}
+            其中name的值可以任取, 建议格式与范例尽可能一致且能表明用途.
+            exprop的值是该模板的附加参数, 其中item_name的值为选择类目的性质(双语), item_list的值为所有可选条目的list, curr_item的值为当前已选条目. curr_item是可留空或缺省的.
+            输出范例: {"code": "110", "status": "mtrigger_trigger", "content": ["change_clothes", {"selection": "黑色连衣裙"}], "type": "carriage", "time_ms": 时间戳(毫秒)}
+        模板common_meter_template:
+            范例: {"template": "common_meter_template","name": "change_distance","exprop":{"item_name": {"zh": "距离","en": "distance"},"value_limits": [0, 2.5],"curr_value": 0.67}}
+            其中name的值可以任取, 建议格式与范例尽可能一致且能表明用途.
+            exprop的值是该模板的附加参数, 其中item_name的值为选择类目的性质(双语), value_limits的两个项为数值可取的上下限, curr_value的值为当前值. curr_value是可留空或缺省的.
+            输出范例: {"code": "110", "status": "mtrigger_trigger", "content": ["change_distance", {"value": "0.75"}], "type": "carriage", "time_ms": 时间戳(毫秒)}
+        自由模板:
+            范例: {"template": "customize","name": "some_name","usage":{"zh": "功能","en": "Function"}}
+            其中name的值可以任取, 建议格式与范例尽可能一致且能表明用途.
+            自由模板没有附加参数, 仅能触发. 其中usage的值为该触发器功能的简要描述.
+            输出范例: {"code": "110", "status": "mtrigger_trigger", "content": ["some_name"], "type": "carriage", "time_ms": 时间戳(毫秒)}
+    对于未注明双语的条目, 可以任选中文或英文, 建议与用户语言保持一致.
+    显而易见地, MTrigger的有效载荷输出均为110 carriage. 在所有触发条目输出完成或无可输出后, MTrigger将输出1010 info提示输出完成:
+        {"code": "1010", "status": "mtrigger_done", "content": "No MTrigger activated.", "type": "info", "time_ms": 时间戳(毫秒)}
+由于执行时间排程优化, MTrigger的输出与核心模型应答同时开始, 且可能同步或穿插送达, 在开发过程中应加以留意.
+同样由于时间优化, MTrigger即使发生问题也不会中断核心模型的工作, 仅会记录并发送503 warn, 状态为mtrigger_failed.
 
 在对话阶段, 用户可以发起MSpire请求, 其能使MAICA作出类似主动发问的响应. 你应当按以下格式范例发起请求:
     {"chat_session": "1", "inspire": true}

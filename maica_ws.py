@@ -13,6 +13,7 @@ import random
 import traceback
 import mspire
 import mfocus_main
+import mtrigger
 import persistent_extraction
 #import maica_http
 from Crypto.Random import random as CRANDOM # type: ignore
@@ -822,9 +823,9 @@ class ws_threading_instance(sub_threading_instance):
                     client_extra_options['esc_aggressive'] = bool(perf_params['esc_aggressive'])
                 if 'nsfw_acceptive' in perf_params:
                     client_extra_options['nsfw_acceptive'] = bool(perf_params['nsfw_acceptive'])
-                if 'pre_additive' in perf_params:
+                if 'pre_additive' in perf_params and 0 <= int(perf_params['pre_additive']) <= 5:
                     client_extra_options['pre_additive'] = int(perf_params['pre_additive'])
-                if 'post_additive' in perf_params:
+                if 'post_additive' in perf_params and 0 <= int(perf_params['post_additive']) <= 5:
                     client_extra_options['post_additive'] = int(perf_params['post_additive'])
                 self.alter_identity('eopt', **client_extra_options)
             if 'super_params' in model_choice:
@@ -876,7 +877,7 @@ class ws_threading_instance(sub_threading_instance):
     async def do_communicate(self, recv_json):
         websocket, client_actual, session, options_opt, options_eopt = self.websocket, self.client_actual, self.options['vfc'], self.options['opt'], self.options['eopt']
         sfe_aggressive, mf_aggressive, tnd_aggressive, esc_aggressive, nsfw_acceptive = options_eopt['sfe_aggressive'], options_eopt['mf_aggressive'], options_eopt['tnd_aggressive'], options_eopt['esc_aggressive'], options_eopt['nsfw_acceptive']
-        bypass_mf = False; overall_info_system = ''
+        bypass_mf = False; overall_info_system = ''; trigger_list = []
         try:
             request_json = recv_json
             chat_session = int(request_json['chat_session'])
@@ -1112,13 +1113,22 @@ class ws_threading_instance(sub_threading_instance):
                 else:
                     completion_args[super_param] = default_sparams[super_param]
             print(f"Query ready to go, last query line is:\n{query_in}\nSending query.")
-            stream_resp = await client_actual.chat.completions.create(**completion_args)
+
+
+
+            task_stream_resp = asyncio.create_task(client_actual.chat.completions.create(**completion_args))
+            task_trigger_resp = asyncio.create_task(mtrigger.wrap_triggering(self, query_in, chat_session, trigger_list))
+            await task_stream_resp
+            stream_resp = task_stream_resp.result()
+
+
+
             if options_opt['stream']:
             #print(f'query: {query}')
                 reply_appended = ''
                 async for chunk in stream_resp:
                     token = chunk.choices[0].delta.content
-                    await asyncio.sleep(0)
+                    #await asyncio.sleep(0)
                     print(token, end='', flush=True)
                     if token != '':
                         if True:
@@ -1157,9 +1167,19 @@ class ws_threading_instance(sub_threading_instance):
                     print(f"出现如下异常28-{self.traceray_id}:{stored[1]}")
                     await websocket.send(wrap_ws_formatter('500', 'store_failed', response_str, 'error'))
                     await websocket.close(1000, 'Stopping connection due to critical server failure')
+                await task_trigger_resp
+                trigger_resp = task_trigger_resp.result()
+                if trigger_resp:
+                    print(f"Finished with triggering error-{self.traceray_id}:{session['username']}")
+                    return False
                 print(f"Finished entire loop-{self.traceray_id}:{session['username']}")
             else:
                 success = True
+                await task_trigger_resp
+                trigger_resp = task_trigger_resp.result()
+                if trigger_resp:
+                    print(f"Finished non-recording with triggering error-{self.traceray_id}:{session['username']}")
+                    return False
                 print(f"Finished non-recording loop-{self.traceray_id}:{session['username']}")
         except websockets.exceptions.WebSocketException:
             print("Someone disconnected")

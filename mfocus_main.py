@@ -18,8 +18,8 @@ async def agenting(parent, input, chat_session):
         session = parent.options['vfc']
     else:
         # These are testing values
-        sf_extraction = False
-        session = [0, 0, 23]
+        sf_extraction = True
+        session = {"user_id": 23, "username": "edge"}
         target_lang='zh'
         pre_additive=0
         tnd_aggressive=1
@@ -165,25 +165,25 @@ async def agenting(parent, input, chat_session):
     ]
     if mf_aggressive:
         tools.append(
-        {
-            "name": "conclude_information",
-            "description": "Call this tool if you have used every necessary tool and ready to give final answer. 若你已经使用了所有必要的工具并准备好给出最终答案, 则使用此工具.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "conclusion": {
-                        "type": "string",
-                        "description": "Conclude all information you have acquired and reasonings you have made into a concise sentence.",
-                        "example_value": "现在是上午九点, 适合吃早餐, 且天气凉爽, 适合户外活动"
-                    }
-                },
-                "required": [
-                    "conclusion"
-                ],
-                "optional": [
-                ]
-            }
-        },
+            {
+                "name": "conclude_information",
+                "description": "Call this tool if you have used every necessary tool and ready to give final answer. 若你已经使用了所有必要的工具并准备好给出最终答案, 则使用此工具.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "conclusion": {
+                            "type": "string",
+                            "description": "Conclude all information you have acquired and reasonings you have made into a concise sentence.",
+                            "example_value": "现在是上午九点, 适合吃早餐, 且天气凉爽, 适合户外活动"
+                        }
+                    },
+                    "required": [
+                        "conclusion"
+                    ],
+                    "optional": [
+                    ]
+                }
+            },
         )
     messages = []
     if pre_additive:
@@ -242,7 +242,7 @@ async def agenting(parent, input, chat_session):
     instructed_first_answer = instructed_final_answer
     # to be extended
     cycle = 0
-    while tool_calls:
+    while tool_calls and tool_calls.function.name != 'none':
         cycle += 1
         if cycle >= 7:
             break
@@ -431,7 +431,7 @@ async def agenting(parent, input, chat_session):
         return 'FAIL', ''
 
 if __name__ == "__main__":
-    agented = asyncio.run(agenting(None, '今天是什么日子', 1))
+    agented = asyncio.run(agenting(None, '现在几点了? 今天是星期几?', 1))
     print(agented[0])
     print(agented[1])
 
