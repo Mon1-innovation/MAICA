@@ -92,7 +92,13 @@ MAICA验证令牌的接口位于https://maicadev.monika.love/api/legality. 你�
         bool(nsfw_acceptive):
             当nsfw_acceptive为true时会改变system指引, 使模型对"有毒性"场景更为宽容. 经测试启用此功能对模型总体表现(意外地)有利, 但也存在降低模型专注能力和造成混乱的风险.
             请注意, 目前为止MAICA尚未使用任何系统性的NSFW数据集进行训练, 因此nsfw_acceptive的效果十分薄弱. 此后或许会有针对性的改善.
-        以上各参数的缺省值分别为true, 1, false, false, true.
+        int(pre_additive):
+            相当于pre_additive数值轮次的历史对话将被加入MFocus.
+            此功能强度越高, 越可能提高MFocus在自然对话中的触发率, 但也越可能干扰MFocus的判断或导致其表现异常.
+        int(post_additive):
+            相当于post_additive数值轮次的历史对话将被加入MTrigger.
+            此功能强度越高, 越可能提高MTrigger在自然对话中的触发率, 但也越可能干扰MTrigger的判断或导致其表现异常.
+        以上各参数的缺省值分别为true, 1, false, false, true, 1, 1.
     在super_params中:
         超参数将被传递到核心模型, 具体效果可以查阅OpenAI文档. 超参数有以下限制:
             0.1 <= float(top_p) <= 1.0, 默认值为0.7

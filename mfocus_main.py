@@ -9,8 +9,23 @@ import agent_modules
 import persistent_extraction
 from openai import AsyncOpenAI # type: ignore
 from loadenv import load_env
-async def agenting(input, sf_extraction, session, chat_session, target_lang='zh', tnd_aggressive=1, mf_aggressive=False, esc_aggressive=True, websocket=None):
+async def agenting(parent, input, chat_session):
     #nest_asyncio.apply()
+    if parent:
+        sf_extraction, target_lang = parent.options['opt']['sf_extraction'], parent.options['opt']['target_lang']
+        pre_additive, tnd_aggressive, mf_aggressive, esc_aggressive = parent.options['eopt']['pre_additive'], parent.options['eopt']['tnd_aggressive'], parent.options['eopt']['mf_aggressive'], parent.options['eopt']['esc_aggressive']
+        websocket = parent.websocket
+        session = parent.options['vfc']
+    else:
+        # These are testing values
+        sf_extraction = False
+        session = [0, 0, 23]
+        target_lang='zh'
+        pre_additive=0
+        tnd_aggressive=1
+        mf_aggressive=False
+        esc_aggressive=True
+        websocket=None
     if websocket:
         loop = asyncio.get_event_loop()
     client = AsyncOpenAI(
@@ -171,6 +186,15 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         },
         )
     messages = []
+    if pre_additive:
+        sql_expression = 'SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
+        result = await parent.send_query(expression=sql_expression, values=(session['user_id'], chat_session), pool='maicapool')
+        res_dict = json.loads(f'[{result[3]}]')
+        lines_num = min(pre_additive * 2, len(res_dict) - 1)
+        message_additive = res_dict[-lines_num:] if lines_num > 0 else []
+        if message_additive:
+            messages.append({'role': 'system', 'content': '请按照指示格式回答, 对话历史仅供参考.'})
+            messages.extend(message_additive)
     messages.append({'role': 'user', 'content': input})
     completion_args = {
         "model": model_type,
@@ -213,7 +237,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         instructed_final_answer['event'] = f"[{(await agent_modules.event_acquire({'year': datetime.date.today().year, 'month': datetime.date.today().month, 'day': datetime.date.today().day}, sf_extraction, session, chat_session, -1, False, target_lang))[3]}]"
     if int(tnd_aggressive) >= 2:
         instructed_final_answer['date'] = f"[{(await agent_modules.date_acquire(None, sf_extraction, session, chat_session, target_lang))[3]}]"
-        if persistent_extraction.read_from_sf(session[2], chat_session, 'mas_geolocation')[2]:
+        if persistent_extraction.read_from_sf(session['user_id'], chat_session, 'mas_geolocation')[2]:
             instructed_final_answer['weather'] = f"[{(await agent_modules.weather_acquire(None, sf_extraction, session, chat_session, target_lang))[3]}]"
     instructed_first_answer = instructed_final_answer
     # to be extended
@@ -407,7 +431,7 @@ async def agenting(input, sf_extraction, session, chat_session, target_lang='zh'
         return 'FAIL', ''
 
 if __name__ == "__main__":
-    agented = asyncio.run(agenting('今天是什么日子', True, [0,0,21038], 1, mf_aggressive=True))
+    agented = asyncio.run(agenting(None, '今天是什么日子', 1))
     print(agented[0])
     print(agented[1])
 

@@ -48,10 +48,8 @@ class sub_threading_instance:
         self.host, self.user, self.password, self.authdb, self.maicadb, self.login, self.test = host, user, password, authdb, maicadb, login, test
         self.verified = False
         self.traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
-
         # Note that the 'id' dict is an unsafe identity, which means it doesn't need to pass all verifications, while 'vfc' is safe.
         # Do not use the 'id' on events needing account level security guaranteed.
-
         self.options = {"id": {"user_id": None}, "vfc":{"user_id": None}, "opt": {"target_lang": "zh"}, "eopt": {"sfe_aggressive": False}, "sup": {}}
         self.loop = asyncio.get_event_loop()
         asyncio.run(self._init_pools())
@@ -725,7 +723,9 @@ class ws_threading_instance(sub_threading_instance):
             "mf_aggressive": False,
             "tnd_aggressive": 1,
             "esc_aggressive": True,
-            "nsfw_acceptive": True
+            "nsfw_acceptive": True,
+            "pre_additive": 1,
+            "post_additive": 1
         }
         self.alter_identity('opt', **client_options)
         self.alter_identity('eopt', **client_extra_options)
@@ -763,7 +763,7 @@ class ws_threading_instance(sub_threading_instance):
                 match recv_text:
                     case 'PING':
                         await websocket.send(wrap_ws_formatter('100', 'continue', "PONG", 'heartbeat'))
-                        print(f"recieved PING from {session[3]}")
+                        print(f"recieved PING from {session['username']}")
                     case placeholder if "model_params" in recv_loaded_json or "perf_params" in recv_loaded_json or "super_params" in recv_loaded_json:
                         await self.def_model(recv_loaded_json)
                     case placeholder if "chat_session" in recv_loaded_json:
@@ -822,6 +822,10 @@ class ws_threading_instance(sub_threading_instance):
                     client_extra_options['esc_aggressive'] = bool(perf_params['esc_aggressive'])
                 if 'nsfw_acceptive' in perf_params:
                     client_extra_options['nsfw_acceptive'] = bool(perf_params['nsfw_acceptive'])
+                if 'pre_additive' in perf_params:
+                    client_extra_options['pre_additive'] = int(perf_params['pre_additive'])
+                if 'post_additive' in perf_params:
+                    client_extra_options['post_additive'] = int(perf_params['post_additive'])
                 self.alter_identity('eopt', **client_extra_options)
             if 'super_params' in model_choice:
                 super_params = model_choice['super_params']
@@ -876,7 +880,7 @@ class ws_threading_instance(sub_threading_instance):
         try:
             request_json = recv_json
             chat_session = int(request_json['chat_session'])
-            username = session[3]
+            username = session['username']
             sf_extraction = options_opt['sf_extraction']
             target_lang = options_opt['target_lang']
             max_token = options_opt['max_token']
@@ -886,7 +890,7 @@ class ws_threading_instance(sub_threading_instance):
             if 'purge' in request_json:
                 if request_json['purge']:
                     try:
-                        user_id = session[2]
+                        user_id = session['user_id']
                         purge_result = await self.purge_chat_session(chat_session)
                         if not purge_result[0]:
                             raise Exception(purge_result[1])
@@ -936,6 +940,8 @@ class ws_threading_instance(sub_threading_instance):
                     # query_in = query_vise[2]
             else:
                 query_in = request_json['query']
+                if 'trigger' in request_json:
+                    trigger_list = request_json['trigger']
             global easter_exist
             if easter_exist:
                 easter_check = easter(query_in)
@@ -967,10 +973,9 @@ class ws_threading_instance(sub_threading_instance):
 
                     try:
                         if options_opt['full_maica'] and not bypass_mf:
-                            mfocus_async_args = [query_in, sf_extraction, session, chat_session, target_lang, tnd_aggressive, mf_aggressive, esc_aggressive, websocket]
+                            mfocus_async_args = [self, query_in, chat_session]
                             message_agent_wrapped = await mfocus_main.agenting(*mfocus_async_args)
                             if message_agent_wrapped[0] == 'EMPTY':
-                                # We do not want answers without information
                                 response_str = f"MFocus using instructed final guidance, suggesting LLM conclusion is empty--your ray tracer ID is {self.traceray_id}"
                                 await websocket.send(wrap_ws_formatter('200', 'agent_prog', response_str, 'debug'))
                                 if len(message_agent_wrapped[1]) > 5:
@@ -994,6 +999,7 @@ class ws_threading_instance(sub_threading_instance):
                                     await websocket.send(wrap_ws_formatter('200', 'agent_aggr', response_str, 'debug'))
                                     info_agent_grabbed = message_agent_wrapped[0]
                                 else:
+                                    # We do not want answers without information
                                     response_str = f"Due to agent failure, falling back to default guidance and continuing anyway."
                                     await websocket.send(wrap_ws_formatter('200', 'force_failsafe', response_str, 'debug'))
                                     print(f"出现如下异常18.5-{self.traceray_id}:Corruption")
@@ -1122,7 +1128,7 @@ class ws_threading_instance(sub_threading_instance):
                             break
                 await websocket.send(wrap_ws_formatter('1000', 'streaming_done', f"streaming has finished with seed {completion_args['seed']}", 'info'))
                 reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
-                print(f"Finished replying-{self.traceray_id}:{session[3]}, with seed {completion_args['seed']}")
+                print(f"Finished replying-{self.traceray_id}:{session['username']}, with seed {completion_args['seed']}")
             else:
                 token_combined = stream_resp.choices[0].message.content
                 print(token_combined)
@@ -1151,10 +1157,10 @@ class ws_threading_instance(sub_threading_instance):
                     print(f"出现如下异常28-{self.traceray_id}:{stored[1]}")
                     await websocket.send(wrap_ws_formatter('500', 'store_failed', response_str, 'error'))
                     await websocket.close(1000, 'Stopping connection due to critical server failure')
-                print(f"Finished entire loop-{self.traceray_id}:{session[3]}")
+                print(f"Finished entire loop-{self.traceray_id}:{session['username']}")
             else:
                 success = True
-                print(f"Finished non-recording loop-{self.traceray_id}:{session[3]}")
+                print(f"Finished non-recording loop-{self.traceray_id}:{session['username']}")
         except websockets.exceptions.WebSocketException:
             print("Someone disconnected")
             raise Exception('Force closure of connection')
