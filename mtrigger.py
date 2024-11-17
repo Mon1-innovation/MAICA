@@ -39,6 +39,7 @@ async def triggering(parent, input, chat_session, trigger_list):
     model_type = model_list.data[0].id
     print(f'MTrigger addressing model, response is:\n{model_type}\nEnd of MTrigger addressing model')
     trigger_tool_list = []
+    aff_checked = False
     for trigger in trigger_list:
 
 # {
@@ -82,6 +83,9 @@ async def triggering(parent, input, chat_session, trigger_list):
 
         match trigger['template']:
             case 'common_affection_template':
+                if aff_checked:
+                    continue
+                aff_checked = True
                 cur_aff = 0
                 if sf_extraction:
                     quest_res = persistent_extraction.read_from_sf(session['user_id'], chat_session, 'mas_affection')

@@ -9,23 +9,24 @@ import agent_modules
 import persistent_extraction
 from openai import AsyncOpenAI # type: ignore
 from loadenv import load_env
-async def agenting(parent, input, chat_session):
+async def agenting(parent, input, chat_session, trigger_list):
     #nest_asyncio.apply()
     if parent:
         sf_extraction, target_lang = parent.options['opt']['sf_extraction'], parent.options['opt']['target_lang']
-        pre_additive, tnd_aggressive, mf_aggressive, esc_aggressive = parent.options['eopt']['pre_additive'], parent.options['eopt']['tnd_aggressive'], parent.options['eopt']['mf_aggressive'], parent.options['eopt']['esc_aggressive']
+        pre_additive, tnd_aggressive, mf_aggressive, esc_aggressive, amt_aggressive = parent.options['eopt']['pre_additive'], parent.options['eopt']['tnd_aggressive'], parent.options['eopt']['mf_aggressive'], parent.options['eopt']['esc_aggressive'], parent.options['eopt']['amt_aggressive']
         websocket = parent.websocket
         session = parent.options['vfc']
     else:
         # These are testing values
         sf_extraction = True
         session = {"user_id": 23, "username": "edge"}
-        target_lang='zh'
-        pre_additive=0
-        tnd_aggressive=1
-        mf_aggressive=False
-        esc_aggressive=True
-        websocket=None
+        target_lang = 'zh'
+        pre_additive = 0
+        tnd_aggressive = 1
+        mf_aggressive = False
+        esc_aggressive = True
+        amt_aggressive = True
+        websocket = None
     if websocket:
         loop = asyncio.get_event_loop()
     client = AsyncOpenAI(
@@ -163,6 +164,44 @@ async def agenting(parent, input, chat_session):
             }
         },
     ]
+    if trigger_list and amt_aggressive:
+        choice_list = []
+        for trigger in trigger_list:
+            match trigger['template']:
+                case 'common_affection_template':
+                    pass
+                case 'common_switch_template':
+                    for i in trigger['exprop']['item_list']:
+                        j = f'选择{i}' if target_lang == 'zh' else f'switch to {i}'
+                        choice_list.append(j)
+                case 'common_meter_template':
+                    j = f"调整{trigger['exprop']['item_name']['zh']}" if target_lang == 'zh' else f"adjust {trigger['exprop']['item_name']['en']}"
+                    choice_list.append(j)
+                case _:
+                    j = f"触发{trigger['usage']['zh']}" if target_lang == 'zh' else f"trigger {trigger['usage']['en']}"
+                    choice_list.append(j)
+        if choice_list:
+            tools.append(
+                {
+                    "name": "react_trigger",
+                    "description": "This tool can verify if user's specific request can be done. If user is requesting you to: switching(like changing your clothes, changing location, changing scene), adjusting(like adjusting distance, adjusting brightness), triggering(like turning on light, turning on some mode), use this tool. 此工具能检验用户的特定要求可否完成. 如果用户对你提出以下类别请求: 切换(如换衣服, 换地点, 换场景), 调整(如调距离, 调亮度), 触发(如开灯, 开启某模式), 则调用该工具.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "ability": {
+                                "type": "boolean",
+                                "description": f"You'll be offered a list of avaliable choices. return True if one or many choices can satisfy the request, otherwise return False. list: {str(choice_list)}",
+                                "example_value": "True"
+                            }
+                        },
+                        "required": [
+                            "ability"
+                        ],
+                        "optional": [
+                        ]
+                    }
+                },
+            )
     if mf_aggressive:
         tools.append(
             {
@@ -231,7 +270,7 @@ async def agenting(parent, input, chat_session):
 
     final_answer = ''
     instructed_final_answer = {}
-    inst_wea = inst_time = inst_date = inst_event = inst_pst = inst_search = inst_conc = False
+    inst_wea = inst_time = inst_date = inst_event = inst_pst = inst_search = inst_rct = inst_conc = False
     if int(tnd_aggressive) >= 1:
         instructed_final_answer['time'] = f"[{(await agent_modules.time_acquire(None, target_lang))[3]}]"
         instructed_final_answer['event'] = f"[{(await agent_modules.event_acquire({'year': datetime.date.today().year, 'month': datetime.date.today().month, 'day': datetime.date.today().day}, sf_extraction, session, chat_session, -1, False, target_lang))[3]}]"
@@ -352,6 +391,15 @@ async def agenting(parent, input, chat_session):
                         inst_search= True
                 else:
                     raise Exception(internet_acquired[1])
+            elif re.search((r'react.*trigger'), predict_action_function, re.I):
+                trigger_ability = real_parameters_dict[list(real_parameters_dict.keys())[0]]
+                return_instruction = f"[{{'reaction_correct': True}}]"
+                if trigger_ability and (not isinstance(trigger_ability, str) or trigger_ability.lower() != "false"):
+                    instructed_final_answer['trigger'] = '"用户的请求可以被满足, 在本轮对话结束后系统将完成用户的请求."' if target_lang == 'zh' else '"User\'s request can be satisfied, system will finish user\'s request after this round of conversation."'
+                else:
+                    instructed_final_answer['trigger'] = '"用户的请求当前无法被满足, 请表示你做不到, 并建议用户自行解决或寻找其它方法."' if target_lang == 'zh' else '"User\'s request cannot be satisfied, please indicate that you can\'t do it, and suggest user doing it themselves or find another way."'
+                #print(real_parameters_dict)
+                inst_rct = True
             elif re.search((r'conclude.*information'), predict_action_function, re.I):
                 #print(real_parameters_dict)
                 conc_final_answer = f"\"{real_parameters_dict[list(real_parameters_dict.keys())[0]]}\""

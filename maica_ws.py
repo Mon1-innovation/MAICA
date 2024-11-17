@@ -724,6 +724,7 @@ class ws_threading_instance(sub_threading_instance):
             "mf_aggressive": False,
             "tnd_aggressive": 1,
             "esc_aggressive": True,
+            "amt_aggressive": True,
             "nsfw_acceptive": True,
             "pre_additive": 1,
             "post_additive": 1
@@ -821,6 +822,8 @@ class ws_threading_instance(sub_threading_instance):
                     client_extra_options['tnd_aggressive'] = int(perf_params['tnd_aggressive'])
                 if 'esc_aggressive' in perf_params:
                     client_extra_options['esc_aggressive'] = bool(perf_params['esc_aggressive'])
+                if 'amt_aggressive' in perf_params:
+                    client_extra_options['amt_aggressive'] = bool(perf_params['amt_aggressive'])
                 if 'nsfw_acceptive' in perf_params:
                     client_extra_options['nsfw_acceptive'] = bool(perf_params['nsfw_acceptive'])
                 if 'pre_additive' in perf_params and 0 <= int(perf_params['pre_additive']) <= 5:
@@ -974,8 +977,7 @@ class ws_threading_instance(sub_threading_instance):
 
                     try:
                         if options_opt['full_maica'] and not bypass_mf:
-                            mfocus_async_args = [self, query_in, chat_session]
-                            message_agent_wrapped = await mfocus_main.agenting(*mfocus_async_args)
+                            message_agent_wrapped = await mfocus_main.agenting(self, query_in, chat_session, trigger_list)
                             if message_agent_wrapped[0] == 'EMPTY':
                                 response_str = f"MFocus using instructed final guidance, suggesting LLM conclusion is empty--your ray tracer ID is {self.traceray_id}"
                                 await websocket.send(wrap_ws_formatter('200', 'agent_prog', response_str, 'debug'))
