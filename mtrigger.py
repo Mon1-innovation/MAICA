@@ -87,7 +87,7 @@ async def triggering(parent, input, chat_session, trigger_list):
                     quest_res = persistent_extraction.read_from_sf(session['user_id'], chat_session, 'mas_affection')
                     if quest_res[0]:
                         cur_aff = quest_res[2]
-                    desc_aff = f"当你认为对用户的好感度应发生变化时调用该工具, 当前好感度是{cur_aff}. 仅当用户表现强烈情感时调用该工具. Call this tool to change affection when you think you should, current affection is {cur_aff}. Use this tool only if user is expressing strong emotion." if cur_aff else "当你认为对用户的好感度应发生变化时调用该工具. 仅当用户表现强烈情感时调用该工具. Call this tool to change affection when you think you should. Use this tool only if user is expressing strong emotion."
+                    desc_aff = f"当你认为对用户的好感度应发生变化时调用该工具, 当前好感度是{cur_aff}. 例如, 当用户发送夸赞, 关心, 或表现明显的情感时可以调用该工具. Call this tool to change affection when you think you should, current affection is {cur_aff}. For example, you can call this tool when user is complimenting, showing care, or expressing notable emotion." if cur_aff else "当你认为对用户的好感度应发生变化时调用该工具. 例如, 当用户发送夸赞, 关心, 或表现明显的情感时可以调用该工具. Call this tool to change affection when you think you should. For example, you can call this tool when user is complimenting, showing care, or expressing notable emotion."
                 trigger_tool_list.append(
                     {
                         "name": "alter_affection",
@@ -97,7 +97,7 @@ async def triggering(parent, input, chat_session, trigger_list):
                             "properties": {
                                 "affection": {
                                     "type": "float",
-                                    "description": "Emit positive float to increase affection, negative to decrease affection. The maximum increase should be around +2, while it's normally around +1.",
+                                    "description": "Emit positive float to increase affection, negative to decrease affection. The maximum increase should be around +3, while it's normally around +1. For example, a compliment on your beauty could result in +0.8, a short sentence expressing love could result in +1.5, and a long phrase expressing love could result in +3.0.",
                                     "example_value": "+0.25"
                                 }
                             },
@@ -228,6 +228,17 @@ async def triggering(parent, input, chat_session, trigger_list):
             trigger_params_json = {}
     else:
         tool_calls = None
+    if tool_calls and not re.search(r'agent.*finished', trigger_name, re.I):
+        response_str1 = f'MTrigger 1st round finished, response is:\n{response}\nEnd of MTrigger 1st round.'
+        response_str2 = f'Acquiring tool call from MTrigger 1st round, response is:\n{tool_calls}\nEnd of tool call acquiration.'
+    else:
+        response_str1 = f'MTrigger 1st round finished, response is:\n{response}\nEnding due to returning none or corruption.'
+        response_str2 = f'No tool called by MTrigger.'
+    if websocket:
+        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_triggering', response_str1, 'debug'))
+        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_end', response_str2, 'debug'))
+    print(response_str1)
+    print(response_str2)
     cycle = 0
     while tool_calls and not re.search(r'agent.*finished', trigger_name, re.I):
         cycle += 1
@@ -250,6 +261,17 @@ async def triggering(parent, input, chat_session, trigger_list):
                 trigger_params_json = {}
         else:
             tool_calls = None
+        if tool_calls:
+            response_str1 = f'MTrigger {cycle+1}nd/rd/th round finished, response is:\n{response}\nEnd of MTrigger following round.'
+            response_str2 = f'Acquiring tool call from MTrigger {cycle+1}nd/rd/th round, response is:\n{tool_calls}\nEnd of tool call acquiration.'
+        else:
+            response_str1 = f'MTrigger {cycle+1}nd/rd/th round finished, response is:\n{response}\nEnding due to returning none or corruption.'
+            response_str2 = f'No tool called by MTrigger.'
+        if websocket:
+            await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_triggering', response_str1, 'debug'))
+            await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_end', response_str2, 'debug'))
+        print(response_str1)
+        print(response_str2)
     finish_sentence = f"{cycle} MTrigger requests sent, active trigger finished." if cycle else "No MTrigger activated."
     print(finish_sentence)
     if websocket:

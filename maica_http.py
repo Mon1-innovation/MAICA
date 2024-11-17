@@ -280,6 +280,13 @@ async def access():
     accessibility = load_env('DEV_STATUS')
     return json.dumps({"success": success, "exception": str(exception), "accessibility": accessibility}, ensure_ascii=False)
 
+@app.route('/version', methods=["POST"])
+async def vcontrol():
+    success = True
+    exception = ''
+    cur_v, last_v = load_env('VERSION_CONTROL').split(';',1)
+    return json.dumps({"success": success, "exception": str(exception), "version": {"curr_version": cur_v, "legc_version": last_v}}, ensure_ascii=False)
+
 if __name__ == '__main__':
     global pubkey_loaded, privkey_loaded
     with open("key/prv.key", "r") as privkey_file:

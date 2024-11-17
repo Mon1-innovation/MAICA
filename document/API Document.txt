@@ -66,7 +66,8 @@ MAICA验证令牌的接口位于https://maicadev.monika.love/api/legality. 你�
             MAICA目前接受两种传入模型选择, 分别是maica_main和maica_core. 带有core字样的选择代表启用核心能力, 带有main字样的选择代表启用完全能力.
             由于设计结构的原因, MAICA完全能力的响应前置延迟显著高于核心能力, 总体速度也更慢, 在服务拥挤时可能更甚.
         bool(sf_extraction):
-            MFocus是MAICA的独特能力之一. 其能够帮助MAICA获取外界信息回答问题, 而通过使用submod上传存档, MAICA还能读取来自MAS的大多数记忆.
+            该参数决定MFocus是否检索玩家的存档.
+            MFocus是MAICA的独特能力之一. 其能够帮助MAICA获取外界信息回答问题, 而通过上传并检索存档, MAICA还能读取来自MAS的大多数记忆.
             上传的存档与chat_session一一对应, 可以通过后面介绍的存档上传接口传入. 若当前指定的chat_session不存在对应存档, 则尝试使用chat_session为1的存档.
             仅当同时启用sf_extraction和MAICA完全能力时, 用户可以体验MAICA的最佳表现. 你可以出于隐私或响应速度起见关闭这些功能, 但当然会导致能力缺失.
         bool(stream_output):
@@ -153,13 +154,15 @@ maica_main和maica_core共用chat_session.
 被重置的chat_session内容不会被删除, 会被归档并可能用于后续的模型训练与改进. 这部分数据不再支持用户下载.
 要重新开始连接, 你需要重新进行认证和设置.
 
-在对话阶段, 用户可以发起带MTrigger的请求, 其能使MAICA作出决策以主动干预游戏内容. 你应当按以下格式范例发起请求:
+在对话阶段, 用户可以发起带MTrigger的请求, 其能使MAICA作出决策以主动干预游戏内容, 甚至游戏外的内容. 你应当按以下格式范例发起请求:
     {"chat_session": "1", "query": "你好啊", "trigger": [{"template": "common_affection_template"}]}
     其中键trigger的值应为一个list, 每个触发器写为其中的一个dict.
     触发器的编写有以下规范:
         模板common_affection_template:
             范例: {"template": "common_affection_template"}
             该模板没有可选内容. 使用该模板的触发器会根据用户输入与上文内容, 决策对好感度应做的调整.
+            若sf_extraction未启用, 此功能的准确性可能会受到一定程度的影响.
+            好感度调幅默认为不超过+3.0, 你可以自行设定乘幅. 简单地对其调幅举例, 日常的问好大约会输出+0.2, 对美貌的称赞大约会输出+0.8, 简短的示爱大约会输出+1.5, 长段的示爱大约会输出+3.0.
             输出范例: {"code": "110", "status": "mtrigger_trigger", "content": ["alter_affection", {"affection": "+1.5"}], "type": "carriage", "time_ms": 时间戳(毫秒)}
         模板common_switch_template:
             范例: {"template": "common_switch_template","name": "change_clothes","exprop":{"item_name": {"zh": "衣服","en": "clothes"},"item_list": ["白色连衣裙", "黑色连衣裙"],"curr_item": "白色连衣裙"}}
@@ -177,10 +180,10 @@ maica_main和maica_core共用chat_session.
             自由模板没有附加参数, 仅能触发. 其中usage的值为该触发器功能的简要描述.
             输出范例: {"code": "110", "status": "mtrigger_trigger", "content": ["some_name"], "type": "carriage", "time_ms": 时间戳(毫秒)}
     对于未注明双语的条目, 可以任选中文或英文, 建议与用户语言保持一致.
-    显而易见地, MTrigger的有效载荷输出均为110 carriage. 在所有触发条目输出完成或无可输出后, MTrigger将输出1010 info提示输出完成:
+    显而易见地, MTrigger的有效载荷输出均为110 mtrigger_trigger. 在所有触发条目输出完成或无可输出后, MTrigger将输出1010 mtrigger_done提示输出完成:
         {"code": "1010", "status": "mtrigger_done", "content": "No MTrigger activated.", "type": "info", "time_ms": 时间戳(毫秒)}
 由于执行时间排程优化, MTrigger的输出与核心模型应答同时开始, 且可能同步或穿插送达, 在开发过程中应加以留意.
-同样由于时间优化, MTrigger即使发生问题也不会中断核心模型的工作, 仅会记录并发送503 warn, 状态为mtrigger_failed.
+同样由于时间优化, MTrigger即使发生问题也不会中断核心模型的工作, 仅会记录并发送503 mtrigger_failed.
 
 在对话阶段, 用户可以发起MSpire请求, 其能使MAICA作出类似主动发问的响应. 你应当按以下格式范例发起请求:
     {"chat_session": "1", "inspire": true}
@@ -188,7 +191,7 @@ maica_main和maica_core共用chat_session.
     你可以将inspire设为具体的页面标题以选取一个具体的页面, 但其必须在对应wikipedia.org上存在, 否则会发生错误.
     你可以将inspire设为形如"Category:心理学"以选取一个类目且其必须在对应wikipedia.org上存在, MSpire将从中随机抽取一个页面或子分类页面.
 目前为止MSpire的行为仅为替换query, 实际上与前端实现没有本质区别. 在一个chat_session中频繁使用MSpire可能导致后续回答模式紊乱.
-MSpire的chat_session可以被设为0-9, 不能使用-1. 如果不需要对MSpire话题作后续讨论, 可以使用chat_session 0.
+MSpire的chat_session可以被设为0-9, 不能使用-1. 如果不需要对MSpire话题作后续讨论, 建议使用chat_session 0.
 
 为方便后端开发与调试, MAICA提供一个服务状态接口以告知客户端当前服务状态, 其位于https://maicadev.monika.love/api/accessibility. 你应当以空白的POST形式请求服务状态.
 如果成功请求, 接口会返回:
@@ -196,6 +199,12 @@ MSpire的chat_session可以被设为0-9, 不能使用-1. 如果不需要对MSpir
 仅当当前服务状态为"serving"时, 客户端应当继续工作. 若服务状态为任何其它值, 都应终止后续流程, 以免干扰服务器调试排障.
 此服务状态由后端管理人员填写, 并不一定代表服务器实际状态. 但当此接口认为服务不适用时, 任何形式的客户端都应当停止向服务器发起任何连接.
 对于任何规范的客户端应用, 都应当将此请求排在任何其它请求之前.
+
+为方便版本管理, MAICA提供一个版本流接口以告知客户端的可用状态, 其位于https://maicadev.monika.love/api/version. 你应当以空白的POST形式请求版本流.
+如果成功请求, 接口会返回:
+    {"success": true, "exception": '', "version": {"curr_version": "当前版本", "legc_version": "最旧的可兼容规范"}}
+若客户端开发规范低于当前版本, 前端开发者应当检查并更新. 若客户端开发规范低于最旧的可兼容规范, 客户端实例应当停止任何后续流程并提醒用户更新.
+版本号可以被转化为float后进行大小比较.
 
 为便于管理开源社区与自建服务, MAICA提供一个节点列表接口, 其位于https://maicadev.monika.love/api/servers. 你应当以空白的POST形式请求节点列表.
 如果成功请求, 接口会返回:
