@@ -193,7 +193,7 @@ async def triggering(parent, input, chat_session, trigger_list):
         }
     )
     messages = []
-    if post_additive:
+    if post_additive and 1 <= chat_session <= 9:
         sql_expression = 'SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
         result = await parent.send_query(expression=sql_expression, values=(session['user_id'], chat_session), pool='maicapool')
         res_dict = json.loads(f'[{result[3]}]')

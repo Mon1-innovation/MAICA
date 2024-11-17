@@ -40,7 +40,7 @@ async def date_acquire(params, sf_extraction, session, chat_session, target_lang
     weekday = weeklist[date.weekday()]
     if sf_extraction:
         try:
-            user_id = session[2]
+            user_id = session['user_id']
             south_north = persistent_extraction.read_from_sf(user_id, chat_session, '_mas_pm_live_south_hemisphere')
             if south_north[0]:
                 if south_north[2]:
@@ -81,7 +81,7 @@ async def weather_acquire(params, sf_extraction, session, chat_session, target_l
                 likely_query = params[possible_key]
                 break
     try:
-        user_id = session[2]
+        user_id = session['user_id']
         if likely_query:
             weather_location = likely_query
         else:
@@ -122,7 +122,7 @@ async def event_acquire(params, sf_extraction, session, chat_session, pred_lengt
         time_defined_list.append(f'{str(time_instance.year)}-{str(time_instance.month).zfill(2)}-{str(time_instance.day).zfill(2)}')
     if sf_extraction:
         try:
-            user_id = session[2]
+            user_id = session['user_id']
             player_bday = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_player_bday')[2]
             player_bday[0], player_bday[1], player_bday[2]
             player_has_bday = True
@@ -228,7 +228,7 @@ async def persistent_acquire(params, sf_extraction, session, chat_session, targe
         query = likely_query
     if sf_extraction:
         try:
-            user_id = session[2]
+            user_id = session['user_id']
             content = await mfocus_sfe.mfocus_find_info(user_id, chat_session, query)
             if content[0]:
                 content = persistent_friendly = content[2]
@@ -263,7 +263,7 @@ async def internet_acquire(params, sf_extraction, session, chat_session, origina
         searched_friendly = ''
     if sf_extraction:
         try:
-            user_id = session[2]
+            user_id = session['user_id']
             loc_caught = False
             geolocation = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_geolocation')
             if geolocation[0]:

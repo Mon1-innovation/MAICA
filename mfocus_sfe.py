@@ -858,10 +858,6 @@ Begin!
         answer_re = re.search(r'Answer\s*:\s*(\[.*\])', response, re.I)
         if answer_re and not re.match(rf'\s*none', answer_re[1], re.I):
             response = answer_re[1]
-        elif not answer_re:
-            success = False
-            exception = 'No answer found in mfocus'
-            response = ''
         else:
             return success, exception, '[None]', '[None]'
         return success, exception, response, response

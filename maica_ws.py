@@ -452,7 +452,7 @@ class sub_threading_instance:
             else:
                 player_name = '[player]'
             if known_info:
-                new_system = f"{global_init_system(player_name, self.options['opt']['target_lang'])} 以下是一些相关信息, 你可以利用其中有价值的部分作答: {known_info}." if self.options['target_lang'] == 'zh' else f"{global_init_system(player_name, self.options['target_lang'])} Here are some information you can use to make your answer: {known_info}."
+                new_system = f"{global_init_system(player_name, self.options['opt']['target_lang'])} 以下是一些相关信息, 你可以利用其中有价值的部分作答: {known_info}." if self.options['opt']['target_lang'] == 'zh' else f"{global_init_system(player_name, self.options['opt']['target_lang'])} Here are some information you can use to make your answer: {known_info}."
             else:
                 new_system = global_init_system(player_name, self.options['opt']['target_lang'])
             success = True
@@ -1048,7 +1048,7 @@ class ws_threading_instance(sub_threading_instance):
                     except Exception as excepted:
                         response_str = f"Agent response acquiring failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
                         print(f"出现如下异常21-{self.traceray_id}:{excepted}")
-                        #traceback.print_exc()
+                        traceback.print_exc()
                         await websocket.send(wrap_ws_formatter('500', 'agent_unavailable', response_str, 'error'))
                         return False
                     if session_type:
