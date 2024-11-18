@@ -101,7 +101,7 @@ async def triggering(parent, input, chat_session, trigger_list):
                             "properties": {
                                 "affection": {
                                     "type": "float",
-                                    "description": "Emit positive float to increase affection, negative to decrease affection. The maximum increase should be around +3, while it's normally around +1. For example, a compliment on your beauty could result in +0.8, a short sentence expressing love could result in +1.5, and a long phrase expressing love could result in +3.0.",
+                                    "description": "Emit positive float to increase affection, negative to decrease affection. The maximum increase should be around +3, while it's normally around +1. For example, a compliment on your beauty could result in +0.8, a short sentence expressing love could result in +1.5, and a long phrase expressing love could result in +3.0. Do not emit a negative value unlesss you're sure that user is offending you.",
                                     "example_value": "+0.25"
                                 }
                             },
@@ -213,7 +213,7 @@ async def triggering(parent, input, chat_session, trigger_list):
         "model": model_type,
         "messages": messages,
         "tools": trigger_tool_list,
-        "stop": ['Observation:'],
+        "stop": ['Observation:', 'Final Answer:'],
         "temperature": 0.1,
         "top_p": 0.6,
         "presence_penalty": -0.5,
