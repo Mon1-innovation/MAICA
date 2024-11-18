@@ -190,7 +190,7 @@ async def agenting(parent, input, chat_session, trigger_list):
                         "properties": {
                             "ability": {
                                 "type": "boolean",
-                                "description": f"You'll be offered a list of avaliable choices. return True if one or many choices can satisfy the request, otherwise return False. list: {str(choice_list)}",
+                                "description": f"You'll be offered a list of avaliable choices. return True only if at least one choice offered can satisfy the request, otherwise return False. list: {str(choice_list)}",
                                 "example_value": "True"
                             }
                         },

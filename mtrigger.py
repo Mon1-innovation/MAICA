@@ -127,7 +127,7 @@ async def triggering(parent, input, chat_session, trigger_list):
                             "properties": {
                                 "selection": {
                                     "type": "string",
-                                    "description": f"According to user's request, choose a proper {item_name_bil['en']} from the following list: {item_list}",
+                                    "description": f"According to user's request, choose a proper {item_name_bil['en']} from the following list: {item_list}. If no {item_name_bil['en']} matches the request, return False.",
                                     "example_value": random.choice(item_list)
                                 }
                             },
@@ -153,7 +153,7 @@ async def triggering(parent, input, chat_session, trigger_list):
                             "properties": {
                                 "value": {
                                     "type": "float",
-                                    "description": f"According to user's request, choose a proper {item_name_bil['en']} in range {value_limits[0]} to {value_limits[1]}.",
+                                    "description": f"According to user's request, choose a proper {item_name_bil['en']} in range {value_limits[0]} to {value_limits[1]}. If no value in range matches the request, return False.",
                                     "example_value": "0.25"
                                 }
                             },

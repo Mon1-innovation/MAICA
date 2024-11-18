@@ -171,11 +171,13 @@ maica_main和maica_core共用chat_session.
             范例: {"template": "common_switch_template","name": "change_clothes","exprop":{"item_name": {"zh": "衣服","en": "clothes"},"item_list": ["白色连衣裙", "黑色连衣裙"],"curr_item": "白色连衣裙"}}
             其中name的值可以任取, 建议格式与范例尽可能一致且能表明用途.
             exprop的值是该模板的附加参数, 其中item_name的值为选择类目的性质(双语), item_list的值为所有可选条目的list, curr_item的值为当前已选条目. curr_item是可留空或缺省的.
+            如果触发器匹配了请求, 但没有条目满足条件, 返回的选择将是"False".
             输出范例: {"code": "110", "status": "mtrigger_trigger", "content": ["change_clothes", {"selection": "黑色连衣裙"}], "type": "carriage", "time_ms": 时间戳(毫秒)}
         模板common_meter_template:
             范例: {"template": "common_meter_template","name": "change_distance","exprop":{"item_name": {"zh": "距离","en": "distance"},"value_limits": [0, 2.5],"curr_value": 0.67}}
             其中name的值可以任取, 建议格式与范例尽可能一致且能表明用途.
             exprop的值是该模板的附加参数, 其中item_name的值为选择类目的性质(双语), value_limits的两个项为数值可取的上下限, curr_value的值为当前值. curr_value是可留空或缺省的.
+            如果触发器匹配了请求, 但范围内没有值满足条件, 返回的选择将是"False".
             输出范例: {"code": "110", "status": "mtrigger_trigger", "content": ["change_distance", {"value": "0.75"}], "type": "carriage", "time_ms": 时间戳(毫秒)}
         自由模板:
             范例: {"template": "customize","name": "some_name","usage":{"zh": "功能","en": "Function"}}
