@@ -76,6 +76,7 @@ MAICA验证令牌的接口位于https://maicadev.monika.love/api/legality. 你�
             target_lang只能传入zh或en. 此方法通过修改system prompt实现, 并不能保证输出语言严格正确.
         int(max_token):
             此参数决定MAICA保留单个session内容的长度, 其值限制在5120-28672. 此参数仅在使用托管的chat_session时生效.
+            该设置调整后不会立刻生效, 会在接下来一轮在对应chat_session的对话完成并存储时执行裁剪.
             此参数意在缓解对话历史累积导致的响应速度过慢问题. 其具体工作方式于后文中介绍. 请避免将其设置得过小, 否则可能影响模型的正常语言能力.
             请不要混淆此设置与超参数中的max_tokens, 后者的作用是限制模型单次输出长度, 二者是不同的!
         以上参数的缺省值分别为"maica_main", true, true, "zh", 28672.
