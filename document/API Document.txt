@@ -33,12 +33,12 @@ kGd8BIqYFHjbsNwkBZiq7s0nRiHig0asd+Hhl/pwplXH/SIjASMlDPijF24OUSfP
 l3tCkUjgHS+RhNtksuynpwm84Mg1MlbgU5s5alXKmAqQTTJ2IG61PHtrrCTVQA9M
 t9vozy56WuHPfv3KZTwrvZaIVSAExEL17wIDAQAB
 -----END RSA PUBLIC KEY-----
-    加密以下信息:
+加密以下信息:
     {"username": "你的论坛用户名", "password":"你的论坛密码(明文)"}
-    或:
+或:
     {"email": "你的论坛绑定邮箱", "password":"你的论坛密码(明文)"}
-    加密模式是PKCS1_OEAP.
-    加密完成后, 你会得到你的令牌.
+加密模式是PKCS1_OEAP, 此加密符合RFC3447规范.
+加密完成后, 你会得到你的令牌.
 
 MAICA验证令牌的接口位于https://maicadev.monika.love/api/legality. 你应当遵循以下格式, 以POST形式上传你要验证的令牌:
     {"access_token": "你的令牌"}
@@ -209,13 +209,13 @@ MSpire的chat_session可以被设为0-9, 不能使用-1. 如果不需要对MSpir
 
 为方便版本管理, MAICA提供一个版本流接口以告知客户端的可用状态, 其位于https://maicadev.monika.love/api/version. 你应当以空白的POST形式请求版本流.
 如果成功请求, 接口会返回:
-    {"success": true, "exception": '', "version": {"curr_version": "当前版本", "legc_version": "最旧的可兼容规范"}}
+    {"success": true, "exception": "", "version": {"curr_version": "当前版本", "legc_version": "最旧的可兼容规范"}}
 若客户端开发规范低于当前版本, 前端开发者应当检查并更新. 若客户端开发规范低于最旧的可兼容规范, 客户端实例应当停止任何后续流程并提醒用户更新.
 版本号可以被转化为float后进行大小比较.
 
 为便于管理开源社区与自建服务, MAICA提供一个节点列表接口, 其位于https://maicadev.monika.love/api/servers. 你应当以空白的POST形式请求节点列表.
 如果成功请求, 接口会返回:
-    {"success": true, "exception": "", "servers": "json格式的节点列表"}
+    {"success": true, "exception": "", "servers": json格式的节点列表}
     其中, 节点列表形如:
     {
         "isMaicaNameServer": true,
@@ -368,13 +368,18 @@ _mas_o31_tt_count
 存档json的总长度不能超过10万字符, 超长会被拒收. 请避免开发中发生泄漏.
 
 MAICA下载历史记录存档的接口位于https://maicadev.monika.love/api/history. 你应当遵循以下格式, 以POST形式请求历史记录:
-    {"access_token": "你的令牌", "chat_session": "指定对应的chat_session", "lines":"指定获取的条数"}
-    lines应为int值.
-        当lines为正整数n时, 接口只返回对话历史的前n项, 应注意其中第一项为最后一次生效的system字段.
-        当lines为负整数-n时, 接口只返回对话历史的后n项, 此时返回的对话历史仍然以正序排列.
-        当lines为0时, 接口返回全部对话历史--可能会很长.
+    {"access_token": "你的令牌", "chat_session": "指定对应的chat_session", "rounds":"指定获取的轮次"}
+    rounds应为int值.
+        当rounds为正整数n时, 接口只返回最后一次生效的system字段和对话历史的前2n项, 共2n + 1项.
+        当rounds为负整数-n时, 接口只返回最后一次生效的system字段和对话历史的后2n项, 共2n + 1项. 注意此时返回的对话历史仍然以正序排列.
+        当rounds为0时, 接口返回全部对话历史--可能会很长.
+    若rounds超过指定历史记录总轮次, 接口将返回全部对话历史.
+自MAICA后端规范1.0000后, 下载的历史记录将被包装. 包装格式为:
+    ["MAICA签名", json格式的历史]
+其中MAICA签名被用于验证此历史是否来自MAICA官方服务, 仅当签名存在且合法时可以将历史重新上传并加载.
+签名模式是PKCS1_PSS, 此签名符合RFC3447规范.
 如果历史被成功下载, 接口会返回:
-    {"success": true, "exception": "", "history": "json格式的历史"}
+    {"success": true, "exception": "", "history": json格式的包装历史}
 
 MAICA托管账号附加数据的接口位于https://maicadev.monika.love/api/preferences. 你应当遵循以下格式, 以POST形式发起增删, 调整, 清除或读取:
     {"access_token": "你的令牌", "read": 是否读取, "purge": 是否清空, "write": "json格式的写入键字典", "delete": "json格式的删除键列表"}
@@ -383,7 +388,7 @@ MAICA托管账号附加数据的接口位于https://maicadev.monika.love/api/pre
     建议将附加数据限制在单层, 因为嵌套的数据内部键显然无法被单独删除.
     需要注意, 除access_token外的键仅有write与delete可以共存, 其余键同时存在只会执行最靠前的一个.
 如果操作成功完成, 接口会返回:
-    {"success": true, "exception": "", "preferences": "json格式的附加数据"}
+    {"success": true, "exception": "", "preferences": json格式的附加数据}
     其中preferences键仅当读取时会存在.
     附加数据json的总长度不能超过10万字符, 超长会被拒收. 请避免开发中发生泄漏.
 

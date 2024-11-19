@@ -16,10 +16,12 @@ import mfocus_main
 import mtrigger
 import persistent_extraction
 #import maica_http
-from Crypto.Random import random as CRANDOM # type: ignore
-from Crypto.Cipher import PKCS1_OAEP # type: ignore
-from Crypto.PublicKey import RSA # type: ignore
-from openai import AsyncOpenAI # type: ignore
+from Crypto.Random import random as CRANDOM
+from Crypto.Cipher import PKCS1_OAEP
+from Crypto.PublicKey import RSA
+from Crypto.Signature import PKCS1_PSS
+from Crypto.Hash import SHA256
+from openai import AsyncOpenAI
 from loadenv import load_env
 try:
     from easter_egg import easter
@@ -54,7 +56,7 @@ class sub_threading_instance:
         self.options = {"id": {"user_id": None}, "vfc":{"user_id": None}, "opt": {"target_lang": "zh"}, "eopt": {"sfe_aggressive": False}, "sup": {}}
         self.loop = asyncio.get_event_loop()
         asyncio.run(self._init_pools())
-        asyncio.run(self.get_keys())
+        asyncio.run(wrap_run_in_exc(None, self.get_keys))
 
     def __del__(self):
         try:
@@ -159,6 +161,19 @@ class sub_threading_instance:
     def flush_traceray(self) -> None:
         self.traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
 
+    def get_keys(self) -> None:
+        with open("key/prv.key", "r") as privkey_file:
+            privkey = privkey_file.read()
+        with open("key/pub.key", "r") as pubkey_file:
+            pubkey = pubkey_file.read()
+        pubkey_loaded = RSA.import_key(pubkey)
+        privkey_loaded = RSA.import_key(privkey)
+        encryptor = PKCS1_OAEP.new(pubkey_loaded)
+        decryptor = PKCS1_OAEP.new(privkey_loaded)
+        verifier = PKCS1_PSS.new(pubkey_loaded)
+        signer = PKCS1_PSS.new(privkey_loaded)
+        self.encryptor, self.decryptor, self.verifier, self.signer = encryptor, decryptor, verifier, signer
+
     async def run_hash_dcc(self, identity, is_email, pwd) -> list[bool, Exception, int, str, str, str] :
         success = True
         exception = ''
@@ -193,7 +208,10 @@ class sub_threading_instance:
                     return verification, exception
                 else:
                     await self.write_user_status({'f2b_count': 0})
+                    # New security methods
                     self.verified = True
+                    self.options['vfc']['user_id'] = dbres_id
+                    # Legacy supports
                     return verification, None, dbres_id, dbres_username, dbres_nickname, dbres_email
             else:
                 if not f2b_count:
@@ -213,20 +231,12 @@ class sub_threading_instance:
             verification = False
             return verification, excepted
 
-    async def get_keys(self) -> None:
-        with open("key/prv.key", "r") as privkey_file:
-            privkey = privkey_file.read()
-        with open("key/pub.key", "r") as pubkey_file:
-            pubkey = pubkey_file.read()
-        privkey_loaded = RSA.import_key(privkey)
-        decryptor = PKCS1_OAEP.new(privkey_loaded)
-        self.decryptor = decryptor
-
     async def hashing_verify(self, access_token) -> list[bool, Exception, int, str, str, str]:
         try:
             decryptor = self.decryptor
             if not decryptor:
-                await self.get_keys()
+                await wrap_run_in_exc(None, self.get_keys)
+                decryptor = self.decryptor
             exec_unbase64_token = await wrap_run_in_exc(None, base64.b64decode, access_token)
             exec_decrypted_token = await wrap_run_in_exc(None, decryptor.decrypt, exec_unbase64_token)
             decrypted_token = exec_decrypted_token.decode("utf-8")
@@ -267,9 +277,6 @@ class sub_threading_instance:
                     content = result[3] + content_append
                     success = True
                     return success, None, chat_session_id, content
-                except websockets.exceptions.WebSocketException:
-                    print("Someone disconnected")
-                    raise Exception('Force closure of connection')
                 except Exception as excepted:
                     success = False
                     return success, excepted
@@ -280,9 +287,6 @@ class sub_threading_instance:
                     #success = True
                     chat_session_id = result[0]
                     content = result[3]
-                except websockets.exceptions.WebSocketException:
-                    print("Someone disconnected")
-                    raise Exception('Force closure of connection')
                 except Exception as excepted:
                     success = False
                     return success, excepted
@@ -298,15 +302,9 @@ class sub_threading_instance:
                     await self.send_modify(expression=sql_expression2, values=(content, chat_session_id), pool='maicapool')
                     success = True
                     return success, None, chat_session_id, None, cutted
-                except websockets.exceptions.WebSocketException:
-                    print("Someone disconnected")
-                    raise Exception('Force closure of connection')
                 except Exception as excepted:
                     success = False
                     return success, excepted
-        except websockets.exceptions.WebSocketException:
-            print("Someone disconnected")
-            raise Exception('Force closure of connection')
         except Exception as excepted:
             success = False
             return success, excepted
@@ -335,9 +333,6 @@ class sub_threading_instance:
                 success = True
                 inexist = False
                 return success, None, inexist
-        except websockets.exceptions.WebSocketException:
-            print("Someone disconnected")
-            raise Exception('Force closure of connection')
         except Exception as excepted:
             success = False
             return success, excepted
@@ -365,9 +360,6 @@ class sub_threading_instance:
                 success = True
                 exist = False
                 return success, None, exist, chat_session_id
-        except websockets.exceptions.WebSocketException:
-            print("Someone disconnected")
-            raise Exception('Force closure of connection')
         except Exception as excepted:
             success = False
             return success, excepted, exist, chat_session_id
@@ -393,9 +385,6 @@ class sub_threading_instance:
             await self.send_modify(expression=sql_expression3, values=(content, chat_session_id), pool='maicapool')
             success = True
             return success, None, chat_session_id
-        except websockets.exceptions.WebSocketException:
-            print("Someone disconnected")
-            raise Exception('Force closure of connection')
         except Exception as excepted:
             traceback.print_exc()
             success = False
@@ -425,9 +414,6 @@ class sub_threading_instance:
             if known_info:
                 new_system += f" 以下是一些相关信息, 你可以利用其中有价值的部分作答: {known_info}." if self.options['opt']['target_lang'] == 'zh' else f" Here are some information you can use to make your answer: {known_info}."
             return await self.mod_chat_session_system(chat_session_num, new_system)
-        except websockets.exceptions.WebSocketException:
-            print("Someone disconnected")
-            raise Exception('Force closure of connection')
         except Exception as excepted:
             success = False
             #traceback.print_exc()
@@ -457,9 +443,6 @@ class sub_threading_instance:
                 new_system = global_init_system(player_name, self.options['opt']['target_lang'])
             success = True
             return success, None, new_system
-        except websockets.exceptions.WebSocketException:
-            print("Someone disconnected")
-            raise Exception('Force closure of connection')
         except Exception as excepted:
             success = False
             return success, excepted
@@ -492,9 +475,6 @@ class sub_threading_instance:
             else:
                 success = True
                 return success, None, user_prof_exist, None
-        except websockets.exceptions.WebSocketException:
-            print("Someone disconnected")
-            raise Exception('Force closure of connection')
         except Exception as excepted:
             success = False
             return success, excepted, user_prof_exist, None
@@ -520,9 +500,6 @@ class sub_threading_instance:
             await self.send_modify(expression=sql_expression2, values=sql_args, pool='maicapool')
             success = True
             return success, None
-        except websockets.exceptions.WebSocketException:
-            print("Someone disconnected")
-            raise Exception('Force closure of connection')
         except Exception as excepted:
             success = False
             return success, excepted
@@ -556,9 +533,6 @@ class sub_threading_instance:
             else:
                 success = True
                 return success, None, user_prof_exist, None
-        except websockets.exceptions.WebSocketException:
-            print("Someone disconnected")
-            raise Exception('Force closure of connection')
         except Exception as excepted:
             success = False
             return success, excepted, user_prof_exist, None
@@ -585,9 +559,6 @@ class sub_threading_instance:
             await self.send_modify(expression=sql_expression2, values=sql_args, pool='maicapool')
             success = True
             return success, None
-        except websockets.exceptions.WebSocketException:
-            print("Someone disconnected")
-            raise Exception('Force closure of connection')
         except Exception as excepted:
             success = False
             return success, excepted

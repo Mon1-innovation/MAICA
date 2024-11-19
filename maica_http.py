@@ -7,17 +7,18 @@ import base64
 import traceback
 import maica_ws
 from gevent import pywsgi
-from Crypto.Random import random as CRANDOM # type: ignore
-from Crypto.Cipher import PKCS1_OAEP # type: ignore
-from Crypto.PublicKey import RSA # type: ignore
+from Crypto.Random import random as CRANDOM
+from Crypto.Cipher import PKCS1_OAEP
+from Crypto.PublicKey import RSA
+from Crypto.Signature import PKCS1_PSS
+from Crypto.Hash import SHA256
 from loadenv import load_env
 
 app = Flask(import_name=__name__)
 
-
 @app.route('/savefile', methods=["POST"])
 async def save_upload():
-    global privkey_loaded
+    global decryptor
     success = True
     exception = ''
     try:
@@ -28,8 +29,9 @@ async def save_upload():
         print(access_token)
         if int(chat_session) < 1 or int(chat_session) > 9:
             raise Exception('Chat session out of range')
-        decryptor = PKCS1_OAEP.new(privkey_loaded)
-        decrypted_token =decryptor.decrypt(base64.b64decode(access_token)).decode("utf-8")
+        exec_unbase64_token = await maica_ws.wrap_run_in_exc(None, base64.b64decode, access_token)
+        exec_decrypted_token = await maica_ws.wrap_run_in_exc(None, decryptor.decrypt, exec_unbase64_token)
+        decrypted_token = exec_decrypted_token.decode("utf-8")
         login_cridential = json.loads(decrypted_token)
         if 'username' in login_cridential:
             login_identity = login_cridential['username']
@@ -65,19 +67,20 @@ async def save_upload():
     
 @app.route('/history', methods=["POST"])
 async def history_download():
-    global privkey_loaded
+    global decryptor, signer
     success = True
     exception = ''
     try:
         data = json.loads(request.data)
         access_token = data['access_token']
         chat_session = data['chat_session']
-        lines = data['lines']
+        rounds = data['rounds']
         print(access_token)
         if int(chat_session) < 1 or int(chat_session) > 9:
             raise Exception('Chat session out of range')
-        decryptor = PKCS1_OAEP.new(privkey_loaded)
-        decrypted_token =decryptor.decrypt(base64.b64decode(access_token)).decode("utf-8")
+        exec_unbase64_token = await maica_ws.wrap_run_in_exc(None, base64.b64decode, access_token)
+        exec_decrypted_token = await maica_ws.wrap_run_in_exc(None, decryptor.decrypt, exec_unbase64_token)
+        decrypted_token = exec_decrypted_token.decode("utf-8")
         login_cridential = json.loads(decrypted_token)
         if 'username' in login_cridential:
             login_identity = login_cridential['username']
@@ -100,15 +103,21 @@ async def history_download():
                 hisjson = json.loads(f"[{hisjson[3]}]")
             else:
                 raise Exception('History reading failed')
-            match int(lines):
-                case i if i > 0:
-                    hisfine = hisjson[:i]
-                case i if i < 0:
-                    hisfine = hisjson[i:]
-                case _:
-                    hisfine = hisjson
+            hislen = len(hisjson)
+            if abs(2*int(rounds))+1 >= hislen:
+                hisfine = hisjson
+            else:
+                match int(rounds):
+                    case i if i > 0:
+                        hisfine = hisjson[:2*i+1]
+                    case i if i < 0:
+                        hisfine = [hisjson[0]].extend(hisjson[2*i:])
+                    case _:
+                        hisfine = hisjson
             hisstr = json.dumps(hisfine, ensure_ascii=False)
-        return json.dumps({"success": success, "exception": str(exception), "history": hisstr}, ensure_ascii=False)
+            sigb64 = await maica_ws.wrap_run_in_exc(None, sign_message, hisstr)
+            hisfinal = [sigb64, hisfine]
+        return json.dumps({"success": success, "exception": str(exception), "history": hisfinal}, ensure_ascii=False)
     except Exception as excepted:
         #traceback.print_exc()
         print('This one has failed')
@@ -123,15 +132,16 @@ async def history_download():
 
 @app.route('/preferences', methods=["POST"])
 async def sl_prefs():
-    global privkey_loaded
+    global decryptor
     success = True
     exception = ''
     try:
         data = json.loads(request.data)
         access_token = data['access_token']
         print(access_token)
-        decryptor = PKCS1_OAEP.new(privkey_loaded)
-        decrypted_token =decryptor.decrypt(base64.b64decode(access_token)).decode("utf-8")
+        exec_unbase64_token = await maica_ws.wrap_run_in_exc(None, base64.b64decode, access_token)
+        exec_decrypted_token = await maica_ws.wrap_run_in_exc(None, decryptor.decrypt, exec_unbase64_token)
+        decrypted_token = exec_decrypted_token.decode("utf-8")
         login_cridential = json.loads(decrypted_token)
         if 'username' in login_cridential:
             login_identity = login_cridential['username']
@@ -153,7 +163,7 @@ async def sl_prefs():
                 prefs_old = {}
             if 'read' in data and data['read']:
                 prefs_str = json.dumps(prefs_old, ensure_ascii=False)
-                return json.dumps({"success": success, "exception": str(exception), "preferences": prefs_str}, ensure_ascii=False)
+                return json.dumps({"success": success, "exception": str(exception), "preferences": prefs_old}, ensure_ascii=False)
             if 'purge' in data and data['purge']:
                 prefs_old = {}
             else:
@@ -183,7 +193,7 @@ async def sl_prefs():
 
 @app.route('/register', methods=["POST"])
 async def register():
-    global pubkey_loaded
+    global encryptor
     success = True
     exception = ''
     try:
@@ -199,9 +209,10 @@ async def register():
             exception = "No user cridential provided"
             return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)
         password = data['password']
-        token_raw = json.dumps({type_usr: cridential, "password": password}, ensure_ascii=False)
-        encryptor = PKCS1_OAEP.new(pubkey_loaded)
-        encrypted_token = base64.b64encode(encryptor.encrypt(token_raw.encode('utf-8'))).decode('utf-8')
+        token_raw = json.dumps({type_usr: cridential, "password": password}, ensure_ascii=False).encode("utf-8")
+        exec_encrypted_token = await maica_ws.wrap_run_in_exc(None, encryptor.encrypt, token_raw)
+        exec_base64ed_token = await maica_ws.wrap_run_in_exc(None, base64.b64encode, exec_encrypted_token)
+        encrypted_token = exec_base64ed_token.decode("utf-8")
         return json.dumps({"success": success, "exception": str(exception), "token": encrypted_token}, ensure_ascii=False)
     except Exception as excepted:
         print('This one has failed')
@@ -211,15 +222,16 @@ async def register():
 
 @app.route('/legality', methods=["POST"])
 async def legal():
-    global privkey_loaded
+    global decryptor
     success = True
     exception = ''
     try:
         data = json.loads(request.data)
         access_token = data['access_token']
         print(access_token)
-        decryptor = PKCS1_OAEP.new(privkey_loaded)
-        decrypted_token =decryptor.decrypt(base64.b64decode(access_token)).decode("utf-8")
+        exec_unbase64_token = await maica_ws.wrap_run_in_exc(None, base64.b64decode, access_token)
+        exec_decrypted_token = await maica_ws.wrap_run_in_exc(None, decryptor.decrypt, exec_unbase64_token)
+        decrypted_token = exec_decrypted_token.decode("utf-8")
         login_cridential = json.loads(decrypted_token)
         if 'username' in login_cridential:
             login_identity = login_cridential['username']
@@ -287,19 +299,44 @@ async def vcontrol():
     cur_v, last_v = load_env('VERSION_CONTROL').split(';',1)
     return json.dumps({"success": success, "exception": str(exception), "version": {"curr_version": cur_v, "legc_version": last_v}}, ensure_ascii=False)
 
+def sign_message(message):
+    global signer
+    message = message.encode("utf-8")
+    h = SHA256.new()
+    h.update(message)
+    signature = signer.sign(h)
+    sigb64 = base64.b64encode(signature).decode("utf-8")
+    return sigb64
+
+def veri_message(message, sigb64):
+    global verifier
+    message = message.encode("utf-8")
+    signature = base64.b64decode(sigb64.encode("utf-8"))
+    h = SHA256.new()
+    h.update(message)
+    if verifier.verify(h, signature):
+        return True
+    else:
+        return False
+
 if __name__ == '__main__':
-    global pubkey_loaded, privkey_loaded
+    global encryptor, decryptor, verifier, signer
+    global known_servers
     with open("key/prv.key", "r") as privkey_file:
         privkey = privkey_file.read()
     with open("key/pub.key", "r") as pubkey_file:
         pubkey = pubkey_file.read()
     try:
         with open(".servers", "r", encoding='utf-8') as servers_file:
-            known_servers = json.dumps(json.loads(servers_file.read()), ensure_ascii=False)
+            known_servers = json.loads(servers_file.read())
     except:
         known_servers = False
     privkey_loaded = RSA.import_key(privkey)
     pubkey_loaded = RSA.import_key(pubkey)
+    encryptor = PKCS1_OAEP.new(pubkey_loaded)
+    decryptor = PKCS1_OAEP.new(privkey_loaded)
+    verifier = PKCS1_PSS.new(pubkey_loaded)
+    signer = PKCS1_PSS.new(privkey_loaded)
 #    app.run(
 #        host='0.0.0.0',
 #        port= 6000,
