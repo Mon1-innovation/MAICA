@@ -116,9 +116,9 @@ class sub_threading_instance:
     # The Exception here seems not matter
 
     def chop_session(self, chat_session_id, content) -> list[int, str]:
-        max_token = self.options['opt']['max_token']
-        warn_token = max_token - 4096
-        len_content_actual = len(content) - len(json.loads(f'[{content}]')) * 31
+        max_token = self.options['opt']['max_token'] * 3
+        warn_token = max_token - 12288
+        len_content_actual = len(content.encode()) - len(json.loads(f'[{content}]')) * 31
         if len_content_actual >= max_token:
             # First we check if there is a cchop avaliable
             sql_expression = 'SELECT * FROM cchop_archived WHERE chat_session_id = %s ORDER BY archive_id DESC'
@@ -139,7 +139,7 @@ class sub_threading_instance:
                     archive_content = ', ' + archive_content
                 popped_dict = cutting_mat.pop(1)
                 archive_content = json.dumps(popped_dict, ensure_ascii=False) + archive_content
-                len_content_actual -= (len(json.dumps(popped_dict, ensure_ascii=False)) - 31)
+                len_content_actual -= (len(json.dumps(popped_dict, ensure_ascii=False).encode()) - 31)
             content = json.dumps(cutting_mat, ensure_ascii=False).strip('[').strip(']')
             sql_expression3 = 'UPDATE cchop_archived SET content = %s WHERE archive_id = %s' if len(archive_content) <= 100000 else 'UPDATE cchop_archived SET content = %s, archived = 1 WHERE archive_id = %s'
             self.loop.run_until_complete(self.send_modify(expression=sql_expression3, values=(archive_content, archive_id), pool='maicapool'))
