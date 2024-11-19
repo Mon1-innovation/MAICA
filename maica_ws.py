@@ -887,8 +887,8 @@ class ws_threading_instance(sub_threading_instance):
             username = session['username']
             sf_extraction = options_opt['sf_extraction']
             target_lang = options_opt['target_lang']
-            max_token = options_opt['max_token']
-            warn_token = max_token - 4096
+            max_token_hint = options_opt['max_token']
+            warn_token_hint = max_token_hint - 4096
             if target_lang != 'zh' and target_lang != 'en':
                 raise Exception('Language choice unrecognized')
             if 'purge' in request_json:
@@ -1156,9 +1156,9 @@ class ws_threading_instance(sub_threading_instance):
                         if stored[4]:
                             match stored[4]:
                                 case 1:
-                                    await websocket.send(wrap_ws_formatter('204', 'deleted', f"Since session {chat_session} of user {username} exceeded {max_token} characters, The former part has been deleted to save storage--your ray tracer ID is {self.traceray_id}.", 'info'))
+                                    await websocket.send(wrap_ws_formatter('204', 'deleted', f"Since session {chat_session} of user {username} exceeded {max_token_hint} characters, The former part has been deleted to save storage--your ray tracer ID is {self.traceray_id}.", 'info'))
                                 case 2:
-                                    await websocket.send(wrap_ws_formatter('200', 'delete_hint', f"Session {chat_session} of user {username} exceeded {warn_token} characters, which will be chopped after exceeding {max_token}, make backups if you want to--your ray tracer ID is {self.traceray_id}.", 'info'))
+                                    await websocket.send(wrap_ws_formatter('200', 'delete_hint', f"Session {chat_session} of user {username} exceeded {warn_token_hint} characters, which will be chopped after exceeding {max_token_hint}, make backups if you want to--your ray tracer ID is {self.traceray_id}.", 'info'))
                     else:
                         response_str = f"Chat reply recording failed, refer to administrator--your ray tracer ID is {self.traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
                         print(f"出现如下异常27-{self.traceray_id}:{stored[1]}")

@@ -76,6 +76,7 @@ MAICA验证令牌的接口位于https://maicadev.monika.love/api/legality. 你�
             target_lang只能传入zh或en. 此方法通过修改system prompt实现, 并不能保证输出语言严格正确.
         int(max_token):
             此参数决定MAICA保留单个session内容的长度, 其值限制在5120-28672. 此参数仅在使用托管的chat_session时生效.
+            此长度按字节数 * 3计算, 即与纯汉字长度相同. 每3个英文字符占用长度等于一个汉字.
             该设置调整后不会立刻生效, 会在接下来一轮在对应chat_session的对话完成并存储时执行裁剪.
             此参数意在缓解对话历史累积导致的响应速度过慢问题. 其具体工作方式于后文中介绍. 请避免将其设置得过小, 否则可能影响模型的正常语言能力.
             请不要混淆此设置与超参数中的max_tokens, 后者的作用是限制模型单次输出长度, 二者是不同的!
@@ -418,11 +419,11 @@ MFocus拥有一类额外接口, 用于向MAICA挂接二级功能. 由于功能�
 任何心跳连接都会在服务器端记录发起者的session信息. 在身份认证令牌交换完毕前, 服务器不接受心跳连接.
 
 MAICA的核心能力基于llm, 而任何llm的输入总长度都是有限的. 就MAICA核心模型而言, 能够解析的最大输入长度为32768token, 在中文情况下约四万字.
-MAICA的每一个chat_session实际上默认保留28672字符总内容(去除包装后). 在正常聊天情况下, 其中大约会有2-2.5万有效汉字. 此参数可以通过设置max_token修改.
-超出保留字符数后, 数据库交换驱动将自动删除最早的对话轮次以节省服务器存储空间. 为响应性能起见, 每次删除将使剩余字符数少于(保留字符数-4096). 如果你希望保留这些数据, 你应当每隔一段时间自行下载到本地并备份.
+MAICA的每一个chat_session实际上默认保留28672 * 3字节总内容(去除包装后). 在正常聊天情况下, 其中大约会有2-2.5万有效汉字, 或6-7万有效字母. 此参数可以通过设置max_token修改.
+超出保留字符数后, 数据库交换驱动将自动删除最早的对话轮次以节省服务器存储空间. 为响应性能起见, 每次删除将使剩余字符数少于警告阈值(保留字节数 - 4096 * 3). 如果你希望保留这些数据, 你应当每隔一段时间自行下载到本地并备份.
 如果本次处理中已经删除了chat_session的一部分, 将会在内容输出结束后输出提醒:
-    {"code": "204", "status": "deleted", "content": "Since session {chat_session} of user {username} exceeded {max_token} characters, The former part has been deleted to save storage--your ray tracer ID is {traceray_id}.", "type": "info", "time_ms": 时间戳(毫秒)}
-如果chat_session存储字符数已达到2.4万, 接口将会在内容输出结束后输出提醒:
-    {"code": "200", "status": "delete_hint", "content": "Session {chat_session} of user {username} exceeded {warn_token} characters, which will be chopped after exceeding {max_token}, make backups if you want to--your ray tracer ID is {traceray_id}.", "type": "info", "time_ms": 时间戳(毫秒)}
+    {"code": "204", "status": "deleted", "content": "Since session {chat_session} of user {username} exceeded {max_token_hint} characters, The former part has been deleted to save storage--your ray tracer ID is {traceray_id}.", "type": "info", "time_ms": 时间戳(毫秒)}
+如果chat_session存储字符数已达警告阈值, 接口将会在内容输出结束后输出提醒:
+    {"code": "200", "status": "delete_hint", "content": "Session {chat_session} of user {username} exceeded {warn_token_hint} characters, which will be chopped after exceeding {max_token_hint}, make backups if you want to--your ray tracer ID is {traceray_id}.", "type": "info", "time_ms": 时间戳(毫秒)}
 如果你希望记录该chat_session的完整内容, 应当在收到提醒后及时下载到本地并备份.
 为防止滥用, MAICA预计将不会允许从本地上传session记录. 如希望自行管理session, 请使用chat_session -1功能, 但其长度与轮次会受更严格的限制.
