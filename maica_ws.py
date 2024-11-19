@@ -764,7 +764,7 @@ class ws_threading_instance(sub_threading_instance):
                     recv_loaded_json = {}
                 match recv_text:
                     case 'PING':
-                        await websocket.send(wrap_ws_formatter('100', 'continue', "PONG", 'heartbeat'))
+                        await websocket.send(wrap_ws_formatter('199', 'ping_reaction', "PONG", 'heartbeat'))
                         print(f"recieved PING from {session['username']}")
                     case placeholder if "model_params" in recv_loaded_json or "perf_params" in recv_loaded_json or "super_params" in recv_loaded_json:
                         await self.def_model(recv_loaded_json)
