@@ -228,12 +228,13 @@ async def agenting(parent, input, chat_session, trigger_list):
     if pre_additive and 1 <= chat_session <= 9:
         sql_expression = 'SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
         result = await parent.send_query(expression=sql_expression, values=(session['user_id'], chat_session), pool='maicapool')
-        res_dict = json.loads(f'[{result[3]}]')
-        lines_num = min(pre_additive * 2, len(res_dict) - 1)
-        message_additive = res_dict[-lines_num:] if lines_num > 0 else []
-        if message_additive:
-            messages.append({'role': 'system', 'content': '请按照指示格式回答, 对话历史仅供参考.'})
-            messages.extend(message_additive)
+        if result:
+            res_dict = json.loads(f'[{result[3]}]')
+            lines_num = min(pre_additive * 2, len(res_dict) - 1)
+            message_additive = res_dict[-lines_num:] if lines_num > 0 else []
+            if message_additive:
+                messages.append({'role': 'system', 'content': '请按照指示格式回答, 对话历史仅供参考.'})
+                messages.extend(message_additive)
     messages.append({'role': 'user', 'content': input})
     completion_args = {
         "model": model_type,
