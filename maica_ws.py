@@ -8,6 +8,7 @@ import base64
 import json
 import aiomysql
 import bcrypt
+import uuid
 import re
 import random
 import traceback
@@ -337,6 +338,22 @@ class sub_threading_instance:
             success = False
             return success, excepted
         
+    async def restore_chat_session(self, chat_session_num, restore_content) -> list[bool, Exception]:
+        success = False
+        user_id = self.options['vfc']['user_id']
+        sql_expression1 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
+        try:
+            self.check_essentials()
+            if not isinstance(restore_content, str):
+                restore_content = json.dumps(restore_content, ensure_ascii=False).strip('[').strip(']')
+            await self.check_create_chat_session(chat_session_num)
+            await self.send_modify(expression=sql_expression1, values=(restore_content, chat_session_num), pool='maicapool')
+            success = True
+            return success, None
+        except Exception as excepted:
+            success = False
+            return success, excepted
+        
     async def check_create_chat_session(self, chat_session_num) -> list[bool, Exception, bool, int]:
         success = False
         exist =None
@@ -626,10 +643,13 @@ class ws_threading_instance(sub_threading_instance):
                         await websocket.send(wrap_ws_formatter('403', 'account_banned', response_str, 'warn'))
                         await websocket.close(1000, 'Permission denied')
                     else:
+                        self.cookie = cookie = str(uuid.uuid4())
+                        self.enforce_cookie = False
                         await websocket.send(wrap_ws_formatter('206', 'session_created', "Authencation passed!", 'info'))
                         await websocket.send(wrap_ws_formatter('200', 'user_id', f"{verification_result[2]}", 'debug'))
                         await websocket.send(wrap_ws_formatter('200', 'username', f"{verification_result[3]}", 'debug'))
                         await websocket.send(wrap_ws_formatter('200', 'nickname', f"{verification_result[4]}", 'debug'))
+                        await websocket.send(wrap_ws_formatter('190', 'ws_cookie', cookie, 'cookie'))
                         #await websocket.send(wrap_ws_formatter('200', 'session_created', f"email {verification_result[5]}", 'debug'))
                         #print(verification_result[0])
                         verificated_result = {
@@ -733,10 +753,35 @@ class ws_threading_instance(sub_threading_instance):
                     recv_loaded_json = json.loads(recv_text)
                 except:
                     recv_loaded_json = {}
-                match recv_text:
-                    case 'PING':
+                try:
+                    recv_type = recv_loaded_json['type']
+                except:
+                    recv_type = 'unknown'
+                if 'cookie' in recv_loaded_json:
+                    if str(recv_loaded_json['cookie']) == self.cookie:
+                        if not self.enforce_cookie:
+                            await websocket.send(wrap_ws_formatter('200', 'ok', f"Cookie verification passed and strict sucurity mode enabled", 'info'))
+                            self.enforce_cookie = True
+                        else:
+                            await websocket.send(wrap_ws_formatter('200', 'ok', f"Cookie verification passed", 'debug'))
+                    else:
+                        response_str = f"Cookie verification failed with strict security enforced--your ray tracer ID is {self.traceray_id}"
+                        print(f"出现如下异常5-{self.traceray_id}:{recv_loaded_json['cookie']} unequal {self.cookie}")
+                        await websocket.send(wrap_ws_formatter('403', 'cookie_mismatch', response_str, 'warn'))
+                        await websocket.close(1000, 'Permission denied')
+                elif self.enforce_cookie:
+                    response_str = f"No cookie provided with strict security enforced--your ray tracer ID is {self.traceray_id}"
+                    print(f"出现如下异常5.1-no cookie")
+                    await websocket.send(wrap_ws_formatter('403', 'cookie_absent', response_str, 'warn'))
+                    await websocket.close(1000, 'Permission denied')
+                match recv_type.lower():
+                    case 'ping':
                         await websocket.send(wrap_ws_formatter('199', 'ping_reaction', "PONG", 'heartbeat'))
                         print(f"recieved PING from {session['username']}")
+                    case 'params':
+                        await self.def_model(recv_loaded_json)
+                    case 'query':
+                        await self.do_communicate(recv_loaded_json)
                     case placeholder if "model_params" in recv_loaded_json or "perf_params" in recv_loaded_json or "super_params" in recv_loaded_json:
                         await self.def_model(recv_loaded_json)
                     case placeholder if "chat_session" in recv_loaded_json:
@@ -746,9 +791,6 @@ class ws_threading_instance(sub_threading_instance):
                         print(f"出现如下异常6.1-{self.traceray_id}:{recv_text}")
                         await websocket.send(wrap_ws_formatter('405', 'wrong_form', response_str, 'warn')) 
                         continue
-            except websockets.exceptions.WebSocketException:
-                print("Someone disconnected")
-                raise Exception('Force closure of connection')
             except websockets.exceptions.WebSocketException:
                 print("Someone disconnected")
                 raise Exception('Force closure of connection')
@@ -835,7 +877,7 @@ class ws_threading_instance(sub_threading_instance):
                     elif 0.2 < float(super_params['frequency_penalty']) <= 1.0:
                         super_params_filtered['frequency_penalty'] = float(super_params['frequency_penalty'])
                 self.alter_identity('sup', **super_params_filtered)
-            await websocket.send(wrap_ws_formatter('200', 'ok', f"{len(client_options)+len(client_extra_options)+len(super_params_filtered)} settings passed in and taking effect", 'info'))
+            await websocket.send(wrap_ws_formatter('200', 'params_set', f"{len(client_options)+len(client_extra_options)+len(super_params_filtered)} settings passed in and taking effect", 'info'))
             return True
         except websockets.exceptions.WebSocketException:
             print("Someone disconnected")

@@ -2,7 +2,7 @@ from loadenv import load_env
 import platform
 sysstruct = platform.system()
 cur_v, last_v = load_env('VERSION_CONTROL').split(';',1)
-print(f"Running MAICA Illustrator V{cur_v} on {sysstruct}")
+print(f"Running MAICA Illuminator V{cur_v} on {sysstruct}")
 match sysstruct:
     case 'Linux':
         filename = '.essentials_generated.sh'

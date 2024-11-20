@@ -130,6 +130,56 @@ async def history_download():
         except:
             pass
 
+@app.route('/restore', methods=["POST"])
+async def history_restore():
+    global decryptor, verifier
+    success = True
+    exception = ''
+    try:
+        data = json.loads(request.data)
+        access_token = data['access_token']
+        chat_session = data['chat_session']
+        print(access_token)
+        if int(chat_session) < 1 or int(chat_session) > 9:
+            raise Exception('Chat session out of range')
+        exec_unbase64_token = await maica_ws.wrap_run_in_exc(None, base64.b64decode, access_token)
+        exec_decrypted_token = await maica_ws.wrap_run_in_exc(None, decryptor.decrypt, exec_unbase64_token)
+        decrypted_token = exec_decrypted_token.decode("utf-8")
+        login_cridential = json.loads(decrypted_token)
+        if 'username' in login_cridential:
+            login_identity = login_cridential['username']
+            login_is_email = False
+        elif 'email' in login_cridential:
+            login_identity = login_cridential['email']
+            login_is_email = True
+        else:
+            raise Exception('No Identity Provided')
+        login_password = login_cridential['password']
+        hduplex_instance = maica_ws.sub_threading_instance()
+        verification_result = await hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password)
+        if not verification_result[0]:
+            raise Exception('Identity hashing failed')
+        else:
+            sigb64, to_verify = data['history']
+            vfresult = veri_message(sigb64, json.dumps(to_verify, ensure_ascii=False))
+            if vfresult:
+                hduplex_instance.restore_chat_session(chat_session, to_verify)
+            else:
+                raise Exception('Signature verification failed')
+        return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)
+    except Exception as excepted:
+        #traceback.print_exc()
+        print('This one has failed')
+        success = False
+        exception = excepted
+        return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)
+    finally:
+        try:
+            await hduplex_instance._close_pools()
+        except:
+            pass
+
+
 @app.route('/preferences', methods=["POST"])
 async def sl_prefs():
     global decryptor

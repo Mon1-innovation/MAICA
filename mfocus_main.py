@@ -395,9 +395,9 @@ async def agenting(parent, input, chat_session, trigger_list):
                 trigger_ability = real_parameters_dict[list(real_parameters_dict.keys())[0]]
                 return_instruction = f"[{{'reaction_correct': True}}]"
                 if trigger_ability and (not isinstance(trigger_ability, str) or trigger_ability.lower() != "false"):
-                    instructed_final_answer['trigger'] = '"用户的请求可以被满足, 在本轮对话结束后系统将完成用户的请求."' if target_lang == 'zh' else '"User\'s request can be satisfied, system will finish user\'s request after this round of conversation."'
+                    instructed_final_answer['trigger'] = '"用户的请求是你所了解的且可以被满足, 请作出正面答复."' if target_lang == 'zh' else '"User\'s request is understood and can be satisfied, please make positive answer."'
                 else:
-                    instructed_final_answer['trigger'] = '"用户的请求当前无法被满足, 请表示你做不到, 并建议用户自行解决或寻找其它方法."' if target_lang == 'zh' else '"User\'s request cannot be satisfied, please indicate that you can\'t do it, and suggest user doing it themselves or find another way."'
+                    instructed_final_answer['trigger'] = '"用户的请求当前无法被满足. 请表示你做不到, 并建议用户自行解决或寻找其它方法."' if target_lang == 'zh' else '"User\'s current request cannot be satisfied. please indicate that you can\'t do it, and suggest user doing it themselves or find another way."'
                 #print(real_parameters_dict)
                 inst_rct = True
             elif re.search((r'conclude.*information'), predict_action_function, re.I):
