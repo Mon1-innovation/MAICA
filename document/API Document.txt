@@ -55,7 +55,7 @@ MAICA验证令牌的接口位于https://maicadev.monika.love/api/legality. 你�
 
 接下来, 服务器在准备完毕后会返回206 thread_ready. 此时你可以直接开始对话或调整设置.
 将type键设为params以调整设置, 设为query以开始对话.
-此选择兼容旧版规范(v1.0000), 即当type键缺省时, 若存在设置相关键则调整设置, 存在chat_session键则开始对话.
+此选择兼容旧版规范(v1.0001), 即当type键缺省时, 若存在设置相关键则调整设置, 存在chat_session键则开始对话.
 
 若要调整设置, 你应当按以下格式范例输入选择:
     {
@@ -379,7 +379,7 @@ MAICA下载历史记录的接口位于https://maicadev.monika.love/api/history. 
         当rounds为负整数-n时, 接口只返回最后一次生效的system字段和对话历史的后2n项, 共2n + 1项. 注意此时返回的对话历史仍然以正序排列.
         当rounds为0时, 接口返回全部对话历史--可能会很长.
     若rounds超过指定历史记录总轮次, 接口将返回全部对话历史.
-自MAICA后端规范1.0000后, 下载的历史记录将被包装. 包装格式为:
+自MAICA后端规范1.0001后, 下载的历史记录将被包装. 包装格式为:
     ["MAICA签名", json格式的历史]
 其中MAICA签名被用于验证此历史是否来自MAICA官方服务, 仅当签名存在且合法时可以将历史重新上传并加载.
 签名模式是PKCS1_PSS, 此签名符合RFC3447规范.
@@ -388,7 +388,7 @@ MAICA下载历史记录的接口位于https://maicadev.monika.love/api/history. 
 
 MAICA上传恢复历史记录的接口位于https://maicadev.monika.love/api/restore. 你应当遵循以下格式, 以POST形式上传历史记录:
     {"access_token": "你的令牌", "chat_session": "指定对应的chat_session", "history": json格式的包装历史}
-历史必须有合法的签名才能被恢复, 其格式参见下载历史一节. 在MAICA后端规范1.0000前被下载的历史无法被恢复.
+历史必须有合法的签名才能被恢复, 其格式参见下载历史一节. 在MAICA后端规范1.0001前被下载的历史无法被恢复.
 如果历史被成功恢复, 接口会返回:
     {"success": true, "exception": ""}
 
@@ -429,7 +429,7 @@ MFocus拥有一类额外接口, 用于向MAICA挂接二级功能. 由于功能�
 为降低开发和调试难度, MAICA websocket接口不强制, 也不会主动发送心跳连接. 但如果有需要, MAICA接口能够接收和响应心跳连接.
 你应当按以下格式范例发起心跳:
     {"type": "ping"}
-此功能不兼容旧版规范(v1.0000).
+此功能不兼容旧版规范(v1.0001).
 传入心跳后, 服务器应当返回以下条目:
     {"code": "199", "status": "ping_reaction", "content": "PONG", "type": "heartbeat", "time_ms": 时间戳(毫秒)}
 在开发中, 你可以通过生成心跳连接避免连接被切断, 检测客户端与服务器的连接情况, 以及确定延迟水平.
