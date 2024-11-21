@@ -4,31 +4,47 @@ import random
 import datetime
 import traceback
 import asyncio
+import functools
 import nest_asyncio
 import maica_ws
 import agent_modules
 import persistent_extraction
 from openai import AsyncOpenAI # type: ignore
 from loadenv import load_env
-async def wrap_triggering(parent, input, chat_session, trigger_list):
+
+async def wrap_run_in_exc(loop, func, *args, **kwargs):
+    if not loop:
+        loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(
+        None, functools.partial(func, *args, **kwargs))
+    return result
+
+async def wrap_triggering(parent, input, chat_session):
     try:
-        res = await triggering(parent, input, chat_session, trigger_list)
+        res = await triggering(parent, input, chat_session)
         return None
     except Exception as excepted:
         response_str = f"Trigger response acquiring failed, refer to administrator--your ray tracer ID is {parent.traceray_id}"
         await parent.websocket.send(maica_ws.wrap_ws_formatter('503', 'mtrigger_failed', response_str, 'warn'))
         return excepted
-async def triggering(parent, input, chat_session, trigger_list):
+async def triggering(parent, input, chat_session):
     if parent:
-        sf_extraction = parent.options['opt']['sf_extraction']
+        sf_extraction = parent.options['opt']['sf_extraction'] or parent.options['temp']['sf_extraction_once']
         post_additive = parent.options['eopt']['post_additive']
         websocket = parent.websocket
+        sf_inst, mt_inst = parent.sf_inst, parent.mt_inst
         session = parent.options['vfc']
     else:
         sf_extraction = True
         post_additive = 0
         websocket = None
         session = {"user_id": 23, "username": "edge"}
+        sf_inst = None
+        mt_inst = None
+    if mt_inst:
+        trigger_list = await wrap_run_in_exc(None, mt_inst.get_valid_triggers)
+    else:
+        trigger_list = [{"template": "common_affection_template"}]
     if not trigger_list:
         return False
     client = AsyncOpenAI(
@@ -101,7 +117,7 @@ async def triggering(parent, input, chat_session, trigger_list):
                             "properties": {
                                 "affection": {
                                     "type": "float",
-                                    "description": "Emit positive float to increase affection, negative to decrease affection. The maximum increase should be around +3, while it's normally around +1. For example, a compliment on your beauty could result in +0.8, a short sentence expressing love could result in +1.5, and a long phrase expressing love could result in +3.0. Do not emit a negative value unlesss you're sure that user is offending you.",
+                                    "description": "Emit positive float to increase affection, negative to decrease affection. The maximum increase should be around +3, while it's normally around +1. For example, a compliment on your beauty could result in +0.8, a short sentence expressing love could result in +1.5, and a long phrase expressing love could result in +3.0. You should be very pardoning to user. Do not emit a negative value unlesss you're sure that user is offending you.",
                                     "example_value": "+0.25"
                                 }
                             },
@@ -283,4 +299,4 @@ async def triggering(parent, input, chat_session, trigger_list):
     return True
 
 if __name__ == "__main__":
-    triggered = asyncio.run(triggering(None, "你好啊", 1, [{"template": "common_affection_template"}]))
+    triggered = asyncio.run(triggering(None, "拜拜", 1, [{"template": "common_affection_template"}]))

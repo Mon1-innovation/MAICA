@@ -32,7 +32,7 @@ async def time_acquire(params, target_lang='zh'):
     time_friendly = f"现在是{time_range}{time.hour}点{str(time.minute).zfill(2)}分" if target_lang == 'zh' else f"It's now {str(time.hour).zfill(2)}:{str(time.minute).zfill(2)} {time_range}"
     content = f'{str(time.hour).zfill(2)}:{str(time.minute).zfill(2)}'
     return success, exception, content, time_friendly
-async def date_acquire(params, sf_extraction, session, chat_session, target_lang='zh'):
+async def date_acquire(params, sf_extraction, sf_inst, target_lang='zh'):
     success = True
     exception = None
     date = datetime.datetime.today()
@@ -40,8 +40,7 @@ async def date_acquire(params, sf_extraction, session, chat_session, target_lang
     weekday = weeklist[date.weekday()]
     if sf_extraction:
         try:
-            user_id = session['user_id']
-            south_north = persistent_extraction.read_from_sf(user_id, chat_session, '_mas_pm_live_south_hemisphere')
+            south_north = sf_inst.read_from_sf('_mas_pm_live_south_hemisphere')
             if south_north[0]:
                 if south_north[2]:
                     match date:
@@ -71,7 +70,7 @@ async def date_acquire(params, sf_extraction, session, chat_session, target_lang
     date_friendly = f"今天是{date.year}年{season}{date.month}月{date.day}日{weekday}" if target_lang == 'zh' else f"Today is {date.year}.{date.month}.{date.day} {season}, {weekday}"
     content = f'{date.year}.{date.month}.{date.day}'
     return success, exception, content, date_friendly
-async def weather_acquire(params, sf_extraction, session, chat_session, target_lang='zh'):
+async def weather_acquire(params, sf_extraction, sf_inst, target_lang='zh'):
     success = True
     exception = None
     likely_query = None
@@ -81,12 +80,11 @@ async def weather_acquire(params, sf_extraction, session, chat_session, target_l
                 likely_query = params[possible_key]
                 break
     try:
-        user_id = session['user_id']
         if likely_query:
             weather_location = likely_query
         else:
             if sf_extraction:
-                weather_location = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_geolocation')[2]
+                weather_location = sf_inst.read_from_sf('mas_geolocation')[2]
             else:
                 content = weather_friendly = '天气未知' if target_lang == 'zh' else "Weather unknown"
         if likely_query or sf_extraction:
@@ -98,7 +96,7 @@ async def weather_acquire(params, sf_extraction, session, chat_session, target_l
         exception = excepted
         content = weather_friendly = '天气未知' if target_lang == 'zh' else "Weather unknown"
     return success, exception, content, weather_friendly
-async def event_acquire(params, sf_extraction, session, chat_session, pred_length=-1, small_eves = False, target_lang='zh'):
+async def event_acquire(params, sf_extraction, sf_inst, pred_length=-1, small_eves = False, target_lang='zh'):
     success = True
     exception = None
     holiday_friendly = ''
@@ -122,8 +120,7 @@ async def event_acquire(params, sf_extraction, session, chat_session, pred_lengt
         time_defined_list.append(f'{str(time_instance.year)}-{str(time_instance.month).zfill(2)}-{str(time_instance.day).zfill(2)}')
     if sf_extraction:
         try:
-            user_id = session['user_id']
-            player_bday = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_player_bday')[2]
+            player_bday = sf_inst.read_from_sf('mas_player_bday')[2]
             player_bday[0], player_bday[1], player_bday[2]
             player_has_bday = True
         except:
@@ -215,7 +212,7 @@ async def event_acquire(params, sf_extraction, session, chat_session, pred_lengt
             content = "[None]"
             holiday_friendly = f"{today_or_not}不是特殊节日" if target_lang == 'zh' else f"{today_or_not} is not a special event or holiday"
         return success, exception, content, holiday_friendly
-async def persistent_acquire(params, sf_extraction, session, chat_session, target_lang='zh'):
+async def persistent_acquire(params, sf_extraction, session, chat_session, sf_inst, target_lang='zh'):
     #print(params)
     success = True
     exception = None
@@ -229,7 +226,7 @@ async def persistent_acquire(params, sf_extraction, session, chat_session, targe
     if sf_extraction:
         try:
             user_id = session['user_id']
-            content = await mfocus_sfe.mfocus_find_info(user_id, chat_session, query)
+            content = await sf_inst.mfocus_find_info(query)
             if content[0]:
                 content = persistent_friendly = content[2]
             else:
@@ -246,7 +243,7 @@ async def persistent_acquire(params, sf_extraction, session, chat_session, targe
         content = '没有相关信息' if target_lang == 'zh' else "No related information found"
         persistent_friendly = ''
     return success, exception, content, persistent_friendly
-async def internet_acquire(params, sf_extraction, session, chat_session, original_query, esc_aggressive, target_lang='zh'):
+async def internet_acquire(params, sf_extraction, sf_inst, original_query, esc_aggressive, target_lang='zh'):
     success = True
     exception = None
     likely_query = None
@@ -263,9 +260,8 @@ async def internet_acquire(params, sf_extraction, session, chat_session, origina
         searched_friendly = ''
     if sf_extraction:
         try:
-            user_id = session['user_id']
             loc_caught = False
-            geolocation = persistent_extraction.read_from_sf(user_id, chat_session, 'mas_geolocation')
+            geolocation = sf_inst.read_from_sf('mas_geolocation')
             if geolocation[0]:
                 if geolocation[2]:
                     location = geolocation[2]

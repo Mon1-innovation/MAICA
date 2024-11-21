@@ -47,7 +47,7 @@ async def save_upload():
         if not verification_result[0]:
             raise Exception('Identity hashing failed')
         else:
-            if len(content) < 100000:
+            if len(str(content)) < 100000:
                 with open(f'persistents/{verification_result[2]}_{chat_session}.json', 'w+', encoding = 'utf-8') as sf:
                     sf.write(json.dumps(content, ensure_ascii=False))
             else:
@@ -64,7 +64,56 @@ async def save_upload():
             await hduplex_instance._close_pools()
         except:
             pass
-    
+
+@app.route('/trigger', methods=["POST"])
+async def trigger_upload():
+    global decryptor
+    success = True
+    exception = ''
+    try:
+        data = json.loads(request.data)
+        access_token = data['access_token']
+        chat_session = data['chat_session']
+        content = data['content']
+        print(access_token)
+        if int(chat_session) < 1 or int(chat_session) > 9:
+            raise Exception('Chat session out of range')
+        exec_unbase64_token = await maica_ws.wrap_run_in_exc(None, base64.b64decode, access_token)
+        exec_decrypted_token = await maica_ws.wrap_run_in_exc(None, decryptor.decrypt, exec_unbase64_token)
+        decrypted_token = exec_decrypted_token.decode("utf-8")
+        login_cridential = json.loads(decrypted_token)
+        if 'username' in login_cridential:
+            login_identity = login_cridential['username']
+            login_is_email = False
+        elif 'email' in login_cridential:
+            login_identity = login_cridential['email']
+            login_is_email = True
+        else:
+            raise Exception('No Identity Provided')
+        login_password = login_cridential['password']
+        hduplex_instance = maica_ws.sub_threading_instance()
+        verification_result = await hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password)
+        if not verification_result[0]:
+            raise Exception('Identity hashing failed')
+        else:
+            if len(str(content)) < 100000:
+                with open(f'triggers/{verification_result[2]}_{chat_session}.json', 'w+', encoding = 'utf-8') as sf:
+                    sf.write(json.dumps(content, ensure_ascii=False))
+            else:
+                raise Exception('Content length exceeded')
+        return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)
+    except Exception as excepted:
+        #traceback.print_exc()
+        print('This one has failed')
+        success = False
+        exception = excepted
+        return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)
+    finally:
+        try:
+            await hduplex_instance._close_pools()
+        except:
+            pass
+
 @app.route('/history', methods=["POST"])
 async def history_download():
     global decryptor, signer
@@ -218,10 +267,10 @@ async def sl_prefs():
                 prefs_old = {}
             else:
                 if 'write' in data and data['write']:
-                    prefs_new = json.loads(data['write'])
+                    prefs_new = data['write']
                     prefs_old.update(prefs_new)
                 if 'delete' in data and data['delete']:
-                    for popper in json.loads(data['delete']):
+                    for popper in data['delete']:
                         prefs_old.pop(popper, None)
             prefs_str = json.dumps(prefs_old, ensure_ascii=False)
             if len(prefs_str) < 100000:

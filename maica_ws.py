@@ -14,7 +14,9 @@ import random
 import traceback
 import mspire
 import mfocus_main
-import mtrigger
+import mfocus_sfe
+import mtrigger_main
+import mtrigger_sfe
 import persistent_extraction
 #import maica_http
 from Crypto.Random import random as CRANDOM
@@ -54,7 +56,7 @@ class sub_threading_instance:
         self.traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
         # Note that the 'id' dict is an unsafe identity, which means it doesn't need to pass all verifications, while 'vfc' is safe.
         # Do not use the 'id' on events needing account level security guaranteed.
-        self.options = {"id": {"user_id": None}, "vfc":{"user_id": None}, "opt": {"target_lang": "zh"}, "eopt": {"sfe_aggressive": False}, "sup": {}}
+        self.options = {"id": {"user_id": None}, "vfc":{"user_id": None}, "opt": {"target_lang": "zh"}, "eopt": {"sfe_aggressive": False}, "sup": {}, "temp": {}}
         self.loop = asyncio.get_event_loop()
         asyncio.run(self._init_pools())
         asyncio.run(wrap_run_in_exc(None, self.get_keys))
@@ -212,6 +214,8 @@ class sub_threading_instance:
                     # New security methods
                     self.verified = True
                     self.options['vfc']['user_id'] = dbres_id
+                    # Initializations
+                    await self.init_side_instance()
                     # Legacy supports
                     return verification, None, dbres_id, dbres_username, dbres_nickname, dbres_email
             else:
@@ -260,6 +264,17 @@ class sub_threading_instance:
             raise Exception('No Identity Provided')
         login_password = login_cridential['password']
         return await self.run_hash_dcc(login_identity, login_is_email, login_password)
+
+    async def init_side_instance(self) -> None:
+        success = False
+        user_id = self.options['vfc']['user_id']
+        try:
+            self.check_essentials()
+            self.sf_inst, self.mt_inst = mfocus_sfe.sf_bound_instance(user_id, 1), mtrigger_sfe.mt_bound_instance(user_id, 1)
+            await asyncio.gather(wrap_run_in_exc(None, self.sf_inst.init1), wrap_run_in_exc(None, self.mt_inst.init1))
+        except Exception as excepted:
+            success = False
+            return success, excepted
 
     async def rw_chat_session(self, chat_session_num, rw, content_append) -> list[bool, Exception, int, str, int]:
         success = False
@@ -411,8 +426,8 @@ class sub_threading_instance:
         user_id = self.options['vfc']['user_id']
         try:
             self.check_essentials()
-            if self.options['opt']['sf_extraction']:
-                player_name_get = await wrap_run_in_exc(None, persistent_extraction.read_from_sf, user_id, chat_session_num, 'mas_playername')
+            if self.options['opt']['sf_extraction'] or self.options['temp']['sf_extraction_once']:
+                player_name_get = await wrap_run_in_exc(None, self.sf_inst.read_from_sf, 'mas_playername')
                 if player_name_get[0]:
                     if 'sfe_aggressive' in self.options['eopt'] and self.options['eopt']['sfe_aggressive']:
                         player_name = player_name_get[2]
@@ -440,8 +455,8 @@ class sub_threading_instance:
         user_id = self.options['vfc']['user_id']
         try:
             self.check_essentials()
-            if self.options['opt']['sf_extraction']:
-                player_name_get = await wrap_run_in_exc(None, persistent_extraction.read_from_sf, user_id, chat_session_num, 'mas_playername')
+            if self.options['opt']['sf_extraction'] or self.options['temp']['sf_extraction_once']:
+                player_name_get = await wrap_run_in_exc(None, self.sf_inst.read_from_sf, 'mas_playername')
                 if player_name_get[0]:
                     if 'sfe_aggressive' in self.options['eopt'] and self.options['eopt']['sfe_aggressive']:
                         player_name = player_name_get[2]
@@ -707,6 +722,7 @@ class ws_threading_instance(sub_threading_instance):
             "stream" : True,
             "full_maica": True,
             "sf_extraction": True,
+            "mt_extraction": True,
             "target_lang": 'zh',
             "max_token": 28672
         }
@@ -724,6 +740,9 @@ class ws_threading_instance(sub_threading_instance):
         self.alter_identity('eopt', **client_extra_options)
         await websocket.send(wrap_ws_formatter('206', 'thread_ready', "Thread is ready for input or setting adjustment", 'info'))
         await websocket.send(wrap_ws_formatter('200', 'ok', f"Service provider is {load_env('DEV_IDENTITY')}", 'info'))
+
+        # Starting loop from here
+
         while True:
             self.flush_traceray()
             checked_status = await self.check_user_status(key='banned')
@@ -818,6 +837,8 @@ class ws_threading_instance(sub_threading_instance):
                 client_options['full_maica'] = is_full_maica
                 if 'sf_extraction' in model_params:
                     client_options['sf_extraction'] = bool(model_params['sf_extraction'])
+                if 'mt_extraction' in model_params:
+                    client_options['mt_extraction'] = bool(model_params['mt_extraction'])
                 if 'stream_output' in model_params:
                     client_options['stream'] = bool(model_params['stream_output'])
                 if 'target_lang' in model_params:
@@ -893,12 +914,14 @@ class ws_threading_instance(sub_threading_instance):
     async def do_communicate(self, recv_json):
         websocket, client_actual, session, options_opt, options_eopt = self.websocket, self.client_actual, self.options['vfc'], self.options['opt'], self.options['eopt']
         sfe_aggressive, mf_aggressive, tnd_aggressive, esc_aggressive, nsfw_acceptive = options_eopt['sfe_aggressive'], options_eopt['mf_aggressive'], options_eopt['tnd_aggressive'], options_eopt['esc_aggressive'], options_eopt['nsfw_acceptive']
-        bypass_mf = False; overall_info_system = ''; trigger_list = []
+        bypass_mf = False; overall_info_system = ''
+        self.alter_identity('temp', sf_extraction_once=False, mt_extraction_once=False)
         try:
             request_json = recv_json
             chat_session = int(request_json['chat_session'])
             username = session['username']
             sf_extraction = options_opt['sf_extraction']
+            mt_extraction = options_opt['mt_extraction']
             target_lang = options_opt['target_lang']
             max_token_hint = options_opt['max_token']
             warn_token_hint = max_token_hint - 4096
@@ -957,8 +980,20 @@ class ws_threading_instance(sub_threading_instance):
                     # query_in = query_vise[2]
             else:
                 query_in = request_json['query']
-                if 'trigger' in request_json:
-                    trigger_list = request_json['trigger']
+                if sf_extraction:
+                    await wrap_run_in_exc(self.sf_inst.init2, chat_session_num=chat_session)
+                    if 'savefile' in request_json:
+                        await wrap_run_in_exc(self.sf_inst.add_extra, request_json['savefile'])
+                elif 'savefile' in request_json:
+                    self.alter_identity('temp', sf_extraction_once=True)
+                    self.sf_inst.use_only(request_json['savefile'])
+                if mt_extraction:
+                    await wrap_run_in_exc(self.mt_inst.init2, chat_session_num=chat_session)
+                    if 'trigger' in request_json:
+                        await wrap_run_in_exc(self.mt_inst.add_extra, request_json['trigger'])
+                elif 'trigger' in request_json:
+                    self.alter_identity('temp', mt_extraction_once=True)
+                    self.mt_inst.use_only(request_json['trigger'])
             global easter_exist
             if easter_exist:
                 easter_check = easter(query_in)
@@ -990,7 +1025,7 @@ class ws_threading_instance(sub_threading_instance):
 
                     try:
                         if options_opt['full_maica'] and not bypass_mf:
-                            message_agent_wrapped = await mfocus_main.agenting(self, query_in, chat_session, trigger_list)
+                            message_agent_wrapped = await mfocus_main.agenting(self, query_in, chat_session)
                             if message_agent_wrapped[0] == 'EMPTY':
                                 response_str = f"MFocus using instructed final guidance, suggesting LLM conclusion is empty--your ray tracer ID is {self.traceray_id}"
                                 await websocket.send(wrap_ws_formatter('200', 'agent_prog', response_str, 'debug'))
@@ -1132,7 +1167,7 @@ class ws_threading_instance(sub_threading_instance):
 
 
             task_stream_resp = asyncio.create_task(client_actual.chat.completions.create(**completion_args))
-            task_trigger_resp = asyncio.create_task(mtrigger.wrap_triggering(self, query_in, chat_session, trigger_list))
+            task_trigger_resp = asyncio.create_task(mtrigger_main.wrap_triggering(self, query_in, chat_session))
             await task_stream_resp
             stream_resp = task_stream_resp.result()
 
