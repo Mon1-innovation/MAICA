@@ -32,7 +32,7 @@ class mt_bound_instance():
             with open(f"triggers/{user_id}_{chat_session_num}.json", 'r', encoding= 'utf-8') as savefile:
                 self.sf_content = json.loads(savefile.read())
         except:
-            self.sf_content = {}
+            self.sf_content = []
         self.sf_content_temp = copy.deepcopy(self.sf_content)
     def init2(self, user_id=None, chat_session_num=None):
         if not user_id:
@@ -52,13 +52,13 @@ class mt_bound_instance():
                 with open(f"triggers/{user_id}_{chat_session_num}.json", 'r', encoding= 'utf-8') as savefile:
                     self.sf_content = json.loads(savefile.read())
         except:
-            self.sf_content = {}
+            self.sf_content = []
         if self.sf_content_temp != self.sf_content:
             self.sf_content_temp = copy.deepcopy(self.sf_content)
     def add_extra(self, extra):
         self.sf_content_temp = copy.deepcopy(self.sf_content)
         if extra:
-            self.sf_content_temp.update(extra)
+            self.sf_content_temp.extend(extra)
     def use_only(self, extra):
         self.sf_content_temp = extra
     def get_all_triggers(self):

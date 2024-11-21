@@ -981,16 +981,16 @@ class ws_threading_instance(sub_threading_instance):
             else:
                 query_in = request_json['query']
                 if sf_extraction:
-                    await wrap_run_in_exc(self.sf_inst.init2, chat_session_num=chat_session)
+                    await wrap_run_in_exc(None, self.sf_inst.init2, chat_session_num=chat_session)
                     if 'savefile' in request_json:
-                        await wrap_run_in_exc(self.sf_inst.add_extra, request_json['savefile'])
+                        await wrap_run_in_exc(None, self.sf_inst.add_extra, request_json['savefile'])
                 elif 'savefile' in request_json:
                     self.alter_identity('temp', sf_extraction_once=True)
                     self.sf_inst.use_only(request_json['savefile'])
                 if mt_extraction:
-                    await wrap_run_in_exc(self.mt_inst.init2, chat_session_num=chat_session)
+                    await wrap_run_in_exc(None, self.mt_inst.init2, chat_session_num=chat_session)
                     if 'trigger' in request_json:
-                        await wrap_run_in_exc(self.mt_inst.add_extra, request_json['trigger'])
+                        await wrap_run_in_exc(None, self.mt_inst.add_extra, request_json['trigger'])
                 elif 'trigger' in request_json:
                     self.alter_identity('temp', mt_extraction_once=True)
                     self.mt_inst.use_only(request_json['trigger'])
