@@ -35,6 +35,7 @@ async def triggering(parent, input, chat_session):
         sf_inst, mt_inst = parent.sf_inst, parent.mt_inst
         session = parent.options['vfc']
     else:
+        # These are testing values
         sf_extraction = True
         post_additive = 0
         websocket = None
@@ -44,7 +45,7 @@ async def triggering(parent, input, chat_session):
     if mt_inst:
         trigger_list = await wrap_run_in_exc(None, mt_inst.get_valid_triggers)
     else:
-        trigger_list = [{"template": "common_affection_template"}]
+        trigger_list = [{"name": "alter_affection", "template": "common_affection_template"}, {"exprop": {"item_name": {"en": "outfit", "zh": "衣服"}, "item_list": ["衬衫 (尽情微笑)", "十六夜咲夜", "夹克衫 (棕色)", "衬衫 (水蓝)", "School Uniform (Blazerless)", "衬衫 (粉色)", "套衫 (黑白条纹)", "吊带衫 (白色)", "蓝白裙", "裙子 (绿色)", "初音", "School Uniform", "比基尼 (贝壳)", "毛线衫 (露肩)", "衬衫 (在此停歇)", "连帽衫 (绿色)"], "curr_value": "School Uniform"}, "name": "clothes", "template": "common_switch_template"}, {"exprop": {"item_name": {"en": "minigame", "zh": "小游戏"}, "item_list": ["NOU", "Piano", "Chess"], "curr_value": None}, "name": "minigame", "template": "common_switch_template"}, {"usage": {"en": "help player quit game", "zh": "帮助玩家离开游戏"}, "name": "leave", "template": "customize"}, {"exprop": {"item_name": {"en": "weather", "zh": "天气"}, "item_list": ["Thunder/Lightning", "Clear", "Overcast", "Snow", "Rain"], "curr_value": "Clear"}, "name": "weather", "template": "common_switch_template"}, {"usage": {"en": "change location", "zh": "换个位置"}, "name": "location", "template": "customize"}]
     if not trigger_list:
         return False
     client = AsyncOpenAI(
@@ -117,7 +118,7 @@ async def triggering(parent, input, chat_session):
                             "properties": {
                                 "affection": {
                                     "type": "float",
-                                    "description": "Emit positive float to increase affection, negative to decrease affection. The maximum increase should be around +3, while it's normally around +1. For example, a compliment on your beauty could result in +0.8, a short sentence expressing love could result in +1.5, and a long phrase expressing love could result in +3.0. You should be very pardoning to user. Do not emit a negative value unlesss you're sure that user is offending you.",
+                                    "description": "Emit positive float to increase affection, negative to decrease affection. The maximum increase should be around +3, while it's normally around +1. For example, a compliment on your beauty could result in +0.8, a short sentence expressing love could result in +1.5, and a long phrase expressing love could result in +3.0.\nYou should be very pardoning to user, which means you shoud never emit a negative value unlesss you're sure that user is offending you.",
                                     "example_value": "+0.25"
                                 }
                             },
@@ -299,4 +300,4 @@ async def triggering(parent, input, chat_session):
     return True
 
 if __name__ == "__main__":
-    triggered = asyncio.run(triggering(None, "拜拜", 1, [{"template": "common_affection_template"}]))
+    triggered = asyncio.run(triggering(None, "我吃饭去了, 拜拜", 1))

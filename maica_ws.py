@@ -643,7 +643,7 @@ class ws_threading_instance(sub_threading_instance):
                     print('Empty recieved, likely connection loss')
                     await websocket.close()
                     await websocket.wait_closed()
-                print(f'Recieved an input on stage1: {recv_text}')
+                print(f'[{time.strftime('%Y-%m-%d %H:%M:%S')}] Recieved an input on stage1: {recv_text}')
                 verification_result = await self.hashing_verify(access_token=recv_text)
                 if verification_result[0]:
                     checked_status = await self.check_user_status(key='banned')
@@ -761,7 +761,7 @@ class ws_threading_instance(sub_threading_instance):
                 print('Empty recieved, likely connection loss')
                 await websocket.close()
                 await websocket.wait_closed()
-            print(f'Recieved an input on stage2: {recv_text}')
+            print(f'[{time.strftime('%Y-%m-%d %H:%M:%S')}] Recieved an input on stage2: {recv_text}')
             if len(recv_text) > 4096:
                 response_str = f"Input exceeding 4096 characters, which is not permitted--your ray tracer ID is {self.traceray_id}"
                 print(f"出现如下异常12-{self.traceray_id}:length exceeded")
@@ -1220,17 +1220,17 @@ class ws_threading_instance(sub_threading_instance):
                 await task_trigger_resp
                 trigger_resp = task_trigger_resp.result()
                 if trigger_resp:
-                    print(f"Finished with triggering error-{self.traceray_id}:{session['username']}")
+                    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished with triggering error-{self.traceray_id}:{session['username']}")
                     return False
-                print(f"Finished entire loop-{self.traceray_id}:{session['username']}")
+                print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished entire loop-{self.traceray_id}:{session['username']}")
             else:
                 success = True
                 await task_trigger_resp
                 trigger_resp = task_trigger_resp.result()
                 if trigger_resp:
-                    print(f"Finished non-recording with triggering error-{self.traceray_id}:{session['username']}")
+                    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished non-recording with triggering error-{self.traceray_id}:{session['username']}")
                     return False
-                print(f"Finished non-recording loop-{self.traceray_id}:{session['username']}")
+                print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished non-recording loop-{self.traceray_id}:{session['username']}")
         except websockets.exceptions.WebSocketException:
             print("Someone disconnected")
             raise Exception('Force closure of connection')
