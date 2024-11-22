@@ -871,14 +871,14 @@ class sf_bound_instance():
         mf_hcb = self.read_from_sf('mas_sf_hcb')
         if mf_hcb[0]:
             if mf_hcb[2]:
-                conclusion.extend(self.conclude_cb_sf(360))
+                conclusion.extend(self.conclude_cb_sf(360) or [])
             else:
-                conclusion.extend(self.conclude_basic_sf())
-                conclusion.extend(self.conclude_cb_sf(72))
+                conclusion.extend(self.conclude_basic_sf() or [])
+                conclusion.extend(self.conclude_cb_sf(72) or [])
         else:
-            conclusion.extend(self.conclude_basic_sf())
-            conclusion.extend(self.conclude_cb_sf(72))
-        conclusion.extend(self.conclude_moni_sf())
+            conclusion.extend(self.conclude_basic_sf() or [])
+            conclusion.extend(self.conclude_cb_sf(72) or [])
+        conclusion.extend(self.conclude_moni_sf() or [])
 
         with open(f'persistents/{self.user_id}_{self.chat_session_num}_friendly.json', 'w+', encoding = 'utf-8') as sf_friendly:
             sf_friendly.write(json.dumps(conclusion, ensure_ascii=False))
