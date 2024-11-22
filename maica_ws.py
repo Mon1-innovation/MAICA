@@ -881,7 +881,7 @@ class ws_threading_instance(sub_threading_instance):
                     if isinstance(super_params['top_p'], int) and int(super_params['top_p']) == -1:
                         self.options['sup'].pop('top_p')
                     elif 0.1 < float(super_params['top_p']) <= 1.0:
-                        super_params_filtered['top_p'] = float(super_params['max_tokens'])
+                        super_params_filtered['top_p'] = float(super_params['top_p'])
                 if 'temperature' in super_params:
                     if isinstance(super_params['temperature'], int) and int(super_params['temperature']) == -1:
                         self.options['sup'].pop('temperature')

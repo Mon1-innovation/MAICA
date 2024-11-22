@@ -76,7 +76,7 @@ class mt_bound_instance():
                     met.append(trigger)
                 case _:
                     cus.append(trigger)
-        aff = [aff[0]]
+        aff = [aff[0]] if aff else []
         if len(swt) > 6:
             swt = sample(swt, 6)
         if len(met) > 6:
