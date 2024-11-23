@@ -118,7 +118,7 @@ async def triggering(parent, input, chat_session):
                             "properties": {
                                 "affection": {
                                     "type": "float",
-                                    "description": "Emit positive float to increase affection, negative to decrease affection. The maximum increase should be around +3, while it's normally around +1. For example, a compliment on your beauty could result in +0.8, a short sentence expressing love could result in +1.5, and a long phrase expressing love could result in +3.0.\nYou should be very pardoning to user, which means you shoud never emit a negative value unlesss you're sure that user is offending you.",
+                                    "description": "Emit positive float to increase affection, negative to decrease affection. The maximum increase should be around +3, while it's normally around +1.\nFor example, a compliment on your beauty could result in +0.8, a short sentence expressing love could result in +1.5, and a long phrase expressing love could result in +3.0.\nYou should never emit a negative value, unless user is offending you intensively.",
                                     "example_value": "+0.25"
                                 }
                             },
@@ -134,7 +134,7 @@ async def triggering(parent, input, chat_session):
                 item_name_bil = trigger['exprop']['item_name']
                 item_list = trigger['exprop']['item_list']
                 cur_item = trigger['exprop']['curr_item'] if 'curr_item' in trigger['exprop'] else ''
-                desc_switch = f"调用该工具以切换{item_name_bil['zh']}, 当前的{item_name_bil['zh']}是{cur_item}. Call this tool to switch {item_name_bil['en']}, current {item_name_bil['en']} is {cur_item}." if cur_item else f"调用该工具以切换{item_name_bil['zh']}. Call this tool to switch {item_name_bil['en']}."
+                desc_switch = f"调用该工具以切换{item_name_bil['zh']}, 当前的{item_name_bil['zh']}是{cur_item}. 仅当用户明确要求时, 你才应调用此工具.\nCall this tool to switch {item_name_bil['en']}, current {item_name_bil['en']} is {cur_item}. Use this tool only if clear request is given." if cur_item else f"调用该工具以切换{item_name_bil['zh']}. 仅当用户明确要求时, 你才应调用此工具.\nCall this tool to switch {item_name_bil['en']}. Use this tool only if clear request is given."
                 trigger_tool_list.append(
                     {
                         "name": trigger['name'],
@@ -160,7 +160,7 @@ async def triggering(parent, input, chat_session):
                 item_name_bil = trigger['exprop']['item_name']
                 value_limits = trigger['exprop']['value_limits']
                 cur_value = trigger['exprop']['curr_value'] if 'curr_value' in trigger['exprop'] else ''
-                desc_meter = f"调用该工具以调整{item_name_bil['zh']}, 当前的{item_name_bil['zh']}是{cur_value}. Call this tool to adjust {item_name_bil['en']}, current {item_name_bil['en']} is {cur_value}." if cur_value else f"调用该工具以调整{item_name_bil['zh']}. Call this tool to adjust {item_name_bil['en']}."
+                desc_meter = f"调用该工具以调整{item_name_bil['zh']}, 当前的{item_name_bil['zh']}是{cur_value}. 仅当用户明确要求时, 你才应调用此工具.\nCall this tool to adjust {item_name_bil['en']}, current {item_name_bil['en']} is {cur_value}. Use this tool only if clear request is given." if cur_value else f"调用该工具以调整{item_name_bil['zh']}. 仅当用户明确要求时, 你才应调用此工具.\nCall this tool to adjust {item_name_bil['en']}. Use this tool only if clear request is given."
                 trigger_tool_list.append(
                     {
                         "name": trigger['name'],
