@@ -1,5 +1,6 @@
 import re
 import json
+import random
 import datetime
 import traceback
 import asyncio
@@ -166,20 +167,28 @@ async def agenting(parent, input, chat_session):
         },
     ]
     if trigger_list and amt_aggressive:
-        choice_list = []
+        choice_list = []; choice_checklist = []; choice_conclusion = []
         for trigger in trigger_list:
             match trigger['template']:
                 case 'common_affection_template':
                     pass
                 case 'common_switch_template':
+                    cst_temp_list = []
                     for i in trigger['exprop']['item_list']:
+                        choice_checklist.append(i)
                         j = f'选择{i}' if target_lang == 'zh' else f'switch to {i}'
-                        choice_list.append(j)
+                        cst_temp_list.append(j)
+                    cst_explaination = f"更换{trigger['exprop']['item_name']['zh']}" if target_lang == 'zh' else f"Change {trigger['exprop']['item_name']['en']}"
+                    choice_list.append({cst_explaination: cst_temp_list})
                 case 'common_meter_template':
-                    j = f"调整{trigger['exprop']['item_name']['zh']}" if target_lang == 'zh' else f"adjust {trigger['exprop']['item_name']['en']}"
+                    cmt_iname = trigger['exprop']['item_name']['zh'] if target_lang == 'zh' else trigger['exprop']['item_name']['en']
+                    choice_checklist.append(cmt_iname)
+                    j = f"调整{cmt_iname}, 范围是{trigger['exprop']['value_limits'][0]}到{trigger['exprop']['value_limits'][1]}" if target_lang == 'zh' else f"Adjust {cmt_iname} within range {trigger['exprop']['value_limits'][0]} to {trigger['exprop']['value_limits'][1]}"
                     choice_list.append(j)
                 case _:
-                    j = f"触发{trigger['usage']['zh']}" if target_lang == 'zh' else f"trigger {trigger['usage']['en']}"
+                    cc_iname = trigger['usage']['zh'] if target_lang == 'zh' else trigger['usage']['en']
+                    choice_checklist.append(cc_iname)
+                    j = f"触发{cc_iname}" if target_lang == 'zh' else f"Trigger {cc_iname}"
                     choice_list.append(j)
         if choice_list:
             tools.append(
@@ -189,10 +198,10 @@ async def agenting(parent, input, chat_session):
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "ability": {
-                                "type": "boolean",
-                                "description": f"You'll be offered a list of avaliable choices. return True only if at least one choice offered can satisfy the request, otherwise return False. list: {str(choice_list)}",
-                                "example_value": "True"
+                            "prediction": {
+                                "type": "string",
+                                "description": f"You'll be offered a list of avaliable choices. return the choice if you think it matches the query, or return false if none matches. list: {str(choice_list)}",
+                                "example_value": random.choice(choice_checklist)
                             }
                         },
                         "required": [
@@ -412,10 +421,15 @@ async def agenting(parent, input, chat_session):
             elif re.search((r'react.*trigger'), predict_action_function, re.I):
                 trigger_ability = real_parameters_dict[list(real_parameters_dict.keys())[0]]
                 return_instruction = f"[{{'reaction_correct': True}}]"
-                if trigger_ability and (not isinstance(trigger_ability, str) or trigger_ability.lower() != "false"):
-                    instructed_final_answer['trigger'] = '"用户的请求是你所了解的且可以被满足, 请作出正面答复."' if target_lang == 'zh' else '"User\'s request is understood and can be satisfied, please make positive answer."'
-                else:
+                if not trigger_ability or (isinstance(trigger_ability, str) and trigger_ability.lower() == "false"):
                     instructed_final_answer['trigger'] = '"用户的请求当前无法被满足. 请表示你做不到, 并建议用户自行解决或寻找其它方法."' if target_lang == 'zh' else '"User\'s current request cannot be satisfied. please indicate that you can\'t do it, and suggest user doing it themselves or find another way."'
+                else:
+                    if str(trigger_ability).lower() in str(choice_checklist).lower():
+                        choice_conclusion.append(str(trigger_ability))
+                        instructed_final_answer['trigger'] = f'"用户的请求是你所了解的且可以被满足, 请作出关于{', '.join(choice_conclusion)}的正面答复."' if target_lang == 'zh' else f'"User\'s request is understood and can be satisfied, please make positive answer about {', '.join(choice_conclusion)}."'
+                        inst_rct = True
+                    elif not inst_rct:
+                        instructed_final_answer['trigger'] = '"用户的请求是你所了解的且可以被满足, 请作出正面答复."' if target_lang == 'zh' else '"User\'s request is understood and can be satisfied, please make positive answer."'
                 #print(real_parameters_dict)
                 inst_rct = True
             elif re.search((r'conclude.*information'), predict_action_function, re.I):
