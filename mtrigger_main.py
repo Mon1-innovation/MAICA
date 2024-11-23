@@ -221,10 +221,10 @@ async def triggering(parent, input, chat_session):
         lines_num = min(post_additive * 2, len(res_dict) - 1)
         message_additive = res_dict[-lines_num:] if lines_num > 0 else []
         if message_additive:
-            messages.append({'role': 'system', 'content': '在作答时, 假设你是用户的女友, 名为莫妮卡, 并在此前提下调用工具. 请按照指示格式回答, 对话历史仅供参考.'})
+            messages.append({'role': 'system', 'content': '在作答时, 假设你是用户的女友, 名为莫妮卡, 并在此前提下调用工具. 你只应按照输入调用工具, 不要根据联想调用工具.\n请按照指示格式回答, 对话历史仅供参考.'})
             messages.extend(message_additive)
         else:
-            messages.append({'role': 'system', 'content': '在作答时, 假设你是用户的女友, 名为莫妮卡, 并在此前提下调用工具.'})
+            messages.append({'role': 'system', 'content': '在作答时, 假设你是用户的女友, 名为莫妮卡, 并在此前提下调用工具. 你只应按照输入调用工具, 不要根据联想调用工具.'})
     messages.append({'role': 'user', 'content': input})
     completion_args = {
         "model": model_type,
