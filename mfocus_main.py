@@ -164,19 +164,6 @@ async def agenting(parent, input, chat_session):
                 ]
             }
         },
-        {
-            "name": "none",
-            "description": "Call this tool if no tool is needed to answer. 若你不需要任何工具就能作出回答, 则使用此工具.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                },
-                "required": [
-                ],
-                "optional": [
-                ]
-            }
-        },
     ]
     if trigger_list and amt_aggressive:
         choice_list = []
@@ -227,11 +214,27 @@ async def agenting(parent, input, chat_session):
                         "conclusion": {
                             "type": "string",
                             "description": "Conclude all information you have acquired and reasonings you have made into a concise sentence.",
-                            "example_value": "现在是上午九点, 适合吃早餐, 且天气凉爽, 适合户外活动"
+                            "example_value": "现在是上午九点, 因此适合吃早餐, 且天气凉爽, 因此适合户外活动"
                         }
                     },
                     "required": [
                         "conclusion"
+                    ],
+                    "optional": [
+                    ]
+                }
+            },
+        )
+    else:
+        tools.append(
+            {
+                "name": "none",
+                "description": "Call this tool if no tool is needed to answer. 若你不需要任何工具就能作出回答, 则使用此工具.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                    },
+                    "required": [
                     ],
                     "optional": [
                     ]

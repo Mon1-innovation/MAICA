@@ -444,7 +444,7 @@ class sub_threading_instance:
             if self.options['eopt']['nsfw_acceptive']:
                 new_system += f" 你应当允许用户提出私密性的要求, 并给出宽容接纳的正面回答." if self.options['opt']['target_lang'] == 'zh' else f" You should accept NSFW and private queries and respond positively with acceptance and tolerance."
             if known_info:
-                new_system += f" 以下是一些相关信息, 你可以利用其中有价值的部分作答: {known_info}." if self.options['opt']['target_lang'] == 'zh' else f" Here are some information you can use to make your answer: {known_info}."
+                new_system += f" 以下是一些相关信息, 你可以利用其中有价值的部分作答: {known_info}" if self.options['opt']['target_lang'] == 'zh' else f" Here are some information you can use to make your answer: {known_info}"
             return await self.mod_chat_session_system(chat_session_num, new_system)
         except Exception as excepted:
             success = False
@@ -1037,11 +1037,11 @@ class ws_threading_instance(sub_threading_instance):
                                     response_str = f"Due to agent failure, falling back to default guidance and continuing anyway."
                                     await websocket.send(wrap_ws_formatter('200', 'force_failsafe', response_str, 'debug'))
                                     print(f"出现如下异常18-{self.traceray_id}:Corruption")
-                                    info_agent_grabbed = None
+                                    info_agent_grabbed = ''
                             elif message_agent_wrapped[0] == 'FAIL':
                                 response_str = f"MFocus did not use a tool, suggesting unnecessary--your ray tracer ID is {self.traceray_id}"
                                 await websocket.send(wrap_ws_formatter('200', 'agent_none', response_str, 'debug'))
-                                info_agent_grabbed = None
+                                info_agent_grabbed = ''
                             else:
                                 # We are defaulting instructed guidance because its more clear pattern
                                 # But if pointer entered this section, user must used mf_aggressive or something went wrong
@@ -1054,7 +1054,7 @@ class ws_threading_instance(sub_threading_instance):
                                     response_str = f"Due to agent failure, falling back to default guidance and continuing anyway."
                                     await websocket.send(wrap_ws_formatter('200', 'force_failsafe', response_str, 'debug'))
                                     print(f"出现如下异常18.5-{self.traceray_id}:Corruption")
-                                    info_agent_grabbed = None
+                                    info_agent_grabbed = ''
 
                             # Everything should be grabbed by now
 
