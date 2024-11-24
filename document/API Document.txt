@@ -345,7 +345,7 @@ MAICA上传存档的接口位于https://maicadev.monika.love/api/savefile. 你�
     {"success": true, "exception": ""}
 存档json的总长度上限是10万字符, 远大于对话请求限制的4096字符. 对于内容较多的存档, 建议优先使用存档上传功能.
 
-MAICA上传触发器表的接口位于https://maicadev.monika.love/api/savefile. 你应当遵循以下格式, 以POST形式上传触发器表:
+MAICA上传触发器表的接口位于https://maicadev.monika.love/api/trigger. 你应当遵循以下格式, 以POST形式上传触发器表:
     {"access_token": "你的令牌", "chat_session": "指定对应的chat_session", "content": json格式的触发器表}
 触发器表内容格式见上文MTrigger中的描述, 上传的触发器表与chat_session一一对应. 若当前指定的chat_session不存在对应触发器表, 则尝试使用chat_session为1的触发器表.
 如果触发器表被成功接收, 接口会返回:
