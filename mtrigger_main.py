@@ -19,15 +19,13 @@ async def wrap_run_in_exc(loop, func, *args, **kwargs):
         None, functools.partial(func, *args, **kwargs))
     return result
 
-async def wrap_triggering(parent, input, chat_session):
+async def wrap_triggering(parent, input, output, chat_session):
     try:
-        res = await triggering(parent, input, chat_session)
-        return None
+        res = await triggering(parent, input, output, chat_session)
+        return res
     except Exception as excepted:
-        response_str = f"Trigger response acquiring failed, refer to administrator--your ray tracer ID is {parent.traceray_id}"
-        await parent.websocket.send(maica_ws.wrap_ws_formatter('503', 'mtrigger_failed', response_str, 'warn'))
-        return excepted
-async def triggering(parent, input, chat_session):
+        return False, excepted
+async def triggering(parent, input, output, chat_session):
     if parent:
         sf_extraction = parent.options['opt']['sf_extraction'] or parent.options['temp']['sf_extraction_once']
         post_additive = parent.options['eopt']['post_additive']
@@ -45,7 +43,7 @@ async def triggering(parent, input, chat_session):
     if mt_inst:
         trigger_list = await wrap_run_in_exc(None, mt_inst.get_valid_triggers)
     else:
-        trigger_list = [{"name": "alter_affection", "template": "common_affection_template"}, {"exprop": {"item_name": {"en": "outfit", "zh": "衣服"}, "item_list": ["衬衫 (尽情微笑)", "十六夜咲夜", "夹克衫 (棕色)", "衬衫 (水蓝)", "School Uniform (Blazerless)", "衬衫 (粉色)", "套衫 (黑白条纹)", "吊带衫 (白色)", "蓝白裙", "裙子 (绿色)", "初音", "School Uniform", "比基尼 (贝壳)", "毛线衫 (露肩)", "衬衫 (在此停歇)", "连帽衫 (绿色)"], "curr_value": "School Uniform"}, "name": "clothes", "template": "common_switch_template"}, {"exprop": {"item_name": {"en": "minigame", "zh": "小游戏"}, "item_list": ["NOU", "Piano", "Chess"], "curr_value": None}, "name": "minigame", "template": "common_switch_template"}, {"usage": {"en": "help player quit game", "zh": "帮助玩家离开游戏"}, "name": "leave", "template": "customize"}, {"exprop": {"item_name": {"en": "weather", "zh": "天气"}, "item_list": ["Thunder/Lightning", "Clear", "Overcast", "Snow", "Rain"], "curr_value": "Clear"}, "name": "weather", "template": "common_switch_template"}, {"usage": {"en": "change location", "zh": "换个位置"}, "name": "location", "template": "customize"}]
+        trigger_list = [{"name": "alter_affection", "template": "common_affection_template"}, {"exprop": {"item_name": {"en": "in-game outfit", "zh": "游戏内服装"}, "item_list": ["背心 (蓝色)", "T恤衫（侏罗纪世界）", "偏套衫(酒红色)", False, "Neko Costume", "十六夜?夜", "Heart-Cut Bikini (Green)", "School Uniform (Blazerless)", "深蓝色的闪光长裙", "衬衫 (粉色)", "无袖套衫 (黑色)", "玩家挑选", "书记の制服", "蓝白裙", "高领毛衣 (浅褐色)", "School Uniform", "Heart-Cut Bikini (Black)", "衬衫 (在此停歇)", "Heart-Cut Bikini (Pink)", "Shirt (NOU)", "T恤衫（侏罗纪公园）", "连帽衫 (绿色)", "Heart-Cut Bikini (White)", "衬衫 (尽情微笑)", "和服(粉色)", "夹克衫 (棕色)", "衬衫 (水蓝)", "Heart-Cut Bikini (Purple)", "抹胸(红色褶边)", "衬衫（有花朵点缀）", "套衫 (黑白条纹)", "吊带衫 (白色)", "YoRHa No.2 Type B", "Heart-Cut Bikini (Yellow)", "初音", "裙子 (绿色)", "比基尼 (贝壳)", "毛线衫 (露肩)", "V形交叉吊带背心 (白色)"], "curr_value": "School Uniform"}, "name": "clothes", "template": "common_switch_template"}, {"exprop": {"item_name": {"en": "minigame", "zh": "小游戏"}, "item_list": [False, "Hangman", "Chess", "玩家自行选择", "NOU", "Piano", "Pong", "UNO"], "curr_value": None}, "name": "minigame", "template": "common_switch_template"}, {"usage": {"en": "kiss player", "zh": "亲吻玩家"}, "name": "kiss", "template": "customize"}, {"usage": {"en": "help player quit game", "zh": "帮助玩家离开游戏"}, "name": "leave", "template": "customize"}, {"usage": {"en": "help player afk short time", "zh": "帮助玩家短暂休息"}, "name": "idle", "template": "customize"}, {"usage": {"en": "change in-game location", "zh": "切换游戏内场景"}, "name": "location", "template": "customize"}, {"usage": {"en": "hold player", "zh": "拥抱玩家"}, "name": "hold", "template": "customize"}]
     if not trigger_list:
         return False
     client = AsyncOpenAI(
@@ -108,7 +106,7 @@ async def triggering(parent, input, chat_session):
                     quest_res = persistent_extraction.read_from_sf(session['user_id'], chat_session, 'mas_affection')
                     if quest_res[0]:
                         cur_aff = quest_res[2]
-                    desc_aff = f"当你认为对用户的好感度应发生变化时调用该工具, 当前好感度是{cur_aff}. 例如, 当用户发送夸赞, 关心, 或表现明显的情感时可以调用该工具. Call this tool to change affection when you think you should, current affection is {cur_aff}. For example, you can call this tool when user is complimenting, showing care, or expressing notable emotion." if cur_aff else "当你认为对用户的好感度应发生变化时调用该工具. 例如, 当用户发送夸赞, 关心, 或表现明显的情感时可以调用该工具. Call this tool to change affection when you think you should. For example, you can call this tool when user is complimenting, showing care, or expressing notable emotion."
+                    desc_aff = f"当你认为你对用户的好感度应发生变化时调用该工具, 当前好感度是{cur_aff}. 例如, 当用户发送夸赞, 关心, 或表现积极的情感时可以调用该工具. Call this tool to change your affection towards user when you think you should, current affection is {cur_aff}. For example, you can call this tool when user is complimenting, showing care, or expressing positive emotion." if cur_aff else "当你认为对用户的好感度应发生变化时调用该工具. 例如, 当用户发送夸赞, 关心, 或表现明显的情感时可以调用该工具. Call this tool to change affection when you think you should. For example, you can call this tool when user is complimenting, showing care, or expressing notable emotion."
                 trigger_tool_list.append(
                     {
                         "name": "alter_affection",
@@ -213,7 +211,7 @@ async def triggering(parent, input, chat_session):
             }
         }
     )
-    messages = []
+    messages = [{'role': 'system', 'content': '你只能按照输入的字面意思调用工具, 不要根据联想调用好感以外的工具.\n请按照指示格式回答, 对话历史仅供参考.'}]
     if post_additive and 1 <= chat_session <= 9:
         sql_expression = 'SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
         result = await parent.send_query(expression=sql_expression, values=(session['user_id'], chat_session), pool='maicapool')
@@ -221,11 +219,11 @@ async def triggering(parent, input, chat_session):
         lines_num = min(post_additive * 2, len(res_dict) - 1)
         message_additive = res_dict[-lines_num:] if lines_num > 0 else []
         if message_additive:
-            messages.append({'role': 'system', 'content': '在作答时, 假设你是用户的女友, 名为莫妮卡, 并在此前提下调用工具.\n你只应按照输入调用工具, 不要根据联想调用工具. 若无需工具即可作答, 则不调用工具.\n请按照指示格式回答, 对话历史仅供参考.'})
             messages.extend(message_additive)
-        else:
-            messages.append({'role': 'system', 'content': '在作答时, 假设你是用户的女友, 名为莫妮卡, 并在此前提下调用工具.\n你只应按照输入调用工具, 不要根据联想调用工具. 若无需工具即可作答, 则不调用工具.'})
-    messages.append({'role': 'user', 'content': input})
+    # if not parent:
+    #     messages.append({'role': 'user', 'content': '你可以换件衣服吗'})
+    #     messages.append({'role': 'assistant', 'content': '[尴尬]现在不行, [player]. [尴尬]我还没有准备好.'})
+    messages.extend([{'role': 'user', 'content': input}, {'role': 'assistant', 'content': output}, {'role': 'user', 'content': '观察以上对话历史记录, 根据你上一次作出的回应思考:\n是否应该调用工具?\n调用哪种工具, 选择哪种参数?\n按照指示格式回答. 你的选择必须与你上一次作出的回应一致'}])
     completion_args = {
         "model": model_type,
         "messages": messages,
@@ -295,9 +293,9 @@ async def triggering(parent, input, chat_session):
         print(response_str2)
     finish_sentence = f"{cycle} MTrigger requests sent, active trigger finished." if cycle else "No MTrigger activated."
     print(finish_sentence)
-    if websocket:
-        await websocket.send(maica_ws.wrap_ws_formatter('1010', 'mtrigger_done', finish_sentence, 'info'))
-    return True
+    # if websocket:
+    #     await websocket.send(maica_ws.wrap_ws_formatter('1010', 'mtrigger_done', finish_sentence, 'info'))
+    return True, finish_sentence
 
 if __name__ == "__main__":
-    triggered = asyncio.run(triggering(None, "我吃饭去了, 拜拜", 1))
+    triggered = asyncio.run(triggering(None, "我有点无聊了", "[微笑]喔...那我们找点事干吧! [笑]跟我猜个谜语怎么样?", 1))

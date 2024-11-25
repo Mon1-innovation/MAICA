@@ -335,8 +335,8 @@ maica_main和maica_core共用chat_session.
     对于未注明双语的条目, 可以任选中文或英文, 建议与用户语言保持一致.
     显而易见地, MTrigger的有效载荷输出均为110 mtrigger_trigger. 在所有触发条目输出完成或无可输出后, MTrigger将输出1010 mtrigger_done提示输出完成:
         {"code": "1010", "status": "mtrigger_done", "content": "No MTrigger activated.", "type": "info", "time_ms": 时间戳(毫秒)}
-由于执行时间排程优化, MTrigger的输出与核心模型应答同时开始, 且可能同步或穿插送达, 在开发过程中应加以留意.
-同样由于时间优化, MTrigger即使发生问题也不会中断核心模型的工作, 仅会记录并发送503 mtrigger_failed.
+自MAICA后端规范1.0004后, MTrigger分析在核心应答完成后开始, 并整合分析核心的最后应答. 因此启用MTrigger会延长响应总时间.
+由于MTrigger开始时主要排程已经完成, MTrigger发生非严重问题不会中断chat_session记录, 仅会记录并发送503 mtrigger_failed.
 
 MAICA上传存档的接口位于https://maicadev.monika.love/api/savefile. 你应当遵循以下格式, 以POST形式上传从存档中解读的信息:
     {"access_token": "你的令牌", "chat_session": "指定对应的chat_session", "content": json格式的存档内容}

@@ -1161,7 +1161,6 @@ class ws_threading_instance(sub_threading_instance):
 
 
             task_stream_resp = asyncio.create_task(client_actual.chat.completions.create(**completion_args))
-            task_trigger_resp = asyncio.create_task(mtrigger_main.wrap_triggering(self, query_in, chat_session))
             await task_stream_resp
             stream_resp = task_stream_resp.result()
 
@@ -1184,10 +1183,26 @@ class ws_threading_instance(sub_threading_instance):
                 reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
                 print(f"Finished replying-{self.traceray_id}:{session['username']}, with seed {completion_args['seed']}")
             else:
-                token_combined = stream_resp.choices[0].message.content
-                print(token_combined)
-                await websocket.send(wrap_ws_formatter('200', 'reply', token_combined, 'carriage'))
-                reply_appended_insertion = json.dumps({'role': 'assistant', 'content': token_combined}, ensure_ascii=False)
+                reply_appended = stream_resp.choices[0].message.content
+                print(reply_appended)
+                await websocket.send(wrap_ws_formatter('200', 'reply', reply_appended, 'carriage'))
+                reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
+
+
+
+            task_trigger_resp = asyncio.create_task(mtrigger_main.wrap_triggering(self, query_in, reply_appended, chat_session))
+            await task_trigger_resp
+            trigger_resp = task_trigger_resp.result()
+
+
+
+            trigger_succ, trigger_sce = trigger_resp
+            if trigger_succ:
+                await websocket.send(wrap_ws_formatter('1010', 'mtrigger_done', trigger_sce, 'info'))
+            else:
+                response_str = f"Trigger response acquiring failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
+                print(f"出现如下异常27-{self.traceray_id}:{trigger_sce}")
+                await websocket.send(wrap_ws_formatter('503', 'mtrigger_failed', response_str, 'warn'))
             if int(chat_session) > 0:
                 stored = await self.rw_chat_session(chat_session, 'w', messages0)
                 #print(stored)
@@ -1211,19 +1226,9 @@ class ws_threading_instance(sub_threading_instance):
                     print(f"出现如下异常28-{self.traceray_id}:{stored[1]}")
                     await websocket.send(wrap_ws_formatter('500', 'store_failed', response_str, 'error'))
                     await websocket.close(1000, 'Stopping connection due to critical server failure')
-                await task_trigger_resp
-                trigger_resp = task_trigger_resp.result()
-                if trigger_resp:
-                    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished with triggering error-{self.traceray_id}:{session['username']}")
-                    return False
                 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished entire loop-{self.traceray_id}:{session['username']}")
             else:
                 success = True
-                await task_trigger_resp
-                trigger_resp = task_trigger_resp.result()
-                if trigger_resp:
-                    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished non-recording with triggering error-{self.traceray_id}:{session['username']}")
-                    return False
                 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished non-recording loop-{self.traceray_id}:{session['username']}")
         except websockets.exceptions.WebSocketException:
             print("Someone disconnected")

@@ -1,5 +1,3 @@
-# from gevent import monkey
-# monkey.patch_all()
 from flask import Flask, current_app, redirect, url_for, request
 import asyncio
 import json
@@ -419,6 +417,8 @@ def veri_message(message, sigb64):
         return False
 
 if __name__ == '__main__':
+    #from gevent import monkey
+    #monkey.patch_all()
     global encryptor, decryptor, verifier, signer
     global known_servers
     with open("key/prv.key", "r") as privkey_file:
