@@ -210,9 +210,9 @@ async def history_restore():
             raise Exception('Identity hashing failed')
         else:
             sigb64, to_verify = data['history']
-            vfresult = veri_message(sigb64, json.dumps(to_verify, ensure_ascii=False))
+            vfresult = veri_message(json.dumps(to_verify, ensure_ascii=False), sigb64)
             if vfresult:
-                hduplex_instance.restore_chat_session(chat_session, to_verify)
+                await hduplex_instance.restore_chat_session(chat_session, to_verify)
             else:
                 raise Exception('Signature verification failed')
         return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)

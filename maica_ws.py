@@ -190,7 +190,7 @@ class sub_threading_instance:
             result = await self.send_query(expression=sql_expression, values=(identity), pool='authpool')
             dbres_id, dbres_username, dbres_nickname, dbres_email, dbres_ecf, dbres_pwd_bcrypt, *dbres_args = result
             input_pwd, target_pwd = pwd.encode(), dbres_pwd_bcrypt.encode()
-            print(f'Ready to run hash: {identity} {pwd}')
+            print(f'Ready to run hash: {identity}')
             verification = await wrap_run_in_exc(None, bcrypt.checkpw, input_pwd, target_pwd)
             print(f'Hashing finished: {verification}')
             self.alter_identity('id', user_id=dbres_id, username=dbres_username, email=dbres_email)
@@ -228,9 +228,6 @@ class sub_threading_instance:
                     f2b_count = 0
                 await self.write_user_status({'f2b_count': f2b_count})
                 return verification, exception
-        except websockets.exceptions.WebSocketException:
-            print("Someone disconnected")
-            raise Exception('Force closure of connection')
         except Exception as excepted:
             #traceback.print_exc()
             verification = False
@@ -245,15 +242,12 @@ class sub_threading_instance:
             exec_unbase64_token = await wrap_run_in_exc(None, base64.b64decode, access_token)
             exec_decrypted_token = await wrap_run_in_exc(None, decryptor.decrypt, exec_unbase64_token)
             decrypted_token = exec_decrypted_token.decode("utf-8")
-            print(f'Token decrypted: {decrypted_token}')
-        except websockets.exceptions.WebSocketException:
-            print("Someone disconnected")
-            raise Exception('Force closure of connection')
         except Exception as excepted:
             #traceback.print_exc()
             verification = False
             return verification, excepted
         login_cridential = json.loads(decrypted_token)
+        print(f'Token decrypted: {login_cridential[list(login_cridential.keys())[0]]}')
         if 'username' in login_cridential and login_cridential['username']:
             login_identity = login_cridential['username']
             login_is_email = False
@@ -1178,7 +1172,7 @@ class ws_threading_instance(sub_threading_instance):
                 reply_appended = ''
                 async for chunk in stream_resp:
                     token = chunk.choices[0].delta.content
-                    #await asyncio.sleep(0)
+                    await asyncio.sleep(0)
                     print(token, end='', flush=True)
                     if token != '':
                         if True:

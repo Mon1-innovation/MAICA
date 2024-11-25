@@ -495,7 +495,7 @@ async def agenting(parent, input, chat_session):
         except:
             fin_final_answer = ''
     if mf_aggressive and instructed_final_answer_joined:
-        response_str3 = f"MFocus callback achieved, response is:\n{final_answer}\nInfo acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."
+        response_str3 = f"MFocus callback achieved, response is:\n{fin_final_answer}\nInfo acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."
         if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug'))
         print(response_str3)
         return fin_final_answer, instructed_final_answer_joined
