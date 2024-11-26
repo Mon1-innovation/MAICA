@@ -8,7 +8,6 @@ import functools
 import nest_asyncio
 import maica_ws
 import agent_modules
-import persistent_extraction
 from openai import AsyncOpenAI # type: ignore
 from loadenv import load_env
 
@@ -103,7 +102,7 @@ async def triggering(parent, input, output, chat_session):
                 aff_checked = True
                 cur_aff = 0
                 if sf_extraction:
-                    quest_res = persistent_extraction.read_from_sf(session['user_id'], chat_session, 'mas_affection')
+                    quest_res = sf_inst.read_from_sf('mas_affection')
                     if quest_res[0]:
                         cur_aff = quest_res[2]
                     desc_aff = f"当你认为你对用户的好感度应发生变化时调用该工具, 当前好感度是{cur_aff}. 例如, 当用户发送夸赞, 关心, 或表现积极的情感时可以调用该工具. Call this tool to change your affection towards user when you think you should, current affection is {cur_aff}. For example, you can call this tool when user is complimenting, showing care, or expressing positive emotion." if cur_aff else "当你认为对用户的好感度应发生变化时调用该工具. 例如, 当用户发送夸赞, 关心, 或表现明显的情感时可以调用该工具. Call this tool to change affection when you think you should. For example, you can call this tool when user is complimenting, showing care, or expressing notable emotion."

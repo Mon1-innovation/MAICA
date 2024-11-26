@@ -17,7 +17,6 @@ import mfocus_main
 import mfocus_sfe
 import mtrigger_main
 import mtrigger_sfe
-import persistent_extraction
 #import maica_http
 from Crypto.Random import random as CRANDOM
 from Crypto.Cipher import PKCS1_OAEP

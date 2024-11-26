@@ -3,7 +3,6 @@ import requests
 import json
 import re
 import traceback
-import persistent_extraction
 import mfocus_sfe
 from enet_scraping import internet_search_limb
 from weather_scraping import weather_api_get

@@ -8,7 +8,6 @@ import functools
 import nest_asyncio
 import maica_ws
 import agent_modules
-import persistent_extraction
 from openai import AsyncOpenAI # type: ignore
 from loadenv import load_env
 

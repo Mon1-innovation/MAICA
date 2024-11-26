@@ -7,7 +7,6 @@ import functools
 import traceback
 from random import sample
 from openai import AsyncOpenAI # type: ignore
-import persistent_extraction
 from loadenv import load_env
 
 async def wrap_run_in_exc(loop, func, *args, **kwargs):
