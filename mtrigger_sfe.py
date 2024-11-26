@@ -39,8 +39,9 @@ class mt_bound_instance():
         if not chat_session_num:
             chat_session_num = self.chat_session_num
         try:
-            with open(f"triggers/{user_id}_{chat_session_num}.json") as savefile:
-                pass
+            with open(f"triggers/{user_id}_{chat_session_num}.json", 'r', encoding= 'utf-8') as savefile:
+                if not savefile.read():
+                    chat_session_num = 1
         except:
             chat_session_num = 1
         try:
