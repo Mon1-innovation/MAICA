@@ -33,7 +33,7 @@ async def agenting(parent, input, chat_session):
         target_lang = 'zh'
         pre_additive = 0
         tnd_aggressive = 1
-        mf_aggressive = False
+        mf_aggressive = True
         esc_aggressive = True
         amt_aggressive = True
         websocket = None
@@ -43,6 +43,8 @@ async def agenting(parent, input, chat_session):
         loop = asyncio.get_event_loop()
     if mt_inst:
         trigger_list = await wrap_run_in_exc(None, mt_inst.get_valid_triggers)
+    else:
+        trigger_list = None
     client = AsyncOpenAI(
         api_key='EMPTY',
         base_url=load_env('MFOCUS_ADDR'),
@@ -489,7 +491,7 @@ async def agenting(parent, input, chat_session):
         fin_final_answer = final_answer + conc_final_answer
     else:
         try:
-            conc_final_answer = re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.S)
+            conc_final_answer = re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.S)[1]
             fin_final_answer = final_answer + conc_final_answer
         except:
             fin_final_answer = ''
