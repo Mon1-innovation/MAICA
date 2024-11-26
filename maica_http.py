@@ -2,6 +2,7 @@ from flask import Flask, current_app, redirect, url_for, request
 import asyncio
 import json
 import base64
+import functools
 import traceback
 import maica_ws
 from gevent import pywsgi
@@ -11,6 +12,13 @@ from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_PSS
 from Crypto.Hash import SHA256
 from loadenv import load_env
+
+async def wrap_run_in_exc(loop, func, *args, **kwargs):
+    if not loop:
+        loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(
+        None, functools.partial(func, *args, **kwargs))
+    return result
 
 app = Flask(import_name=__name__)
 
@@ -162,7 +170,7 @@ async def history_download():
                     case _:
                         hisfine = hisjson
             hisstr = json.dumps(hisfine, ensure_ascii=False)
-            sigb64 = await maica_ws.wrap_run_in_exc(None, sign_message, hisstr)
+            sigb64 = await wrap_run_in_exc(None, sign_message, hisstr)
             hisfinal = [sigb64, hisfine]
         return json.dumps({"success": success, "exception": str(exception), "history": hisfinal}, ensure_ascii=False)
     except Exception as excepted:
@@ -208,7 +216,8 @@ async def history_restore():
             raise Exception('Identity hashing failed')
         else:
             sigb64, to_verify = data['history']
-            vfresult = veri_message(json.dumps(to_verify, ensure_ascii=False), sigb64)
+            to_verify = await wrap_run_in_exc(None, seri_message, to_verify)
+            vfresult = await wrap_run_in_exc(None, veri_message, json.dumps(to_verify, ensure_ascii=False), sigb64)
             if vfresult:
                 await hduplex_instance.restore_chat_session(chat_session, to_verify)
             else:
@@ -415,6 +424,15 @@ def veri_message(message, sigb64):
         return True
     else:
         return False
+
+def seri_message(message):
+    message = list(message)
+    message_new = []
+    for line in message:
+        line = dict(line)
+        line_new = {"role": line['role'], "content": line['content']}
+        message_new.append(line_new)
+    return message_new
 
 if __name__ == '__main__':
     #from gevent import monkey
