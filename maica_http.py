@@ -1,3 +1,5 @@
+from gevent import monkey
+monkey.patch_all()
 from flask import Flask, current_app, redirect, url_for, request
 import asyncio
 import json
@@ -55,7 +57,15 @@ async def save_upload():
         else:
             if len(str(content)) < 100000:
                 with open(f'persistents/{verification_result[2]}_{chat_session}.json', 'w+', encoding = 'utf-8') as sf:
-                    sf.write(json.dumps(content, ensure_ascii=False))
+                    try:
+                        content_old = sf.read()
+                    except:
+                        content_old = ''
+                    if content_old != content:
+                        sf.write(json.dumps(content, ensure_ascii=False))
+                        print('Savefile wrote')
+                    else:
+                        print('Savefile unchanged')
             else:
                 raise Exception('Content length exceeded')
         return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)
@@ -104,7 +114,15 @@ async def trigger_upload():
         else:
             if len(str(content)) < 100000:
                 with open(f'triggers/{verification_result[2]}_{chat_session}.json', 'w+', encoding = 'utf-8') as sf:
-                    sf.write(json.dumps(content, ensure_ascii=False))
+                    try:
+                        content_old = sf.read()
+                    except:
+                        content_old = ''
+                    if content_old != content:
+                        sf.write(json.dumps(content, ensure_ascii=False))
+                        print('Trigger wrote')
+                    else:
+                        print('Trigger unchanged')
             else:
                 raise Exception('Content length exceeded')
         return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)
