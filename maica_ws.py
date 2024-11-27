@@ -626,8 +626,10 @@ class ws_threading_instance(sub_threading_instance):
     #身份验证
 
     async def check_permit(self):
+        global online_list
         websocket = self.websocket
         print('Someone started a connection')
+        print(f"Current onliners: {online_list}")
         while True:
             self.flush_traceray()
             try:
@@ -651,23 +653,29 @@ class ws_threading_instance(sub_threading_instance):
                         await websocket.send(wrap_ws_formatter('403', 'account_banned', response_str, 'warn'))
                         await websocket.close(1000, 'Permission denied')
                     else:
-                        self.cookie = cookie = str(uuid.uuid4())
-                        self.enforce_cookie = False
-                        await websocket.send(wrap_ws_formatter('206', 'session_created', "Authencation passed!", 'info'))
-                        await websocket.send(wrap_ws_formatter('200', 'user_id', f"{verification_result[2]}", 'debug'))
-                        await websocket.send(wrap_ws_formatter('200', 'username', f"{verification_result[3]}", 'debug'))
-                        await websocket.send(wrap_ws_formatter('200', 'nickname', f"{verification_result[4]}", 'debug'))
-                        await websocket.send(wrap_ws_formatter('190', 'ws_cookie', cookie, 'cookie'))
-                        #await websocket.send(wrap_ws_formatter('200', 'session_created', f"email {verification_result[5]}", 'debug'))
-                        #print(verification_result[0])
-                        verificated_result = {
-                            "user_id": verification_result[2],
-                            "username": verification_result[3],
-                            "nickname": verification_result[4],
-                            "email": verification_result[5]
-                        }
-                        self.alter_identity('vfc', **verificated_result)
-                        return verification_result
+                        if verification_result[2] in online_list:
+                            response_str = f"You have an established connection already--your ray tracer ID is {self.traceray_id}"
+                            print(f"出现如下异常4.1-{self.traceray_id}:reusage")
+                            await websocket.send(wrap_ws_formatter('403', 'connection_reuse', response_str, 'warn'))
+                            await websocket.close(1000, 'Permission denied')
+                        else:
+                            self.cookie = cookie = str(uuid.uuid4())
+                            self.enforce_cookie = False
+                            await websocket.send(wrap_ws_formatter('206', 'session_created', "Authencation passed!", 'info'))
+                            await websocket.send(wrap_ws_formatter('200', 'user_id', f"{verification_result[2]}", 'debug'))
+                            await websocket.send(wrap_ws_formatter('200', 'username', f"{verification_result[3]}", 'debug'))
+                            await websocket.send(wrap_ws_formatter('200', 'nickname', f"{verification_result[4]}", 'debug'))
+                            await websocket.send(wrap_ws_formatter('190', 'ws_cookie', cookie, 'cookie'))
+                            #await websocket.send(wrap_ws_formatter('200', 'session_created', f"email {verification_result[5]}", 'debug'))
+                            #print(verification_result[0])
+                            verificated_result = {
+                                "user_id": verification_result[2],
+                                "username": verification_result[3],
+                                "nickname": verification_result[4],
+                                "email": verification_result[5]
+                            }
+                            self.alter_identity('vfc', **verificated_result)
+                            return verification_result
                 else:
                     if isinstance(verification_result[1], dict):
                         if 'f2b' in verification_result[1]:
@@ -1252,23 +1260,33 @@ def callback_check_permit(future):
 
 async def main_logic(websocket, test):
     try:
+        global online_list
+        locked = False
         loop = asyncio.get_event_loop()
         thread_instance = ws_threading_instance(websocket)
         thread_instance.test = test
 
         permit = await thread_instance.check_permit()
-        print(permit)
+
         if not isinstance(permit, tuple) or not permit[0]:
             raise Exception('Security exception occured')
+        else:
+            online_list.append(permit[2])
+            print(f"Locking session for {permit[2]} as {permit[3]}")
 
         await thread_instance.function_switch()
 
     except Exception as excepted:
         print(f'Exception: {excepted}. Likely connection loss.')
     finally:
+        try:
+            online_list.remove(permit[2])
+            print(f"Lock released for {permit[2]} as {permit[3]}")
+        except:
+            print('No lock to release')
         await websocket.close()
         await websocket.wait_closed()
-        print(f'Destroying connection.')
+        print('Destroying connection')
 
 
 async def prepare_thread():
@@ -1287,6 +1305,8 @@ async def prepare_thread():
     return test
 
 if __name__ == '__main__':
+
+    online_list = []
 
     test = asyncio.run(prepare_thread())
     print('Server started!')
