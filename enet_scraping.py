@@ -64,16 +64,16 @@ Begin!
         answer_re = re.search(r'Answer\s*:\s*(.*)', response, re.I)
         if answer_re:
             if not re.match('none', answer_re[1], re.I):
-                slt_humane = answer_re[1]
+                slt_humane = slt_default = answer_re[1]
             else:
-                slt_humane = ''
+                slt_humane = ''; slt_default = 'None'
         # If corrupted we proceed anyway
     except Exception as excepted:
         traceback.print_exc()
         success = False
         exception = excepted
         return success, exception, '', ''
-    return True, None, slt_humane, slt_humane
+    return True, None, slt_default, slt_humane
 
 if __name__ == '__main__':
     import asyncio
