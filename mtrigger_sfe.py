@@ -84,6 +84,8 @@ class mt_bound_instance():
         if len(cus) > 20:
             cus = sample(cus, 20)
         for trigger in swt:
+            if len(trigger['exprop']['item_list']) == 0:
+                swt.remove(trigger)
             if len(trigger['exprop']['item_list']) > 72:
                 trigger['exprop']['item_list'] = sample(trigger['exprop']['item_list'], 72)
         return aff+swt+met+cus
