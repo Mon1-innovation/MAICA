@@ -1207,9 +1207,12 @@ class ws_threading_instance(sub_threading_instance):
             if trigger_succ:
                 await websocket.send(wrap_ws_formatter('1010', 'mtrigger_done', trigger_sce, 'info'))
             else:
-                response_str = f"Trigger response acquiring failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
-                print(f"出现如下异常27-{self.traceray_id}:{trigger_sce}")
-                await websocket.send(wrap_ws_formatter('503', 'mtrigger_failed', response_str, 'warn'))
+                if trigger_sce:
+                    response_str = f"Trigger response acquiring failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
+                    print(f"出现如下异常27-{self.traceray_id}:{trigger_sce}")
+                    await websocket.send(wrap_ws_formatter('503', 'mtrigger_failed', response_str, 'warn'))
+                else:
+                    print('No trigger passed in')
             if int(chat_session) > 0:
                 stored = await self.rw_chat_session(chat_session, 'w', messages0)
                 #print(stored)
@@ -1241,6 +1244,7 @@ class ws_threading_instance(sub_threading_instance):
             print("Someone disconnected")
             raise Exception('Force closure of connection')
         except Exception as excepted:
+            #traceback.print_exc()
             response_str = f"Core model failed to respond, refer to administrator--your ray tracer ID is {self.traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
             print(f"出现如下异常29-{self.traceray_id}:{excepted}")
             await websocket.send(wrap_ws_formatter('500', 'respond_failed', response_str, 'error'))
