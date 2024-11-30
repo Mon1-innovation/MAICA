@@ -116,37 +116,39 @@ class sub_threading_instance:
                 lrid = cur.lastrowid
         return lrid
     
-    # This function is rather CPU bound so we using run_in_exc
-    # The Exception here seems not matter
+    # Tough situation, have to mix thread and aio
 
-    def chop_session(self, chat_session_id, content) -> list[int, str]:
+    async def chop_session(self, chat_session_id, content) -> list[int, str]:
         max_token = self.options['opt']['max_token'] * 3
         warn_token = max_token - 12288
         len_content_actual = len(content.encode()) - len(json.loads(f'[{content}]')) * 31
         if len_content_actual >= max_token:
             # First we check if there is a cchop avaliable
             sql_expression = 'SELECT * FROM cchop_archived WHERE chat_session_id = %s ORDER BY archive_id DESC'
-            result = self.loop.run_until_complete(self.send_query(expression=sql_expression, values=(chat_session_id), pool='maicapool'))
+            result = await self.send_query(expression=sql_expression, values=(chat_session_id), pool='maicapool')
             use_result = []
             if result and not result[3]:
                 use_result = result
                 archive_id = use_result[0]
             if not use_result:
                 sql_expression2 = 'INSERT INTO cchop_archived (chat_session_id, content, archived) VALUES (%s, "", 0)'
-                archive_id = self.loop.run_until_complete(self.send_modify(expression=sql_expression2, values=(chat_session_id), pool='maicapool'))
+                archive_id = await self.send_modify(expression=sql_expression2, values=(chat_session_id), pool='maicapool')
                 use_result = [archive_id, chat_session_id, '', 0]
             archive_content = use_result[2]
             # Now an avaliable cchop should be ready
-            cutting_mat = json.loads(f"[{content}]")
-            while len_content_actual >= warn_token or cutting_mat[1]['role'] == "assistant":
-                if archive_content:
-                    archive_content = ', ' + archive_content
-                popped_dict = cutting_mat.pop(1)
-                archive_content = json.dumps(popped_dict, ensure_ascii=False) + archive_content
-                len_content_actual -= (len(json.dumps(popped_dict, ensure_ascii=False).encode()) - 31)
-            content = json.dumps(cutting_mat, ensure_ascii=False).strip('[').strip(']')
+            def cpub_chop_session():
+                nonlocal content, len_content_actual, warn_token, archive_content
+                cutting_mat = json.loads(f"[{content}]")
+                while len_content_actual >= warn_token or cutting_mat[1]['role'] == "assistant":
+                    if archive_content:
+                        archive_content = archive_content + ', '
+                    popped_dict = cutting_mat.pop(1)
+                    archive_content = archive_content + json.dumps(popped_dict, ensure_ascii=False)
+                    len_content_actual -= (len(json.dumps(popped_dict, ensure_ascii=False).encode()) - 31)
+                content = json.dumps(cutting_mat, ensure_ascii=False).strip('[').strip(']')
+            await wrap_run_in_exc(None, cpub_chop_session)
             sql_expression3 = 'UPDATE cchop_archived SET content = %s WHERE archive_id = %s' if len(archive_content) <= 100000 else 'UPDATE cchop_archived SET content = %s, archived = 1 WHERE archive_id = %s'
-            self.loop.run_until_complete(self.send_modify(expression=sql_expression3, values=(archive_content, archive_id), pool='maicapool'))
+            await self.send_modify(expression=sql_expression3, values=(archive_content, archive_id), pool='maicapool')
             cutted = 1
         elif len_content_actual >= warn_token:
             cutted = 2
@@ -304,7 +306,7 @@ class sub_threading_instance:
                 else:
                     content = content_append
 
-                cutted, content = await wrap_run_in_exc(None, self.chop_session, chat_session_id, content)
+                cutted, content = await self.chop_session(chat_session_id, content)
 
                 sql_expression2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
                 try:

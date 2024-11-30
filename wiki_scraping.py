@@ -13,7 +13,8 @@ def get_redirect_url(url):
 
 def get_page(title=None, target_lang='zh'):
     final_summary = ''
-    while not final_summary:
+    insanity = 0
+    while not final_summary and insanity<=7:
         if target_lang == 'zh':
             category_list=['自然', '自然科学', '社会', '人文學科', '世界', '生活', '艺术', '文化']
         else:
@@ -40,11 +41,16 @@ def get_page(title=None, target_lang='zh'):
             if not wiki_page.exists():
                 title = zhconv.convert(title, 'zh-hant')
                 wiki_page = wiki_pointer.page(title)
+                if not wiki_page.exists():
+                    print(f"MSpire acquiring inexist topic: {title}")
+                    raise Exception('Topic inexist')
         print(f'MSpire acquiring topic: {wiki_page.title}')
         while ':' in wiki_page.title and not re.match(r'category:(.*)\s*\n*', wiki_page.title, re.I):
+            insanity+=1
             title = unquote(re.search(r'title=(.*)&', get_redirect_url(random_url))[1], 'utf-8')
             wiki_page = wiki_pointer.page(title)
         while re.match('category:', wiki_page.title, re.I):
+            insanity+=1
             sub_category = re.match(r'category:(.*)\s*\n*', wiki_page.title, re.I)[1]
             print(f'MSpire acquiring subtopic: {sub_category}')
             #random_url = rf"https://randomincategory.toolforge.org/?category={sub_category}&server=zh.wikipedia.org&cmnamespace=&cmtype=&returntype=&purge=1"
