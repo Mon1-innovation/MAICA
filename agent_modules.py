@@ -225,9 +225,10 @@ async def persistent_acquire(params, sf_extraction, session, chat_session, sf_in
     if sf_extraction:
         try:
             user_id = session['user_id']
-            content = await sf_inst.mfocus_find_info(query)
-            if content[0]:
-                content = persistent_friendly = content[2]
+            pers_response = await sf_inst.mfocus_find_info(query)
+            if pers_response[0]:
+                content = pers_response[2]
+                persistent_friendly = pers_response[3]
             else:
                 success = False
                 exception = content[1]
