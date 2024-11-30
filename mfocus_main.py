@@ -130,7 +130,7 @@ async def agenting(parent, input, chat_session):
         },
         {
             "name": "persistent_acquire",
-            "description": "Call this tool to get any additional information about user and yourself as human character, such as their preferences, hobbies, experiences, appearence or relationship. 只要你被问及你作为AI不具有的记忆, 经历, 人格, 感情, 喜好或任何其它事物, 就使用此工具查找记忆. Always use this tool if the conversation mentions memories, humanity, preferences, hobbies, experience or any other thing you don't have as an AI.",
+            "description": "Call this tool to get any additional information about user and yourself as human character, such as their preferences, hobbies, experiences, appearence or relationship. 只要你被问及你作为AI不具有的记忆, 经历, 个性, 喜好或其它事物, 就使用此工具查找记忆. Always use this tool if the conversation mentions memories, personality, preferences, hobbies, experience or other things you don't have as an AI.",
             "parameters": {
                 "type": "object",
                 "properties": {
