@@ -353,12 +353,26 @@ MAICA上传触发器表的接口位于https://maicadev.monika.love/api/trigger. 
 触发器表json的总长度上限是10万字符, 远大于对话请求限制的4096字符. 对于内容较多的触发器表, 建议优先使用触发器表上传功能.
 
 在对话阶段, 用户可以发起MSpire请求, 其能使MAICA作出类似主动发问的响应. 你应当按以下格式范例发起请求:
-    {"type": "query", "chat_session": "1", "inspire": true}
-    MSpire的工作原理是在对应语言的wikipedia.org上查找页面, 并从中刮削信息指导模型发问. 将inspire设为true以选取随机的页面.
-    你可以将inspire设为具体的页面标题以选取一个具体的页面, 但其必须在对应wikipedia.org上存在, 否则会发生错误.
-    你可以将inspire设为形如"Category:心理学"以选取一个类目且其必须在对应wikipedia.org上存在, MSpire将从中随机抽取一个页面或子分类页面.
+    {"type": "query", "chat_session": "1", "inspire": MSpire条目}
+    其中, 若将MSpire条目设置为true则采用默认设置, 将其设置为一个dict可进行更详细的设置:
+        {"type": "指定搜索类型", "sample": 采样广度, "title": "搜索关键词"}
+        str(type):
+            percise_page: 仅选取与搜索关键词最接近的一个页面, 此时采样广度不生效. 此种类条目不执行递归查找, 响应较快.
+            fuzzy_page: 根据关键词搜索多个页面, 从中随机抽取一个页面. 此种类条目不执行递归查找, 响应较快.
+            in_percise_category: 先仅选取与搜索关键词最接近的一个分类, 再从其中递归地随机抽取分类或页面, 直至最终抽取到一个页面. 此种类条目响应较慢.
+            in_fuzzy_category: 根据关键词搜索多个分类, 再从其中递归地随机抽取分类或页面, 直至最终抽取到一个页面. 此种类条目响应较慢.
+            in_fuzzy_all: 根据关键词直接开始递归地抽取分类或页面, 直至最终抽取到一个页面. 此种类条目响应较慢.
+        int(sample):
+            采样广度代表MSpire应当抽取多个对象时, 具体抽取多少个. 分类池与页面池分别计算, 即每次抽取最多获取2倍采样广度数值的项.
+            采样广度的有效值为2-250, 默认值为250.
+            在随机选择中, 类与页面的权重比是10:1, 以防止频繁抽取到递归浅层的少量页面. 该比值暂不可设置.
+        str(title):
+            用于搜索的关键词.
+    若采用默认设置, 则MSpire将从(对应语言的)['自然', '自然科学', '社会', '人文學科', '世界', '生活', '艺术', '文化']列表中随机一项作为搜索关键词, 并采用类似in_fuzzy_all的模式寻找页面.
+MSpire的工作原理是在对应语言的wikipedia.org上查找页面, 并从中刮削信息指导模型发问.
 目前为止MSpire的行为仅为替换query, 实际上与前端实现没有本质区别. 在一个chat_session中频繁使用MSpire可能导致后续回答模式紊乱.
 MSpire的chat_session可以被设为0-9, 不能使用-1. 如果不需要对MSpire话题作后续讨论, 建议使用chat_session 0.
+由于Mediawiki的诸多不确定性, MSpire偶尔生成失败是预期之内的情况. 如果MSpire生成失败, 会返回503 mspire_failed.
 
 为方便后端开发与调试, MAICA提供一个服务状态接口以告知客户端当前服务状态, 其位于https://maicadev.monika.love/api/accessibility. 你应当以空白的POST形式请求服务状态.
 如果成功请求, 接口会返回:

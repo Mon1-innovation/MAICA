@@ -956,13 +956,13 @@ class ws_threading_instance(sub_threading_instance):
                         await websocket.close(1000, 'Stopping connection due to critical server failure')
             if 'inspire' in request_json:
                 if request_json['inspire']:
-                    if isinstance(request_json['inspire'], str):
+                    if isinstance(request_json['inspire'], dict):
                         query_insp = await wrap_run_in_exc(None, mspire.make_inspire, title_in=request_json['inspire'], target_lang=target_lang)
                     else:
                         query_insp = await wrap_run_in_exc(None, mspire.make_inspire, target_lang=target_lang)
                     bypass_mf = True
                     if not query_insp[0]:
-                        response_str = f"MSpire generation failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
+                        response_str = f"MSpire generation failed, consider retrying later--your ray tracer ID is {self.traceray_id}"
                         print(f"出现如下异常15-{self.traceray_id}:{query_insp[1]}")
                         await websocket.send(wrap_ws_formatter('503', 'mspire_failed', response_str, 'warn'))
                         return False
