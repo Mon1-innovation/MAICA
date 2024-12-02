@@ -312,10 +312,11 @@ maica_main和maica_core共用chat_session.
             输出范例: {"code": "110", "status": "mtrigger_trigger", "content": ["alter_affection", {"affection": "+1.5"}], "type": "carriage", "time_ms": 时间戳(毫秒)}
             该模板的触发器最多存在一个.
         模板common_switch_template:
-            范例: {"template": "common_switch_template","name": "change_clothes","exprop":{"item_name": {"zh": "衣服","en": "clothes"},"item_list": ["白色连衣裙", "黑色连衣裙"],"curr_item": "白色连衣裙"}}
+            范例: {"template": "common_switch_template","name": "change_clothes","exprop":{"item_name": {"zh": "衣服","en": "clothes"},"item_list": ["白色连衣裙", "黑色连衣裙"],"curr_item": "白色连衣裙", "suggestion": false}}
             其中name的值可以任取, 建议格式与范例尽可能一致且能表明用途.
             exprop的值是该模板的附加参数, 其中item_name的值为选择类目的性质(双语), item_list的值为所有可选条目的list, curr_item的值为当前已选条目. curr_item是可留空或缺省的.
-            如果触发器匹配了请求, 但没有条目满足条件, 返回的选择将是"False".
+            如果触发器匹配了请求, 但没有条目满足条件, 返回的选择将是false.
+            若将suggestion设为true, 则若selection返回false将会额外返回suggestion, 其值为一个推荐参考条目.
             输出范例: {"code": "110", "status": "mtrigger_trigger", "content": ["change_clothes", {"selection": "黑色连衣裙"}], "type": "carriage", "time_ms": 时间戳(毫秒)}
             该模板的触发器最多存在6个, 超出则随机抽取6个.
             每个该模板触发器的item_list中最多存在72项, 超出则随机抽取72项.
@@ -323,7 +324,7 @@ maica_main和maica_core共用chat_session.
             范例: {"template": "common_meter_template","name": "change_distance","exprop":{"item_name": {"zh": "距离","en": "distance"},"value_limits": [0, 2.5],"curr_value": 0.67}}
             其中name的值可以任取, 建议格式与范例尽可能一致且能表明用途.
             exprop的值是该模板的附加参数, 其中item_name的值为选择类目的性质(双语), value_limits的两个项为数值可取的上下限, curr_value的值为当前值. curr_value是可留空或缺省的.
-            如果触发器匹配了请求, 但范围内没有值满足条件, 返回的选择将是"False".
+            如果触发器匹配了请求, 但范围内没有值满足条件, 返回的选择将是false.
             输出范例: {"code": "110", "status": "mtrigger_trigger", "content": ["change_distance", {"value": "0.75"}], "type": "carriage", "time_ms": 时间戳(毫秒)}
             该模板的触发器最多存在6个, 超出则随机抽取6个.
         自由模板:
@@ -383,8 +384,8 @@ MSpire的chat_session可以被设为0-9, 不能使用-1. 如果不需要对MSpir
 
 为方便版本管理, MAICA提供一个版本流接口以告知客户端的可用状态, 其位于https://maicadev.monika.love/api/version. 你应当以空白的POST形式请求版本流.
 如果成功请求, 接口会返回:
-    {"success": true, "exception": "", "version": {"curr_version": "当前版本", "legc_version": "最旧的可兼容规范"}}
-若客户端开发规范低于当前版本, 前端开发者应当检查并更新. 若客户端开发规范低于最旧的可兼容规范, 客户端实例应当停止任何后续流程并提醒用户更新.
+    {"success": true, "exception": "", "version": {"curr_version": "当前版本", "legc_version": "最旧的基础兼容规范"}}
+若客户端开发规范低于当前版本, 前端开发者应当检查并更新. 若客户端开发规范低于最旧的基础兼容规范, 客户端实例应当停止任何后续流程并提醒用户更新.
 版本号可以被转化为float后进行大小比较.
 
 为便于管理开源社区与自建服务, MAICA提供一个节点列表接口, 其位于https://maicadev.monika.love/api/servers. 你应当以空白的POST形式请求节点列表.

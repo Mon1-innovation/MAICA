@@ -179,6 +179,9 @@ async def agenting(parent, input, chat_session):
                         choice_checklist.append(i)
                         j = f'选择{i}' if target_lang == 'zh' else f'switch to {i}'
                         cst_temp_list.append(j)
+                    if 'suggestion' in trigger['exprop'] and trigger['exprop']['suggestion']:
+                        comj = f"选择任意的{trigger['exprop']['item_name']['zh']}" if target_lang == 'zh' else f"Choose any other {trigger['exprop']['item_name']['en']}"
+                        cst_temp_list.append(j)
                     cst_explaination = f"更换{trigger['exprop']['item_name']['zh']}" if target_lang == 'zh' else f"Change {trigger['exprop']['item_name']['en']}"
                     choice_list.append({cst_explaination: cst_temp_list})
                 case 'common_meter_template':

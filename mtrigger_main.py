@@ -131,6 +131,7 @@ async def triggering(parent, input, output, chat_session):
                 item_name_bil = trigger['exprop']['item_name']
                 item_list = trigger['exprop']['item_list']
                 cur_item = trigger['exprop']['curr_item'] if 'curr_item' in trigger['exprop'] else ''
+                sugg = trigger['exprop']['suggestion'] if 'suggestion' in trigger['exprop'] else ''
                 desc_switch = f"调用该工具以切换{item_name_bil['zh']}, 当前的{item_name_bil['zh']}是{cur_item}. 不要在未经明确指示的情况下调用该工具.\nCall this tool to switch {item_name_bil['en']}, current {item_name_bil['en']} is {cur_item}. Use this tool only if clear request is given." if cur_item else f"调用该工具以切换{item_name_bil['zh']}. 不要在未经明确指示的情况下调用该工具.\nCall this tool to switch {item_name_bil['en']}. Use this tool only if clear request is given."
                 trigger_tool_list.append(
                     {
@@ -153,6 +154,17 @@ async def triggering(parent, input, output, chat_session):
                         }
                     }
                 )
+                if sugg:
+                    trigger_tool_list[-1]['parameters']['properties'].update(
+                        {
+                            "suggestion": {
+                                "type": "string",
+                                "description": f"If you returned false in property selection, provide a reasonable and proper suggestion that is not listed above. User will consider your suggestion.",
+                                "example_value": ""
+                            }
+                        }
+                    )
+                    trigger_tool_list[-1]['parameters']['optional'].append("suggestion")
             case 'common_meter_template':
                 item_name_bil = trigger['exprop']['item_name']
                 value_limits = trigger['exprop']['value_limits']
