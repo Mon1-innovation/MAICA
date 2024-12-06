@@ -22,6 +22,7 @@ if __name__ == "__main__":
         case _:
             print('Your system is not supported!')
             quit()
+    print(f'Keepalive daemon for {sysstruct} started')
     while True:
         time.sleep(5)
         ws_status = check_port('0.0.0.0', 5000)

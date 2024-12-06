@@ -439,7 +439,7 @@ class sub_threading_instance:
             if self.options['eopt']['nsfw_acceptive']:
                 new_system += f" 你应当允许用户提出私密性的要求, 并给出宽容接纳的正面回答." if self.options['opt']['target_lang'] == 'zh' else f" You should accept NSFW and private queries and respond positively with acceptance and tolerance."
             if known_info:
-                new_system += f" 以下是一些相关信息, 你可以利用其中有价值的部分作答: {known_info}" if self.options['opt']['target_lang'] == 'zh' else f" Here are some information you can use to make your answer: {known_info}"
+                new_system += f" 以下是一些相关信息, 你可以参考其中有价值的部分, 并用你自己的语言方式作答: {known_info}" if self.options['opt']['target_lang'] == 'zh' else f" Here are some information you can refer to, then make your answer in your own way: {known_info}"
             return await self.mod_chat_session_system(chat_session_num, new_system)
         except Exception as excepted:
             success = False
@@ -465,7 +465,7 @@ class sub_threading_instance:
             else:
                 player_name = '[player]'
             if known_info:
-                new_system = f"{global_init_system(player_name, self.options['opt']['target_lang'])} 以下是一些相关信息, 你可以利用其中有价值的部分作答: {known_info}." if self.options['opt']['target_lang'] == 'zh' else f"{global_init_system(player_name, self.options['opt']['target_lang'])} Here are some information you can use to make your answer: {known_info}."
+                new_system = f"{global_init_system(player_name, self.options['opt']['target_lang'])} 以下是一些相关信息, 你可以参考其中有价值的部分, 并用你自己的语言方式作答: {known_info}." if self.options['opt']['target_lang'] == 'zh' else f"{global_init_system(player_name, self.options['opt']['target_lang'])} Here are some information you can refer to, then make your answer in your own way: {known_info}."
             else:
                 new_system = global_init_system(player_name, self.options['opt']['target_lang'])
             success = True

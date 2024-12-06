@@ -253,7 +253,6 @@ async def history_restore():
         except:
             pass
 
-
 @app.route('/preferences', methods=["POST"])
 async def sl_prefs():
     global decryptor
