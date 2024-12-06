@@ -452,7 +452,7 @@ def seri_message(message):
         message_new.append(line_new)
     return message_new
 
-if __name__ == '__main__':
+def run_http():
     #from gevent import monkey
     #monkey.patch_all()
     global encryptor, decryptor, verifier, signer
@@ -480,3 +480,6 @@ if __name__ == '__main__':
     server_thread = pywsgi.WSGIServer(('0.0.0.0', 6000), app)
     print('HTTP server started!')
     server_thread.serve_forever()
+
+if __name__ == '__main__':
+    run_http()

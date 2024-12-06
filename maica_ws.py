@@ -1310,8 +1310,8 @@ async def prepare_thread():
         test = True
     return test
 
-if __name__ == '__main__':
-
+def run_ws():
+    global online_list
     online_list = []
 
     test = asyncio.run(prepare_thread())
@@ -1326,3 +1326,7 @@ if __name__ == '__main__':
         asyncio.get_event_loop().run_forever()
     except KeyboardInterrupt:
         print("Server stopped!")
+
+
+if __name__ == '__main__':
+    run_ws()
