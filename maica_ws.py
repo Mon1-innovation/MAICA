@@ -1243,6 +1243,7 @@ class ws_threading_instance(sub_threading_instance):
             else:
                 success = True
                 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished non-recording loop-{self.traceray_id}:{session['username']}")
+            await websocket.send(wrap_ws_formatter('202', 'loop_finished', f"An entire communication loop has finished, reentering loop gracefully--your ray tracer ID is {self.traceray_id}.", 'info'))
         except websockets.exceptions.WebSocketException:
             print("Someone disconnected")
             raise Exception('Force closure of connection')

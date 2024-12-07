@@ -150,11 +150,12 @@ MAICA验证令牌的接口位于https://maicadev.monika.love/api/legality. 你�
     {"code": "100", "status": "continue", "content": "色有", "type": "carriage", "time_ms": 时间戳(毫秒)}
     {"code": "100", "status": "continue", "content": "很多, ", "type": "carriage", "time_ms": 时间戳(毫秒)}
     ...
-    一轮对话完成后, 模型会输出1000 streaming_done并再次提醒用户输入下一条对话.
+    一轮对话的流式输出完成后, 模型会输出1000 streaming_done.
     若设置中stream_output设为false, 则模型应当在一段时间的等待后输出一条完整的回答:
     {"code": "200", "status": "reply", "content": "我想你了, [player]!", "type": "carriage", "time_ms": 时间戳(毫秒)}
 非流式输出模型具有微弱的总速度优势, 因此如果信息不直接递交给用户, 你应当优先考虑使用非流式输出. 除此之外二者的行为相同.
 maica_main和maica_core共用chat_session.
+当一轮对话的响应(包括其它功能)全部正常结束, 服务器会发送202 loop_finished. 此时你可以安全地发起下一个请求.
 在一轮对话结束后, 你应当继续按以下格式范例输入信息:
     {"type": "query", "chat_session": "1", "query": "我想你了"}
 如果session不为0或-1, 服务器将自动为你检索和拼接存储的历史记录.
