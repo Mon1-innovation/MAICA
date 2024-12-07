@@ -917,7 +917,7 @@ class ws_threading_instance(sub_threading_instance):
     async def do_communicate(self, recv_json):
         websocket, client_actual, session, options_opt, options_eopt = self.websocket, self.client_actual, self.options['vfc'], self.options['opt'], self.options['eopt']
         sfe_aggressive, mf_aggressive, tnd_aggressive, esc_aggressive, nsfw_acceptive = options_eopt['sfe_aggressive'], options_eopt['mf_aggressive'], options_eopt['tnd_aggressive'], options_eopt['esc_aggressive'], options_eopt['nsfw_acceptive']
-        bypass_mf = False; overall_info_system = ''
+        bypass_mf = False; bypass_mt = False; overall_info_system = ''
         self.alter_identity('temp', sf_extraction_once=False, mt_extraction_once=False)
         try:
             request_json = recv_json
@@ -961,6 +961,7 @@ class ws_threading_instance(sub_threading_instance):
                     else:
                         query_insp = await wrap_run_in_exc(None, mspire.make_inspire, target_lang=target_lang)
                     bypass_mf = True
+                    bypass_mt = True
                     if not query_insp[0]:
                         response_str = f"MSpire generation failed, consider retrying later--your ray tracer ID is {self.traceray_id}"
                         print(f"出现如下异常15-{self.traceray_id}:{query_insp[1]}")
@@ -1197,13 +1198,13 @@ class ws_threading_instance(sub_threading_instance):
                 await websocket.send(wrap_ws_formatter('200', 'reply', reply_appended, 'carriage'))
                 reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
 
-
-
-            task_trigger_resp = asyncio.create_task(mtrigger_main.wrap_triggering(self, query_in, reply_appended, chat_session))
-            await task_trigger_resp
-            trigger_resp = task_trigger_resp.result()
-
-
+            if not bypass_mt:
+                task_trigger_resp = asyncio.create_task(mtrigger_main.wrap_triggering(self, query_in, reply_appended, chat_session))
+                await task_trigger_resp
+                trigger_resp = task_trigger_resp.result()
+            else:
+                bypass_mt = False
+                trigger_resp = (False, None)
 
             trigger_succ, trigger_sce = trigger_resp
             if trigger_succ:
