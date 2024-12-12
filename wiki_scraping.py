@@ -51,7 +51,7 @@ def get_page(title=None, target_lang='zh'):
                 use_page = False
                 if isinstance(title['sample'], int) and 2 <= title['sample'] <= 250:
                     sample = set_sample = title['sample']
-            case 'in_all':
+            case 'in_fuzzy_all':
                 next_title = title['title']
                 use_page = None
                 if isinstance(title['sample'], int) and 2 <= title['sample'] <= 250:
@@ -128,6 +128,6 @@ def get_page(title=None, target_lang='zh'):
     return title, summary
 
 if __name__ == '__main__':
-    #page = get_page({"type": "in_percise_category", "sample": 200, "title": "人文学科"}, 'zh')
-    page = get_page(None, 'zh')
+    page = get_page({"type": "in_fuzzy_all", "sample": 200, "title": "人文学科"}, 'zh')
+    #page = get_page(None, 'zh')
     print(page[0], page[1])
