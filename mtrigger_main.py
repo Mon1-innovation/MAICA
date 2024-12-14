@@ -42,7 +42,7 @@ async def triggering(parent, input, output, chat_session):
     if mt_inst:
         trigger_list = await wrap_run_in_exc(None, mt_inst.get_valid_triggers)
     else:
-        trigger_list = [{"name": "alter_affection", "template": "common_affection_template"}, {"exprop": {"item_name": {"en": "in-game outfit", "zh": "游戏内服装"}, "item_list": ["背心 (蓝色)", "T恤衫（侏罗纪世界）", "偏套衫(酒红色)", False, "Neko Costume", "十六夜?夜", "Heart-Cut Bikini (Green)", "School Uniform (Blazerless)", "深蓝色的闪光长裙", "衬衫 (粉色)", "无袖套衫 (黑色)", "玩家挑选", "书记の制服", "蓝白裙", "高领毛衣 (浅褐色)", "School Uniform", "Heart-Cut Bikini (Black)", "衬衫 (在此停歇)", "Heart-Cut Bikini (Pink)", "Shirt (NOU)", "T恤衫（侏罗纪公园）", "连帽衫 (绿色)", "Heart-Cut Bikini (White)", "衬衫 (尽情微笑)", "和服(粉色)", "夹克衫 (棕色)", "衬衫 (水蓝)", "Heart-Cut Bikini (Purple)", "抹胸(红色褶边)", "衬衫（有花朵点缀）", "套衫 (黑白条纹)", "吊带衫 (白色)", "YoRHa No.2 Type B", "Heart-Cut Bikini (Yellow)", "初音", "裙子 (绿色)", "比基尼 (贝壳)", "毛线衫 (露肩)", "V形交叉吊带背心 (白色)"], "curr_value": "School Uniform"}, "name": "clothes", "template": "common_switch_template"}, {"exprop": {"item_name": {"en": "minigame", "zh": "小游戏"}, "item_list": [False, "Hangman", "Chess", "玩家自行选择", "NOU", "Piano", "Pong", "UNO"], "curr_value": None}, "name": "minigame", "template": "common_switch_template"}, {"usage": {"en": "kiss player", "zh": "亲吻玩家"}, "name": "kiss", "template": "customize"}, {"usage": {"en": "help player quit game", "zh": "帮助玩家离开游戏"}, "name": "leave", "template": "customize"}, {"usage": {"en": "help player afk short time", "zh": "帮助玩家短暂休息"}, "name": "idle", "template": "customize"}, {"usage": {"en": "change in-game location", "zh": "切换游戏内场景"}, "name": "location", "template": "customize"}, {"usage": {"en": "hold player", "zh": "拥抱玩家"}, "name": "hold", "template": "customize"}]
+        trigger_list = [{"usage": {"en": "kiss player", "zh": "亲吻玩家"}, "name": "kiss", "template": "customize"}, {"exprop": {"item_name": {"en": "in-game music", "zh": "游戏背景音乐"}, "item_list": ["Just Monika", "Your Reality", "Your Reality (Piano Cover)", "Your Reality (Eurobeat ver.)", "I Still Love You", "My Feelings", "My Confession", "Okay, Everyone! (Monika)", "Play With Me (Variant 6)", "Doki Doki Theme (80s ver.)", "Surprise!"], "curr_value": None}, "suggestion": True, "name": "music", "template": "common_switch_template"}]
     if not trigger_list:
         return False, None
     client = AsyncOpenAI(
@@ -142,7 +142,7 @@ async def triggering(parent, input, output, chat_session):
                             "properties": {
                                 "selection": {
                                     "type": "string",
-                                    "description": f"According to user's request, choose a proper {item_name_bil['en']} from the following list: {item_list}. If no {item_name_bil['en']} matches the request, return false.",
+                                    "description": f"According to user's request, first try to choose a proper {item_name_bil['en']} from the following list: {item_list}. If no {item_name_bil['en']} matches the request, return false.",
                                     "example_value": random.choice(item_list)
                                 }
                             },
@@ -159,7 +159,7 @@ async def triggering(parent, input, output, chat_session):
                         {
                             "suggestion": {
                                 "type": "string",
-                                "description": f"If you returned false in property selection, provide a reasonable and proper suggestion that is not listed above. User will consider your suggestion.",
+                                "description": f"If you returned false in property selection, you must provide a reasonable and proper suggestion that is not listed above. User will consider your suggestion.",
                                 "example_value": ""
                             }
                         }
@@ -309,4 +309,4 @@ async def triggering(parent, input, output, chat_session):
     return True, finish_sentence
 
 if __name__ == "__main__":
-    triggered = asyncio.run(triggering(None, "我有点无聊了", "[微笑]喔...那我们找点事干吧! [笑]跟我猜个谜语怎么样?", 1))
+    triggered = asyncio.run(triggering(None, "我想听清明雨上", "[微笑]好啊, [player]!", 1))
