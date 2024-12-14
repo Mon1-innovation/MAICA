@@ -42,7 +42,7 @@ async def triggering(parent, input, output, chat_session):
     if mt_inst:
         trigger_list = await wrap_run_in_exc(None, mt_inst.get_valid_triggers)
     else:
-        trigger_list = [{"usage": {"en": "kiss player", "zh": "亲吻玩家"}, "name": "kiss", "template": "customize"}, {"exprop": {"item_name": {"en": "in-game music", "zh": "游戏背景音乐"}, "item_list": ["Just Monika", "Your Reality", "Your Reality (Piano Cover)", "Your Reality (Eurobeat ver.)", "I Still Love You", "My Feelings", "My Confession", "Okay, Everyone! (Monika)", "Play With Me (Variant 6)", "Doki Doki Theme (80s ver.)", "Surprise!"], "curr_value": None}, "suggestion": True, "name": "music", "template": "common_switch_template"}]
+        trigger_list = [{"usage": {"en": "kiss player", "zh": "亲吻玩家"}, "name": "kiss", "template": "customize"}, {"exprop": {"item_name": {"en": "in-game weather", "zh": "游戏内天气"}, "item_list": ["Thunder/Lightning", "Clear", "Overcast", "Snow", "Rain"], "curr_value": "Clear", "suggestion": True}, "name": "weather", "template": "common_switch_template"}, {"exprop": {"item_name": {"en": "play music", "zh": "播放音乐"}, "item_list": ["Just Monika", "Your Reality", "Your Reality (Piano Cover)", "Your Reality (Eurobeat ver.)", "I Still Love You", "My Feelings", "My Confession", "Okay, Everyone! (Monika)", "Play With Me (Variant 6)", "Doki Doki Theme (80s ver.)", "Surprise!", "玩家自行选择"], "curr_value": None, "suggestion": True}, "name": "music", "template": "common_switch_template"}]
     if not trigger_list:
         return False, None
     client = AsyncOpenAI(
@@ -159,7 +159,7 @@ async def triggering(parent, input, output, chat_session):
                         {
                             "suggestion": {
                                 "type": "string",
-                                "description": f"If you returned false in property selection, you must provide a reasonable and proper suggestion that is not listed above. User will consider your suggestion.",
+                                "description": f"If you returned false in property selection, you must conclude what user wants to choose, and emit a concise keyword.",
                                 "example_value": ""
                             }
                         }
@@ -309,4 +309,4 @@ async def triggering(parent, input, output, chat_session):
     return True, finish_sentence
 
 if __name__ == "__main__":
-    triggered = asyncio.run(triggering(None, "我想听清明雨上", "[微笑]好啊, [player]!", 1))
+    triggered = asyncio.run(triggering(None, "我想听《鼓楼》", "[微笑]你想听《鼓楼》吗, [player]? [开心]这是一首由赵雷创作并演唱的歌曲. [微笑]这首歌首次演唱于2015年赵雷\"我们的时光\"全国巡回演唱会北京站, 后收录于2016年12月21日发行的专辑《无法长大》中. [笑]你喜欢这首歌吗? [开心]如果你喜欢, 我们可以一起听哦~", 1))
