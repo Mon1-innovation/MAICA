@@ -736,7 +736,7 @@ class ws_threading_instance(sub_threading_instance):
             "esc_aggressive": True,
             "amt_aggressive": True,
             "nsfw_acceptive": True,
-            "pre_additive": 1,
+            "pre_additive": 0,
             "post_additive": 1
         }
         self.alter_identity('opt', **client_options)
