@@ -74,14 +74,26 @@ class sub_threading_instance:
 
     async def _init_pools(self) -> None:
         global authpool, maicapool
-        authpool, maicapool = (await asyncio.gather(aiomysql.create_pool(host=self.host,user=self.user, password=self.password,db=self.authdb,loop=self.loop,autocommit=True),aiomysql.create_pool(host=self.host,user=self.user, password=self.password,db=self.maicadb,loop=self.loop,autocommit=True)))
+        try:
+            async with authpool.acquire() as testc:
+                pass
+        except:
+            authpool = await aiomysql.create_pool(host=self.host,user=self.user, password=self.password,db=self.authdb,loop=self.loop,autocommit=True)
+        try:
+            async with maicapool.acquire() as testc:
+                pass
+        except:
+            maicapool = await aiomysql.create_pool(host=self.host,user=self.user, password=self.password,db=self.maicadb,loop=self.loop,autocommit=True)
 
     async def _close_pools(self) -> None:
         global authpool, maicapool
-        authpool.close()
-        maicapool.close()
-        await authpool.wait_closed()
-        await maicapool.wait_closed()
+        try:
+            authpool.close()
+            maicapool.close()
+            await authpool.wait_closed()
+            await maicapool.wait_closed()
+        except:
+            pass
 
     async def send_query(self, expression, values=None, pool='maicapool', fetchall=False) -> list:
         global authpool, maicapool
