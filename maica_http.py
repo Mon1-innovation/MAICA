@@ -393,6 +393,7 @@ async def legal():
         else:
             return json.dumps({"success": success, "exception": str(exception)})
     except Exception as excepted:
+        #traceback.print_exc()
         print('This one has failed')
         success = False
         exception = excepted

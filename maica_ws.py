@@ -50,14 +50,7 @@ class sub_threading_instance:
         login = load_env('LOGIN_VERIFICATION'),
         test = False
     ):
-        global sock1, sock2
-        if sock1.is_closed():
-            sock1 = AsyncOpenAI(api_key='EMPTY', base_url=load_env('MCORE_ADDR'),)
-        if sock2.is_closed():
-            sock2 = AsyncOpenAI(api_key='EMPTY', base_url=load_env('MFOCUS_ADDR'),)
-        self.host, self.user, self.password, self.authdb, self.maicadb, self.login, self.sock1, self.sock2, self.test = host, user, password, authdb, maicadb, login, sock1, sock2, test
-        if test:
-            sock1 = sock2 = None
+        self.host, self.user, self.password, self.authdb, self.maicadb, self.login, self.test = host, user, password, authdb, maicadb, login, test
         self.verified = False
         self.traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
         # Note that the 'id' dict is an unsafe identity, which means it doesn't need to pass all verifications, while 'vfc' is safe.
@@ -629,6 +622,15 @@ async def wrap_run_in_exc(loop, func, *args, **kwargs):
 class ws_threading_instance(sub_threading_instance):
 
     def __init__(self, websocket, test):
+        global sock1, sock2
+        try:
+            if sock1.is_closed():
+                sock1 = AsyncOpenAI(api_key='EMPTY', base_url=load_env('MCORE_ADDR'),)
+            if sock2.is_closed():
+                sock2 = AsyncOpenAI(api_key='EMPTY', base_url=load_env('MFOCUS_ADDR'),)
+        except:
+            sock1 = sock2 = None
+        self.sock1, self.sock2 = sock1, sock2
         self.websocket = websocket
         super().__init__(test=test)
 
