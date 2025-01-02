@@ -48,9 +48,16 @@ class sub_threading_instance:
         authdb = load_env('AUTHENTICATOR_DB'),
         maicadb = load_env('MAICA_DB'),
         login = load_env('LOGIN_VERIFICATION'),
+        sock1 = None,
+        sock2 = None,
         test = False
     ):
-        self.host, self.user, self.password, self.authdb, self.maicadb, self.login, self.test = host, user, password, authdb, maicadb, login, test
+        self.host, self.user, self.password, self.authdb, self.maicadb, self.login, self.sock1, self.sock2, self.test = host, user, password, authdb, maicadb, login, sock1, sock2, test
+        if test:
+            # This is dangerous in production environment!
+            # Will pile up unhandled connections
+            sock1 = AsyncOpenAI(api_key='EMPTY', base_url=load_env('MCORE_ADDR'),)
+            sock2 = AsyncOpenAI(api_key='EMPTY', base_url=load_env('MFOCUS_ADDR'),)
         self.verified = False
         self.traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
         # Note that the 'id' dict is an unsafe identity, which means it doesn't need to pass all verifications, while 'vfc' is safe.
@@ -713,12 +720,8 @@ class ws_threading_instance(sub_threading_instance):
     #接管输入
 
     async def function_switch(self):
-        websocket, session = self.websocket, self.options['vfc']
-        self.client_actual = client_actual = AsyncOpenAI(
-            api_key='EMPTY',
-            base_url=load_env('MCORE_ADDR'),
-        )
-        model_list_actual = await client_actual.models.list() if not self.test else [0]
+        websocket, session, sock1 = self.websocket, self.options['vfc'], self.sock1
+        model_list_actual = await sock1.models.list() if not self.test else [0]
         self.model_type_actual = model_type_actual = model_list_actual.data[0].id  if not self.test else 0
         client_options = {
             "model_actual" : self.model_type_actual,
@@ -915,7 +918,7 @@ class ws_threading_instance(sub_threading_instance):
     #交互会话
 
     async def do_communicate(self, recv_json):
-        websocket, client_actual, session, options_opt, options_eopt = self.websocket, self.client_actual, self.options['vfc'], self.options['opt'], self.options['eopt']
+        websocket, sock1, session, options_opt, options_eopt = self.websocket, self.sock1, self.options['vfc'], self.options['opt'], self.options['eopt']
         sfe_aggressive, mf_aggressive, tnd_aggressive, esc_aggressive, nsfw_acceptive = options_eopt['sfe_aggressive'], options_eopt['mf_aggressive'], options_eopt['tnd_aggressive'], options_eopt['esc_aggressive'], options_eopt['nsfw_acceptive']
         bypass_mf = False; bypass_mt = False; overall_info_system = ''
         self.alter_identity('temp', sf_extraction_once=False, mt_extraction_once=False)
@@ -1170,7 +1173,7 @@ class ws_threading_instance(sub_threading_instance):
 
 
 
-            task_stream_resp = asyncio.create_task(client_actual.chat.completions.create(**completion_args))
+            task_stream_resp = asyncio.create_task(sock1.chat.completions.create(**completion_args))
             await task_stream_resp
             stream_resp = task_stream_resp.result()
 
@@ -1266,13 +1269,13 @@ def callback_check_permit(future):
     
 #主要线程驱动器
 
-async def main_logic(websocket, test):
+async def main_logic(websocket, sock1, sock2, test):
     try:
         global online_list
         locked = False
         loop = asyncio.get_event_loop()
         thread_instance = ws_threading_instance(websocket)
-        thread_instance.test = test
+        thread_instance.test, thread_instance.sock1, thread_instance.sock2 = test, sock1, sock2
 
         permit = await thread_instance.check_permit()
 
@@ -1298,31 +1301,35 @@ async def main_logic(websocket, test):
 
 
 async def prepare_thread():
-    client = AsyncOpenAI(
+    client1 = AsyncOpenAI(
         api_key='EMPTY',
         base_url=load_env('MCORE_ADDR'),
     )
+    client2 = AsyncOpenAI(
+        api_key='EMPTY',
+        base_url=load_env('MFOCUS_ADDR'),
+    )
     try:
-        model_list = await client.models.list()
+        model_list = await client1.models.list()
         model_type = model_list.data[0].id
         print(f"First time confirm--model type is {model_type}")
         test = False
     except:
         print(f"Model deployment cannot be reached--running in test mode")
         test = True
-    return test
+    return client1, client2, test
 
 def run_ws():
     global online_list
     online_list = []
 
-    test = asyncio.run(prepare_thread())
+    client1, client2, test = asyncio.run(prepare_thread())
     print('Server started!')
 
     new_loop = asyncio.new_event_loop()
     asyncio.set_event_loop(new_loop)
 
-    start_server = websockets.serve(functools.partial(main_logic, test=test), '0.0.0.0', 5000)
+    start_server = websockets.serve(functools.partial(main_logic, sock1=client1, sock2=client2, test=test), '0.0.0.0', 5000)
     try:
         asyncio.get_event_loop().run_until_complete(start_server)
         asyncio.get_event_loop().run_forever()

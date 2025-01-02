@@ -59,14 +59,14 @@ async def save_upload():
                 try:
                     with open(f'persistents/{verification_result[2]}_{chat_session}.json', 'r', encoding = 'utf-8') as sf:
                         content_old = sf.read()
-                        content_dumped = json.dumps(content, ensure_ascii=False)
-                        if content_old != content_dumped:
-                            raise Exception('Raising due to changed')
-                        print('Savefile unchanged')
+                    content_dumped = json.dumps(content, ensure_ascii=False)
+                    if content_old != content_dumped:
+                        raise Exception('Raising due to changed')
+                    print('Savefile unchanged')
                 except:
                     with open(f'persistents/{verification_result[2]}_{chat_session}.json', 'w+', encoding = 'utf-8') as sf:
                         sf.write(content_dumped)
-                        print('Savefile wrote')
+                    print('Savefile wrote')
             else:
                 raise Exception('Content length exceeded')
         return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)
@@ -117,14 +117,14 @@ async def trigger_upload():
                 try:
                     with open(f'triggers/{verification_result[2]}_{chat_session}.json', 'r', encoding = 'utf-8') as sf:
                         content_old = sf.read()
-                        content_dumped = json.dumps(content, ensure_ascii=False)
-                        if content_old != content_dumped:
-                            raise Exception('Raising due to changed')
-                        print('Trigger unchanged')
+                    content_dumped = json.dumps(content, ensure_ascii=False)
+                    if content_old != content_dumped:
+                        raise Exception('Raising due to changed')
+                    print('Trigger unchanged')
                 except:
                     with open(f'triggers/{verification_result[2]}_{chat_session}.json', 'w+', encoding = 'utf-8') as sf:
                         sf.write(content_dumped)
-                        print('Trigger wrote')
+                    print('Trigger wrote')
             else:
                 raise Exception('Content length exceeded')
         return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)

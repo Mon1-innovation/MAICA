@@ -120,7 +120,7 @@ def get_page(title=None, target_lang='zh'):
             print('MSpire hit deadend--trying again')
             next_title = next_title_fs
 
-    wiki_pointer = wikipediaapi.Wikipedia('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36', target_lang)
+    wiki_pointer = wikipediaapi.Wikipedia('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36', target_lang, proxies={'https': load_env("PROXY_ADDR")})
     page_wiki = wiki_pointer.page(page_found)
     title = zhconv.convert(page_wiki.title, 'zh-cn')
     #print(wiki_page.summary)

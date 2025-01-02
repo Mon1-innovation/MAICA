@@ -73,6 +73,8 @@ Begin!
         success = False
         exception = excepted
         return success, exception, '', ''
+    finally:
+        client.close()
     return True, None, slt_default, slt_humane
 
 if __name__ == '__main__':

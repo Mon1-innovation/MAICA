@@ -45,10 +45,7 @@ async def agenting(parent, input, chat_session):
         trigger_list = await wrap_run_in_exc(None, mt_inst.get_valid_triggers)
     else:
         trigger_list = None
-    client = AsyncOpenAI(
-        api_key='EMPTY',
-        base_url=load_env('MFOCUS_ADDR'),
-    )
+    client = parent.sock2
     model_list = await client.models.list()
     model_type = model_list.data[0].id
     print(f'MFocus main addressing model, response is:\n{model_type}\nEnd of MFocus main addressing model')

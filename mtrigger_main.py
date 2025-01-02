@@ -45,10 +45,7 @@ async def triggering(parent, input, output, chat_session):
         trigger_list = [{"usage": {"en": "kiss player", "zh": "亲吻玩家"}, "name": "kiss", "template": "customize"}, {"exprop": {"item_name": {"en": "in-game weather", "zh": "游戏内天气"}, "item_list": ["Thunder/Lightning", "Clear", "Overcast", "Snow", "Rain"], "curr_value": "Clear", "suggestion": True}, "name": "weather", "template": "common_switch_template"}, {"exprop": {"item_name": {"en": "play music", "zh": "播放音乐"}, "item_list": ["Just Monika", "Your Reality", "Your Reality (Piano Cover)", "Your Reality (Eurobeat ver.)", "I Still Love You", "My Feelings", "My Confession", "Okay, Everyone! (Monika)", "Play With Me (Variant 6)", "Doki Doki Theme (80s ver.)", "Surprise!", "玩家自行选择"], "curr_value": None, "suggestion": True}, "name": "music", "template": "common_switch_template"}]
     if not trigger_list:
         return False, None
-    client = AsyncOpenAI(
-        api_key='EMPTY',
-        base_url=load_env('MFOCUS_ADDR'),
-    )
+    client = parent.sock2
     model_list = await client.models.list()
     model_type = model_list.data[0].id
     print(f'MTrigger addressing model, response is:\n{model_type}\nEnd of MTrigger addressing model')
