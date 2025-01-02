@@ -48,16 +48,16 @@ class sub_threading_instance:
         authdb = load_env('AUTHENTICATOR_DB'),
         maicadb = load_env('MAICA_DB'),
         login = load_env('LOGIN_VERIFICATION'),
-        sock1 = None,
-        sock2 = None,
         test = False
     ):
+        global sock1, sock2
+        if sock1.is_closed():
+            sock1 = AsyncOpenAI(api_key='EMPTY', base_url=load_env('MCORE_ADDR'),)
+        if sock2.is_closed():
+            sock2 = AsyncOpenAI(api_key='EMPTY', base_url=load_env('MFOCUS_ADDR'),)
         self.host, self.user, self.password, self.authdb, self.maicadb, self.login, self.sock1, self.sock2, self.test = host, user, password, authdb, maicadb, login, sock1, sock2, test
         if test:
-            # This is dangerous in production environment!
-            # Will pile up unhandled connections
-            sock1 = AsyncOpenAI(api_key='EMPTY', base_url=load_env('MCORE_ADDR'),)
-            sock2 = AsyncOpenAI(api_key='EMPTY', base_url=load_env('MFOCUS_ADDR'),)
+            sock1 = sock2 = None
         self.verified = False
         self.traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
         # Note that the 'id' dict is an unsafe identity, which means it doesn't need to pass all verifications, while 'vfc' is safe.
@@ -628,9 +628,9 @@ async def wrap_run_in_exc(loop, func, *args, **kwargs):
 
 class ws_threading_instance(sub_threading_instance):
 
-    def __init__(self, websocket, sock1, sock2, test):
+    def __init__(self, websocket, test):
         self.websocket = websocket
-        super().__init__(sock1=sock1, sock2=sock2, test=test)
+        super().__init__(test=test)
 
     #身份验证
 
@@ -1269,12 +1269,12 @@ def callback_check_permit(future):
     
 #主要线程驱动器
 
-async def main_logic(websocket, sock1, sock2, test):
+async def main_logic(websocket, test):
     try:
         global online_list
         locked = False
         loop = asyncio.get_event_loop()
-        thread_instance = ws_threading_instance(websocket, sock1=sock1, sock2=sock2, test=test)
+        thread_instance = ws_threading_instance(websocket, test=test)
 
         permit = await thread_instance.check_permit()
 
@@ -1319,16 +1319,16 @@ async def prepare_thread():
     return client1, client2, test
 
 def run_ws():
-    global online_list
+    global online_list, sock1, sock2
     online_list = []
 
-    client1, client2, test = asyncio.run(prepare_thread())
+    sock1, sock2, test = asyncio.run(prepare_thread())
     print('Server started!')
 
     new_loop = asyncio.new_event_loop()
     asyncio.set_event_loop(new_loop)
 
-    start_server = websockets.serve(functools.partial(main_logic, sock1=client1, sock2=client2, test=test), '0.0.0.0', 5000)
+    start_server = websockets.serve(functools.partial(main_logic, test=test), '0.0.0.0', 5000)
     try:
         asyncio.get_event_loop().run_until_complete(start_server)
         asyncio.get_event_loop().run_forever()
