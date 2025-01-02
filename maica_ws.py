@@ -628,9 +628,9 @@ async def wrap_run_in_exc(loop, func, *args, **kwargs):
 
 class ws_threading_instance(sub_threading_instance):
 
-    def __init__(self, websocket):
+    def __init__(self, websocket, sock1, sock2, test):
         self.websocket = websocket
-        super().__init__()
+        super().__init__(sock1=sock1, sock2=sock2, test=test)
 
     #身份验证
 
