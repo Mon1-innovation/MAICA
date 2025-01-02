@@ -1274,8 +1274,7 @@ async def main_logic(websocket, sock1, sock2, test):
         global online_list
         locked = False
         loop = asyncio.get_event_loop()
-        thread_instance = ws_threading_instance(websocket)
-        thread_instance.test, thread_instance.sock1, thread_instance.sock2 = test, sock1, sock2
+        thread_instance = ws_threading_instance(websocket, sock1=sock1, sock2=sock2, test=test)
 
         permit = await thread_instance.check_permit()
 
