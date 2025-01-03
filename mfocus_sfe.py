@@ -889,14 +889,14 @@ class sf_bound_instance():
         exception = ''
         try:
             information = (await wrap_run_in_exc(None, self.mfocus_form_info))[2]
-            client = AsyncOpenAI(
+            async with AsyncOpenAI(
                 api_key='EMPTY',
                 base_url=load_env('MFOCUS_ADDR'),
-            )
-            model_list = await client.models.list()
-            model_type = model_list.data[0].id
-            print(f'MFocus sfe addressing model, response is:\n{model_type}\nEnd of MFocus sfe addressing model')
-            system_init = """你是一个人工智能助手, 名为[player], 你的任务是检索信息. 你接下来会收到一个来自'莫妮卡'的问题和一系列信息, 这些信息是Python列表的形式.
+                ) as client:
+                model_list = await client.models.list()
+                model_type = model_list.data[0].id
+                print(f'MFocus sfe addressing model, response is:\n{model_type}\nEnd of MFocus sfe addressing model')
+                system_init = """你是一个人工智能助手, 名为[player], 你的任务是检索信息. 你接下来会收到一个来自'莫妮卡'的问题和一系列信息, 这些信息是Python列表的形式.
 请你作为[player], 从信息中挑选1至5条最能用于回答的信息, 互不重复, 并以单行Python列表的形式返回. 如果你最终认为没有信息符合条件, 回答None.
 注意不要对信息作任何改动.
 使用以下格式回答:
@@ -904,19 +904,19 @@ Thought: 简要地思考如何选取信息, 以及这些信息与句子有何关
 Answer: 将你认为有用的信息作为一个单行Python列表返回. 如果你最终认为没有信息符合条件, 回答None.
 Begin!
 """
-            messages = [{'role': 'system', 'content': system_init}]
-            messages.append({'role': 'user', 'content': f'sentence: [{query}], information: {information}'})
-            completion_args = {
-                "model": model_type,
-                "messages": messages,
-                "temperature": 0.1,
-                "top_p": 0.6,
-                "presence_penalty": -0.5,
-                "frequency_penalty": 0.5,
-                "seed": 42
-            }
-            resp = await client.chat.completions.create(**completion_args)
-            response = resp.choices[0].message.content
+                messages = [{'role': 'system', 'content': system_init}]
+                messages.append({'role': 'user', 'content': f'sentence: [{query}], information: {information}'})
+                completion_args = {
+                    "model": model_type,
+                    "messages": messages,
+                    "temperature": 0.1,
+                    "top_p": 0.6,
+                    "presence_penalty": -0.5,
+                    "frequency_penalty": 0.5,
+                    "seed": 42
+                }
+                resp = await client.chat.completions.create(**completion_args)
+                response = resp.choices[0].message.content
             print(f"MFocus sfe searching persistent, response is:\n{response}\nEnd of MFocus sfe searching persistent")
             answer_re = re.search(r'Answer\s*:\s*(\[.*\])', response, re.I)
             if answer_re and not re.match(r'\s*none', answer_re[1], re.I):

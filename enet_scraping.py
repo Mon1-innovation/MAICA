@@ -30,14 +30,14 @@ async def internet_search_limb(query, original_query, esc_aggressive=True):
     if not esc_aggressive:
         return True, None, slt_default, slt_humane
     try:
-        client = AsyncOpenAI(
+        async with AsyncOpenAI(
             api_key='EMPTY',
             base_url=load_env('MFOCUS_ADDR'),
-        )
-        model_list = await client.models.list()
-        model_type = model_list.data[0].id
-        print(f'MFocus enet addressing model, response is:\n{model_type}\nEnd of MFocus enet addressing model')
-        system_init = """你是一个人工智能助手, 你的任务是整理信息. 你接下来会收到一个问题和一些来自搜索引擎的信息.
+            ) as client:
+            model_list = await client.models.list()
+            model_type = model_list.data[0].id
+            print(f'MFocus enet addressing model, response is:\n{model_type}\nEnd of MFocus enet addressing model')
+            system_init = """你是一个人工智能助手, 你的任务是整理信息. 你接下来会收到一个问题和一些来自搜索引擎的信息.
 请你将这些信息整理为一条内容总结, 用以回答问题. 请不要编造信息, 并以单行自然语言的形式, 使用信息中的语言返回.
 如果你最终没有找到有意义, 可以回答问题的信息, 请返回none.
 使用以下格式回答:
@@ -47,19 +47,19 @@ Thought Again: 再次思考上面输出的信息. 如果其中存在广告, 无�
 Answer: 最终将信息以单行自然语言的形式返回. 如果没有找到任何有用信息, 则返回none.
 Begin!
 """
-        messages = [{'role': 'system', 'content': system_init}]
-        messages.append({'role': 'user', 'content': f'query: {original_query}; information: {slt_full}'})
-        completion_args = {
-            "model": model_type,
-            "messages": messages,
-            "temperature": 0.1,
-            "top_p": 0.6,
-            "presence_penalty": -0.5,
-            "frequency_penalty": 0.5,
-            "seed": 42
-        }
-        resp = await client.chat.completions.create(**completion_args)
-        response = resp.choices[0].message.content
+            messages = [{'role': 'system', 'content': system_init}]
+            messages.append({'role': 'user', 'content': f'query: {original_query}; information: {slt_full}'})
+            completion_args = {
+                "model": model_type,
+                "messages": messages,
+                "temperature": 0.1,
+                "top_p": 0.6,
+                "presence_penalty": -0.5,
+                "frequency_penalty": 0.5,
+                "seed": 42
+            }
+            resp = await client.chat.completions.create(**completion_args)
+            response = resp.choices[0].message.content
         print(f"MFocus enet searching internet, response is:\n{response}\nEnd of MFocus enet searching internet")
         answer_re = re.search(r'Answer\s*:\s*(.*)', response, re.I)
         if answer_re:
@@ -69,13 +69,11 @@ Begin!
                 slt_humane = ''; slt_default = 'None'
         # If corrupted we proceed anyway
     except Exception as excepted:
-        traceback.print_exc()
+        #traceback.print_exc()
         success = False
         exception = excepted
-        return success, exception, '', ''
-    finally:
-        client.close()
-    return True, None, slt_default, slt_humane
+        slt_default = slt_humane = ''
+    return success, exception, slt_default, slt_humane
 
 if __name__ == '__main__':
     import asyncio

@@ -638,8 +638,10 @@ class ws_threading_instance(sub_threading_instance):
         try:
             if sock1.is_closed():
                 sock1 = AsyncOpenAI(api_key='EMPTY', base_url=load_env('MCORE_ADDR'),)
+                print('Recreated sock1')
             if sock2.is_closed():
                 sock2 = AsyncOpenAI(api_key='EMPTY', base_url=load_env('MFOCUS_ADDR'),)
+                print('Recreated sock2')
         except:
             sock1 = sock2 = None
         self.sock1, self.sock2 = sock1, sock2
