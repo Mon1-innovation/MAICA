@@ -8,7 +8,7 @@ from openai import AsyncOpenAI # type: ignore
 async def internet_search_limb(query, original_query, esc_aggressive=True):
     success = True
     exception = None
-    engine = Bing()
+    engine = Google(proxy="http://192.168.3.254:7890")
     engine.set_headers({'User-Agent':f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 OPR/109.0.0.0"})
     results = engine.search(query, pages=1)
     slt_full = []
@@ -77,5 +77,5 @@ Begin!
 
 if __name__ == '__main__':
     import asyncio
-    searched = asyncio.run(internet_search_limb('今年的奥运会有什么新闻','你知道今年奥运会怎么样了吗', esc_aggressive=True))
+    searched = asyncio.run(internet_search_limb('2024的奥运会在哪里举行','你知道24年奥运会在哪里吗', esc_aggressive=True))
     print(searched[3])
