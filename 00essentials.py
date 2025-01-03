@@ -24,8 +24,9 @@ if proxyaddr:
         host_filter = re.compile(r"^http://(.*?)(:|/|$).*", re.I)
         for url in urls:
             hosts.append(host_filter.match(url)[1])
+        hosts.append(load_env("DB_ADDR"))
         hosts_str = ", ".join(hosts)
-        print(f"--Excluding {hosts_str} as LLM servers")
+        print(f"--Excluding {hosts_str} as local servers")
     with open(filename, 'w+') as emittion:
         match sysstruct:
             case 'Linux':

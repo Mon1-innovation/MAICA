@@ -11,7 +11,10 @@ async def get_json(url):
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'}
     async with aiohttp.ClientSession() as session:
         async with session.get(url, headers=headers, proxy=load_env('PROXY_ADDR')) as resp:
-            return await resp.json()
+            res = await resp.json()
+            await asyncio.sleep(0)
+            await session.close()
+            return res
 
 async def get_multi_json(*list_url):
     list_resp = await asyncio.gather(*[get_json(u) for u in list_url])
@@ -131,3 +134,5 @@ if __name__ == '__main__':
     page = get_page({"type": "in_fuzzy_all", "sample": 200, "title": "人文学科"}, 'zh')
     #page = get_page(None, 'zh')
     print(page[0], page[1])
+    import time
+    time.sleep(10)
