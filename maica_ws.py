@@ -79,18 +79,23 @@ class sub_threading_instance:
                 pass
         except:
             authpool = await aiomysql.create_pool(host=self.host,user=self.user, password=self.password,db=self.authdb,loop=self.loop,autocommit=True)
+            print("Recreated authpool")
         try:
             async with maicapool.acquire() as testc:
                 pass
         except:
             maicapool = await aiomysql.create_pool(host=self.host,user=self.user, password=self.password,db=self.maicadb,loop=self.loop,autocommit=True)
+            print("Recreated maicapool")
 
     async def _close_pools(self) -> None:
         global authpool, maicapool
         try:
             authpool.close()
-            maicapool.close()
             await authpool.wait_closed()
+        except:
+            pass
+        try:
+            maicapool.close()
             await maicapool.wait_closed()
         except:
             pass
