@@ -1,7 +1,7 @@
 import re
 import random
 import asyncio
-import aiohttp
+import httpx
 import zhconv
 import wikipediaapi
 from urllib.parse import unquote
@@ -9,12 +9,10 @@ from loadenv import load_env
  
 async def get_json(url):
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'}
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, headers=headers, proxy=load_env('PROXY_ADDR')) as resp:
-            res = await resp.json()
-            await asyncio.sleep(0)
-            await session.close()
-            return res
+    async with httpx.AsyncClient(proxy=load_env("PROXY_ADDR")) as client:
+        res = (await client.get(url, headers=headers)).json()
+        await asyncio.sleep(0)
+    return res
 
 async def get_multi_json(*list_url):
     list_resp = await asyncio.gather(*[get_json(u) for u in list_url])
@@ -135,4 +133,4 @@ if __name__ == '__main__':
     #page = get_page(None, 'zh')
     print(page[0], page[1])
     import time
-    time.sleep(10)
+    time.sleep(600)
