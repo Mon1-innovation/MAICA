@@ -26,7 +26,7 @@ if proxyaddr:
             hosts.append(host_filter.match(url)[1])
         hosts.append(load_env("DB_ADDR"))
         hosts_str = ", ".join(hosts)
-        print(f"--Excluding {hosts_str} as local servers")
+        #print(f"--Excluding {hosts_str} as local servers")
     with open(filename, 'w+') as emittion:
         match sysstruct:
             case 'Linux':
