@@ -8,10 +8,17 @@ from openai import AsyncOpenAI # type: ignore
 async def internet_search_limb(query, original_query, esc_aggressive=True):
     success = True
     exception = None
-    engine = Google(proxy=load_env("PROXY_ADDR"))
-    engine.set_headers({'User-Agent':f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 OPR/109.0.0.0"})
-    results = await engine.search(query, pages=1)
-    await engine.close()
+    try:
+        engine = Google(proxy=load_env("PROXY_ADDR"))
+        engine.set_headers({'User-Agent':f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 OPR/109.0.0.0"})
+        results = await engine.search(query, pages=1)
+    except:
+        success = False
+        exception = "Search failed"
+        slt_default = slt_humane = ''
+        return success, exception, slt_default, slt_humane
+    finally:
+        await engine.close()
     slt_full = []
     slt_default = []
     slt_humane = ''
