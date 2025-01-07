@@ -96,9 +96,9 @@ def get_page(title=None, target_lang='zh'):
             case False:
                 page_list, cat_list = {"batchcomplete":True,"query":{"searchinfo":{"totalhits":0},"search":[]}}, asyncio.run(get_json(cat_url))
         page_list_r, cat_list_r = page_list['query']['search'], cat_list['query']['search']
+        filter_regex = re.compile(r"(模板|模闆|template|消歧义|消歧義|disambiguation)", re.I)
         for cat in cat_list_r:
-            temp_kwd = '模板' if target_lang == 'zh' else 'template'
-            if temp_kwd in cat['title'].lower():
+            if filter_regex.search(cat['title'].lower()):
                 cat_list_r.remove(cat)
         if cat_list['query']['searchinfo']['totalhits']:
             if use_page == False or random.randint(1, cat_weight*len(cat_list_r)+len(page_list_r)) <= cat_weight*len(cat_list_r):
@@ -129,8 +129,9 @@ def get_page(title=None, target_lang='zh'):
     return title, summary
 
 if __name__ == '__main__':
-    page = get_page({"type": "in_fuzzy_all", "sample": 200, "title": "人文学科"}, 'zh')
-    #page = get_page(None, 'zh')
-    print(page[0], page[1])
-    # import time
-    # time.sleep(600)
+    for i in [1,2,3,4,5]:
+        page = get_page({"type": "in_fuzzy_all", "sample": 200, "title": "人文学科"}, 'zh')
+        #page = get_page(None, 'zh')
+        print(page[0], page[1])
+    import time
+    time.sleep(600)

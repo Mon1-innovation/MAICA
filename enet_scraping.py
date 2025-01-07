@@ -26,12 +26,14 @@ async def internet_search_limb(query, original_query, esc_aggressive=True):
     for item in results:
         rank += 1
         title = item['title']
+        title = title.replace('\n',' ')
         text = re.sub(r'.*?(?=[\u4e00-\u9fa5])', '', item['text'], 1, re.I)
+        text = text.replace('\n',' ')
         slt_full.append({'rank': rank, 'title': title, 'text': text})
         if rank <= 5:
             slt_default.append({'rank': rank, 'title': title, 'text': text})
         if rank <= 3:
-            slt_humane += f'信息{rank} 标题:{title} 内容:{text}'
+            slt_humane += f'信息{rank}\n标题:{title}\n内容:{text}\n'
     slt_full = str(slt_full)
     print(slt_full)
     slt_default = str(slt_default).strip('[').strip(']')
@@ -85,5 +87,7 @@ Begin!
 
 if __name__ == '__main__':
     import asyncio
-    searched = asyncio.run(internet_search_limb('2024年奥运会在哪举行','你知道24年奥运会在哪里吗', esc_aggressive=True))
-    print(searched[3])
+    import time
+    searched = asyncio.run(internet_search_limb('奥运会','你知道24年奥运会在哪里吗', esc_aggressive=False))
+    print(searched)
+    # time.sleep(600)
