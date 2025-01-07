@@ -1,0 +1,9 @@
+I'm sorry for not offering an English ver of this document but it's just too much work for me.
+If you want to read in English, use a translator.
+
+v1.0000: 正式版的第一次内部测试规范
+v1.0001: 增加历史上传下载接口, 修改ping规范
+v1.0002: 修改传入内容规范, 加入cookie功能
+v1.0003: 规范化sf_extraction, 增加mt_extraction, 改良对等性
+v1.0004: 改变MTrigger流程
+v1.0005: 改良MSpire机制与表现
