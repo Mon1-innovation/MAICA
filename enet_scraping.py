@@ -10,7 +10,8 @@ async def internet_search_limb(query, original_query, esc_aggressive=True):
     exception = None
     engine = Google(proxy=load_env("PROXY_ADDR"))
     engine.set_headers({'User-Agent':f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 OPR/109.0.0.0"})
-    results = engine.search(query, pages=1)
+    results = await engine.search(query, pages=1)
+    await engine.close()
     slt_full = []
     slt_default = []
     slt_humane = ''
@@ -77,5 +78,5 @@ Begin!
 
 if __name__ == '__main__':
     import asyncio
-    searched = asyncio.run(internet_search_limb('2024的奥运会在哪里举行','你知道24年奥运会在哪里吗', esc_aggressive=True))
+    searched = asyncio.run(internet_search_limb('2024年奥运会在哪举行','你知道24年奥运会在哪里吗', esc_aggressive=True))
     print(searched[3])

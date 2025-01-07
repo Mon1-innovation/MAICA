@@ -132,5 +132,5 @@ if __name__ == '__main__':
     page = get_page({"type": "in_fuzzy_all", "sample": 200, "title": "人文学科"}, 'zh')
     #page = get_page(None, 'zh')
     print(page[0], page[1])
-    import time
-    time.sleep(600)
+    # import time
+    # time.sleep(600)
