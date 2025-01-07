@@ -929,8 +929,6 @@ Begin!
             success = False
             exception = excepted
             return success, exception, '[None]', ''
-        finally:
-            client.close()
 
 if __name__ == "__main__":
     ins = sf_bound_instance(18270, 1)
