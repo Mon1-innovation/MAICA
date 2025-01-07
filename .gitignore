@@ -172,5 +172,7 @@ maica/
 persistents/
 triggers/
 
+modded_packages/
+
 easter*
 test/
