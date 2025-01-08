@@ -9,9 +9,14 @@ from loadenv import load_env
  
 async def get_json(url):
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'}
-    async with httpx.AsyncClient(proxy=load_env("PROXY_ADDR")) as client:
+    try:
+        client = httpx.AsyncClient(proxy=load_env("PROXY_ADDR"))
         res = (await client.get(url, headers=headers)).json()
         await asyncio.sleep(0)
+    except:
+        pass
+    finally:
+        await client.aclose()
     return res
 
 async def get_multi_json(*list_url):
