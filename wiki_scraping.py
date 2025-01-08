@@ -3,8 +3,6 @@ import random
 import asyncio
 import httpx
 import zhconv
-import wikipediaapi
-from urllib.parse import unquote
 from loadenv import load_env
  
 async def get_json(url):
@@ -23,7 +21,7 @@ async def get_multi_json(*list_url):
     list_resp = await asyncio.gather(*[get_json(u) for u in list_url])
     return list_resp
 
-def get_page(title=None, target_lang='zh'):
+async def get_page(title=None, target_lang='zh'):
     cat_scraper = re.compile(r'Category\s*:\s*(.*)', re.I)
     zh_scraper = re.compile(r'[一-龥]')
     def_cat = True
@@ -80,7 +78,7 @@ def get_page(title=None, target_lang='zh'):
         # Skipping this by default
         if insanity == 1 and not def_cat and not use_page and zh_scraper.search(next_title):
             nxt_hans=zhconv.convert(next_title, 'zh-hans');nxt_hant=zhconv.convert(next_title, 'zh-hant')
-            hans_list, hant_list = asyncio.run(get_multi_json(f"https://{target_lang}.wikipedia.org/w/api.php?action=query&format=json&list=search&redirects=1&utf8=1&formatversion=2&srsearch={nxt_hans}&srnamespace=0%7C14&srlimit=1&sroffset=0&srprop=", f"https://{target_lang}.wikipedia.org/w/api.php?action=query&format=json&list=search&redirects=1&utf8=1&formatversion=2&srsearch={nxt_hant}&srnamespace=0%7C14&srlimit=1&sroffset=0&srprop="))
+            hans_list, hant_list = await get_multi_json(f"https://{target_lang}.wikipedia.org/w/api.php?action=query&format=json&list=search&redirects=1&utf8=1&formatversion=2&srsearch={nxt_hans}&srnamespace=0%7C14&srlimit=1&sroffset=0&srprop=", f"https://{target_lang}.wikipedia.org/w/api.php?action=query&format=json&list=search&redirects=1&utf8=1&formatversion=2&srsearch={nxt_hant}&srnamespace=0%7C14&srlimit=1&sroffset=0&srprop=")
             hans_len, hant_len = hans_list['query']['searchinfo']['totalhits'], hant_list['query']['searchinfo']['totalhits']
             if hans_len >= hant_len:
                 next_title = nxt_hans
@@ -95,17 +93,17 @@ def get_page(title=None, target_lang='zh'):
         next_item = None
         match use_page:
             case None:
-                page_list, cat_list = asyncio.run(get_multi_json(page_url, cat_url))
+                page_list, cat_list = await get_multi_json(page_url, cat_url)
             case True:
-                page_list, cat_list = asyncio.run(get_json(page_url)), {"batchcomplete":True,"query":{"searchinfo":{"totalhits":0},"search":[]}}
+                page_list, cat_list = await get_json(page_url), {"batchcomplete":True,"query":{"searchinfo":{"totalhits":0},"search":[]}}
             case False:
-                page_list, cat_list = {"batchcomplete":True,"query":{"searchinfo":{"totalhits":0},"search":[]}}, asyncio.run(get_json(cat_url))
+                page_list, cat_list = {"batchcomplete":True,"query":{"searchinfo":{"totalhits":0},"search":[]}}, await get_json(cat_url)
         page_list_r, cat_list_r = page_list['query']['search'], cat_list['query']['search']
         filter_regex = re.compile(r"(模板|模闆|template|消歧义|消歧義|disambiguation)", re.I)
         for cat in cat_list_r:
             if filter_regex.search(cat['title'].lower()):
                 cat_list_r.remove(cat)
-        if cat_list['query']['searchinfo']['totalhits']:
+        if len(cat_list_r):
             if use_page == False or random.randint(1, cat_weight*len(cat_list_r)+len(page_list_r)) <= cat_weight*len(cat_list_r):
                 next_item = random.choice(cat_list_r)
                 next_cat_title = cat_scraper.match(next_item['title'])[1]
@@ -117,7 +115,7 @@ def get_page(title=None, target_lang='zh'):
                 next_title = next_item['title']
                 page_found = next_title
                 print(f"MSpire hit midway page: {next_title}")
-        elif page_list['query']['searchinfo']['totalhits']:
+        elif len(page_list_r):
             next_item = random.choice(page_list_r)
             next_title = next_item['title']
             page_found = next_title
@@ -126,17 +124,15 @@ def get_page(title=None, target_lang='zh'):
             print('MSpire hit deadend--trying again')
             next_title = next_title_fs
 
-    wiki_pointer = wikipediaapi.Wikipedia('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36', target_lang, proxies={'https': load_env("PROXY_ADDR")})
-    page_wiki = wiki_pointer.page(page_found)
-    title = zhconv.convert(page_wiki.title, 'zh-cn')
-    #print(wiki_page.summary)
-    summary = re.sub(r'\n*==.*?==$', '', zhconv.convert(page_wiki.summary, 'zh-cn'), re.I|re.S)
+    finale_url = f"https://{target_lang}.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exsentences=15&exlimit=1&titles={next_title}&explaintext=1&formatversion=2"
+    #print(finale_url)
+    summary_json = await get_json(finale_url)
+    title = summary_json['query']['pages'][0]['title']
+    summary_raw = summary_json['query']['pages'][0]['extract']
+    summary = re.sub(r'(\n|\s)*\n(\n|\s)*', r'\n', re.sub(r'\n*=+(.*?)=+', r'\n\1:', zhconv.convert(summary_raw, 'zh-cn'), re.I|re.S))
     return title, summary
 
 if __name__ == '__main__':
-    for i in [1,2,3,4,5]:
-        page = get_page({"type": "in_fuzzy_all", "sample": 200, "title": "人文学科"}, 'zh')
-        #page = get_page(None, 'zh')
-        print(page[0], page[1])
-    import time
-    time.sleep(600)
+    import asyncio
+    s = asyncio.run(get_page())
+    print(s[1])

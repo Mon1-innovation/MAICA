@@ -981,9 +981,9 @@ class ws_threading_instance(sub_threading_instance):
             if 'inspire' in request_json:
                 if request_json['inspire']:
                     if isinstance(request_json['inspire'], dict):
-                        query_insp = await wrap_run_in_exc(None, mspire.make_inspire, title_in=request_json['inspire'], target_lang=target_lang)
+                        query_insp = await mspire.make_inspire(title_in=request_json['inspire'], target_lang=target_lang)
                     else:
-                        query_insp = await wrap_run_in_exc(None, mspire.make_inspire, target_lang=target_lang)
+                        query_insp = await mspire.make_inspire(target_lang=target_lang)
                     bypass_mf = True
                     bypass_mt = True
                     if not query_insp[0]:
