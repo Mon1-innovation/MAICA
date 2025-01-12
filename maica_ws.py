@@ -482,7 +482,7 @@ class sub_threading_instance:
             else:
                 player_name = '[player]'
             if known_info:
-                new_system = f"{global_init_system(player_name, self.options['opt']['target_lang'])} 以下是一些相关信息, 你可以参考其中有价值的部分, 并用你自己的语言方式作答: {known_info}." if self.options['opt']['target_lang'] == 'zh' else f"{global_init_system(player_name, self.options['opt']['target_lang'])} Here are some information you can refer to, then make your answer in your own way: {known_info}."
+                new_system = f"{global_init_system(player_name, self.options['opt']['target_lang'])} 以下是一些相关信息, 你可以参考其中有价值的部分, 并用你自己的语言方式作答: {known_info}." if self.options['opt']['target_lang'] == 'zh' else f"{global_init_system(player_name, self.options['opt']['target_lang'])} Here are some information you can refer to, then make your answer in your own way in English: {known_info}."
             else:
                 new_system = global_init_system(player_name, self.options['opt']['target_lang'])
             success = True
@@ -614,7 +614,7 @@ def global_init_system(player_name, target_lang='zh'):
     if target_lang == 'zh':
         system_init = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答. 你只应使用自然语言, 以聊天语气回答, 每个句子自然且不超过60字, 不要编造信息, 并在每个句子前用方括号中的文字表示情绪."
     else:
-        system_init = f"You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Answer the following query from {player_name} properly as Monika. You should only answer in casual natural tone with English, each sentence should not exceed 180 characters, do not make up things you don't know, and express your emotion at the beginning of each sentence by wrapping them in square brackets."
+        system_init = f"You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Answer the following query from {player_name} properly as Monika. You should only answer in casual natural tone in English, each sentence should not exceed 180 characters, do not make up things you don't know, and express your emotion at the beginning of each sentence by wrapping them in square brackets."
     return system_init
 
 def wrap_ws_formatter(code, status, content, type):
