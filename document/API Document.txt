@@ -289,6 +289,7 @@ maica_main和maica_core共用chat_session.
         _mas_player_bday_spent_time
         _mas_d25_spent_d25
         _mas_o31_tt_count
+        sessions
         """
     其中, 除前六行外均为原版可调用的变量:
         mas_playername为str格式的玩家名称.

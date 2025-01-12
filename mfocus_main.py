@@ -26,6 +26,7 @@ async def agenting(parent, input, chat_session):
         websocket = parent.websocket
         sf_inst, mt_inst = parent.sf_inst, parent.mt_inst
         session = parent.options['vfc']
+        client = parent.sock2
     else:
         # These are testing values
         sf_extraction = True
@@ -37,15 +38,21 @@ async def agenting(parent, input, chat_session):
         esc_aggressive = True
         amt_aggressive = True
         websocket = None
-        sf_inst = None
+        import mfocus_sfe
+        sf_inst = mfocus_sfe.sf_bound_instance(4,1)
+        sf_inst.init1()
         mt_inst = None
+        client = AsyncOpenAI(
+            api_key='EMPTY',
+            base_url=load_env('MFOCUS_ADDR'),
+        )
     if websocket:
         loop = asyncio.get_event_loop()
     if mt_inst:
         trigger_list = await wrap_run_in_exc(None, mt_inst.get_valid_triggers)
     else:
         trigger_list = None
-    client = parent.sock2
+    
     model_list = await client.models.list()
     model_type = model_list.data[0].id
     print(f'MFocus main addressing model, response is:\n{model_type}\nEnd of MFocus main addressing model')
@@ -127,7 +134,7 @@ async def agenting(parent, input, chat_session):
         },
         {
             "name": "persistent_acquire",
-            "description": "Call this tool to get any additional information about user and yourself as human character, such as their preferences, hobbies, experiences, appearence or relationship. 只要你被问及你作为AI不具有的记忆, 经历, 个性, 喜好或其它事物, 就使用此工具查找记忆. Always use this tool if the conversation mentions memories, personality, preferences, hobbies, experience or other things you don't have as an AI.",
+            "description": "Call this tool to get any additional information about user and yourself as human character, such as their preferences, hobbies, experiences, appearence, relationship or memory. 只要你被问及你作为AI不具有的记忆, 经历, 个性, 喜好或其它事物, 就使用此工具查找记忆. Always use this tool if the conversation mentions memories, personality, preferences, hobbies, experience or other things you don't have as an AI.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -512,7 +519,7 @@ async def agenting(parent, input, chat_session):
         return 'FAIL', ''
 
 if __name__ == "__main__":
-    agented = asyncio.run(agenting(None, '现在几点了? 今天是星期几?', 1))
+    agented = asyncio.run(agenting(None, '你记得我们上次见面是什么时候吗', 1))
     print(agented[0])
     print(agented[1])
 

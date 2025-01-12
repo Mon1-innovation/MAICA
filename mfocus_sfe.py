@@ -108,6 +108,26 @@ class sf_bound_instance():
             if data1[2]:
                 result.append(f'[player]住在{data1[2]}.')
 
+        data1 = self.read_from_sf('sessions')
+        if data1[0]:
+            if data1[2]:
+                regex_fs = re.search(r"first_session.*?datetime\(([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\)", data1[2], re.I)
+                try:
+                    result.append(f'莫妮卡和[player]在{regex_fs[1]}年{regex_fs[2]}月{regex_fs[3]}日初次见面.')
+                except:
+                    pass
+                regex_ts = re.search(r"total_sessions.*?([0-9]*)\s?,", data1[2], re.I)
+                regex_tp = re.search(r"total_playtime.*?([0-9]*)\s?,", data1[2], re.I)
+                try:
+                    result.append(f'[player]已经陪伴莫妮卡{regex_ts[1]}次, 共{regex_tp[1]}天了.')
+                except:
+                    pass
+                regex_le = re.search(r"last_session_end.*?datetime\(([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\)", data1[2], re.I)
+                regex_cs = re.search(r"current_session_start.*?datetime\(([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\)", data1[2], re.I)
+                try:
+                    result.append(f'[player]上次下线于{regex_le[1]}年{regex_le[2]}月{regex_le[3]}日{str(regex_le[4]).zfill(2)}:{str(regex_le[5]).zfill(2)}, 本次上线于{regex_cs[1]}年{regex_cs[2]}月{regex_cs[3]}日{str(regex_cs[4]).zfill(2)}:{str(regex_cs[5]).zfill(2)}.')
+                except:
+                    pass
 
         data1 = self.read_from_sf('_mas_pm_added_custom_bgm')
         if data1[0]:
@@ -931,7 +951,9 @@ Begin!
             return success, exception, '[None]', ''
 
 if __name__ == "__main__":
-    ins = sf_bound_instance(18270, 1)
-    sf_bound_instance.init1()
-    print(asyncio.run(ins.mfocus_find_info('你喜欢吃什么')))
+    ins = sf_bound_instance(4, 1)
+    ins.init1()
+    ins.conclude_basic_sf()
+    #print(ins.read_from_sf("sessions"))
+    #print(asyncio.run(ins.mfocus_find_info('你喜欢吃什么')))
     #print(asyncio.run(mfocus_find_info(22398, 1, '你喜欢吃什么')))
