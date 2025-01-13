@@ -31,7 +31,7 @@ async def agenting(parent, input, chat_session):
         # These are testing values
         sf_extraction = True
         session = {"user_id": 23, "username": "edge"}
-        target_lang = 'zh'
+        target_lang = 'en'
         pre_additive = 0
         tnd_aggressive = 1
         mf_aggressive = True
@@ -59,7 +59,7 @@ async def agenting(parent, input, chat_session):
     tools =  [
         {
             "name": "time_acquire",
-            "description": "Call this tool to get the current time. 只要对话关于: 时间; 问候; 三餐; 休息, 就使用此工具查询时间. Always use this tool if the conversation mentions: time, greeting, meals, sleep, rest.",
+            "description": "调用该工具以获取当前时间. 只要对话关于: 时间, 问候, 三餐, 休息, 生活节律与建议等, 或你需要获取当前时间以帮助回答, 就使用此工具查询时间." if target_lang == 'zh' else "Call this tool to get the current time. Always use this tool if the conversation mentions: time, greeting, meals, sleep, rest, pace of life or related suggestions, or if you want to know the current time to make your answer.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -72,7 +72,7 @@ async def agenting(parent, input, chat_session):
         },
         {
             "name": "date_acquire",
-            "description": "Call this tool to get the current date. 只要对话关于: 日期; 季节; 年份, 就使用此工具查询日期. Always use this tool if the conversation mentions: date, season, year.",
+            "description": "调用该工具以获取当前日期. 只要对话关于: 日期, 季节, 年份, 或你需要获取当前日期以帮助回答, 就使用此工具查询日期." if target_lang == 'zh' else "Call this tool to get the current date. Always use this tool if the conversation mentions: date, season, year, or if you want to know the current date to make your answer.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -85,14 +85,14 @@ async def agenting(parent, input, chat_session):
         },
         {
             "name": "weather_acquire",
-            "description": "Call this tool to get the current weather. 只要对话关于: 天气; 通勤; 户外活动, 就使用此工具查询天气. Always use this tool if the conversation mentions: weather, commuting, outdoor activities.",
+            "description": "调用该工具以获取当前天气. 只要对话关于: 天气, 通勤, 户外活动, 或你需要获取当前天气以帮助回答, 就使用此工具查询天气." if target_lang == 'zh' else "Call this tool to get the current weather. Always use this tool if the conversation mentions: weather, commuting, outdoor activities, or if you need to know the current weather to make your answer.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "location": {
                         "type": "string",
-                        "description": "The location which you need to get the weather of, using Chinese. Leave empty for local weather. 如果查询本地天气, 则留空.",
-                        "example_value": "湖北武汉"
+                        "description": "你需要查询天气的地理位置. 如果查询用户本地天气, 则留空." if target_lang == 'zh' else "The location which you need to get the weather of. Leave empty for the user's local weather.",
+                        "example_value": "湖北武汉" if target_lang == 'zh' else "Los Angeles"
                     },
                 },
                 "required": [
@@ -103,23 +103,23 @@ async def agenting(parent, input, chat_session):
         },
         {
             "name": "event_acquire",
-            "description": "Call this tool to get the event or holiday of a given date. 只要对话关于: 日期; 节日; 活动; 假期, 就使用此工具查询节日. Always use this tool if the conversation mentions: date, holiday, anniversary, activities, vacation.",
+            "description": "调用该工具以查询当前或指定日期的节日或事件. 只要对话关于: 日期, 节日, 活动, 假期, 或你需要获取指定的事件以帮助回答, 就使用此工具查询节日或事件." if target_lang == 'zh' else "Call this tool to get the event or holiday of a given date or current date. Always use this tool if the conversation mentions: date, holiday, anniversary, activities, vacation, or if you need to know the specific event to make your answer.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "year": {
                         "type": "int",
-                        "description": "The year of the given date, leave empty for the year now. 如果问题涉及今年, 则留空.",
-                        "example_value": "2024"
+                        "description": "需要查询日期的年份. 如果日期在今年, 则留空." if target_lang == 'zh' else "The year of the given date, leave empty for this year.",
+                        "example_value": "2003"
                     },
                     "month": {
                         "type": "int",
-                        "description": "The month of the given date, leave empty for the month now. 如果问题涉及本月, 则留空.",
+                        "description": "需要查询日期的月份. 如果日期在本月, 则留空." if target_lang == 'zh' else "The month of the given date, leave empty for this month.",
                         "example_value": "6"
                     },
                     "day": {
                         "type": "int",
-                        "description": "The day of the given date, leave empty for the day today. 如果问题涉及今天, 则留空.",
+                        "description": "需要查询日期的日数. 如果日期在本日, 则留空." if target_lang == 'zh' else "The day of the given date, leave empty for the day today.",
                         "example_value": "26"
                     }
                 },
@@ -134,14 +134,14 @@ async def agenting(parent, input, chat_session):
         },
         {
             "name": "persistent_acquire",
-            "description": "Call this tool to get any additional information about user and yourself as human character, such as their preferences, hobbies, experiences, appearence, relationship or memory. 只要你被问及你作为AI不具有的记忆, 经历, 个性, 喜好或其它事物, 就使用此工具查找记忆. Always use this tool if the conversation mentions memories, personality, preferences, hobbies, experience or other things you don't have as an AI.",
+            "description": "调用该工具以查询你的角色的记忆, 例如你或用户的喜好, 兴趣, 经历, 体验, 关系或记忆. 只要你被问及你作为AI不具有的记忆, 经历, 个性, 喜好或其它事物, 就使用此工具查找记忆. " if target_lang == 'zh' else "Call this tool to get any additional information from your character's memory, such as your or user's preferences, hobbies, experiences, appearence, relationship or memory. Always use this tool if the conversation mentions memories, personality, preferences, hobbies, experience or any other thing you don't have as an AI.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "question": {
                         "type": "string",
-                        "description": "The question you want to know about user or yourself as human character, which is called Monika. 若问题关于你的角色则以'莫妮卡'发问, 若问题关于用户则以'你'发问. Ask about 'Monika' for information about yourself as human character, ask about 'you' for information about user.",
-                        "example_value": "莫妮卡喜欢吃什么?"
+                        "description": "需要从你的角色(莫妮卡)的记忆中搜索的信息. 提问时称呼自己为莫妮卡, 称呼用户为Player, 不要自称为'我'." if target_lang == 'zh' else "The question you want to search from your character's memory, who's called Monika. Call yourself Monika and call user Player, do not use appellation 'I' or 'me'.",
+                        "example_value": "莫妮卡喜欢吃什么?" if target_lang == 'zh' else "What does Monika like to eat?"
                     }
                 },
                 "required": [
@@ -153,14 +153,14 @@ async def agenting(parent, input, chat_session):
         },
         {
             "name": "search_internet",
-            "description": "Call this tool to interact with the internet search API. This API will search your question on the internet. 当回答问题需要时效性, 地区性, 知识性的信息或解释人名, 地名, 专有名词, 使用此工具查询. Use this tool if regional, informative, timely information or explaination of specific name, location or proper noun is needed to answer.",
+            "description": "调用该工具以搜索互联网. 如果你需要联网搜索信息以帮助回答, 则使用该工具搜索互联网. 如果该信息可以通过其它工具获取, 则优先使用其它工具." if target_lang == 'zh' else "Call this tool to search a question on the Internet. Use this tool if you need information from the Internet to make your answer. If another tool avaliable could provide the information, use that tool instead.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "question": {
                         "type": "string",
-                        "description": "The question needs to be searched on Google, which should not be too detailed.",
-                        "example_value": "附近有哪些餐馆"
+                        "description": "需要在搜索引擎中搜索的问题, 应当是一个简洁的句子." if target_lang == 'zh' else "The question needs to be searched on Google, which should be a simple sentence.",
+                        "example_value": "附近的餐馆" if target_lang == 'zh' else "Nearby restaurants"
                     }
                 },
                 "required": [
@@ -202,13 +202,13 @@ async def agenting(parent, input, chat_session):
             tools.append(
                 {
                     "name": "react_trigger",
-                    "description": "This tool can verify if user's specific request can be done. If user is requesting you to: switching(like changing your clothes, changing location, changing scene), adjusting(like adjusting distance, adjusting brightness), triggering(like turning on light, turning on some mode), use this tool. 此工具能检验用户的特定要求可否完成. 如果用户对你提出以下类别请求: 切换(如换衣服, 换地点, 换场景), 调整(如调距离, 调亮度), 触发(如开灯, 开启某模式), 则调用该工具.",
+                    "description": "此工具能检验用户的特定要求可否完成. 如果用户对你提出以下类别请求: 切换(如换衣服, 换地点, 换场景), 调整(如调距离, 调亮度), 触发(如开灯, 开启某模式), 则调用该工具." if target_lang == 'zh' else "This tool can verify if user's specific request can be done. If user is requesting you to: switching(like changing your clothes, changing location, changing scene), adjusting(like adjusting distance, adjusting brightness), triggering(like turning on light, turning on some mode), use this tool.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "prediction": {
                                 "type": "string",
-                                "description": f"You'll be offered a list of avaliable choices. return the choice if you think it matches the query, or return false if none matches. list: {str(choice_list)}",
+                                "description": f"你将收到一系列可用选项. 若某选项能够满足用户的请求, 则输出该选项, 否则输出false. 以下是可用选项: {str(choice_list)}" if target_lang == 'zh' else f"You'll be offered a list of avaliable choices. return the choice if you think it matches the query, or return false if none matches. Avaliable choices: {str(choice_list)}",
                                 "example_value": random.choice(choice_checklist)
                             }
                         },
@@ -224,14 +224,14 @@ async def agenting(parent, input, chat_session):
         tools.append(
             {
                 "name": "conclude_information",
-                "description": "Call this tool if you have used every necessary tool and ready to give final answer. 若你已经使用了所有必要的工具并准备好给出最终答案, 则使用此工具.",
+                "description": "此工具用于总结你的输出. 只要你已获取了所有必要信息且准备好作答, 就在作答前调用该工具." if target_lang == 'zh' else "This tool can conclude your outputs. Always use this tool if you have acquired all necessary informations before making final answer.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "conclusion": {
                             "type": "string",
-                            "description": "Conclude all information you have acquired and reasonings you have made into a concise sentence.",
-                            "example_value": "现在是上午九点, 因此适合吃早餐, 且天气凉爽, 因此适合户外活动"
+                            "description": "总结你获取的信息和作出的推理, 并整理成一个简洁的句子." if target_lang == 'zh' else "Conclude all information you have acquired and reasonings you have made into a concise sentence.",
+                            "example_value": "现在是上午九点, 因此适合吃早餐, 且天气凉爽, 因此适合户外活动."  if target_lang == 'zh' else "It's 9:00 in the morning, suitable for breakfast. The weather is cool, good for exercising."
                         }
                     },
                     "required": [
@@ -246,7 +246,7 @@ async def agenting(parent, input, chat_session):
         tools.append(
             {
                 "name": "none",
-                "description": "Call this tool if no tool is needed to answer. 若你不需要任何工具就能作出回答, 则使用此工具.",
+                "description": "若你不需要任何工具就能作出回答, 则先调用此工具." if target_lang == 'zh' else "If you don't need any other tool to make your answer, call this tool before final answer.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -267,7 +267,7 @@ async def agenting(parent, input, chat_session):
             lines_num = min(pre_additive * 2, len(res_dict) - 1)
             message_additive = res_dict[-lines_num:] if lines_num > 0 else []
             if message_additive:
-                messages.append({'role': 'system', 'content': '请按照指示格式回答, 对话历史仅供参考.'})
+                messages.append({'role': 'system', 'content': '请按照指示格式回答, 对话历史仅供参考.'}  if target_lang == 'zh' else {'role': 'system', 'content': 'Answer according to the format guidance, the chat history is just a reference.'})
                 messages.extend(message_additive)
     messages.append({'role': 'user', 'content': input})
     completion_args = {
@@ -519,7 +519,7 @@ async def agenting(parent, input, chat_session):
         return 'FAIL', ''
 
 if __name__ == "__main__":
-    agented = asyncio.run(agenting(None, '你记得我们上次见面是什么时候吗', 1))
+    agented = asyncio.run(agenting(None, 'When did we met last time', 1))
     print(agented[0])
     print(agented[1])
 
