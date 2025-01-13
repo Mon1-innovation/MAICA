@@ -63,29 +63,8 @@ AUTHENTICATOR_DB = 'flarum_db'
     #此功能被设计用以直接与Flarum用户数据对接, 因此接受Flarum数据库表结构.
     #"幻象引擎"不会向此数据库执行任何写入操作.
 MAICA_DB = 'maica'
-    #此处应填入MAICA使用的自身数据库名.
-    #该数据库至少应该拥有以下结构:
-    #表"account_status"
-        #列"crid_id"(int AUTO_INCREMENT PRIMARY KEY)
-        #列"user_id"(int)
-        #列"status"(text NULL DEFAULT NULL)
-        #列"preferences"(text NULL DEFAULT NULL)
-    #表"cchop_archived"
-        #列"archive_id"(int AUTO_INCREMENT PRIMARY KEY)
-        #列"chat_session_id"(int)
-        #列"content"(longtext)
-        $列"archived"(int DEFAULT NULL)
-    #表"chat_session"
-        #列"chat_session_id"(int AUTO_INCREMENT PRIMARY KEY)
-        #列"user_id"(int)
-        #列"chat_session_num"(int)
-        #列"content"(longtext)
-    #表"csession_archived"
-        #列"archive_id"(int AUTO_INCREMENT PRIMARY KEY)
-        #列"chat_session_id"(int)
-        #列"content"(longtext)
-    #此数据库被"幻象引擎"用于读写任何必要的存储数据.
-    #截至目前, 并非其中每一个条目都被用到, 但建议全部创建以备可能的更新.
+    #此处应填入MAICA使用的存储数据库名.
+    #接下来, 一个脚本将据此自动生成基本的数据库结构.
 LOGIN_VERIFICATION = "enabled"
     #将其设为disabled会使MAICA放弃校验用户的合法性.
     #如果你的实例可以从公开网络访问或需要与不信任的人共用, 一定不要关闭此校验.
@@ -124,6 +103,9 @@ PROXY_EXCLUDE = '1'
 WEATHER_KEY = 'whateveryousay'
     #此处应填入高德天气的API KEY.
     #是免费的, 你可以自行注册. 此条目被用于MFOCUS.
+
+#接下来, 运行脚本以初始化数据库:
+    python 00initdb.py
 
 #如果上述配置全部顺利完成, 你可以启动"幻象引擎"了:
     .\start_windows.ps1
