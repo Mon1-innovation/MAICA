@@ -870,6 +870,7 @@ class ws_threading_instance(sub_threading_instance):
                     client_options['stream'] = bool(model_params['stream_output'])
                 if 'target_lang' in model_params:
                     client_options['target_lang'] = 'en' if model_params['target_lang'] == 'en' else 'zh'
+                    self.sf_inst.target_lang = 'en' if model_params['target_lang'] == 'en' else 'zh'
                 if 'max_token' in model_params and 5120 <= int(model_params['max_token']) <= 28672:
                     client_options['max_token'] = int(model_params['max_token'])
                 self.alter_identity('opt', **client_options)

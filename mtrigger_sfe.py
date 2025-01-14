@@ -19,6 +19,8 @@ async def wrap_run_in_exc(loop, func, *args, **kwargs):
 class mt_bound_instance():
     def __init__(self, user_id, chat_session_num):
         self.user_id, self.chat_session_num = user_id, chat_session_num
+        self.modded_signal = None
+        self.valid_triggers = None
     def init1(self):
         user_id, chat_session_num = self.user_id, self.chat_session_num
         try:
@@ -33,6 +35,7 @@ class mt_bound_instance():
         except:
             self.sf_content = []
         self.sf_content_temp = copy.deepcopy(self.sf_content)
+        self.modded_signal = True
     def init2(self, user_id=None, chat_session_num=None):
         if not user_id:
             user_id = self.user_id
@@ -55,15 +58,19 @@ class mt_bound_instance():
             self.sf_content = []
         if self.sf_content_temp != self.sf_content:
             self.sf_content_temp = copy.deepcopy(self.sf_content)
+            self.modded_signal = True
     def add_extra(self, extra):
-        self.sf_content_temp = copy.deepcopy(self.sf_content)
         if extra:
             self.sf_content_temp.extend(extra)
+            self.modded_signal = True
     def use_only(self, extra):
         self.sf_content_temp = extra
+        self.modded_signal = True
     def get_all_triggers(self):
         return self.sf_content_temp
     def get_valid_triggers(self):
+        if not self.modded_signal and self.valid_triggers:
+            return self.valid_triggers
         aff=[];swt=[];met=[];cus=[]
         all_triggers = self.get_all_triggers()
         for trigger in all_triggers:
@@ -88,4 +95,6 @@ class mt_bound_instance():
                 swt.remove(trigger)
             if len(trigger['exprop']['item_list']) > 72:
                 trigger['exprop']['item_list'] = sample(trigger['exprop']['item_list'], 72)
-        return aff+swt+met+cus
+        self.valid_triggers = aff+swt+met+cus
+        self.modded_signal = False
+        return self.valid_triggers
