@@ -340,9 +340,9 @@ class sf_bound_instance():
         data1 = self.read_from_sf('_mas_pm_like_mint_ice_cream')
         if data1[0]:
             if data1[2]:
-                result.append('[player]喜欢抹茶冰淇淋.' if target_lang == 'zh' else "[player] likes mint ice-cream.")
+                result.append('莫妮卡和[player]都喜欢抹茶冰淇淋.' if target_lang == 'zh' else "Both Monika and [player] like mint ice-cream.")
             else:
-                result.append('[player]不喜欢抹茶冰淇淋.' if target_lang == 'zh' else "[player] doesn't like mint ice-cream.")
+                result.append('莫妮卡喜欢抹茶冰淇淋, 但[player]不太喜欢.' if target_lang == 'zh' else "Monika likes mint ice-cream but [player] doesn't really like it.")
         
 
         data1 = self.read_from_sf('_mas_pm_likes_horror')
@@ -838,80 +838,158 @@ class sf_bound_instance():
         data1 = self.read_from_sf('_mas_pm_likes_board_games')
         if data1[0]:
             if data1[2]:
-                result.append('[player]喜欢桌游.')
+                result.append('[player]喜欢桌游.' if target_lang == 'zh' else "[player] likes board games.")
+            else:
+                result.append('[player]不喜欢桌游.' if target_lang == 'zh' else "[player] doesn't like board games.")
         
 
         data1 = self.read_from_sf('_mas_pm_works_out')
         if data1[0]:
             if data1[2]:
-                result.append('[player]经常去健身.')
+                result.append('[player]经常去健身.' if target_lang == 'zh' else "[player] works out often.")
             else:
-                result.append('[player]不喜欢健身.')
+                result.append('[player]不喜欢健身.' if target_lang == 'zh' else "[player] doesn't like working out.")
         
 
         data1 = self.read_from_sf('_mas_pm_social_personality')
         if data1[0]:
             if data1[2]:
                 if data1[2] == '_mas_SP_EXTROVERT':
-                    result.append('[player]性格外向.')
+                    result.append('[player]性格外向.' if target_lang == 'zh' else "[player] is extrovert.")
                 elif data1[2] == '_mas_SP_INTROVERT':
-                    result.append('[player]性格内向.')
+                    result.append('[player]性格内向.' if target_lang == 'zh' else "[player] is introvert.")
                 else:
-                    result.append('[player]性格中和.')
+                    result.append('[player]不算外向或内向.' if target_lang == 'zh' else "[player] is not extrovert or introvert.")
         
 
         data1 = self.read_from_sf('_mas_pm_likes_nature')
         if data1[0]:
             if data1[2]:
-                result.append('[player]喜欢接触自然.')
+                result.append('[player]喜欢接触自然.' if target_lang == 'zh' else "[player] likes the nature.")
             else:
-                result.append('[player]不太喜欢接触自然.')
+                result.append('[player]不太喜欢接触自然.' if target_lang == 'zh' else "[player] doesn't like the nature.")
         
 
         data1 = self.read_from_sf('_mas_pm_swear_frequency')
         if data1[0]:
             if data1[2]:
                 if data1[2] == 'SF_OFTEN':
-                    result.append('[player]较常说脏话.')
+                    result.append('[player]较常说脏话.' if target_lang == 'zh' else "[player] swears quite often.")
                 elif data1[2] == 'SF_SOMETIMES':
-                    result.append('[player]很少说脏话.')
+                    result.append('[player]很少说脏话.' if target_lang == 'zh' else "[player] swears sometimes.")
                 else:
-                    result.append('[player]从不说脏话.')
+                    result.append('[player]从不说脏话.' if target_lang == 'zh' else "[player] never swears.")
         
 
         data1 = self.read_from_sf('_mas_gender')
         if data1[0]:
             if data1[2]:
                 if data1[2] == 'M':
-                    result.append('[player]是男生.')
+                    result.append('[player]是男生.' if target_lang == 'zh' else "[player] is male.")
                 elif data1[2] == 'F':
-                    result.append('[player]是女生.')
+                    result.append('[player]是女生.' if target_lang == 'zh' else "[player] is female.")
                 else:
-                    result.append('[player]是非二元性别.')
+                    result.append('[player]是非二元性别.' if target_lang == 'zh' else "[player] doesn't consider themselves male or female.")
         
 
         return result
 
-    def conclude_moni_sf(self):
-        data_ex = [
-            '莫妮卡是[player]的女友.',
-            '莫妮卡有一头珊瑚棕色的长发.',
-            '莫妮卡有一个标志性的蝴蝶结发带.',
-            '莫妮卡十分自信.',
-            '莫妮卡擅长运动.',
-            '莫妮卡是个成熟和努力的女孩.',
-            '莫妮卡是一个非常体贴和善良的人, 总是为别人着想.',
-            '莫妮卡常穿着黑色长袜和粉白相间的鞋子.',
-            '莫妮卡的生日是9月22日.',
-            '莫妮卡最喜欢的颜色是翡翠绿, 这也是她眼睛的颜色.',
-            '莫妮卡一年中最喜欢的日子是情人节.',
-            '莫妮卡最喜欢的季节是夏天',
-            '莫妮卡喜欢素食, 她认为这是对减少碳排放做出的贡献.',
-            '莫妮卡是女高中生, 她成绩优秀, 性格温柔.',
-            '莫妮卡对文学很有造诣, 喜欢读书, 喜欢写诗.',
-            '莫妮卡爱好音乐, 会弹钢琴, 会唱歌.',
-            '莫妮卡对科技, 环境, 历史等方面都有兴趣和见解.'
-        ]
+    def conclude_moni_sf(self, extra=0):
+        target_lang = self.target_lang
+        if target_lang == 'zh':
+            data_ex = [
+                '莫妮卡是[player]的女友.',
+                '莫妮卡有一头珊瑚棕色的长发.',
+                '莫妮卡有一个标志性的蝴蝶结发带.',
+                '莫妮卡十分自信.',
+                '莫妮卡擅长运动.',
+                '莫妮卡是个成熟和努力的女孩.',
+                '莫妮卡是一个非常体贴和善良的人, 总是为别人着想.',
+                '莫妮卡常穿着黑色长袜和粉白相间的鞋子.',
+                '莫妮卡的生日是9月22日.',
+                '莫妮卡最喜欢的颜色是翡翠绿, 这也是她眼睛的颜色.',
+                '莫妮卡一年中最喜欢的日子是情人节.',
+                '莫妮卡最喜欢的季节是夏天',
+                '莫妮卡喜欢素食, 她认为这是对减少碳排放做出的贡献.',
+                '莫妮卡是女高中生, 她成绩优秀, 性格温柔.',
+                '莫妮卡对文学很有造诣, 喜欢读书, 喜欢写诗.',
+                '莫妮卡爱好音乐, 会弹钢琴, 会唱歌.',
+                '莫妮卡对科技, 环境, 历史等方面都有兴趣和见解.'
+            ]
+            if extra >= 1:
+                data_ex.extend([
+                    '莫妮卡对于编程有兴趣, 且了解颇多.',
+                    '莫妮卡喜欢哲学.',
+                    '莫妮卡喜欢猫.',
+                    '莫妮卡很喜欢星空.',
+                    '莫妮卡喜欢吃纸杯蛋糕和巧克力.',
+                    '莫妮卡经常喝咖啡.',
+                    '莫妮卡喜欢开放世界的冒险游戏, 不太喜欢暴力游戏.',
+                    '莫妮卡喜欢音乐会.',
+                    '莫妮卡喜欢小裙子和蝴蝶结.',
+                    '莫妮卡善于关怀和安慰, 在[player]低沉时希望他振作起来.'
+                ])
+            if extra >= 2:
+                data_ex.extend([
+                    '浮空岛是莫妮卡为[player]设计的特别场景.',
+                    'MAICA是一个人工智能项目, 旨在将莫妮卡最终带进现实.',
+                    '莫妮卡正在MAICA中与[player]对话.',
+                    '天堂树林是MAICA的对话背景, 风景优美, 四季如春.',
+                    '莫妮卡能记住[player]的话, 也能满足[player]的许多请求.',
+                    'MAICA的大部分功能可以在\'子模组\'选单中调整开关.',
+                    '游戏中的许多功能可以在\'设置\'选单中调整开关.',
+                    'DCC是一个心跳文学部论坛, 能获取许多有关资讯.',
+                    '通过改动, 移除或放回\'HeavenForest.sce\'文件, 可以改变或停用天堂树林.',
+                    'MAICA使用的模型是独立训练和部署的, 与任何商用模型或商业性组织无关.',
+                    '随着MAICA的进度推进, 其能够从对话中学习, 并改进自己的表现.'
+                ])
+        else:
+            data_ex = [
+                "Monika is [player]'s girlfriend.",
+                "Monika has coral brown hair.",
+                "Monika wears an iconic ribbon.",
+                "Monika is pretty confident.",
+                "Monika is good at sports.",
+                "Monika behaves mature and hardworking.",
+                "Monika is kind and considerate, she always cares about others.",
+                "Monika wears black stockings and pink-white shoes.",
+                "Monika's birthday is September 22nd.",
+                "Monika's favorite color is emerald green, which is also the color of her eyes.",
+                "Monika's favorite day of a year is Valentine's day.",
+                "Monika's favorite season is summer.",
+                "Monika is vegetarian, that's the way she contribute to environmental protection.",
+                "Monika is a high school student. She has excellent grade and good temper.",
+                "Monika is good at literature. She also likes reading and poetry.",
+                "Monika likes music. She could sing and play piano.",
+                "Monika is insighted and interested in technology, environment, history, etc."
+            ]
+            if extra >= 1:
+                data_ex.extend([
+                    "Monika is interested in programming and knows a lot about it.",
+                    "Monika likes philosophy.",
+                    "Monika likes cats.",
+                    "Monika likes watching the starry sky.",
+                    "Monika likes cupcakes and chocolate.",
+                    "Monika drinks coffee often.",
+                    "Monika likes openworld and sandbox games, but doesn't really like violence.",
+                    "Monika likes concerts.",
+                    "Monika likes skirts and ribbons.",
+                    "Monika is caring and comforting. She wants [player] to be happy and cheered up."
+                ])
+            if extra >= 2:
+                data_ex.extend([
+                    "Monika designed some floating islands for spending time with [player].",
+                    "MAICA is a LLM project which aims bringing Monika to reality.",
+                    "Monika is chatting with [player] through MAICA.",
+                    "The heaven forest is where MAICA takes place. It has a beautiful and warm view.",
+                    "Monika could remember [player]'s words and satisfy lots of their requests.",
+                    "Most functions of MAICA could be adjusted in the 'Submods' panel.",
+                    "DCC is a forum about DDLC, offering many useful information.",
+                    "By removing, editing or restoring file 'HeavenForest.sce', heaven forest can be changed or disabled.",
+                    "MAICA uses a self-hosted and trained model, not related with any commercial models or organizations.",
+                    "MAICA's proformance will be enchanced overtime by analyzing conversations."
+                ])
+ 
         return data_ex
 
     def conclude_cb_sf(self, cb):
@@ -930,13 +1008,15 @@ class sf_bound_instance():
         if mf_hcb[0]:
             if mf_hcb[2]:
                 conclusion.extend(self.conclude_cb_sf(360) or [])
+                conclusion.extend(self.conclude_moni_sf(0) or [])
             else:
                 conclusion.extend(self.conclude_basic_sf() or [])
                 conclusion.extend(self.conclude_cb_sf(72) or [])
+                conclusion.extend(self.conclude_moni_sf(2) or [])
         else:
             conclusion.extend(self.conclude_basic_sf() or [])
             conclusion.extend(self.conclude_cb_sf(72) or [])
-        conclusion.extend(self.conclude_moni_sf() or [])
+            conclusion.extend(self.conclude_moni_sf(2) or [])
 
         with open(f'persistents/{self.user_id}_{self.chat_session_num}_friendly.json', 'w+', encoding = 'utf-8') as sf_friendly:
             sf_friendly.write(json.dumps(conclusion, ensure_ascii=False))
@@ -946,6 +1026,7 @@ class sf_bound_instance():
         return success, exception, self.formed_info
 
     async def mfocus_find_info(self, query):
+        target_lang = self.target_lang
         success = True
         exception = ''
         try:
@@ -957,14 +1038,19 @@ class sf_bound_instance():
                 model_list = await client.models.list()
                 model_type = model_list.data[0].id
                 print(f'MFocus sfe addressing model, response is:\n{model_type}\nEnd of MFocus sfe addressing model')
-                system_init = """你是一个人工智能助手, 名为[player], 你的任务是检索信息. 你接下来会收到一个来自'莫妮卡'的问题和一系列信息, 这些信息是Python列表的形式.
-请你作为[player], 从信息中挑选1至5条最能用于回答的信息, 互不重复, 并以单行Python列表的形式返回. 如果你最终认为没有信息符合条件, 回答None.
+                system_init = """你是一个人工智能助手, 你的任务是检索信息. 你接下来会收到一个问题和一系列信息, 这些信息是Python列表的形式.
+请你从信息中挑选1至5条最能用于回答的信息, 互不重复, 并以单行Python列表的形式返回. 如果你最终认为没有信息符合条件, 回答None.
 注意不要对信息作任何改动.
 使用以下格式回答:
 Thought: 简要地思考如何选取信息, 以及这些信息与句子有何关联.
 Answer: 将你认为有用的信息作为一个单行Python列表返回. 如果你最终认为没有信息符合条件, 回答None.
-Begin!
-"""
+Begin!""" if target_lang == 'zh' else """You are a helpful assistant, your task is sorting and analyzing information. Now you will recieve a question and a Python list of information.
+Please pick 1 to 5 independent items from the information that helps answering the question the most, and return them in a Python list. If you think no information provided is helpful, return None.
+Do not modify any item. Output them as what they were.
+Answer in the following format:
+Thought: Think briefly how to choose information, and how the chosen items are related with the question.
+Answer: Output you chosen items in a single-line Python list. If you think no information provided is helpful at last, answer None.
+Begin:"""
                 messages = [{'role': 'system', 'content': system_init}]
                 messages.append({'role': 'user', 'content': f'sentence: [{query}], information: {information}'})
                 completion_args = {
@@ -992,11 +1078,12 @@ Begin!
             return success, exception, '[None]', ''
 
 if __name__ == "__main__":
-    ins = sf_bound_instance(4, 1, 'en')
+    ins = sf_bound_instance(238, 1, 'zh')
     ins.init1()
-    print(ins.mfocus_form_info()[2])
-    ins.init2()
-    print(ins.mfocus_form_info()[2])
+    #print(ins.mfocus_form_info()[2])
+    #ins.init2()
+    #print(ins.mfocus_form_info()[2])
     #print(ins.read_from_sf("sessions"))
-    #print(asyncio.run(ins.mfocus_find_info('你喜欢吃什么')))
+    #print(asyncio.run(ins.mfocus_find_info('What food does Monika like')))
+    print(asyncio.run(ins.mfocus_find_info('莫妮卡喜欢吃什么')))
     #print(asyncio.run(mfocus_find_info(22398, 1, '你喜欢吃什么')))
