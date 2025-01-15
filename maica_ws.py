@@ -482,7 +482,7 @@ class sub_threading_instance:
             else:
                 player_name = '[player]'
             if known_info:
-                new_system = f"{global_init_system(player_name, self.options['opt']['target_lang'])} 以下是一些相关信息, 你可以参考其中有价值的部分, 并用你自己的语言方式作答: {known_info}." if self.options['opt']['target_lang'] == 'zh' else f"{global_init_system(player_name, self.options['opt']['target_lang'])} Here are some information you can refer to, then make your answer in your own way in English: {known_info}."
+                new_system = f"{global_init_system(player_name, self.options['opt']['target_lang'])} 以下是一些相关信息, 你可以参考其中有价值的部分, 并用你自己的语言方式作答: {known_info}." if self.options['opt']['target_lang'] == 'zh' else f"{global_init_system(player_name, self.options['opt']['target_lang'])} Here are some information you can refer to, then make your answer in your own way: {known_info}."
             else:
                 new_system = global_init_system(player_name, self.options['opt']['target_lang'])
             success = True
