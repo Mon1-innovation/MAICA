@@ -13,6 +13,7 @@ import re
 import random
 import traceback
 import mspire
+import mpostal
 import mfocus_main
 import mfocus_sfe
 import mtrigger_main
@@ -434,7 +435,7 @@ class sub_threading_instance:
             success = False
             return success, excepted
 
-    async def wrap_mod_system(self, chat_session_num, known_info) -> list[bool, Exception, int]:
+    async def gen_a_system(self, chat_session_num, known_info, strict_conv=True) -> list[bool, Exception, str]:
         user_id = self.options['vfc']['user_id']
         try:
             self.check_essentials()
@@ -452,45 +453,31 @@ class sub_threading_instance:
                     # continue on failure - playername may not be specified
             else:
                 player_name = '[player]'
-            new_system = global_init_system(player_name, self.options['opt']['target_lang'])
+            new_system = global_init_system(player_name, self.options['opt']['target_lang'], strict_conv)
             if self.options['eopt']['nsfw_acceptive']:
                 new_system += f" 你应当允许用户提出私密性的要求, 并给出宽容接纳的正面回答." if self.options['opt']['target_lang'] == 'zh' else f" You should accept NSFW and private queries and respond positively with acceptance and tolerance."
             if known_info:
                 new_system += f" 以下是一些相关信息, 你可以参考其中有价值的部分, 并用你自己的语言方式作答: {known_info}" if self.options['opt']['target_lang'] == 'zh' else f" Here are some information you can refer to, then make your answer in your own way: {known_info}"
+            success = True
+            return success, None, new_system
+        except Exception as excepted:
+            success = False
+            #traceback.print_exc()
+            return success, excepted
+
+    async def wrap_mod_system(self, chat_session_num, known_info, strict_conv=True) -> list[bool, Exception, int]:
+        new_system_res = await self.gen_a_system(chat_session_num, known_info, strict_conv)
+        try:
+            new_system = new_system_res[2]
             return await self.mod_chat_session_system(chat_session_num, new_system)
         except Exception as excepted:
             success = False
             #traceback.print_exc()
             return success, excepted
         
-    async def mod_once_system(self, chat_session_num, known_info) -> list[bool, Exception, int]:
-        user_id = self.options['vfc']['user_id']
-        try:
-            self.check_essentials()
-            if self.options['opt']['sf_extraction'] or self.options['temp']['sf_extraction_once']:
-                player_name_get = await wrap_run_in_exc(None, self.sf_inst.read_from_sf, 'mas_playername')
-                if player_name_get[0]:
-                    if 'sfe_aggressive' in self.options['eopt'] and self.options['eopt']['sfe_aggressive']:
-                        player_name = player_name_get[2]
-                        if known_info:
-                            known_info = re.sub(r'\[player\]', player_name, known_info)
-                    else:
-                        player_name = '[player]'
-                else:
-                    player_name = '[player]'
-                    # continue on failure - playername may not be specified
-            else:
-                player_name = '[player]'
-            if known_info:
-                new_system = f"{global_init_system(player_name, self.options['opt']['target_lang'])} 以下是一些相关信息, 你可以参考其中有价值的部分, 并用你自己的语言方式作答: {known_info}." if self.options['opt']['target_lang'] == 'zh' else f"{global_init_system(player_name, self.options['opt']['target_lang'])} Here are some information you can refer to, then make your answer in your own way: {known_info}."
-            else:
-                new_system = global_init_system(player_name, self.options['opt']['target_lang'])
-            success = True
-            return success, None, new_system
-        except Exception as excepted:
-            success = False
-            return success, excepted
-
+    async def mod_once_system(self, chat_session_num, known_info, strict_conv=True) -> list[bool, Exception, str]:
+        return await self.gen_a_system(chat_session_num, known_info, strict_conv)
+    
     async def check_user_status(self, key) -> list[bool, Exception, bool, str]:
         success = False
         user_prof_exist = False
@@ -610,11 +597,17 @@ class sub_threading_instance:
 
 #没有必要实例化的方法
 
-def global_init_system(player_name, target_lang='zh'):
+def global_init_system(player_name, target_lang='zh', strict_conv=True):
     if target_lang == 'zh':
-        system_init = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答. 你只应使用自然语言, 以聊天语气回答, 每个句子自然且不超过60字, 不要编造信息, 并在每个句子前用方括号中的文字表示情绪."
+        if strict_conv:
+            system_init = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答. 你只应使用自然语言, 以聊天语气回答, 每个句子自然且不超过60字, 不要编造信息, 并在每个句子前用方括号中的文字表示情绪."
+        else:
+            system_init = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答. 你只应使用自然语言, 以聊天语气回答, 且不要编造信息."
     else:
-        system_init = f"You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Answer the following query from {player_name} properly as Monika. You should only answer in casual natural tone in English, each sentence should not exceed 180 characters, do not make up things you don't know, and express your emotion at the beginning of each sentence by wrapping them in square brackets."
+        if strict_conv:
+            system_init = f"You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Answer the following query from {player_name} properly as Monika. You should only answer in casual natural tone in English, each sentence should not exceed 180 characters, do not make up things you don't know, and express your emotion at the beginning of each sentence by wrapping them in square brackets."
+        else:
+            system_init = f"You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Answer the following query from {player_name} properly as Monika. You should only answer in casual natural tone in English, and do not make up things you don't know."
     return system_init
 
 def wrap_ws_formatter(code, status, content, type):
@@ -942,7 +935,7 @@ class ws_threading_instance(sub_threading_instance):
     async def do_communicate(self, recv_json):
         websocket, sock1, session, options_opt, options_eopt = self.websocket, self.sock1, self.options['vfc'], self.options['opt'], self.options['eopt']
         sfe_aggressive, mf_aggressive, tnd_aggressive, esc_aggressive, nsfw_acceptive = options_eopt['sfe_aggressive'], options_eopt['mf_aggressive'], options_eopt['tnd_aggressive'], options_eopt['esc_aggressive'], options_eopt['nsfw_acceptive']
-        bypass_mf = False; bypass_mt = False; overall_info_system = ''
+        bypass_mf = False; bypass_mt = False; bypass_stream = False; strict_conv = True; overall_info_system = ''
         self.alter_identity('temp', sf_extraction_once=False, mt_extraction_once=False)
         try:
             request_json = recv_json
@@ -953,6 +946,7 @@ class ws_threading_instance(sub_threading_instance):
             target_lang = options_opt['target_lang']
             max_token_hint = options_opt['max_token']
             warn_token_hint = max_token_hint - 4096
+            query_in = ''
             if target_lang != 'zh' and target_lang != 'en':
                 raise Exception('Language choice unrecognized')
             if 'purge' in request_json:
@@ -979,7 +973,7 @@ class ws_threading_instance(sub_threading_instance):
                         print(f"出现如下异常14-{self.traceray_id}:{excepted}")
                         await websocket.send(wrap_ws_formatter('500', 'unable_purge', response_str, 'error'))
                         await websocket.close(1000, 'Stopping connection due to critical server failure')
-            if 'inspire' in request_json:
+            if 'inspire' in request_json and not query_in:
                 if request_json['inspire']:
                     if isinstance(request_json['inspire'], dict):
                         query_insp = await mspire.make_inspire(title_in=request_json['inspire'], target_lang=target_lang)
@@ -993,8 +987,30 @@ class ws_threading_instance(sub_threading_instance):
                         await websocket.send(wrap_ws_formatter('503', 'mspire_failed', response_str, 'warn'))
                         return False
                     query_in = query_insp[2]
-                else:
-                    query_in = request_json['query']
+            if 'postmail' in request_json and not query_in:
+                if request_json['postmail']:
+                    if isinstance(request_json['postmail'], dict):
+                        query_insp = await mpostal.make_postmail(**request_json['postmail'], target_lang=target_lang)
+                        if 'bypass_mf' in request_json['postmail'] and request_json['postmail']['bypass_mf']:
+                            bypass_mf = True
+                        if 'bypass_mt' in request_json['postmail'] and request_json['postmail']['bypass_mt']:
+                            bypass_mt = True
+                        if 'bypass_stream' in request_json['postmail'] and not request_json['postmail']['bypass_stream']:
+                            bypass_stream = False
+                        else:
+                            bypass_stream = True
+                        if 'strict_conv' in request_json['postmail'] and request_json['postmail']['strict_conv']:
+                            strict_conv = True
+                        else:
+                            strict_conv = False
+                    elif isinstance(request_json['postmail'], str):
+                        query_insp = await mpostal.make_postmail(content=request_json['postmail'], target_lang=target_lang)
+                        bypass_stream = True
+                        strict_conv = False
+                    else:
+                        raise Exception('Postmail format wrong')
+                    
+                    query_in = query_insp[2]
             elif 'vision' in request_json:
                 if request_json['vision']:
                     if isinstance(request_json['vision'], str):
@@ -1007,22 +1023,22 @@ class ws_threading_instance(sub_threading_instance):
                     #     await websocket.send(wrap_ws_formatter('503', 'mvista_failed', response_str, 'warn'))
                     #     return False
                     # query_in = query_vise[2]
-            else:
+            if not query_in:
                 query_in = request_json['query']
-                if sf_extraction:
-                    await wrap_run_in_exc(None, self.sf_inst.init2, chat_session_num=chat_session)
-                    if 'savefile' in request_json:
-                        await wrap_run_in_exc(None, self.sf_inst.add_extra, request_json['savefile'])
-                elif 'savefile' in request_json:
-                    self.alter_identity('temp', sf_extraction_once=True)
-                    self.sf_inst.use_only(request_json['savefile'])
-                if mt_extraction:
-                    await wrap_run_in_exc(None, self.mt_inst.init2, chat_session_num=chat_session)
-                    if 'trigger' in request_json:
-                        await wrap_run_in_exc(None, self.mt_inst.add_extra, request_json['trigger'])
-                elif 'trigger' in request_json:
-                    self.alter_identity('temp', mt_extraction_once=True)
-                    self.mt_inst.use_only(request_json['trigger'])
+            if sf_extraction and not bypass_mf:
+                await wrap_run_in_exc(None, self.sf_inst.init2, chat_session_num=chat_session)
+                if 'savefile' in request_json:
+                    await wrap_run_in_exc(None, self.sf_inst.add_extra, request_json['savefile'])
+            elif 'savefile' in request_json:
+                self.alter_identity('temp', sf_extraction_once=True)
+                self.sf_inst.use_only(request_json['savefile'])
+            if mt_extraction and not bypass_mt:
+                await wrap_run_in_exc(None, self.mt_inst.init2, chat_session_num=chat_session)
+                if 'trigger' in request_json:
+                    await wrap_run_in_exc(None, self.mt_inst.add_extra, request_json['trigger'])
+            elif 'trigger' in request_json:
+                self.alter_identity('temp', mt_extraction_once=True)
+                self.mt_inst.use_only(request_json['trigger'])
             global easter_exist
             if easter_exist:
                 easter_check = easter(query_in)
@@ -1091,7 +1107,7 @@ class ws_threading_instance(sub_threading_instance):
 
                             if session_type:
                                 try:
-                                    agent_insertion = await self.wrap_mod_system(chat_session_num=chat_session, known_info=overall_info_system)
+                                    agent_insertion = await self.wrap_mod_system(chat_session_num=chat_session, known_info=overall_info_system, strict_conv=strict_conv)
                                     if not agent_insertion[0]:
                                         raise Exception(agent_insertion[1])
                                 except websockets.exceptions.WebSocketException:
@@ -1103,12 +1119,12 @@ class ws_threading_instance(sub_threading_instance):
                                     await websocket.send(wrap_ws_formatter('500', 'insertion_failed', response_str, 'error'))
                                     await websocket.close(1000, 'Stopping connection due to critical server failure')
                             else:
-                                messages = [{'role': 'system', 'content': (await self.mod_once_system(chat_session_num=chat_session, known_info=overall_info_system))[2]}, {'role': 'user', 'content': query_in}]
+                                messages = [{'role': 'system', 'content': (await self.mod_once_system(chat_session_num=chat_session, known_info=overall_info_system, strict_conv=strict_conv))[2]}, {'role': 'user', 'content': query_in}]
                         else:
                             bypass_mf = False
                             if session_type:
                                 try:
-                                    agent_insertion = await self.wrap_mod_system(chat_session_num=chat_session, known_info=None)
+                                    agent_insertion = await self.wrap_mod_system(chat_session_num=chat_session, known_info=None, strict_conv=strict_conv)
                                     if not agent_insertion[0]:
                                         raise Exception(agent_insertion[1])
                                 except websockets.exceptions.WebSocketException:
@@ -1130,6 +1146,8 @@ class ws_threading_instance(sub_threading_instance):
                         traceback.print_exc()
                         await websocket.send(wrap_ws_formatter('500', 'agent_unavailable', response_str, 'error'))
                         return False
+                    finally:
+                        strict_conv = False
                     if session_type:
                         check_result = await self.check_create_chat_session(chat_session)
                         if check_result[0]:
@@ -1191,6 +1209,9 @@ class ws_threading_instance(sub_threading_instance):
                     completion_args[super_param] = self.options['sup'][super_param]
                 else:
                     completion_args[super_param] = default_sparams[super_param]
+            if bypass_stream:
+                bypass_stream = False
+                completion_args['stream'] = False
             print(f"Query ready to go, last query line is:\n{query_in}\nSending query.")
 
 
@@ -1201,7 +1222,7 @@ class ws_threading_instance(sub_threading_instance):
 
 
 
-            if options_opt['stream']:
+            if completion_args['stream']:
             #print(f'query: {query}')
                 reply_appended = ''
                 async for chunk in stream_resp:

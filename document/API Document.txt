@@ -378,6 +378,28 @@ MSpire的工作原理是在对应语言的wikipedia.org上查找页面, 并从�
 MSpire的chat_session可以被设为0-9, 不能使用-1. 如果不需要对MSpire话题作后续讨论, 建议使用chat_session 0.
 由于Mediawiki的诸多不确定性, MSpire偶尔生成失败是预期之内的情况. 如果MSpire生成失败, 会返回503 mspire_failed.
 
+在对话阶段, 用户可以发起MPostal请求, 其能使MAICA作出类似信件往来的响应. 你应当按以下格式范例发起请求:
+    {"type": "query", "chat_session": "1", "postmail": MPostal请求体}
+    其中, 若为MPostal提供一str作为信件内容则采用默认设置, 将其设置为一个dict可进行更详细的设置:
+        {"header": "信件标题", "content": "信件内容", "bypass_mf": 是否跳过MFocus, "bypass_mt": 是否跳过MTrigger, "bypass_stream": 是否关闭流式输出, "strict_conv": 是否开启严格对话格式}
+        str(header):
+            信件的标题, 默认留空.
+        str(content):
+            信件的内容.
+        bool(bypass_mf):
+            是否在该轮应答中跳过MFocus, 默认为False.
+        bool(bypass_mt):
+            是否在该轮应答中跳过MTrigger, 默认为False.
+        bool(bypass_stream):
+            是否在该轮应答中关闭流式输出, 默认为True.
+        bool(strict_conv):
+            是否开启严格对话模式要求, 包括MAICA默认的每句字数限制和添加表情要求. 默认为False.
+MPostal的工作原理是将信件整理为query, 指导模型回信.
+目前为止MPostal的行为是替换query并修改system, 以使模型专注于书面表达. 在一个chat_session中频繁使用MPostal可能导致后续回答模式紊乱.
+MPostal的chat_session可以被设为0-9, 不能使用-1. 如果不需要对MPostal话题作后续讨论, 建议使用chat_session 0.
+由于信件没有流式输出的必要, MPostal默认使用非流式输出.
+MPostal理应不包含表情, 但仍然可能存在, 建议前端作出对应过滤设计.
+
 为方便后端开发与调试, MAICA提供一个服务状态接口以告知客户端当前服务状态, 其位于https://maicadev.monika.love/api/accessibility. 你应当以空白的POST形式请求服务状态.
 如果成功请求, 接口会返回:
     {"success": true, "exception": "", "accessibility": "当前服务状态"}
