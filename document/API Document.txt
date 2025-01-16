@@ -398,7 +398,7 @@ MPostal的工作原理是将信件整理为query, 指导模型回信.
 目前为止MPostal的行为是替换query并修改system, 以使模型专注于书面表达. 在一个chat_session中频繁使用MPostal可能导致后续回答模式紊乱.
 MPostal的chat_session可以被设为0-9, 不能使用-1. 如果不需要对MPostal话题作后续讨论, 建议使用chat_session 0.
 由于信件没有流式输出的必要, MPostal默认使用非流式输出.
-MPostal理应不包含表情, 但仍然可能存在, 建议前端作出对应过滤设计.
+若strict_conv关闭, MPostal理应不包含表情, 但仍然可能存在, 前端应作出对应过滤设计.
 
 为方便后端开发与调试, MAICA提供一个服务状态接口以告知客户端当前服务状态, 其位于https://maicadev.monika.love/api/accessibility. 你应当以空白的POST形式请求服务状态.
 如果成功请求, 接口会返回:
