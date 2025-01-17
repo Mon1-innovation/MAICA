@@ -8,6 +8,7 @@ import functools
 import traceback
 import maica_ws
 from gevent import pywsgi
+from gunicorn.app.wsgiapp import WSGIApplication
 from Crypto.Random import random as CRANDOM
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
@@ -454,6 +455,21 @@ def seri_message(message):
         message_new.append(line_new)
     return message_new
 
+class StandaloneApplication(WSGIApplication):
+    def __init__(self, app_uri, options=None):
+        self.options = options or {}
+        self.app_uri = app_uri
+        super().__init__()
+
+    def load_config(self):
+        config = {
+            key: value
+            for key, value in self.options.items()
+            if key in self.cfg.settings and value is not None
+        }
+        for key, value in config.items():
+            self.cfg.set(key.lower(), value)
+
 def run_http():
     #from gevent import monkey
     #monkey.patch_all()
@@ -474,12 +490,18 @@ def run_http():
     decryptor = PKCS1_OAEP.new(privkey_loaded)
     verifier = PKCS1_PSS.new(pubkey_loaded)
     signer = PKCS1_PSS.new(privkey_loaded)
-#    app.run(
-#        host='0.0.0.0',
-#        port= 6000,
-#        debug=False
-#    )
+    # app.run(
+    #     host='0.0.0.0',
+    #     port= 6000,
+    #     debug=False
+    # )
     server_thread = pywsgi.WSGIServer(('0.0.0.0', 6000), app)
+    # options = {
+    #     "bind": "0.0.0.0:6000",
+    #     "workers": 1,
+        
+    # }
+    # StandaloneApplication("maica_http:app", options).run()
     print('HTTP server started!')
     server_thread.serve_forever()
 
