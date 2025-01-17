@@ -21,8 +21,8 @@ If you want to read in English, use a translator.
     #若为linux环境, 使用以下命令激活:
         #source ./maica/Scripts/activate
 #安装依赖:
+    git clone https://github.com/edgeinfinity1/Search-Engines-Scraper.git && cd Search-Engines-Scraper && pip install .
     pip install -r requirements.txt
-    git clone https://github.com/edgeinfinity1/Search-Engines-Scraper.git && cd Search-Engines-Scraper && python setup.py install
     #如果速度慢可以自行配置镜像或代理.
     #一些软件包在部分发行版系统上可能需要额外的依赖, 请自行搜索解决.
 #创建设置文件:
