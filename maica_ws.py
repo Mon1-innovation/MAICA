@@ -602,12 +602,12 @@ def global_init_system(player_name, target_lang='zh', strict_conv=True):
         if strict_conv:
             system_init = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答. 你只应使用自然语言, 以聊天语气回答, 每个句子自然且不超过60字, 不要编造信息, 并在每个句子前用方括号中的文字表示情绪."
         else:
-            system_init = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答. 你只应使用自然语言, 以聊天语气回答, 且不要编造信息."
+            system_init = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的来信, 请作为莫妮卡作出合适的回复. 你只应使用书面语言作答, 不要编造信息."
     else:
         if strict_conv:
             system_init = f"You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Answer the following query from {player_name} properly as Monika. You should only answer in casual natural tone in English, each sentence should not exceed 180 characters, do not make up things you don't know, and express your emotion at the beginning of each sentence by wrapping them in square brackets."
         else:
-            system_init = f"You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Answer the following query from {player_name} properly as Monika. You should only answer in casual natural tone in English, and do not make up things you don't know."
+            system_init = f"You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Reply to the following mail from {player_name} properly as Monika. You should only answer in natural written language in English, and do not make up things you don't know."
     return system_init
 
 def wrap_ws_formatter(code, status, content, type):
@@ -635,10 +635,10 @@ class ws_threading_instance(sub_threading_instance):
         global sock1, sock2
         try:
             if sock1.is_closed():
-                sock1 = AsyncOpenAI(api_key='EMPTY', base_url=load_env('MCORE_ADDR'),)
+                sock1 = AsyncOpenAI(api_key='EMPTY', base_url=load_env('MCORE_ADDR'))
                 print('Recreated sock1')
             if sock2.is_closed():
-                sock2 = AsyncOpenAI(api_key='EMPTY', base_url=load_env('MFOCUS_ADDR'),)
+                sock2 = AsyncOpenAI(api_key='EMPTY', base_url=load_env('MFOCUS_ADDR'))
                 print('Recreated sock2')
         except:
             sock1 = sock2 = None
@@ -935,7 +935,7 @@ class ws_threading_instance(sub_threading_instance):
     async def do_communicate(self, recv_json):
         websocket, sock1, session, options_opt, options_eopt = self.websocket, self.sock1, self.options['vfc'], self.options['opt'], self.options['eopt']
         sfe_aggressive, mf_aggressive, tnd_aggressive, esc_aggressive, nsfw_acceptive = options_eopt['sfe_aggressive'], options_eopt['mf_aggressive'], options_eopt['tnd_aggressive'], options_eopt['esc_aggressive'], options_eopt['nsfw_acceptive']
-        bypass_mf = False; bypass_mt = False; bypass_stream = False; strict_conv = True; overall_info_system = ''
+        bypass_mf = False; bypass_mt = False; bypass_stream = False; ic_prep = False; strict_conv = True; overall_info_system = ''
         self.alter_identity('temp', sf_extraction_once=False, mt_extraction_once=False)
         try:
             request_json = recv_json
@@ -999,6 +999,10 @@ class ws_threading_instance(sub_threading_instance):
                             bypass_stream = False
                         else:
                             bypass_stream = True
+                        if 'ic_prep' in request_json['postmail'] and not request_json['postmail']['ic_prep']:
+                            ic_prep = False
+                        else:
+                            ic_prep = True
                         if 'strict_conv' in request_json['postmail'] and request_json['postmail']['strict_conv']:
                             strict_conv = True
                         else:
@@ -1006,6 +1010,7 @@ class ws_threading_instance(sub_threading_instance):
                     elif isinstance(request_json['postmail'], str):
                         query_insp = await mpostal.make_postmail(content=request_json['postmail'], target_lang=target_lang)
                         bypass_stream = True
+                        ic_prep = True
                         strict_conv = False
                     else:
                         raise Exception('Postmail format wrong')
@@ -1209,9 +1214,13 @@ class ws_threading_instance(sub_threading_instance):
                     completion_args[super_param] = self.options['sup'][super_param]
                 else:
                     completion_args[super_param] = default_sparams[super_param]
+
             if bypass_stream:
                 bypass_stream = False
                 completion_args['stream'] = False
+            if ic_prep:
+                ic_prep = False
+                completion_args['presence_penalty'] = 1.0-(1.0-completion_args['presence_penalty'])*(2/3)
             print(f"Query ready to go, last query line is:\n{query_in}\nSending query.")
 
 

@@ -39,7 +39,7 @@ async def agenting(parent, input, chat_session):
         amt_aggressive = True
         websocket = None
         import mfocus_sfe
-        sf_inst = mfocus_sfe.sf_bound_instance(4,1,'en')
+        sf_inst = mfocus_sfe.sf_bound_instance(23,1,'zh')
         sf_inst.init1()
         mt_inst = None
         client = AsyncOpenAI(
