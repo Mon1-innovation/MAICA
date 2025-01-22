@@ -138,7 +138,7 @@ class sub_threading_instance:
 
     async def chop_session(self, chat_session_id, content) -> list[int, str]:
         max_token = self.options['opt']['max_token'] * 3
-        warn_token = max_token - 12288
+        warn_token = int(max_token * (2/3))
         len_content_actual = len(content.encode()) - len(json.loads(f'[{content}]')) * 31
         if len_content_actual >= max_token:
             # First we check if there is a cchop avaliable
@@ -744,7 +744,7 @@ class ws_threading_instance(sub_threading_instance):
             "sf_extraction": True,
             "mt_extraction": True,
             "target_lang": 'zh',
-            "max_token": 28672
+            "max_token": 4096
         }
         client_extra_options = {
             "sfe_aggressive": False,
@@ -864,7 +864,7 @@ class ws_threading_instance(sub_threading_instance):
                 if 'target_lang' in model_params:
                     client_options['target_lang'] = 'en' if model_params['target_lang'] == 'en' else 'zh'
                     self.sf_inst.target_lang = 'en' if model_params['target_lang'] == 'en' else 'zh'
-                if 'max_token' in model_params and 5120 <= int(model_params['max_token']) <= 28672:
+                if 'max_token' in model_params and 512 <= int(model_params['max_token']) <= 28672:
                     client_options['max_token'] = int(model_params['max_token'])
                 self.alter_identity('opt', **client_options)
             if 'perf_params' in model_choice:
@@ -945,7 +945,7 @@ class ws_threading_instance(sub_threading_instance):
             mt_extraction = options_opt['mt_extraction']
             target_lang = options_opt['target_lang']
             max_token_hint = options_opt['max_token']
-            warn_token_hint = max_token_hint - 4096
+            warn_token_hint = int(max_token_hint * (2/3))
             query_in = ''
             if target_lang != 'zh' and target_lang != 'en':
                 raise Exception('Language choice unrecognized')
