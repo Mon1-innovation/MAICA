@@ -430,14 +430,14 @@ async def agenting(parent, input, chat_session):
                 trigger_ability = real_parameters_dict[list(real_parameters_dict.keys())[0]]
                 return_instruction = f"[{{'reaction_correct': True}}]"
                 if not trigger_ability or (isinstance(trigger_ability, str) and trigger_ability.lower() == "false"):
-                    instructed_final_answer['trigger'] = '"用户的请求当前无法被满足. 请表示你做不到, 并建议用户自行解决或寻找其它方法."' if target_lang == 'zh' else '"User\'s current request cannot be satisfied. please indicate that you can\'t do it, and suggest user doing it themselves or find another way."'
+                    instructed_final_answer['trigger'] = '"[player]的请求当前无法被满足. 请表示你做不到, 并建议[player]自行解决或寻找其它方法."' if target_lang == 'zh' else '"[player]\'s current request cannot be satisfied. please indicate that you can\'t do it, and suggest [player] doing it themselves or find another way."'
                 else:
                     if str(trigger_ability).lower() in str(choice_checklist).lower():
                         choice_conclusion.append(str(trigger_ability))
-                        instructed_final_answer['trigger'] = f'"用户的请求是你所了解的且可以被满足, 请作出关于{', '.join(choice_conclusion)}的正面答复."' if target_lang == 'zh' else f'"User\'s request is understood and can be satisfied, please make positive answer about {', '.join(choice_conclusion)}."'
+                        instructed_final_answer['trigger'] = f'"[player]的请求是你所了解的, 且会被系统完成, 请作出关于{', '.join(choice_conclusion)}的正面答复."' if target_lang == 'zh' else f'"[player]\'s request is understood and will be done by system, please make positive answer about {', '.join(choice_conclusion)}."'
                         inst_rct = True
                     elif not inst_rct:
-                        instructed_final_answer['trigger'] = '"用户的请求是你所了解的且可以被满足, 请作出正面答复."' if target_lang == 'zh' else '"User\'s request is understood and can be satisfied, please make positive answer."'
+                        instructed_final_answer['trigger'] = '"[player]的请求是你所了解的, 且会被系统完成, 请作出正面答复."' if target_lang == 'zh' else '"[player]\'s request is understood and will be done by system, please make positive answer."'
                 #print(real_parameters_dict)
                 inst_rct = True
             elif re.search((r'conclude.*information'), predict_action_function, re.I):
