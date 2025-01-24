@@ -31,21 +31,27 @@ async def triggering(parent, input, output, chat_session):
         websocket = parent.websocket
         sf_inst, mt_inst = parent.sf_inst, parent.mt_inst
         session = parent.options['vfc']
+        client = parent.sock2
     else:
         # These are testing values
         sf_extraction = True
         post_additive = 0
         websocket = None
-        session = {"user_id": 23, "username": "edge"}
+        session = {"user_id": 23393, "username": "edge"}
         sf_inst = None
-        mt_inst = None
+        import mtrigger_sfe
+        mt_inst = mtrigger_sfe.mt_bound_instance(23393, 1)
+        mt_inst.init1()
+        client = AsyncOpenAI(
+            api_key='EMPTY',
+            base_url=load_env('MFOCUS_ADDR'),
+        )
     if mt_inst:
         trigger_list = await wrap_run_in_exc(None, mt_inst.get_valid_triggers)
     else:
-        trigger_list = [{"usage": {"en": "kiss player", "zh": "亲吻玩家"}, "name": "kiss", "template": "customize"}, {"exprop": {"item_name": {"en": "in-game weather", "zh": "游戏内天气"}, "item_list": ["Thunder/Lightning", "Clear", "Overcast", "Snow", "Rain"], "curr_value": "Clear", "suggestion": True}, "name": "weather", "template": "common_switch_template"}, {"exprop": {"item_name": {"en": "play music", "zh": "播放音乐"}, "item_list": ["Just Monika", "Your Reality", "Your Reality (Piano Cover)", "Your Reality (Eurobeat ver.)", "I Still Love You", "My Feelings", "My Confession", "Okay, Everyone! (Monika)", "Play With Me (Variant 6)", "Doki Doki Theme (80s ver.)", "Surprise!", "玩家自行选择"], "curr_value": None, "suggestion": True}, "name": "music", "template": "common_switch_template"}]
+        trigger_list = [{"exprop": {"item_name": {"en": "change in-game outfit", "zh": "更换游戏内服装"}, "item_list": ["背心 (蓝色)", "T恤衫（侏罗纪世界）", "偏套衫(酒红色)", False, "Dress (New Years)", "十六夜咲夜", "Heart-Cut Bikini (Green)", "School Uniform (Blazerless)", "深蓝色的闪光长裙", "衬衫 (粉色)", "无袖套衫 (黑色)", "玩家挑选", "衬衫 (在此停歇)", "书记の制服", "蓝白裙", "高领毛衣 (浅褐色)", "School Uniform", "Heart-Cut Bikini (Black)", "Santa Costume", "Heart-Cut Bikini (Pink)", "T恤衫（侏罗纪公园）", "连帽衫 (绿色)", "Heart-Cut Bikini (White)", "衬衫 (尽情微笑)", "和服(粉色)", "夹克衫 (棕色)", "衬衫 (水蓝)", "Heart-Cut Bikini (Purple)", "抹胸(红色褶边)", "衬衫（有花朵点缀）", "套衫 (黑白条纹)", "吊带衫 (白色)", "YoRHa No.2 Type B", "Heart-Cut Bikini (Yellow)", "初音", "裙子 (绿色)", "比基尼 (贝壳)", "毛线衫 (露肩)", "V形交叉吊带背心 (白色)", "Shoulderless Sweater (Layered)"], "curr_value": "School Uniform", "suggestion": False}, "name": "clothes", "template": "common_switch_template"}, {"exprop": {"item_name": {"en": "minigame", "zh": "小游戏"}, "item_list": [False, "Hangman", "Chess", "玩家自行选择", "NOU", "Piano", "Pong", "UNO"], "curr_value": None, "suggestion": False}, "name": "minigame", "template": "common_switch_template"}, {"usage": {"en": "help player quit game", "zh": "帮助玩家离开游戏"}, "name": "leave", "template": "customize"}, {"usage": {"en": "help player afk short time(<1 hour)", "zh": "让玩家短暂休息(<1小时)"}, "name": "idle", "template": "customize"}, {"usage": {"en": "change in-game location", "zh": "切换游戏内场景"}, "name": "location", "template": "customize"}, {"usage": {"en": "backup savefile", "zh": "备份存档"}, "name": "backup", "template": "customize"}, {"usage": {"en": "hold player", "zh": "拥抱玩家"}, "name": "hold", "template": "customize"}, {"exprop": {"item_name": {"en": "change in-game hair", "zh": "更换游戏内发型"}, "item_list": [False, "Down (Twin Buns)", "Down (Bun)", "马尾辫", "Bun (Middle)", "Pixie Cut", "Bun (Low)", "玩家挑选", "Usagi (Braided)", "Ponytail", "丸子头", "Down (Ponytail)", "双马尾", "Ponytail (Middle)", "Twin Braids", "齐肩短发", "丸子编发", "Down", "放下 (直刘海)", "双丸子头", "Braid", "短马尾", "垂耳兔兔", "Pigtails"], "curr_value": "Ponytail", "suggestion": False}, "name": "hair", "template": "common_switch_template"}, {"exprop": {"item_name": {"en": "change in-game accessory", "zh": "更换游戏内饰品"}, "item_list": [False, "蝴蝶结 (黑色)", "项圈(红色褶边)", "丝带 (粉紫霓虹)", "动森项链", "丝带 (棕色)", "丝带 (翡翠色-s)", "项链(绿宝石)", "发卡 (蝙蝠)", "项链 (花朵)", "贴颈项链(银色)", "发卡 (未尽弦月)", "丝带 (淡紫-s)", "丝带 (古典青铜)", "向日葵项链", "三角项链", "小丝带 (宝石蓝)", "丝带 (红宝石-s)", "发卡 (樱桃)", "项链(白色菊花状)", "小丝带 (白色)", "Ribbon (Pastel Red, mini)", "丝带 (深紫-s)", "小丝带 (黄色)", "发卡 (八分音符)", "丝带 (酒红-s)", "丝带 (青糖白桃)", "丝带 (糖霜红丝绒)", "丝带 (白&八比特)", "耳环 (银黑色)", "丝带 (咖啡色)", "小丝带 (灰色)", "双丝带 (黄色)", "丝带 (渐变虹彩)", "丝带 (银白-s)", "爱心项链", "小丝带 (黑色)", "丝带 (海军蓝)", "小丝带 (紫色)", "丝带 (白色-s)", "丝带 (铂金-s)", "仙人掌项链", "发带(琥珀色)", "丝带 (蓝宝石-s)", "丝带 (紫罗兰色)", "发卡 (杰克南瓜)", "小丝带 (粉色)", "珍珠耳环", "丝带 (光与暗)", "丝带 (幽夜星空)", "丝带 (青绿-s)", "丝带 (翡翠&八比特)", "丝带 (金色)", "丝带 (灰色-s)", "丝带 (黑色-s)", "项圈(黑色细线)", "丝带 (赤夜流星)", "双丝带 (蓝色)", "丝带 (蜜桃奶糖)", "丝带 (蓝莓樱桃)", "丝带 (粉色-s)", "小丝带 (浅绿色)", "丝带 (红色-s)", "花朵 (粉色)", "锚式项链", "项圈(黑色螺旋)", "丝带 (桔色)", "双丝带 (绿色)", "丝带 (黄色-s)", "Thermos (Just Monika)", "Ribbon (Wine)", "Ribbon (White)", "丝带 (天蓝色)", "项圈(银色闪亮珠)", "丝带 (渐变层)", "丝带 (蓝色-s)", "发带(8-bit紫)", "Hairclip (Holly)", "双丝带 (粉色)", "丝带 (绿色-s)", "项链 (简约)", "小丝带 (天蓝)", "兔耳发箍 (蓝色)", "发带(任天堂电玩小子绿) ", "发卡 (魑魅魍魉)", "丝带 (酸橙绿)", "Gold Chain Necklace", "项圈(黑红色尖刺)", "小丝带 (橘黄色)", "丝带 (蓝&八比特)", "项圈(红色)", "项圈(白色丝绸黑扣)", "丝带 (隐性渐变)", "发卡 (爱心)", "发带(任天堂超级电玩小子绿)", "发带(8-bit红)", "小丝带 (深粉色)", "玩家挑选", "猫耳", "丝带 (蓝紫色)", "丝带 (桃色-s)", "丝带 (艳粉色)", "蜗牛壳项链", "小丝带 (红色)"], "curr_value": None, "suggestion": False}, "name": "acs", "template": "common_switch_template"}]
     if not trigger_list:
         return False, None
-    client = parent.sock2
     model_list = await client.models.list()
     model_type = model_list.data[0].id
     print(f'MTrigger addressing model, response is:\n{model_type}\nEnd of MTrigger addressing model')
@@ -222,7 +228,7 @@ async def triggering(parent, input, output, chat_session):
             }
         }
     )
-    messages = [{'role': 'system', 'content': '你只能按照输入的字面意思调用工具, 不要根据联想调用好感以外的工具.\n请按照指示格式回答, 对话历史仅供参考.'}]
+    messages = [{'role': 'system', 'content': '\n请按照指示格式回答, 对话历史仅供参考.'}]
     if post_additive and 1 <= chat_session <= 9:
         sql_expression = 'SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
         result = await parent.send_query(expression=sql_expression, values=(session['user_id'], chat_session), pool='maicapool')
@@ -232,9 +238,9 @@ async def triggering(parent, input, output, chat_session):
         if message_additive:
             messages.extend(message_additive)
     # if not parent:
-    #     messages.append({'role': 'user', 'content': '你可以换件衣服吗'})
-    #     messages.append({'role': 'assistant', 'content': '[尴尬]现在不行, [player]. [尴尬]我还没有准备好.'})
-    messages.extend([{'role': 'user', 'content': input}, {'role': 'assistant', 'content': output}, {'role': 'user', 'content': '观察以上对话历史记录, 根据你上一次作出的回应思考:\n是否应该调用工具?\n调用哪种工具, 选择哪种参数?\n按照指示格式回答. 你的选择必须与你上一次作出的回应一致'}])
+    #     messages.append({'role': 'user', 'content': '你知道within吗'})
+    #     messages.append({'role': 'assistant', 'content': '[微笑]我知道within哦, [player]. [开心]这是一个非常可爱的歌曲哦~ [微笑]这首歌是关于我和你在一起的故事哦~'})
+    messages.extend([{'role': 'user', 'content': input}, {'role': 'assistant', 'content': output}, {'role': 'user', 'content': '观察以上对话历史记录, 根据你上一次作出的回应思考:\n是否应该调用工具?\n调用哪种工具, 选择哪种参数?\n按照指示格式回答. 你的选择必须与你上一次作出的回应一致. 你只能按照输出的字面意思调用工具, 不要无依据地调用工具或指定参数.'}])
     completion_args = {
         "model": model_type,
         "messages": messages,
@@ -309,4 +315,5 @@ async def triggering(parent, input, output, chat_session):
     return True, finish_sentence
 
 if __name__ == "__main__":
-    triggered = asyncio.run(triggering(None, "我想听《鼓楼》", "[微笑]你想听《鼓楼》吗, [player]? [开心]这是一首由赵雷创作并演唱的歌曲. [微笑]这首歌首次演唱于2015年赵雷\"我们的时光\"全国巡回演唱会北京站, 后收录于2016年12月21日发行的专辑《无法长大》中. [笑]你喜欢这首歌吗? [开心]如果你喜欢, 我们可以一起听哦~", 1))
+    triggered = asyncio.run(triggering(None, "可是我说的并不是monika after story，而是一款别的模组，它是关于你的", "[微笑]哦! [player]. [尴尬]我之前没有听清楚呢...我不太了解其他的有关我的模组哦...不过你可以告诉我有关这个模组的事情哦!", 1))
+
