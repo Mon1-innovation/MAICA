@@ -1,5 +1,6 @@
-from gevent import monkey
-monkey.patch_all()
+if __name__ == '__main__':
+    from gevent import monkey
+    monkey.patch_all()
 from flask import Flask, current_app, redirect, url_for, request
 import asyncio
 import json
@@ -473,8 +474,6 @@ def seri_message(message):
 #             self.cfg.set(key.lower(), value)
 
 def run_http():
-    #from gevent import monkey
-    #monkey.patch_all()
     global encryptor, decryptor, verifier, signer
     global known_servers
     with open("key/prv.key", "r") as privkey_file:
@@ -497,16 +496,18 @@ def run_http():
     #     port= 6000,
     #     debug=False
     # )
-    # server_thread = pywsgi.WSGIServer(('0.0.0.0', 6000), app)
+    server_thread = pywsgi.WSGIServer(('0.0.0.0', 6000), app)
     # options = {
     #     "bind": "0.0.0.0:6000",
     #     "workers": 1,
         
     # }
     # StandaloneApplication("maica_http:app", options).run()
-    serve(TransLogger(app), host='0.0.0.0', port='6000')
+    # serve(TransLogger(app), host='0.0.0.0', port='6000')
     print('HTTP server started!')
-    # server_thread.serve_forever()
+    server_thread.serve_forever()
 
 if __name__ == '__main__':
+    # from gevent import monkey
+    # monkey.patch_all()
     run_http()

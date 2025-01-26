@@ -91,5 +91,5 @@ Begin!
 if __name__ == '__main__':
     import asyncio
     import time
-    searched = asyncio.run(internet_search_limb('24奥运会','你知道24年奥运会在哪里吗', esc_aggressive=False))
+    searched = asyncio.run(internet_search_limb('24奥运会','你知道24年奥运会在哪里吗', esc_aggressive=True))
     print(searched)
