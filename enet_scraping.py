@@ -1,24 +1,27 @@
 import re
 import traceback
+import functools
 from loadenv import load_env
-from search_engines import Google, Bing
+from googlesearch import search
 from openai import AsyncOpenAI # type: ignore
-
 
 async def internet_search_limb(query, original_query, esc_aggressive=True):
     success = True
     exception = None
     try:
-        engine = Google(proxy=load_env("PROXY_ADDR"))
-        engine.set_headers({'User-Agent':f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 OPR/109.0.0.0"})
-        results = await engine.search(query, pages=1)
+    # Here goes the search module
+    # Highly unstable I would say
+    # Fuck google
+        searched_aiolist = search(query, advanced=True, proxy=load_env("PROXY_ADDR"))
+        results = []
+        async for searched_item in searched_aiolist:
+            results.append({"title": searched_item.title, "text": searched_item.description})
     except:
+        traceback.print_exc()
         success = False
         exception = "Search failed"
         slt_default = slt_humane = ''
         return success, exception, slt_default, slt_humane
-    finally:
-        await engine.close()
     slt_full = []
     slt_default = []
     slt_humane = ''
@@ -88,10 +91,5 @@ Begin!
 if __name__ == '__main__':
     import asyncio
     import time
-    searched = asyncio.run(internet_search_limb('奥运会','你知道24年奥运会在哪里吗', esc_aggressive=False))
+    searched = asyncio.run(internet_search_limb('24奥运会','你知道24年奥运会在哪里吗', esc_aggressive=False))
     print(searched)
-    searched = asyncio.run(internet_search_limb('淘宝','你知道24年奥运会在哪里吗', esc_aggressive=False))
-    print(searched)
-    searched = asyncio.run(internet_search_limb('奥运会','你知道24年奥运会在哪里吗', esc_aggressive=False))
-    print(searched)
-    time.sleep(600)

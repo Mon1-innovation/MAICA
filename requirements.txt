@@ -31,6 +31,7 @@ Flask-Sockets==0.2.1
 frozenlist==1.5.0
 gevent==24.2.1
 gevent-websocket==0.10.1
+googlesearch-python @ file:///root/sandbox/googlesearch
 greenlet==3.0.3
 grpcio==1.64.1
 gunicorn==23.0.0
@@ -73,7 +74,6 @@ python-socks==2.6.1
 pytz==2024.2
 requests==2.32.3
 rsa==4.9
-search_engines==0.5
 setuptools==70.0.0
 simple-websocket==1.0.0
 six==1.16.0

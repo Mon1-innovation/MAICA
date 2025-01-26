@@ -24,6 +24,7 @@ async def wrap_triggering(parent, input, output, chat_session):
         return res
     except Exception as excepted:
         return False, excepted
+    
 async def triggering(parent, input, output, chat_session):
     if parent:
         sf_extraction = parent.options['opt']['sf_extraction'] or parent.options['temp']['sf_extraction_once']
