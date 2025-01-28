@@ -2,7 +2,7 @@ import re
 import traceback
 import functools
 from loadenv import load_env
-from googlesearch import search
+from googlesearch import asearch
 from openai import AsyncOpenAI # type: ignore
 
 async def internet_search_limb(query, original_query, esc_aggressive=True):
@@ -12,7 +12,7 @@ async def internet_search_limb(query, original_query, esc_aggressive=True):
     # Here goes the search module
     # Highly unstable I would say
     # Fuck google
-        searched_aiolist = search(query, advanced=True, proxy=load_env("PROXY_ADDR"))
+        searched_aiolist = asearch(query, advanced=True, proxy=load_env("PROXY_ADDR"))
         results = []
         async for searched_item in searched_aiolist:
             results.append({"title": searched_item.title, "text": searched_item.description})
