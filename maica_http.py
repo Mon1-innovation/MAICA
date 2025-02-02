@@ -61,16 +61,18 @@ async def save_upload():
         else:
             if len(str(content)) < 100000:
                 try:
-                    with open(f'persistents/{verification_result[2]}_{chat_session}.json', 'r', encoding = 'utf-8') as sf:
-                        content_old = sf.read()
-                    content_dumped = json.dumps(content, ensure_ascii=False)
-                    if content_old != content_dumped:
-                        raise Exception('Raising due to changed')
-                    print('Savefile unchanged')
+                    content_text = json.dumps(content, ensure_ascii=False)
+                    sql_expression1 = 'SELECT persistent_id FROM persistents WHERE user_id = %s AND chat_session_num = %s'
+                    result = await hduplex_instance.send_query(sql_expression1, (hduplex_instance.options['vfc']['user_id'], chat_session))
+                    if result:
+                        pers_id = result[0]
+                        sql_expression2 = 'UPDATE persistents SET content = %s WHERE persistent_id = %s'
+                        await hduplex_instance.send_modify(sql_expression2, (content_text, pers_id))
+                    else:
+                        sql_expression2 = 'INSERT INTO persistents (user_id, chat_session_num, content) VALUES (%s, %s, %s)'
+                        await hduplex_instance.send_modify(sql_expression2, (hduplex_instance.options['vfc']['user_id'], chat_session, content_text))
                 except:
-                    with open(f'persistents/{verification_result[2]}_{chat_session}.json', 'w+', encoding = 'utf-8') as sf:
-                        sf.write(content_dumped)
-                    print('Savefile wrote')
+                    raise Exception('Database writing failed')
             else:
                 raise Exception('Content length exceeded')
         return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)
@@ -119,16 +121,18 @@ async def trigger_upload():
         else:
             if len(str(content)) < 100000:
                 try:
-                    with open(f'triggers/{verification_result[2]}_{chat_session}.json', 'r', encoding = 'utf-8') as sf:
-                        content_old = sf.read()
-                    content_dumped = json.dumps(content, ensure_ascii=False)
-                    if content_old != content_dumped:
-                        raise Exception('Raising due to changed')
-                    print('Trigger unchanged')
+                    content_text = json.dumps(content, ensure_ascii=False)
+                    sql_expression1 = 'SELECT persistent_id FROM persistents WHERE user_id = %s AND chat_session_num = %s'
+                    result = await hduplex_instance.send_query(sql_expression1, (hduplex_instance.options['vfc']['user_id'], chat_session))
+                    if result:
+                        trgs_id = result[0]
+                        sql_expression2 = 'UPDATE persistents SET content = %s WHERE persistent_id = %s'
+                        await hduplex_instance.send_modify(sql_expression2, (content_text, trgs_id))
+                    else:
+                        sql_expression2 = 'INSERT INTO persistents (user_id, chat_session_num, content) VALUES (%s, %s, %s)'
+                        await hduplex_instance.send_modify(sql_expression2, (hduplex_instance.options['vfc']['user_id'], chat_session, content_text))
                 except:
-                    with open(f'triggers/{verification_result[2]}_{chat_session}.json', 'w+', encoding = 'utf-8') as sf:
-                        sf.write(content_dumped)
-                    print('Trigger wrote')
+                    raise Exception('Database writing failed')
             else:
                 raise Exception('Content length exceeded')
         return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)

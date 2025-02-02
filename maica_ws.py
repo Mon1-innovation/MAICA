@@ -284,7 +284,7 @@ class sub_threading_instance:
         try:
             self.check_essentials()
             self.sf_inst, self.mt_inst = mfocus_sfe.sf_bound_instance(user_id, 1), mtrigger_sfe.mt_bound_instance(user_id, 1)
-            await asyncio.gather(wrap_run_in_exc(None, self.sf_inst.init1), wrap_run_in_exc(None, self.mt_inst.init1))
+            await asyncio.gather(await self.sf_inst.init1, await self.mt_inst.init1)
         except Exception as excepted:
             success = False
             return success, excepted
@@ -1031,14 +1031,14 @@ class ws_threading_instance(sub_threading_instance):
             if not query_in:
                 query_in = request_json['query']
             if sf_extraction and not bypass_mf:
-                await wrap_run_in_exc(None, self.sf_inst.init2, chat_session_num=chat_session)
+                await self.sf_inst.init2(chat_session_num=chat_session)
                 if 'savefile' in request_json:
                     await wrap_run_in_exc(None, self.sf_inst.add_extra, request_json['savefile'])
             elif 'savefile' in request_json:
                 self.alter_identity('temp', sf_extraction_once=True)
                 self.sf_inst.use_only(request_json['savefile'])
             if mt_extraction and not bypass_mt:
-                await wrap_run_in_exc(None, self.mt_inst.init2, chat_session_num=chat_session)
+                await self.mt_inst.init2(chat_session_num=chat_session)
                 if 'trigger' in request_json:
                     await wrap_run_in_exc(None, self.mt_inst.add_extra, request_json['trigger'])
             elif 'trigger' in request_json:

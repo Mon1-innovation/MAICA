@@ -3,6 +3,7 @@ import re
 import json
 import copy
 import asyncio
+import aiomysql
 import functools
 import traceback
 from random import sample
@@ -17,54 +18,108 @@ async def wrap_run_in_exc(loop, func, *args, **kwargs):
     return result
 
 class sf_bound_instance():
+
     def __init__(self, user_id, chat_session_num, target_lang='zh'):
         self.user_id, self.chat_session_num, self.target_lang = user_id, chat_session_num, target_lang
-        self.modded_signal = None
+        self.loop = asyncio.get_event_loop()
         self.formed_info = None
-    def init1(self):
-        user_id, chat_session_num = self.user_id, self.chat_session_num
+
+    def __del__(self):
         try:
-            with open(f"persistents/{user_id}_{chat_session_num}.json") as savefile:
+            self.loop.run_until_complete(self._close_pools())
+        except:
+            pass
+
+    async def _init_pools(self) -> None:
+        global maicapool
+        try:
+            async with maicapool.acquire() as testc:
                 pass
         except:
-            chat_session_num = 1
+            maicapool = await aiomysql.create_pool(host=self.host,user=self.user, password=self.password,db=self.maicadb,loop=self.loop,autocommit=True)
+            print("Mfocus recreated maicapool")
+
+    async def _close_pools(self) -> None:
+        global maicapool
         try:
-            self.last_modded = os.path.getmtime(f"persistents/{user_id}_{chat_session_num}.json")
-            with open(f"persistents/{user_id}_{chat_session_num}.json", 'r', encoding= 'utf-8') as savefile:
-                self.sf_content = json.loads(savefile.read())
+            maicapool.close()
+            await maicapool.wait_closed()
+        except:
+            pass
+
+    async def send_query(self, expression, values=None, pool='maicapool', fetchall=False) -> list:
+        global maicapool
+        pool = maicapool
+        if pool.closed:
+            await self._init_pools()
+            pool = maicapool
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                if not values:
+                    await cur.execute(expression)
+                else:
+                    await cur.execute(expression, values)
+                #print(cur.description)
+                results = await cur.fetchone() if not fetchall else await cur.fetchall()
+                #print(results)
+        return results
+
+    async def send_modify(self, expression, values=None, pool='maicapool', fetchall=False) -> int:
+        global maicapool
+        pool = maicapool
+        if pool.closed:
+            await self._init_pools()
+            pool = maicapool
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                if not values:
+                    await cur.execute(expression)
+                else:
+                    await cur.execute(expression, values)
+                await conn.commit()
+                lrid = cur.lastrowid
+        return lrid
+
+    async def init1(self):
+        user_id, chat_session_num = self.user_id, self.chat_session_num
+        try:
+            sql_expression1 = 'SELECT content FROM persistents WHERE user_id = %s AND chat_session_num = %s'
+            result = await self.send_query(sql_expression1, (user_id, chat_session_num))
+            if not result:
+                chat_session_num = 1
+                sql_expression2 = 'SELECT content FROM persistents WHERE user_id = %s AND chat_session_num = %s'
+                result = await self.send_query(sql_expression2, (user_id, chat_session_num))
+                content = result[0]
+            else:
+                content = result[0]
+            self.sf_content = json.loads(content)
         except:
             self.sf_content = {}
-        self.sf_content_temp = copy.deepcopy(self.sf_content)
-    def init2(self, user_id=None, chat_session_num=None):
+        self.sf_content_temp = self.sf_content
+    async def init2(self, user_id=None, chat_session_num=None):
         if not user_id:
             user_id = self.user_id
         if not chat_session_num:
             chat_session_num = self.chat_session_num
         try:
-            with open(f"persistents/{user_id}_{chat_session_num}.json", 'r', encoding= 'utf-8') as savefile:
-                if not savefile.read():
-                    chat_session_num = 1
-        except:
-            chat_session_num = 1
-        try:
-            new_last_modded = os.path.getmtime(f"persistents/{user_id}_{chat_session_num}.json")
-            if self.sf_content and new_last_modded == self.last_modded:
-                pass
+            sql_expression1 = 'SELECT content FROM persistents WHERE user_id = %s AND chat_session_num = %s'
+            result = await self.send_query(sql_expression1, (user_id, chat_session_num))
+            if not result:
+                chat_session_num = 1
+                sql_expression2 = 'SELECT content FROM persistents WHERE user_id = %s AND chat_session_num = %s'
+                result = await self.send_query(sql_expression2, (user_id, chat_session_num))
+                content = result[0]
             else:
-                with open(f"persistents/{user_id}_{chat_session_num}.json", 'r', encoding= 'utf-8') as savefile:
-                    self.sf_content = json.loads(savefile.read())
+                content = result[0]
+            self.sf_content = json.loads(content)
         except:
             self.sf_content = {}
-        if self.sf_content_temp != self.sf_content:
-            self.sf_content_temp = copy.deepcopy(self.sf_content)
-            self.modded_signal = True
+        self.sf_content_temp = self.sf_content
     def add_extra(self, extra):
         if extra:
             self.sf_content_temp.update(extra)
-            self.modded_signal = True
     def use_only(self, extra):
         self.sf_content_temp = extra
-        self.modded_signal = True
     def read_from_sf(self, key):
         if key in self.sf_content_temp and not self.sf_content_temp[key] == None:
             success = True
@@ -1001,8 +1056,6 @@ class sf_bound_instance():
     def mfocus_form_info(self):
         success = True
         exception = None
-        if not self.modded_signal and self.formed_info:
-            return success, exception, self.formed_info
         conclusion = []
         mf_hcb = self.read_from_sf('mas_sf_hcb')
         if mf_hcb[0]:
@@ -1018,11 +1071,11 @@ class sf_bound_instance():
             conclusion.extend(self.conclude_cb_sf(72) or [])
             conclusion.extend(self.conclude_moni_sf(2) or [])
 
-        with open(f'persistents/{self.user_id}_{self.chat_session_num}_friendly.json', 'w+', encoding = 'utf-8') as sf_friendly:
-            sf_friendly.write(json.dumps(conclusion, ensure_ascii=False))
+        if load_env('LOG_PERSISTENT') == '1':
+            with open(f'persistents/{self.user_id}_{self.chat_session_num}_friendly.json', 'w+', encoding = 'utf-8') as sf_friendly:
+                sf_friendly.write(json.dumps(conclusion, ensure_ascii=False))
 
         self.formed_info = conclusion
-        self.modded_signal = False
         return success, exception, self.formed_info
 
     async def mfocus_find_info(self, query):

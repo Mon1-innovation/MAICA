@@ -3,6 +3,7 @@ import re
 import json
 import copy
 import asyncio
+import aiomysql
 import functools
 import traceback
 from random import sample
@@ -17,60 +18,111 @@ async def wrap_run_in_exc(loop, func, *args, **kwargs):
     return result
 
 class mt_bound_instance():
+
     def __init__(self, user_id, chat_session_num):
         self.user_id, self.chat_session_num = user_id, chat_session_num
-        self.modded_signal = None
+        self.loop = asyncio.get_event_loop()
         self.valid_triggers = None
-    def init1(self):
-        user_id, chat_session_num = self.user_id, self.chat_session_num
+
+    def __del__(self):
         try:
-            with open(f"triggers/{user_id}_{chat_session_num}.json") as savefile:
+            self.loop.run_until_complete(self._close_pools())
+        except:
+            pass
+
+    async def _init_pools(self) -> None:
+        global maicapool
+        try:
+            async with maicapool.acquire() as testc:
                 pass
         except:
-            chat_session_num = 1
+            maicapool = await aiomysql.create_pool(host=self.host,user=self.user, password=self.password,db=self.maicadb,loop=self.loop,autocommit=True)
+            print("Mfocus recreated maicapool")
+
+    async def _close_pools(self) -> None:
+        global maicapool
         try:
-            self.last_modded = os.path.getmtime(f"triggers/{user_id}_{chat_session_num}.json")
-            with open(f"triggers/{user_id}_{chat_session_num}.json", 'r', encoding= 'utf-8') as savefile:
-                self.sf_content = json.loads(savefile.read())
+            maicapool.close()
+            await maicapool.wait_closed()
+        except:
+            pass
+
+    async def send_query(self, expression, values=None, pool='maicapool', fetchall=False) -> list:
+        global maicapool
+        pool = maicapool
+        if pool.closed:
+            await self._init_pools()
+            pool = maicapool
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                if not values:
+                    await cur.execute(expression)
+                else:
+                    await cur.execute(expression, values)
+                #print(cur.description)
+                results = await cur.fetchone() if not fetchall else await cur.fetchall()
+                #print(results)
+        return results
+
+    async def send_modify(self, expression, values=None, pool='maicapool', fetchall=False) -> int:
+        global maicapool
+        pool = maicapool
+        if pool.closed:
+            await self._init_pools()
+            pool = maicapool
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                if not values:
+                    await cur.execute(expression)
+                else:
+                    await cur.execute(expression, values)
+                await conn.commit()
+                lrid = cur.lastrowid
+        return lrid
+
+    async def init1(self):
+        user_id, chat_session_num = self.user_id, self.chat_session_num
+        try:
+            sql_expression1 = 'SELECT content FROM triggers WHERE user_id = %s AND chat_session_num = %s'
+            result = await self.send_query(sql_expression1, (user_id, chat_session_num))
+            if not result:
+                chat_session_num = 1
+                sql_expression2 = 'SELECT content FROM triggers WHERE user_id = %s AND chat_session_num = %s'
+                result = await self.send_query(sql_expression2, (user_id, chat_session_num))
+                content = result[0]
+            else:
+                content = result[0]
+            self.sf_content = json.loads(content)
         except:
             self.sf_content = []
-        self.sf_content_temp = copy.deepcopy(self.sf_content)
-        self.modded_signal = True
-    def init2(self, user_id=None, chat_session_num=None):
+        self.sf_content_temp = self.sf_content
+    async def init2(self, user_id=None, chat_session_num=None):
         if not user_id:
             user_id = self.user_id
         if not chat_session_num:
             chat_session_num = self.chat_session_num
         try:
-            with open(f"triggers/{user_id}_{chat_session_num}.json", 'r', encoding= 'utf-8') as savefile:
-                if not savefile.read():
-                    chat_session_num = 1
-        except:
-            chat_session_num = 1
-        try:
-            new_last_modded = os.path.getmtime(f"triggers/{user_id}_{chat_session_num}.json")
-            if self.sf_content and new_last_modded == self.last_modded:
-                pass
+            sql_expression1 = 'SELECT content FROM persistents WHERE user_id = %s AND chat_session_num = %s'
+            result = await self.send_query(sql_expression1, (user_id, chat_session_num))
+            if not result:
+                chat_session_num = 1
+                sql_expression2 = 'SELECT content FROM persistents WHERE user_id = %s AND chat_session_num = %s'
+                result = await self.send_query(sql_expression2, (user_id, chat_session_num))
+                content = result[0]
             else:
-                with open(f"triggers/{user_id}_{chat_session_num}.json", 'r', encoding= 'utf-8') as savefile:
-                    self.sf_content = json.loads(savefile.read())
+                content = result[0]
+            self.sf_content = json.loads(content)
         except:
             self.sf_content = []
-        if self.sf_content_temp != self.sf_content:
-            self.sf_content_temp = copy.deepcopy(self.sf_content)
-            self.modded_signal = True
+        self.sf_content_temp = self.sf_content
     def add_extra(self, extra):
         if extra:
             self.sf_content_temp.extend(extra)
-            self.modded_signal = True
     def use_only(self, extra):
         self.sf_content_temp = extra
-        self.modded_signal = True
     def get_all_triggers(self):
         return self.sf_content_temp
     def get_valid_triggers(self):
-        if not self.modded_signal and self.valid_triggers:
-            return self.valid_triggers
         aff=[];swt=[];met=[];cus=[]
         all_triggers = self.get_all_triggers()
         for trigger in all_triggers:
@@ -96,5 +148,4 @@ class mt_bound_instance():
             if len(trigger['exprop']['item_list']) > 72:
                 trigger['exprop']['item_list'] = sample(trigger['exprop']['item_list'], 72)
         self.valid_triggers = aff+swt+met+cus
-        self.modded_signal = False
         return self.valid_triggers

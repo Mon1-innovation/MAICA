@@ -100,6 +100,9 @@ PROXY_ADDR = 'http://127.0.0.1:7890'
 PROXY_EXCLUDE = '1'
     #设为1以直连MCORE_ADDR和MFOCUS_ADDR的主机名.
     #适用于本地部署模型的情况.
+LOG_PERSISTENT = '0'
+    #设为1以将玩家存档内容解析并输出到本地.
+    #我想不到这个有什么用, 但毕竟之前也有, 留着好了.
 WEATHER_KEY = 'whateveryousay'
     #此处应填入高德天气的API KEY.
     #是免费的, 你可以自行注册. 此条目被用于MFOCUS.
