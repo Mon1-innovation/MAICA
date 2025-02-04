@@ -122,14 +122,14 @@ async def trigger_upload():
             if len(str(content)) < 100000:
                 try:
                     content_text = json.dumps(content, ensure_ascii=False)
-                    sql_expression1 = 'SELECT persistent_id FROM persistents WHERE user_id = %s AND chat_session_num = %s'
+                    sql_expression1 = 'SELECT trigger_id FROM triggers WHERE user_id = %s AND chat_session_num = %s'
                     result = await hduplex_instance.send_query(sql_expression1, (hduplex_instance.options['vfc']['user_id'], chat_session))
                     if result:
                         trgs_id = result[0]
-                        sql_expression2 = 'UPDATE persistents SET content = %s WHERE persistent_id = %s'
+                        sql_expression2 = 'UPDATE triggers SET content = %s WHERE trigger_id = %s'
                         await hduplex_instance.send_modify(sql_expression2, (content_text, trgs_id))
                     else:
-                        sql_expression2 = 'INSERT INTO persistents (user_id, chat_session_num, content) VALUES (%s, %s, %s)'
+                        sql_expression2 = 'INSERT INTO triggers (user_id, chat_session_num, content) VALUES (%s, %s, %s)'
                         await hduplex_instance.send_modify(sql_expression2, (hduplex_instance.options['vfc']['user_id'], chat_session, content_text))
                 except:
                     raise Exception('Database writing failed')

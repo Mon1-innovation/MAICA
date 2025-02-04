@@ -42,7 +42,7 @@ async def triggering(parent, input, output, chat_session):
         sf_inst = None
         import mtrigger_sfe
         mt_inst = mtrigger_sfe.mt_bound_instance(23393, 1)
-        mt_inst.init1()
+        await mt_inst.init1()
         client = AsyncOpenAI(
             api_key='EMPTY',
             base_url=load_env('MFOCUS_ADDR'),

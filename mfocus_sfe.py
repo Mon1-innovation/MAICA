@@ -1,3 +1,5 @@
+import nest_asyncio
+nest_asyncio.apply()
 import os
 import re
 import json
@@ -19,10 +21,13 @@ async def wrap_run_in_exc(loop, func, *args, **kwargs):
 
 class sf_bound_instance():
 
+    maicapool = None
+
     def __init__(self, user_id, chat_session_num, target_lang='zh'):
         self.user_id, self.chat_session_num, self.target_lang = user_id, chat_session_num, target_lang
         self.loop = asyncio.get_event_loop()
         self.formed_info = None
+        asyncio.run(self._init_pools())
 
     def __del__(self):
         try:
@@ -36,7 +41,7 @@ class sf_bound_instance():
             async with maicapool.acquire() as testc:
                 pass
         except:
-            maicapool = await aiomysql.create_pool(host=self.host,user=self.user, password=self.password,db=self.maicadb,loop=self.loop,autocommit=True)
+            maicapool = await aiomysql.create_pool(host=load_env('DB_ADDR'),user=load_env('DB_USER'), password=load_env('DB_PASSWORD'),db=load_env('MAICA_DB'),loop=self.loop,autocommit=True)
             print("Mfocus recreated maicapool")
 
     async def _close_pools(self) -> None:
@@ -94,6 +99,7 @@ class sf_bound_instance():
                 content = result[0]
             self.sf_content = json.loads(content)
         except:
+            #traceback.print_exc()
             self.sf_content = {}
         self.sf_content_temp = self.sf_content
     async def init2(self, user_id=None, chat_session_num=None):
@@ -1125,18 +1131,21 @@ Begin:"""
                 return success, exception, '[None]', ''
             return success, exception, response, response
         except Exception as excepted:
-            traceback.print_exc()
+            #traceback.print_exc()
             success = False
             exception = excepted
             return success, exception, '[None]', ''
 
 if __name__ == "__main__":
-    ins = sf_bound_instance(238, 1, 'zh')
-    ins.init1()
+    async def test():
+        ins = sf_bound_instance(23, 1, 'zh')
+        await ins.init1()
+    
     #print(ins.mfocus_form_info()[2])
     #ins.init2()
-    #print(ins.mfocus_form_info()[2])
+        print(ins.mfocus_form_info()[2])
     #print(ins.read_from_sf("sessions"))
     #print(asyncio.run(ins.mfocus_find_info('What food does Monika like')))
-    print(asyncio.run(ins.mfocus_find_info('莫妮卡喜欢吃什么')))
+    #print(asyncio.run(ins.mfocus_find_info('莫妮卡喜欢吃什么')))
     #print(asyncio.run(mfocus_find_info(22398, 1, '你喜欢吃什么')))
+    asyncio.run(test())

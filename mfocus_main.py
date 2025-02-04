@@ -31,7 +31,7 @@ async def agenting(parent, input, chat_session):
         # These are testing values
         sf_extraction = True
         session = {"user_id": 23, "username": "edge"}
-        target_lang = 'en'
+        target_lang = 'zh'
         pre_additive = 0
         tnd_aggressive = 1
         mf_aggressive = True
@@ -40,7 +40,7 @@ async def agenting(parent, input, chat_session):
         websocket = None
         import mfocus_sfe
         sf_inst = mfocus_sfe.sf_bound_instance(23,1,'zh')
-        sf_inst.init1()
+        await sf_inst.init1()
         mt_inst = None
         client = AsyncOpenAI(
             api_key='EMPTY',
@@ -140,7 +140,7 @@ async def agenting(parent, input, chat_session):
                 "properties": {
                     "question": {
                         "type": "string",
-                        "description": "需要从你的角色(莫妮卡)的记忆中搜索的信息. 提问时称呼自己为莫妮卡, 称呼用户为Player, 不要自称为'我'." if target_lang == 'zh' else "The question you want to search from your character's memory, who's called Monika. Call yourself Monika and call user Player, do not use appellation 'I' or 'me'.",
+                        "description": "需要从你的角色(莫妮卡)的记忆中搜索的信息. 以第三人称方式提出问题, 不要提及'我'或'我们'." if target_lang == 'zh' else "The question you want to search from your character's memory, who's called Monika. Ask in third person perspective, do not use appellation 'I', 'me' or 'us'.",
                         "example_value": "莫妮卡喜欢吃什么?" if target_lang == 'zh' else "What does Monika like to eat?"
                     }
                 },
@@ -495,11 +495,11 @@ async def agenting(parent, input, chat_session):
     for key in instructed_first_answer.keys():
         final_answer += instructed_first_answer[key]
     if inst_conc:
-        fin_final_answer = final_answer + conc_final_answer
+        fin_final_answer = final_answer + '"' + conc_final_answer + '"'
     else:
         try:
             conc_final_answer = re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.S)[1]
-            fin_final_answer = final_answer + conc_final_answer
+            fin_final_answer = final_answer + '"' + conc_final_answer + '"'
         except:
             fin_final_answer = ''
     if mf_aggressive and instructed_final_answer_joined:
@@ -519,9 +519,13 @@ async def agenting(parent, input, chat_session):
         return 'FAIL', ''
 
 if __name__ == "__main__":
-    agented = asyncio.run(agenting(None, 'When did we met last time', 1))
+    import time
+    start_time = time.time()
+    agented = asyncio.run(agenting(None, '你记得我们上次见面是什么时候吗', 1))
     print(agented[0])
     print(agented[1])
+    end_time = time.time()
+    print(f"AbstractGpuConsume: {end_time-start_time}")
 
 
 """

@@ -1,3 +1,5 @@
+import nest_asyncio
+nest_asyncio.apply()
 import os
 import re
 import json
@@ -19,10 +21,13 @@ async def wrap_run_in_exc(loop, func, *args, **kwargs):
 
 class mt_bound_instance():
 
+    maicapool = None
+
     def __init__(self, user_id, chat_session_num):
         self.user_id, self.chat_session_num = user_id, chat_session_num
         self.loop = asyncio.get_event_loop()
         self.valid_triggers = None
+        asyncio.run(self._init_pools())
 
     def __del__(self):
         try:
@@ -36,7 +41,7 @@ class mt_bound_instance():
             async with maicapool.acquire() as testc:
                 pass
         except:
-            maicapool = await aiomysql.create_pool(host=self.host,user=self.user, password=self.password,db=self.maicadb,loop=self.loop,autocommit=True)
+            maicapool = await aiomysql.create_pool(host=load_env('DB_ADDR'),user=load_env('DB_USER'), password=load_env('DB_PASSWORD'),db=load_env('MAICA_DB'),loop=self.loop,autocommit=True)
             print("Mfocus recreated maicapool")
 
     async def _close_pools(self) -> None:
@@ -94,6 +99,7 @@ class mt_bound_instance():
                 content = result[0]
             self.sf_content = json.loads(content)
         except:
+            #traceback.print_exc()
             self.sf_content = []
         self.sf_content_temp = self.sf_content
     async def init2(self, user_id=None, chat_session_num=None):
@@ -102,11 +108,11 @@ class mt_bound_instance():
         if not chat_session_num:
             chat_session_num = self.chat_session_num
         try:
-            sql_expression1 = 'SELECT content FROM persistents WHERE user_id = %s AND chat_session_num = %s'
+            sql_expression1 = 'SELECT content FROM triggers WHERE user_id = %s AND chat_session_num = %s'
             result = await self.send_query(sql_expression1, (user_id, chat_session_num))
             if not result:
                 chat_session_num = 1
-                sql_expression2 = 'SELECT content FROM persistents WHERE user_id = %s AND chat_session_num = %s'
+                sql_expression2 = 'SELECT content FROM triggers WHERE user_id = %s AND chat_session_num = %s'
                 result = await self.send_query(sql_expression2, (user_id, chat_session_num))
                 content = result[0]
             else:
