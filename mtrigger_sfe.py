@@ -42,7 +42,7 @@ class mt_bound_instance():
                 pass
         except:
             maicapool = await aiomysql.create_pool(host=load_env('DB_ADDR'),user=load_env('DB_USER'), password=load_env('DB_PASSWORD'),db=load_env('MAICA_DB'),loop=self.loop,autocommit=True)
-            print("Mfocus recreated maicapool")
+            print("MTrigger recreated maicapool")
 
     async def _close_pools(self) -> None:
         global maicapool

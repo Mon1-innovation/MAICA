@@ -18,6 +18,7 @@ import mfocus_main
 import mfocus_sfe
 import mtrigger_main
 import mtrigger_sfe
+import post_proc
 #import maica_http
 from Crypto.Random import random as CRANDOM
 from Crypto.Cipher import PKCS1_OAEP
@@ -1245,13 +1246,17 @@ class ws_threading_instance(sub_threading_instance):
                         else:
                             break
                 await websocket.send(wrap_ws_formatter('1000', 'streaming_done', f"streaming has finished with seed {completion_args['seed']}", 'info'))
-                reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
                 print(f"Finished replying-{self.traceray_id}:{session['username']}, with seed {completion_args['seed']}")
             else:
                 reply_appended = stream_resp.choices[0].message.content
                 print(reply_appended)
                 await websocket.send(wrap_ws_formatter('200', 'reply', reply_appended, 'carriage'))
-                reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
+
+
+            # Can be post-processed here
+            reply_appended = await wrap_run_in_exc(None, post_proc.filter_format, reply_appended)
+            reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
+
 
             if not bypass_mt:
                 task_trigger_resp = asyncio.create_task(mtrigger_main.wrap_triggering(self, query_in, reply_appended, chat_session))
