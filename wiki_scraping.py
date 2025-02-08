@@ -12,7 +12,7 @@ async def get_json(url):
         res = (await client.get(url, headers=headers)).json()
         await asyncio.sleep(0)
     except:
-        pass
+        raise Exception('Wiki connection failure')
     finally:
         await client.aclose()
     return res
