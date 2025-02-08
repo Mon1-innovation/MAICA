@@ -285,8 +285,9 @@ class sub_threading_instance:
         try:
             self.check_essentials()
             self.sf_inst, self.mt_inst = mfocus_sfe.sf_bound_instance(user_id, 1), mtrigger_sfe.mt_bound_instance(user_id, 1)
-            await asyncio.gather(await self.sf_inst.init1, await self.mt_inst.init1)
+            await asyncio.gather(self.sf_inst.init1(), self.mt_inst.init1())
         except Exception as excepted:
+            #traceback.print_exc()
             success = False
             return success, excepted
 
@@ -1076,7 +1077,7 @@ class ws_threading_instance(sub_threading_instance):
 
                     try:
                         if options_opt['full_maica'] and not bypass_mf:
-                            message_agent_wrapped = await mfocus_main.agenting(self, query_in, chat_session)
+                            message_agent_wrapped = await mfocus_main.agenting(self, query_in, chat_session, bypass_mt)
                             if message_agent_wrapped[0] == 'EMPTY':
                                 response_str = f"MFocus using instructed final guidance, suggesting LLM conclusion is empty--your ray tracer ID is {self.traceray_id}"
                                 await websocket.send(wrap_ws_formatter('200', 'agent_prog', response_str, 'debug'))

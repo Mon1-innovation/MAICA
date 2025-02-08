@@ -18,7 +18,7 @@ async def wrap_run_in_exc(loop, func, *args, **kwargs):
         None, functools.partial(func, *args, **kwargs))
     return result
 
-async def agenting(parent, input, chat_session):
+async def agenting(parent, input, chat_session, bypass_mt):
     #nest_asyncio.apply()
     if parent:
         sf_extraction, target_lang = parent.options['opt']['sf_extraction'] or parent.options['temp']['sf_extraction_once'], parent.options['opt']['target_lang']
@@ -48,7 +48,7 @@ async def agenting(parent, input, chat_session):
         )
     if websocket:
         loop = asyncio.get_event_loop()
-    if mt_inst:
+    if mt_inst and not bypass_mt:
         trigger_list = await wrap_run_in_exc(None, mt_inst.get_valid_triggers)
     else:
         trigger_list = None
