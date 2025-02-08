@@ -452,6 +452,7 @@ async def agenting(parent, input, chat_session, bypass_mt):
             #traceback.print_exc()
             print(f'MFocus main early broke: {exception_return}')
         if not exception_return:
+            print(f"MFocus acquired instruction: {return_instruction}")
             messages.append({'role': 'assistant', 'content': response})
             messages.append({'role': 'tool', 'content': return_instruction})
             resp = await client.chat.completions.create(**completion_args)
