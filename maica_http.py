@@ -1,16 +1,18 @@
 if __name__ == '__main__':
     from gevent import monkey
     monkey.patch_all()
-from flask import Flask, current_app, redirect, url_for, request
+from quart import Quart, request
 import asyncio
 import json
 import base64
 import functools
 import traceback
 import maica_ws
-from gevent import pywsgi
-from waitress import serve
-from paste.translogger import TransLogger
+from hypercorn.config import Config
+from hypercorn.asyncio import serve
+# from gevent import pywsgi
+# from waitress import serve
+# from paste.translogger import TransLogger
 # from gunicorn.app.wsgiapp import WSGIApplication
 from Crypto.Random import random as CRANDOM
 from Crypto.Cipher import PKCS1_OAEP
@@ -26,7 +28,7 @@ async def wrap_run_in_exc(loop, func, *args, **kwargs):
         None, functools.partial(func, *args, **kwargs))
     return result
 
-app = Flask(import_name=__name__)
+app = Quart(import_name=__name__)
 
 @app.route('/savefile', methods=["POST"])
 async def save_upload():
@@ -34,7 +36,7 @@ async def save_upload():
     success = True
     exception = ''
     try:
-        data = json.loads(request.data)
+        data = json.loads(await request.data)
         access_token = data['access_token']
         chat_session = data['chat_session']
         content = data['content']
@@ -94,7 +96,7 @@ async def trigger_upload():
     success = True
     exception = ''
     try:
-        data = json.loads(request.data)
+        data = json.loads(await request.data)
         access_token = data['access_token']
         chat_session = data['chat_session']
         content = data['content']
@@ -154,7 +156,7 @@ async def history_download():
     success = True
     exception = ''
     try:
-        data = json.loads(request.data)
+        data = json.loads(await request.data)
         access_token = data['access_token']
         chat_session = data['chat_session']
         rounds = data['rounds']
@@ -219,7 +221,7 @@ async def history_restore():
     success = True
     exception = ''
     try:
-        data = json.loads(request.data)
+        data = json.loads(await request.data)
         access_token = data['access_token']
         chat_session = data['chat_session']
         print(access_token)
@@ -269,7 +271,7 @@ async def sl_prefs():
     success = True
     exception = ''
     try:
-        data = json.loads(request.data)
+        data = json.loads(await request.data)
         access_token = data['access_token']
         print(access_token)
         exec_unbase64_token = await maica_ws.wrap_run_in_exc(None, base64.b64decode, access_token)
@@ -330,7 +332,7 @@ async def register():
     success = True
     exception = ''
     try:
-        data = json.loads(request.data)
+        data = json.loads(await request.data)
         if 'username' in data:
             type_usr = 'username'
             cridential = data['username']
@@ -359,7 +361,7 @@ async def legal():
     success = True
     exception = ''
     try:
-        data = json.loads(request.data)
+        data = json.loads(await request.data)
         access_token = data['access_token']
         print(access_token)
         exec_unbase64_token = await maica_ws.wrap_run_in_exc(None, base64.b64decode, access_token)
@@ -500,7 +502,7 @@ def run_http():
     #     port= 6000,
     #     debug=False
     # )
-    server_thread = pywsgi.WSGIServer(('0.0.0.0', 6000), app)
+    # server_thread = pywsgi.WSGIServer(('0.0.0.0', 6000), app)
     # options = {
     #     "bind": "0.0.0.0:6000",
     #     "workers": 1,
@@ -508,8 +510,12 @@ def run_http():
     # }
     # StandaloneApplication("maica_http:app", options).run()
     # serve(TransLogger(app), host='0.0.0.0', port='6000')
+
+    config = Config()
+    config.bind = ['0.0.0.0:6000']
     print('HTTP server started!')
-    server_thread.serve_forever()
+    asyncio.run(serve(app, config))
+    # server_thread.serve_forever()
 
 if __name__ == '__main__':
     # from gevent import monkey
