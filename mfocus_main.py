@@ -305,6 +305,7 @@ async def agenting(parent, input, chat_session, bypass_mt):
 
     final_answer = ''
     instructed_final_answer = {}
+    return_instruction = ''
     inst_wea = inst_time = inst_date = inst_event = inst_pst = inst_search = inst_rct = inst_conc = False
     if int(tnd_aggressive) >= 1:
         instructed_final_answer['time'] = f"[{(await agent_modules.time_acquire(None, target_lang))[3]}]"
@@ -323,7 +324,6 @@ async def agenting(parent, input, chat_session, bypass_mt):
             # something must have went wrong
         exception_return = ''
         # to be added
-        return_instruction = ''
         try:
             predict_action_function = tool_calls.function.name
             try:
