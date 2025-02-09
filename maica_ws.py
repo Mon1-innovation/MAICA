@@ -207,7 +207,15 @@ class sub_threading_instance:
         else:
             sql_expression = 'SELECT * FROM users WHERE username = %s'
         try:
-            result = await self.send_query(expression=sql_expression, values=(identity), pool='authpool')
+            for tries in [0,1,2]:
+                try:
+                    result = await self.send_query(expression=sql_expression, values=(identity), pool='authpool')
+                    if result[0]:
+                        break
+                    else:
+                        raise Exception('Result is not list or tuple')
+                except:
+                    asyncio.sleep(100)
             dbres_id, dbres_username, dbres_nickname, dbres_email, dbres_ecf, dbres_pwd_bcrypt, *dbres_args = result
             input_pwd, target_pwd = pwd.encode(), dbres_pwd_bcrypt.encode()
             print(f'Ready to run hash: {identity}')

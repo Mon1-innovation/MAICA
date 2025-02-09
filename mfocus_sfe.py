@@ -1097,21 +1097,21 @@ class sf_bound_instance():
                 model_list = await client.models.list()
                 model_type = model_list.data[0].id
                 print(f'MFocus sfe addressing model, response is:\n{model_type}\nEnd of MFocus sfe addressing model')
-                system_init = """你是一个人工智能助手, 你的任务是检索信息. 你接下来会收到一个问题和一系列信息, 这些信息是Python列表的形式.
-请你从信息中挑选1至5条最能用于回答的信息, 互不重复, 并以单行Python列表的形式返回. 如果你最终认为没有信息符合条件, 回答None.
+                system_init = """你是一个人工智能助手, 你的任务是分析和检索信息. 你接下来会收到一个问题和一系列信息, 这些信息是Python列表的形式.
+请你从信息中挑选1至5条最能用于回答的信息, 互不重复, 并以单行Python列表的形式输出. 如果你最终认为没有信息符合条件, 回答None.
 注意不要对信息作任何改动.
 使用以下格式回答:
 Thought: 简要地思考如何选取信息, 以及这些信息与句子有何关联.
-Answer: 将你认为有用的信息作为一个单行Python列表返回. 如果你最终认为没有信息符合条件, 回答None.
+Answer: 将你认为有用的信息作为一个单行Python列表输出. 如果你最终认为没有信息符合条件, 回答None.
 Begin!""" if target_lang == 'zh' else """You are a helpful assistant, your task is sorting and analyzing information. Now you will recieve a question and a Python list of information.
 Please pick 1 to 5 independent items from the information that helps answering the question the most, and return them in a Python list. If you think no information provided is helpful, return None.
-Do not modify any item. Output them as what they were.
+Remember not to modify any item. Output them as what they were.
 Answer in the following format:
 Thought: Think briefly how to choose information, and how the chosen items are related with the question.
 Answer: Output you chosen items in a single-line Python list. If you think no information provided is helpful at last, answer None.
-Begin:"""
+Begin!"""
                 messages = [{'role': 'system', 'content': system_init}]
-                messages.append({'role': 'user', 'content': f'sentence: [{query}], information: {information}'})
+                messages.append({'role': 'user', 'content': f'question: {query}; information: {information}'})
                 completion_args = {
                     "model": model_type,
                     "messages": messages,

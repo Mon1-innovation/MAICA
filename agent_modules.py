@@ -4,7 +4,7 @@ import json
 import re
 import traceback
 import mfocus_sfe
-from enet_scraping import internet_search_limb
+from enet_scraping import internet_search
 from weather_scraping import weather_api_get
 from loadenv import load_env
 async def time_acquire(params, target_lang='zh'):
@@ -279,7 +279,7 @@ async def internet_acquire(params, sf_extraction, sf_inst, original_query, esc_a
             pass
     try:
         print(f'Agent modules acquiring Internet search, query is:\n{likely_query}\nEnd of Internet search')
-        search_response = await internet_search_limb(likely_query, original_query, esc_aggressive)
+        search_response = await internet_search(likely_query, original_query, esc_aggressive, target_lang)
         if search_response[0]:
             content = json.dumps(search_response[2], ensure_ascii=False)
             searched_friendly = search_response[3]
