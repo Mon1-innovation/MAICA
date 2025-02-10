@@ -73,7 +73,7 @@ async def get_page(title=None, target_lang='zh'):
     next_title_fs = next_title
     while not page_found:
         insanity += 1
-        if insanity > 15:
+        if insanity > 15 or (title and insanity > 6):
             raise Exception('MSpire insanity limit reached')
         # Skipping this by default
         if insanity == 1 and not def_cat and not use_page and zh_scraper.search(next_title):
