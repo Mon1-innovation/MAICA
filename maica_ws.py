@@ -1263,7 +1263,7 @@ class ws_threading_instance(sub_threading_instance):
 
 
             # Can be post-processed here
-            reply_appended = await wrap_run_in_exc(None, post_proc.filter_format, reply_appended)
+            reply_appended = await wrap_run_in_exc(None, post_proc.filter_format, reply_appended, target_lang)
             reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
 
 
