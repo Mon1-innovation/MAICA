@@ -21,7 +21,7 @@ if proxyaddr:
     if load_env('PROXY_EXCLUDE') == "1":
         main_host = load_env('MCORE_ADDR'); mfocus_host = load_env('MFOCUS_ADDR')
         urls = [main_host, mfocus_host]; hosts = []
-        host_filter = re.compile(r"^http://(.*?)(:|/|$).*", re.I)
+        host_filter = re.compile(r"^https?://(.*?)(:|/|$).*", re.I)
         for url in urls:
             hosts.append(host_filter.match(url)[1])
         hosts.append(load_env("DB_ADDR"))

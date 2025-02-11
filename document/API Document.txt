@@ -433,6 +433,44 @@ MPostal的chat_session可以被设为0-9, 不能使用-1. 如果不需要对MPos
 如果你以MAICA标准后端形式搭建并公开了一个节点, 可以联系我们将其注册为社区服务节点. 通过此方法, 你可以便利地使用自训练模型或设计负载均衡功能, 并与其他用户分享.
 MAICA官方递归节点默认提供一个本地部署节点选项. 当你在自行部署实例设备上运行前端时, 可以借此便捷地连接到自行部署的示例. 你当然也可以将其与端口转发等方式协同使用.
 
+为方便性能管理, MAICA提供一个服务器负载状态接口, 其位于其位于https://maicadev.monika.love/api/workload. 你应当以空白的POST形式请求负载状态.
+如果成功请求, 接口会返回:
+    {"success": true, "exception": "", "workload": json格式的状态信息}
+    其中, 状态信息形如:
+    {
+        "节点1名称": {
+            "0": {
+                "name": "计算设备名称",
+                "vram": "最大可用显存",
+                "mean_utilization": 均时等效负载(%),
+                "mean_memory": 均时显存占用(MiB),
+                "mean_consumption": 均时功耗(W)
+            },
+            "1": {
+                "name": "计算设备名称",
+                "vram": "最大可用显存",
+                "mean_utilization": 均时等效负载(%),
+                "mean_memory": 均时显存占用(MiB),
+                "mean_consumption": 均时功耗(W)
+            },
+            #...
+        }
+        "节点2名称": {
+            "0": {
+                "name": "计算设备名称",
+                "vram": "最大可用显存",
+                "mean_utilization": 均时等效负载(%),
+                "mean_memory": 均时显存占用(MiB),
+                "mean_consumption": 均时功耗(W)
+            },
+            #...
+        }
+    }
+    该功能会相对详细地展示服务器工作负载, 其中采样间隔约为5秒, 均时跨度均为3分钟. 参数均采自nvidia-smi.
+    该功能显示的状态仅用于参考, 一般取所有设备最高值. 例如当负载超过40时可能开始产生明显延迟, 超过80时接近堵载速度. 若负载超过90建议暂时等待, 服务的响应率不再保障.
+对于后端部署, 该功能仅兼容nvidia显卡, 且只在linux上测试过.
+指标名称与nvidia官方命名不完全相同, 具体含义参考nvidia文档.
+
 MAICA下载历史记录的接口位于https://maicadev.monika.love/api/history. 你应当遵循以下格式, 以POST形式请求历史记录:
     {"access_token": "你的令牌", "chat_session": "指定对应的chat_session", "rounds": "指定获取的轮次"}
     rounds应为int值.

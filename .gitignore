@@ -167,6 +167,7 @@ cython_debug/
 .servers
 key/
 *.key
+*.db
 bash/
 maica/
 persistents/

@@ -2,11 +2,13 @@ if __name__ == '__main__':
     from gevent import monkey
     monkey.patch_all()
 from quart import Quart, request
+import os
 import asyncio
 import json
 import base64
 import functools
 import traceback
+import aiosqlite
 import maica_ws
 from hypercorn.config import Config
 from hypercorn.asyncio import serve
@@ -434,6 +436,38 @@ async def vcontrol():
     exception = ''
     cur_v, last_v = load_env('VERSION_CONTROL').split(';',1)
     return json.dumps({"success": success, "exception": str(exception), "version": {"curr_version": cur_v, "legc_version": last_v}}, ensure_ascii=False)
+
+@app.route('/workload', methods=["POST"])
+async def gpuload():
+    success = True
+    exception = ''
+    overall_info = {}
+    if not os.path.exists('./.nvsw.db'):
+        success = False
+        exception = 'Exporter nvsw offline'
+        return json.dumps({"success": success, "exception": str(exception)})
+    try:
+        async with aiosqlite.connect('./.nvsw.db') as db_client:
+            for table_name in [load_env('MCORE_NODE'), load_env('MFOCUS_NODE')]:
+                node_info = {}
+                async with db_client.execute(f'SELECT * FROM `{table_name}`;') as res1:
+                    node_status = await res1.fetchall()
+                    # id, name, memory, history
+                for gpu_status in node_status:
+                    gpuid, name, memory, history = list(gpu_status)
+                    u=0;m=0;p=0
+                    history = json.loads(history)
+                    for line in history:
+                        u+=float(line['u']);m+=float(line['m']);p+=float(line['p'])
+                    u/=len(history);m/=len(history);p/=len(history)
+                    node_info[gpuid] = {'name': name, 'vram': memory, 'mean_utilization': int(u), 'mean_memory': int(m), 'mean_consumption': int(p)}
+                overall_info[table_name] = node_info
+        return json.dumps({"success": success, "exception": str(exception), "workload": overall_info}, ensure_ascii=False)
+    except Exception as excepted:
+        print('Performance acquiring failed')
+        success = False
+        exception = excepted
+        return json.dumps({"success": success, "exception": str(exception)}, ensure_ascii=False)
 
 def sign_message(message):
     global signer

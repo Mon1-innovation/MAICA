@@ -42,6 +42,24 @@ MFOCUS_ADDR = 'http://127.0.0.1:8001/v1'
 MVISTA_ADDR = 'http://127.0.0.1:8002/v1'
     #此处应填入你为MVista准备的多模态模型接口地址.
     #注意事项基本同上.
+ENABLE_NVW = '1'
+    #设为1以启用NVIDIA性能监控接口.
+    #仅当设为1时以下四条生效.
+    #监控通过paramiko实现, 目标设备必须在22端口上开放ssh, 并通过密码认证.
+MCORE_NODE = 'XP00-Hypnos'
+    #核心模型设备名, 想写什么写什么.
+    #这个名字会用在数据库表达式里, 不要用奇怪的符号.
+MCORE_USER = 'root'
+    #核心模型设备用户名
+MCORE_PWD = 'password'
+    #核心模型设备密码
+MFOCUS_NODE = 'XP10-Mystra'
+    #Agent模型设备名, 想写什么写什么.
+    #这个名字会用在数据库表达式里, 不要用奇怪的符号.
+MFOCUS_USER = 'root'
+    #Agent模型设备用户名
+MFOCUS_PWD = 'password'
+    #Agent模型设备密码
 MFOCUS_AGENT_TOOLS = 'https://mfocusdev.monika.love'
     #此处应填入MFocus工具组的api接口.
     #该接口至少应该拥有以下结构:
