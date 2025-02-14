@@ -18,7 +18,7 @@ async def wrap_run_in_exc(loop, func, *args, **kwargs):
         None, functools.partial(func, *args, **kwargs))
     return result
 
-async def agenting(parent, input, chat_session, bypass_mt):
+async def agenting(parent, input, chat_session, bypass_mt=False):
     #nest_asyncio.apply()
     if parent:
         sf_extraction, target_lang = parent.options['opt']['sf_extraction'] or parent.options['temp']['sf_extraction_once'], parent.options['opt']['target_lang']
@@ -31,7 +31,7 @@ async def agenting(parent, input, chat_session, bypass_mt):
         # These are testing values
         sf_extraction = True
         session = {"user_id": 23, "username": "edge"}
-        target_lang = 'zh'
+        target_lang = 'en'
         pre_additive = 0
         tnd_aggressive = 1
         mf_aggressive = True
@@ -39,13 +39,14 @@ async def agenting(parent, input, chat_session, bypass_mt):
         amt_aggressive = True
         websocket = None
         import mfocus_sfe
-        sf_inst = mfocus_sfe.sf_bound_instance(23,1,'zh')
+        sf_inst = mfocus_sfe.sf_bound_instance(23,1,target_lang)
         await sf_inst.init1()
         mt_inst = None
         client = AsyncOpenAI(
             api_key='EMPTY',
             base_url=load_env('MFOCUS_ADDR'),
         )
+        tz = target_lang
     if websocket:
         loop = asyncio.get_event_loop()
     if mt_inst and not bypass_mt:
@@ -134,13 +135,13 @@ async def agenting(parent, input, chat_session, bypass_mt):
         },
         {
             "name": "persistent_acquire",
-            "description": "调用该工具以查询你的角色的记忆, 例如你或用户的喜好, 兴趣, 经历, 体验, 关系或记忆. 只要你被问及你作为AI不具有的记忆, 经历, 个性, 喜好或其它事物, 就使用此工具查找记忆. " if target_lang == 'zh' else "Call this tool to get any additional information from your character's memory, such as your or user's preferences, hobbies, experiences, appearence, relationship or memory. Always use this tool if the conversation mentions memories, personality, preferences, hobbies, experience or any other thing you don't have as an AI.",
+            "description": "调用该工具以查询你或用户的记忆, 例如你或用户的喜好, 兴趣, 经历, 体验, 关系或个人信息. 只要你被问及你作为AI不具有的记忆, 经历, 个性, 喜好或其它事物, 就使用此工具查找记忆. " if target_lang == 'zh' else "Call this tool to get any additional information from your memory or user's memory, such as your or user's preferences, hobbies, experiences, appearence, relationship or personal information. Always use this tool if the conversation mentions memories, personality, preferences, hobbies, experience or any other thing you don't have as an AI.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "question": {
                         "type": "string",
-                        "description": "需要从你的角色(莫妮卡)的记忆中搜索的信息. 以第三人称方式提出问题, 不要提及'我'或'我们'." if target_lang == 'zh' else "The question you want to search from your character's memory, who's called Monika. Ask in third person perspective, do not use appellation 'I', 'me' or 'us'.",
+                        "description": "需要从你或用户的记忆中搜索的信息, 以尽可能直接回答问题. 以第三人称方式提出问题, 不要提及'我'或'我们'." if target_lang == 'zh' else "The question you want to search from your memory or user's memory, to answer the question as directly as possible. Ask in third person perspective, do not use appellation 'I', 'me' or 'us'.",
                         "example_value": "莫妮卡喜欢吃什么?" if target_lang == 'zh' else "What does Monika like to eat?"
                     }
                 },
@@ -488,7 +489,7 @@ async def agenting(parent, input, chat_session, bypass_mt):
 if __name__ == "__main__":
     import time
     start_time = time.time()
-    agented = asyncio.run(agenting(None, '你记得我们上次见面是什么时候吗', 1))
+    agented = asyncio.run(agenting(None, 'Do you remember my birthday', 1))
     print(agented[0])
     print(agented[1])
     end_time = time.time()

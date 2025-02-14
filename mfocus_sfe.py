@@ -1138,7 +1138,7 @@ Begin!"""
 
 if __name__ == "__main__":
     async def test():
-        ins = sf_bound_instance(23, 1, 'zh')
+        ins = sf_bound_instance(23, 1, 'en')
         await ins.init1()
     
     #print(ins.mfocus_form_info()[2])
