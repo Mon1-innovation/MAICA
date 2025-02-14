@@ -127,7 +127,7 @@ async def get_page(title=None, target_lang='zh'):
     finale_url = f"https://{target_lang}.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exsentences=15&exlimit=1&titles={next_title}&explaintext=1&formatversion=2"
     #print(finale_url)
     summary_json = await get_json(finale_url)
-    title = summary_json['query']['pages'][0]['title']
+    title = zhconv.convert(summary_json['query']['pages'][0]['title'], 'zh-cn')
     summary_raw = summary_json['query']['pages'][0]['extract']
     summary = re.sub(r'(\n|\s)*\n(\n|\s)*', r'\n', re.sub(r'\n*=+(.*?)=+', r'\n\1:', zhconv.convert(summary_raw, 'zh-cn'), re.I|re.S))
     return title, summary
