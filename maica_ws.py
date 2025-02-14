@@ -754,7 +754,7 @@ class ws_threading_instance(sub_threading_instance):
             "sf_extraction": True,
             "mt_extraction": True,
             "target_lang": 'zh',
-            "max_token": 4096
+            "max_token": 4096,
         }
         client_extra_options = {
             "sfe_aggressive": False,
@@ -764,7 +764,8 @@ class ws_threading_instance(sub_threading_instance):
             "amt_aggressive": True,
             "nsfw_acceptive": True,
             "pre_additive": 0,
-            "post_additive": 1
+            "post_additive": 1,
+            "tz": None
         }
         self.alter_identity('opt', **client_options)
         self.alter_identity('eopt', **client_extra_options)
@@ -895,6 +896,8 @@ class ws_threading_instance(sub_threading_instance):
                     client_extra_options['pre_additive'] = int(perf_params['pre_additive'])
                 if 'post_additive' in perf_params and 0 <= int(perf_params['post_additive']) <= 5:
                     client_extra_options['post_additive'] = int(perf_params['post_additive'])
+                if 'tz' in perf_params and (isinstance(perf_params['tz'], str) or perf_params['tz'] is None):
+                    client_extra_options['tz'] = perf_params['tz']
                 self.alter_identity('eopt', **client_extra_options)
             if 'super_params' in model_choice:
                 super_params = model_choice['super_params']

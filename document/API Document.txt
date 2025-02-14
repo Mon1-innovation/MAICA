@@ -60,8 +60,8 @@ MAICA验证令牌的接口位于https://maicadev.monika.love/api/legality. 你�
 若要调整设置, 你应当按以下格式范例输入选择:
     {
         "type": "params",
-        "model_params": {"model": "maica_main", "sf_extraction": true, "stream_output": true, "target_lang": "zh", "max_token": 4096},
-        "perf_params": {"esc_aggressive": true, "tnd_aggressive": 1, "mf_aggressive": false, "sfe_aggressive": false, "nsfw_acceptive": true},
+        "model_params": {"model": "maica_main", "sf_extraction": true, "mt_extraction": true, "stream_output": true, "target_lang": "zh", "max_token": 4096},
+        "perf_params": {"esc_aggressive": true, "amt_aggressive": true, "tnd_aggressive": 1, "mf_aggressive": false, "sfe_aggressive": false, "nsfw_acceptive": true, "pre_additive": 0, "post_additive": 1, "tz": null},
         "super_params": {"top_p": 0.7, "temperature": 0.2, "max_tokens": 1600, "frequency_penalty": 0.4, "presence_penalty": 0.4, "seed": 10721}
     }
     设置被分为三部分: 关于模型基本能力的model_params, 关于模型语言表现的perf_params, 以及生成超参数super_params.
@@ -112,7 +112,10 @@ MAICA验证令牌的接口位于https://maicadev.monika.love/api/legality. 你�
         int(post_additive):
             相当于post_additive数值轮次的历史对话将被加入MTrigger, 其值限制在0-5.
             此功能强度越高, 越可能提高MTrigger在自然对话中的触发率, 但也越可能干扰MTrigger的判断或导致其表现异常.
-        以上各参数的缺省值分别为true, true, 1, false, false, true, 0, 1.
+        str(tz)/null:
+            此条目决定MFocus等附属功能提取时间所使用的时区. 设为null将根据target_lang自动选择, 其为'zh'时使用'Asia/Shanghai', 为'en'时使用'America/Indiana/Vincennes'.
+            可传入的时区设置包括'zh', 'en', 以及所有协调世界时规范(UTC)中的时区.
+        以上各参数的缺省值分别为true, true, 1, false, false, true, 0, 1, null.
     在super_params中:
         超参数将被传递到核心模型, 具体效果可以查阅OpenAI文档. 超参数有以下限制:
             0.1 <= float(top_p) <= 1.0, 默认值为0.7

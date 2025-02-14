@@ -1,4 +1,5 @@
 import datetime
+import pytz
 import requests
 import json
 import re
@@ -7,10 +8,22 @@ import mfocus_sfe
 from enet_scraping import internet_search
 from weather_scraping import weather_api_get
 from loadenv import load_env
-async def time_acquire(params, target_lang='zh'):
+
+def time_tz(tz="zh"):
+    if tz == 'zh':
+        tz = "Asia/Shanghai"
+    elif tz == 'en':
+        tz = "America/Indiana/Vincennes"
+    try:
+        time_now = datetime.datetime.now(tz=pytz.timezone(tz))
+    except:
+        time_now = datetime.datetime.now()
+    return time_now
+
+async def time_acquire(params, target_lang='zh', tz=None):
     success = True
     exception = None
-    time = datetime.datetime.now()
+    time = time_tz(tz or target_lang)
     match time:
         case time if time.hour < 4:
             time_range = '半夜' if target_lang == 'zh' else 'at midnight'
@@ -31,10 +44,10 @@ async def time_acquire(params, target_lang='zh'):
     time_friendly = f"现在是{time_range}{time.hour}点{str(time.minute).zfill(2)}分" if target_lang == 'zh' else f"It's now {str(time.hour).zfill(2)}:{str(time.minute).zfill(2)} {time_range}"
     content = f'{str(time.hour).zfill(2)}:{str(time.minute).zfill(2)}'
     return success, exception, content, time_friendly
-async def date_acquire(params, sf_extraction, sf_inst, target_lang='zh'):
+async def date_acquire(params, sf_extraction, sf_inst, target_lang='zh', tz=None):
     success = True
     exception = None
-    date = datetime.datetime.today()
+    date = time_tz(tz or target_lang)
     weeklist = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"] if target_lang == 'zh' else ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     weekday = weeklist[date.weekday()]
     if sf_extraction:
@@ -95,12 +108,29 @@ async def weather_acquire(params, sf_extraction, sf_inst, target_lang='zh'):
         exception = excepted
         content = weather_friendly = '天气未知' if target_lang == 'zh' else "Weather unknown"
     return success, exception, content, weather_friendly
-async def event_acquire(params, sf_extraction, sf_inst, pred_length=-1, small_eves = False, target_lang='zh'):
+async def event_acquire(params, sf_extraction, sf_inst, pred_length=-1, small_eves = False, target_lang='zh', tz=None):
     success = True
     exception = None
     holiday_friendly = ''
     content = ''
-    time_today = datetime.date.today()
+    time_today = time_tz(tz or target_lang)
+    if not isinstance(params, dict):
+        # Why didnt I consider this before
+        # This is just a patch
+        params = {}
+    def param_limit(checkparam):
+        match checkparam:
+            case 'year':
+                return 1000, 9999
+            case 'month':
+                return 1, 12
+            case 'day':
+                return 1, 31
+            case _:
+                return 0, 999999
+    for checkparam in ['year', 'month', 'day']:
+        if (not checkparam in params) or (not str(params[checkparam]).isdigit()) or (not param_limit(checkparam)[0] <= int(params[checkparam]) <= param_limit(checkparam)[1]):
+            params[checkparam] = eval(f'time_today.{checkparam}')
     if [int(params['year']), int(params['month']), int(params['day'])] == [time_today.year, time_today.month, time_today.day]:
         is_today = True
         if not pred_length >= 0:
@@ -296,7 +326,7 @@ if __name__ == "__main__":
     import asyncio
     print(asyncio.run(time_acquire(None)))
     #print(date_acquire(None, True, [0, 0, 23], 1))
-    print(asyncio.run(event_acquire({"year": 2024, "month": 9, "day": 20}, True, ["0", "0", "23"], 1, 2)))
+    print(asyncio.run(event_acquire({"year": 2025, "month": 1, "day": 15}, True, ["0", "0", "23"], -1, True, 'zh')))
     #print(internet_acquire({"question": "番茄炒蛋怎么做"}))
     #print(weather_acquire({}, True, [0, 0, 23], 1, 'zh'))
     #print(persistent_acquire({}, True, [0, 0, 23], 1, '你是谁'))

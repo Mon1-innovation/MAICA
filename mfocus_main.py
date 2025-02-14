@@ -22,7 +22,7 @@ async def agenting(parent, input, chat_session, bypass_mt):
     #nest_asyncio.apply()
     if parent:
         sf_extraction, target_lang = parent.options['opt']['sf_extraction'] or parent.options['temp']['sf_extraction_once'], parent.options['opt']['target_lang']
-        pre_additive, tnd_aggressive, mf_aggressive, esc_aggressive, amt_aggressive = parent.options['eopt']['pre_additive'], parent.options['eopt']['tnd_aggressive'], parent.options['eopt']['mf_aggressive'], parent.options['eopt']['esc_aggressive'], parent.options['eopt']['amt_aggressive']
+        pre_additive, tnd_aggressive, mf_aggressive, esc_aggressive, amt_aggressive, tz = parent.options['eopt']['pre_additive'], parent.options['eopt']['tnd_aggressive'], parent.options['eopt']['mf_aggressive'], parent.options['eopt']['esc_aggressive'], parent.options['eopt']['amt_aggressive'], parent.options['eopt']['tz']
         websocket = parent.websocket
         sf_inst, mt_inst = parent.sf_inst, parent.mt_inst
         session = parent.options['vfc']
@@ -308,10 +308,10 @@ async def agenting(parent, input, chat_session, bypass_mt):
     return_instruction = ''
     inst_wea = inst_time = inst_date = inst_event = inst_pst = inst_search = inst_rct = inst_conc = False
     if int(tnd_aggressive) >= 1:
-        instructed_final_answer['time'] = f"[{(await agent_modules.time_acquire(None, target_lang))[3]}]"
-        instructed_final_answer['event'] = f"[{(await agent_modules.event_acquire({'year': datetime.date.today().year, 'month': datetime.date.today().month, 'day': datetime.date.today().day}, sf_extraction, sf_inst, -1, False, target_lang))[3]}]"
+        instructed_final_answer['time'] = f"[{(await agent_modules.time_acquire(None, target_lang, tz))[3]}]"
+        instructed_final_answer['event'] = f"[{(await agent_modules.event_acquire(None, sf_extraction, sf_inst, -1, False, target_lang, tz))[3]}]"
     if int(tnd_aggressive) >= 2:
-        instructed_final_answer['date'] = f"[{(await agent_modules.date_acquire(None, sf_extraction, sf_inst, target_lang))[3]}]"
+        instructed_final_answer['date'] = f"[{(await agent_modules.date_acquire(None, sf_extraction, sf_inst, target_lang, tz))[3]}]"
         if sf_inst.read_from_sf('mas_geolocation')[2]:
             instructed_final_answer['weather'] = f"[{(await agent_modules.weather_acquire(None, sf_extraction, sf_inst, target_lang))[3]}]"
     instructed_first_answer = instructed_final_answer
@@ -331,7 +331,7 @@ async def agenting(parent, input, chat_session, bypass_mt):
             except:
                 real_parameters_dict = {"common": tool_calls.function.arguments}
             if re.search((r'time.*acquire'), predict_action_function, re.I):
-                time_acquired = await agent_modules.time_acquire(real_parameters_dict, target_lang)
+                time_acquired = await agent_modules.time_acquire(real_parameters_dict, target_lang, tz)
                 if time_acquired[0]:
                     return_instruction = f"[{{'time': '{time_acquired[2]}'}}]"
                     if time_acquired[3]:
@@ -340,7 +340,7 @@ async def agenting(parent, input, chat_session, bypass_mt):
                 else:
                     raise Exception(time_acquired[1])
             elif re.search((r'date.*acquire'), predict_action_function, re.I):
-                date_acquired = await agent_modules.date_acquire(real_parameters_dict, sf_extraction, sf_inst, target_lang)
+                date_acquired = await agent_modules.date_acquire(real_parameters_dict, sf_extraction, sf_inst, target_lang, tz)
                 if date_acquired[0]:
                     return_instruction = f"[{{'date': '{date_acquired[2]}'}}]"
                     if date_acquired[3]:
@@ -358,41 +358,7 @@ async def agenting(parent, input, chat_session, bypass_mt):
                 else:
                     raise Exception(weather_acquired[1])
             elif re.search((r'event.*acquire'), predict_action_function, re.I):
-                if 'year' in real_parameters_dict:
-                    if isinstance(real_parameters_dict['year'], str):
-                        if not real_parameters_dict['year'].isdigit():
-                            real_parameters_dict['year'] = datetime.date.today().year
-                        else:
-                            real_parameters_dict['year'] = int(real_parameters_dict['year'])
-                    elif not isinstance(real_parameters_dict['year'], int):
-                        real_parameters_dict['year'] = datetime.date.today().year
-                else:
-                    real_parameters_dict['year'] = datetime.date.today().year
-                if 'month' in real_parameters_dict:
-                    if isinstance(real_parameters_dict['month'], str):
-                        if not real_parameters_dict['month'].isdigit():
-                            real_parameters_dict['month'] = datetime.date.today().month
-                        elif int(real_parameters_dict['month']) > 12 or int(real_parameters_dict['month']) < 1:
-                            real_parameters_dict['month'] = datetime.date.today().month
-                        else:
-                            real_parameters_dict['month'] = int(real_parameters_dict['month'])
-                    elif not isinstance(real_parameters_dict['month'], int):
-                        real_parameters_dict['month'] = datetime.date.today().month
-                else:
-                    real_parameters_dict['month'] = datetime.date.today().month
-                if 'day' in real_parameters_dict:
-                    if isinstance(real_parameters_dict['day'], str):
-                        if not real_parameters_dict['day'].isdigit():
-                            real_parameters_dict['day'] = datetime.date.today().day
-                        elif int(real_parameters_dict['day']) > 31 or int(real_parameters_dict['day']) < 1:
-                            real_parameters_dict['day'] = datetime.date.today().day
-                        else:
-                            real_parameters_dict['day'] = int(real_parameters_dict['day'])
-                    elif not isinstance(real_parameters_dict['day'], int):
-                        real_parameters_dict['day'] = datetime.date.today().day
-                else:
-                    real_parameters_dict['day'] = datetime.date.today().day
-                event_acquired = await agent_modules.event_acquire(real_parameters_dict, sf_extraction, sf_inst, -1, True, target_lang)
+                event_acquired = await agent_modules.event_acquire(real_parameters_dict, sf_extraction, sf_inst, -1, True, target_lang, tz)
                 if event_acquired[0]:
                     return_instruction = f"[{{'event': '{event_acquired[2]}'}}]"
                     if event_acquired[3]:
