@@ -683,28 +683,28 @@ class ws_threading_instance(sub_threading_instance):
                     if not checked_status[0]:
                         response_str = f"Account service failed to fetch, refer to administrator--your ray tracer ID is {self.traceray_id}"
                         print(f"出现如下异常3-{self.traceray_id}:{checked_status[1]}")
-                        await websocket.send(self.wrap_ws_deformatter('500', 'unable_verify', response_str, 'error'))
+                        await websocket.send(self.wrap_ws_deformatter('500', 'unable_verify', response_str, 'error', False))
                         await websocket.close(1000, 'Stopping connection due to critical server failure')
                     elif checked_status[3]:
                         response_str = f"Your account disobeied our terms of service and was permenantly banned--your ray tracer ID is {self.traceray_id}"
                         print(f"出现如下异常4-{self.traceray_id}:banned")
-                        await websocket.send(self.wrap_ws_deformatter('403', 'account_banned', response_str, 'warn'))
+                        await websocket.send(self.wrap_ws_deformatter('403', 'account_banned', response_str, 'warn', False))
                         await websocket.close(1000, 'Permission denied')
                     else:
                         if verification_result[2] in online_list:
                             response_str = f"You have an established connection already--your ray tracer ID is {self.traceray_id}"
                             print(f"出现如下异常4.1-{self.traceray_id}:reusage")
-                            await websocket.send(self.wrap_ws_deformatter('403', 'connection_reuse', response_str, 'warn'))
+                            await websocket.send(self.wrap_ws_deformatter('403', 'connection_reuse', response_str, 'warn', False))
                             await websocket.close(1000, 'Permission denied')
                         else:
                             self.cookie = cookie = str(uuid.uuid4())
                             self.enforce_cookie = False
-                            await websocket.send(self.wrap_ws_deformatter('206', 'session_created', "Authencation passed!", 'info'))
-                            await websocket.send(self.wrap_ws_deformatter('200', 'user_id', f"{verification_result[2]}", 'debug'))
-                            await websocket.send(self.wrap_ws_deformatter('200', 'username', f"{verification_result[3]}", 'debug'))
-                            await websocket.send(self.wrap_ws_deformatter('200', 'nickname', f"{verification_result[4]}", 'debug'))
-                            await websocket.send(self.wrap_ws_deformatter('190', 'ws_cookie', cookie, 'cookie'))
-                            #await websocket.send(self.wrap_ws_deformatter('200', 'session_created', f"email {verification_result[5]}", 'debug'))
+                            await websocket.send(self.wrap_ws_deformatter('206', 'session_created', "Authencation passed!", 'info', False))
+                            await websocket.send(self.wrap_ws_deformatter('200', 'user_id', f"{verification_result[2]}", 'debug', True))
+                            await websocket.send(self.wrap_ws_deformatter('200', 'username', f"{verification_result[3]}", 'debug', True))
+                            await websocket.send(self.wrap_ws_deformatter('200', 'nickname', f"{verification_result[4]}", 'debug', True))
+                            await websocket.send(self.wrap_ws_deformatter('190', 'ws_cookie', cookie, 'cookie', True))
+                            #await websocket.send(self.wrap_ws_deformatter('200', 'session_created', f"email {verification_result[5]}", 'debug', False))
                             #print(verification_result[0])
                             verificated_result = {
                                 "user_id": verification_result[2],
@@ -719,22 +719,22 @@ class ws_threading_instance(sub_threading_instance):
                         if 'f2b' in verification_result[1]:
                             response_str = f"Fail2Ban locking {verification_result[1]['f2b']} seconds before release, wait and retry--your ray tracer ID is {self.traceray_id}"
                             print(f"出现如下异常1.1-{self.traceray_id}:{verification_result}")
-                            await websocket.send(self.wrap_ws_deformatter('403', 'unauthorized', response_str, 'warn'))
+                            await websocket.send(self.wrap_ws_deformatter('403', 'unauthorized', response_str, 'warn', False))
                             continue
                         elif 'necf' in verification_result[1]:
                             response_str = f"Your account Email not verified, check inbox and retry--your ray tracer ID is {self.traceray_id}"
                             print(f"出现如下异常1.2-{self.traceray_id}:{verification_result}")
-                            await websocket.send(self.wrap_ws_deformatter('403', 'unauthorized', response_str, 'warn'))
+                            await websocket.send(self.wrap_ws_deformatter('403', 'unauthorized', response_str, 'warn', False))
                             continue
                         elif 'pwdw' in verification_result[1]:
                             response_str = f"Bcrypt hashing failed {verification_result[1]['pwdw']} times, check your password--your ray tracer ID is {self.traceray_id}"
                             print(f"出现如下异常1.3-{self.traceray_id}:{verification_result}")
-                            await websocket.send(self.wrap_ws_deformatter('403', 'unauthorized', response_str, 'warn'))
+                            await websocket.send(self.wrap_ws_deformatter('403', 'unauthorized', response_str, 'warn', False))
                             continue
                     else:
                         response_str = f"RSA cognition failed, check possible typo--your ray tracer ID is {self.traceray_id}"
                         print(f"出现如下异常2-{self.traceray_id}:{verification_result}")
-                        await websocket.send(self.wrap_ws_deformatter('403', 'unauthorized', response_str, 'warn'))
+                        await websocket.send(self.wrap_ws_deformatter('403', 'unauthorized', response_str, 'warn', False))
                         continue
             except websockets.exceptions.WebSocketException:
                 print("Someone disconnected")
@@ -742,8 +742,8 @@ class ws_threading_instance(sub_threading_instance):
             except Exception as excepted:
                 response_str = f"Caught a serialization failure in hashing section, check possible typo--your ray tracer ID is {self.traceray_id}"
                 print(f"出现如下异常5-{self.traceray_id}:{excepted}")
-                #traceback.print_exc()
-                await websocket.send(self.wrap_ws_deformatter('403', 'unauthorized', response_str, 'warn'))
+                traceback.print_exc()
+                await websocket.send(self.wrap_ws_deformatter('403', 'unauthorized', response_str, 'warn', False))
                 continue
     
     #接管输入
