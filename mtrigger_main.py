@@ -273,7 +273,7 @@ async def triggering(parent, input, output, chat_session):
         response_str2 = f'No tool called by MTrigger.'
     if websocket:
         await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_triggering', response_str1, 'debug'))
-        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_end', response_str2, 'debug'))
+        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_end', response_str2, 'info'))
     print(response_str1)
     print(response_str2)
     cycle = 0
@@ -306,7 +306,7 @@ async def triggering(parent, input, output, chat_session):
             response_str2 = f'No tool called by MTrigger.'
         if websocket:
             await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_triggering', response_str1, 'debug'))
-            await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_end', response_str2, 'debug'))
+            await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_end', response_str2, 'info'))
         print(response_str1)
         print(response_str2)
     finish_sentence = f"{cycle} MTrigger requests sent, active trigger finished." if cycle else "No MTrigger activated."

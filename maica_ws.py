@@ -620,7 +620,7 @@ def global_init_system(player_name, target_lang='zh', strict_conv=True):
             system_init = f"You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Reply to the following mail from {player_name} properly as Monika. You should only answer in natural written language in English, and do not make up things you don't know."
     return system_init
 
-def wrap_ws_formatter(code, status, content, type):
+def wrap_ws_formatter(code, status, content, type, deformation=False):
     output = {
         "code" : code,
         "status" : status,
@@ -628,7 +628,7 @@ def wrap_ws_formatter(code, status, content, type):
         "type" : type,
         "time_ms" : int(round(time.time() * 1000))
     }
-    return json.dumps(output, ensure_ascii=False)
+    return json.dumps(output, ensure_ascii=deformation)
 
 async def wrap_run_in_exc(loop, func, *args, **kwargs):
     if not loop:

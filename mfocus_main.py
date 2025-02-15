@@ -299,7 +299,7 @@ async def agenting(parent, input, chat_session, bypass_mt=False):
         response_str2 = f'No tool called by MFocus.'
     if websocket:
         await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug'))
-        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'debug'))
+        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'info'))
     print(response_str1)
     print(response_str2)
   
@@ -441,7 +441,7 @@ async def agenting(parent, input, chat_session, bypass_mt=False):
                 response_str2 = f'No tool called by MFocus.'
             if websocket:
                 await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug'))
-                await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'debug'))
+                await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'info'))
             print(response_str1)
             print(response_str2)
             if not tool_calls:
@@ -472,17 +472,17 @@ async def agenting(parent, input, chat_session, bypass_mt=False):
             fin_final_answer = ''
     if mf_aggressive and instructed_final_answer_joined:
         response_str3 = f"MFocus callback achieved, response is:\n{fin_final_answer}\nInfo acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."
-        if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug'))
+        if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'info'))
         print(response_str3)
         return fin_final_answer, instructed_final_answer_joined
     elif instructed_final_answer_joined:
         response_str3 = f"MFocus falling back, Info acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."
-        if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug'))
+        if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'info'))
         print(response_str3)
         return 'EMPTY', instructed_final_answer_joined
     else:
         response_str3 = f"MFocus failed or missed, Ending MFocus callback."
-        if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'debug'))
+        if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'info'))
         print(response_str3)
         return 'FAIL', ''
 
