@@ -60,7 +60,7 @@ MAICA验证令牌的接口位于https://maicadev.monika.love/api/legality. 你�
 若要调整设置, 你应当按以下格式范例输入选择:
     {
         "type": "params",
-        "model_params": {"model": "maica_main", "sf_extraction": true, "mt_extraction": true, "stream_output": true, "target_lang": "zh", "max_token": 4096},
+        "model_params": {"model": "maica_main", "sf_extraction": true, "mt_extraction": true, "stream_output": true, "deformation": false, "target_lang": "zh", "max_token": 4096},
         "perf_params": {"esc_aggressive": true, "amt_aggressive": true, "tnd_aggressive": 1, "mf_aggressive": false, "sfe_aggressive": false, "nsfw_acceptive": true, "pre_additive": 0, "post_additive": 1, "tz": null},
         "super_params": {"top_p": 0.7, "temperature": 0.2, "max_tokens": 1600, "frequency_penalty": 0.4, "presence_penalty": 0.4, "seed": 10721}
     }
@@ -80,6 +80,8 @@ MAICA验证令牌的接口位于https://maicadev.monika.love/api/legality. 你�
             当该参数设置为False时, 若对话请求中还存在额外trigger条目, 只有额外条目将被使用. 若不存在额外条目则MTrigger关闭.
         bool(stream_output):
             决定MAICA的输出模式, 后文中有两种模式的范例.
+        bool(deformation):
+            决定输出的json是否启用ensure_ascii, 若启用则需要在收包时解码.
         str(target_lang):
             target_lang只能传入zh或en. 此方法通过修改system prompt实现, 并不能保证输出语言严格正确.
         int(max_token):
@@ -88,7 +90,7 @@ MAICA验证令牌的接口位于https://maicadev.monika.love/api/legality. 你�
             该设置调整后不会立刻生效, 会在接下来一轮在对应chat_session的对话完成并存储时执行裁剪.
             此参数意在缓解对话历史累积导致的响应速度过慢问题. 其具体工作方式于后文中介绍. 请避免将其设置得过小, 否则可能影响模型的正常语言能力.
             请不要混淆此设置与超参数中的max_tokens, 后者的作用是限制模型单次输出长度, 二者是不同的!
-        以上参数的缺省值分别为"maica_main", true, true, true, "zh", 4096.
+        以上参数的缺省值分别为"maica_main", true, true, true, false, "zh", 4096.
     在perf_params中:
         bool(esc_aggressive):
             当esc_aggressive为true时会调用agent模型对MFocus联网搜集的信息整理一次. 启用此功能会改善模型对联网检索信息的专注能力, 但也会降低涉及联网搜索query的响应速度.
