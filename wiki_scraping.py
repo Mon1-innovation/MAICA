@@ -33,7 +33,7 @@ async def get_page(title=None, target_lang='zh'):
     if title and isinstance(title, dict) and 'type' in title:
         # {"type": "in_category/in_fuzzy_category/page/fuzzy_page", "sample": 200, "title": "anything"}
         match title['type']:
-            case 'percise_page':
+            case detypo if detypo in ['percise_page', 'precise_page']:
                 next_title = title['title']
                 use_page = True
                 sample = 1
@@ -44,7 +44,7 @@ async def get_page(title=None, target_lang='zh'):
                 use_page = True
                 if isinstance(title['sample'], int) and 2 <= title['sample'] <= 250:
                     sample = set_sample = title['sample']
-            case 'in_percise_category':
+            case detypo if detypo in ['in_percise_category', 'in_precise_category']:
                 next_title = title['title']
                 use_page = False
                 sample = 1

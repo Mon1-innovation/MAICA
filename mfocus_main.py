@@ -31,7 +31,7 @@ async def agenting(parent, input, chat_session, bypass_mt=False):
         # These are testing values
         sf_extraction = True
         session = {"user_id": 23, "username": "edge"}
-        target_lang = 'en'
+        target_lang = 'zh'
         pre_additive = 0
         tnd_aggressive = 1
         mf_aggressive = True
@@ -489,7 +489,7 @@ async def agenting(parent, input, chat_session, bypass_mt=False):
 if __name__ == "__main__":
     import time
     start_time = time.time()
-    agented = asyncio.run(agenting(None, 'Do you remember my birthday', 1))
+    agented = asyncio.run(agenting(None, '我们来做个测试，你知道我的生日是几月几号吗？', 1))
     print(agented[0])
     print(agented[1])
     end_time = time.time()
