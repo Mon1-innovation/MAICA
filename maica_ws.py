@@ -656,6 +656,11 @@ class ws_threading_instance(sub_threading_instance):
         self.websocket = websocket
         super().__init__(test=test)
 
+    def wrap_ws_deformatter(self, code, status, content, type, deformation=None):
+        if deformation is None:
+            deformation = self.options['opt']['deformation']
+        return wrap_ws_formatter(code, status, content, type, deformation)
+
     #身份验证
 
     async def check_permit(self):
@@ -678,28 +683,28 @@ class ws_threading_instance(sub_threading_instance):
                     if not checked_status[0]:
                         response_str = f"Account service failed to fetch, refer to administrator--your ray tracer ID is {self.traceray_id}"
                         print(f"出现如下异常3-{self.traceray_id}:{checked_status[1]}")
-                        await websocket.send(wrap_ws_formatter('500', 'unable_verify', response_str, 'error'))
+                        await websocket.send(self.wrap_ws_deformatter('500', 'unable_verify', response_str, 'error'))
                         await websocket.close(1000, 'Stopping connection due to critical server failure')
                     elif checked_status[3]:
                         response_str = f"Your account disobeied our terms of service and was permenantly banned--your ray tracer ID is {self.traceray_id}"
                         print(f"出现如下异常4-{self.traceray_id}:banned")
-                        await websocket.send(wrap_ws_formatter('403', 'account_banned', response_str, 'warn'))
+                        await websocket.send(self.wrap_ws_deformatter('403', 'account_banned', response_str, 'warn'))
                         await websocket.close(1000, 'Permission denied')
                     else:
                         if verification_result[2] in online_list:
                             response_str = f"You have an established connection already--your ray tracer ID is {self.traceray_id}"
                             print(f"出现如下异常4.1-{self.traceray_id}:reusage")
-                            await websocket.send(wrap_ws_formatter('403', 'connection_reuse', response_str, 'warn'))
+                            await websocket.send(self.wrap_ws_deformatter('403', 'connection_reuse', response_str, 'warn'))
                             await websocket.close(1000, 'Permission denied')
                         else:
                             self.cookie = cookie = str(uuid.uuid4())
                             self.enforce_cookie = False
-                            await websocket.send(wrap_ws_formatter('206', 'session_created', "Authencation passed!", 'info'))
-                            await websocket.send(wrap_ws_formatter('200', 'user_id', f"{verification_result[2]}", 'debug'))
-                            await websocket.send(wrap_ws_formatter('200', 'username', f"{verification_result[3]}", 'debug'))
-                            await websocket.send(wrap_ws_formatter('200', 'nickname', f"{verification_result[4]}", 'debug'))
-                            await websocket.send(wrap_ws_formatter('190', 'ws_cookie', cookie, 'cookie'))
-                            #await websocket.send(wrap_ws_formatter('200', 'session_created', f"email {verification_result[5]}", 'debug'))
+                            await websocket.send(self.wrap_ws_deformatter('206', 'session_created', "Authencation passed!", 'info'))
+                            await websocket.send(self.wrap_ws_deformatter('200', 'user_id', f"{verification_result[2]}", 'debug'))
+                            await websocket.send(self.wrap_ws_deformatter('200', 'username', f"{verification_result[3]}", 'debug'))
+                            await websocket.send(self.wrap_ws_deformatter('200', 'nickname', f"{verification_result[4]}", 'debug'))
+                            await websocket.send(self.wrap_ws_deformatter('190', 'ws_cookie', cookie, 'cookie'))
+                            #await websocket.send(self.wrap_ws_deformatter('200', 'session_created', f"email {verification_result[5]}", 'debug'))
                             #print(verification_result[0])
                             verificated_result = {
                                 "user_id": verification_result[2],
@@ -714,22 +719,22 @@ class ws_threading_instance(sub_threading_instance):
                         if 'f2b' in verification_result[1]:
                             response_str = f"Fail2Ban locking {verification_result[1]['f2b']} seconds before release, wait and retry--your ray tracer ID is {self.traceray_id}"
                             print(f"出现如下异常1.1-{self.traceray_id}:{verification_result}")
-                            await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
+                            await websocket.send(self.wrap_ws_deformatter('403', 'unauthorized', response_str, 'warn'))
                             continue
                         elif 'necf' in verification_result[1]:
                             response_str = f"Your account Email not verified, check inbox and retry--your ray tracer ID is {self.traceray_id}"
                             print(f"出现如下异常1.2-{self.traceray_id}:{verification_result}")
-                            await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
+                            await websocket.send(self.wrap_ws_deformatter('403', 'unauthorized', response_str, 'warn'))
                             continue
                         elif 'pwdw' in verification_result[1]:
                             response_str = f"Bcrypt hashing failed {verification_result[1]['pwdw']} times, check your password--your ray tracer ID is {self.traceray_id}"
                             print(f"出现如下异常1.3-{self.traceray_id}:{verification_result}")
-                            await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
+                            await websocket.send(self.wrap_ws_deformatter('403', 'unauthorized', response_str, 'warn'))
                             continue
                     else:
                         response_str = f"RSA cognition failed, check possible typo--your ray tracer ID is {self.traceray_id}"
                         print(f"出现如下异常2-{self.traceray_id}:{verification_result}")
-                        await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
+                        await websocket.send(self.wrap_ws_deformatter('403', 'unauthorized', response_str, 'warn'))
                         continue
             except websockets.exceptions.WebSocketException:
                 print("Someone disconnected")
@@ -738,7 +743,7 @@ class ws_threading_instance(sub_threading_instance):
                 response_str = f"Caught a serialization failure in hashing section, check possible typo--your ray tracer ID is {self.traceray_id}"
                 print(f"出现如下异常5-{self.traceray_id}:{excepted}")
                 #traceback.print_exc()
-                await websocket.send(wrap_ws_formatter('403', 'unauthorized', response_str, 'warn'))
+                await websocket.send(self.wrap_ws_deformatter('403', 'unauthorized', response_str, 'warn'))
                 continue
     
     #接管输入
@@ -750,6 +755,7 @@ class ws_threading_instance(sub_threading_instance):
         client_options = {
             "model_actual" : self.model_type_actual,
             "stream" : True,
+            "deformation": False,
             "full_maica": True,
             "sf_extraction": True,
             "mt_extraction": True,
@@ -769,8 +775,8 @@ class ws_threading_instance(sub_threading_instance):
         }
         self.alter_identity('opt', **client_options)
         self.alter_identity('eopt', **client_extra_options)
-        await websocket.send(wrap_ws_formatter('206', 'thread_ready', "Thread is ready for input or setting adjustment", 'info'))
-        await websocket.send(wrap_ws_formatter('200', 'ok', f"Service provider is {load_env('DEV_IDENTITY')}", 'info'))
+        await websocket.send(self.wrap_ws_deformatter('206', 'thread_ready', "Thread is ready for input or setting adjustment", 'info'))
+        await websocket.send(self.wrap_ws_deformatter('200', 'ok', f"Service provider is {load_env('DEV_IDENTITY')}", 'info'))
 
         # Starting loop from here
 
@@ -780,12 +786,12 @@ class ws_threading_instance(sub_threading_instance):
             if not checked_status[0]:
                 response_str = f"Account service failed to fetch, refer to administrator--your ray tracer ID is {self.traceray_id}"
                 print(f"出现如下异常3-{self.traceray_id}:{checked_status[1]}")
-                await websocket.send(wrap_ws_formatter('500', 'unable_verify', response_str, 'error'))
+                await websocket.send(self.wrap_ws_deformatter('500', 'unable_verify', response_str, 'error'))
                 await websocket.close(1000, 'Stopping connection due to critical server failure')
             elif checked_status[3]:
                 response_str = f"Your account disobeied our terms of service and was permenantly banned--your ray tracer ID is {self.traceray_id}"
                 print(f"出现如下异常4-{self.traceray_id}:banned")
-                await websocket.send(wrap_ws_formatter('403', 'account_banned', response_str, 'warn'))
+                await websocket.send(self.wrap_ws_deformatter('403', 'account_banned', response_str, 'warn'))
                 await websocket.close(1000, 'Permission denied')
             recv_text = await websocket.recv()
             if not recv_text:
@@ -796,7 +802,7 @@ class ws_threading_instance(sub_threading_instance):
             if len(recv_text) > 4096:
                 response_str = f"Input exceeding 4096 characters, which is not permitted--your ray tracer ID is {self.traceray_id}"
                 print(f"出现如下异常12-{self.traceray_id}:length exceeded")
-                await websocket.send(wrap_ws_formatter('403', 'length_exceeded', response_str, 'warn'))
+                await websocket.send(self.wrap_ws_deformatter('403', 'length_exceeded', response_str, 'warn'))
                 continue
             try:
                 try:
@@ -810,23 +816,23 @@ class ws_threading_instance(sub_threading_instance):
                 if 'cookie' in recv_loaded_json:
                     if str(recv_loaded_json['cookie']) == self.cookie:
                         if not self.enforce_cookie:
-                            await websocket.send(wrap_ws_formatter('200', 'ok', f"Cookie verification passed and strict sucurity mode enabled", 'info'))
+                            await websocket.send(self.wrap_ws_deformatter('200', 'ok', f"Cookie verification passed and strict sucurity mode enabled", 'info'))
                             self.enforce_cookie = True
                         else:
-                            await websocket.send(wrap_ws_formatter('200', 'ok', f"Cookie verification passed", 'debug'))
+                            await websocket.send(self.wrap_ws_deformatter('200', 'ok', f"Cookie verification passed", 'debug'))
                     else:
                         response_str = f"Cookie verification failed with strict security enforced--your ray tracer ID is {self.traceray_id}"
                         print(f"出现如下异常5-{self.traceray_id}:{recv_loaded_json['cookie']} unequal {self.cookie}")
-                        await websocket.send(wrap_ws_formatter('403', 'cookie_mismatch', response_str, 'warn'))
+                        await websocket.send(self.wrap_ws_deformatter('403', 'cookie_mismatch', response_str, 'warn'))
                         await websocket.close(1000, 'Permission denied')
                 elif self.enforce_cookie:
                     response_str = f"No cookie provided with strict security enforced--your ray tracer ID is {self.traceray_id}"
                     print(f"出现如下异常5.1-no cookie")
-                    await websocket.send(wrap_ws_formatter('403', 'cookie_absent', response_str, 'warn'))
+                    await websocket.send(self.wrap_ws_deformatter('403', 'cookie_absent', response_str, 'warn'))
                     await websocket.close(1000, 'Permission denied')
                 match recv_type.lower():
                     case 'ping':
-                        await websocket.send(wrap_ws_formatter('199', 'ping_reaction', "PONG", 'heartbeat'))
+                        await websocket.send(self.wrap_ws_deformatter('199', 'ping_reaction', "PONG", 'heartbeat'))
                         print(f"recieved PING from {session['username']}")
                     case 'params':
                         await self.def_model(recv_loaded_json)
@@ -839,7 +845,7 @@ class ws_threading_instance(sub_threading_instance):
                     case _:
                         response_str = f"Input is unrecognizable, check possible typo--your ray tracer ID is {self.traceray_id}"
                         print(f"出现如下异常6.1-{self.traceray_id}:{recv_text}")
-                        await websocket.send(wrap_ws_formatter('405', 'wrong_form', response_str, 'warn')) 
+                        await websocket.send(self.wrap_ws_deformatter('405', 'wrong_form', response_str, 'warn')) 
                         continue
             except websockets.exceptions.WebSocketException:
                 print("Someone disconnected")
@@ -848,7 +854,7 @@ class ws_threading_instance(sub_threading_instance):
                 response_str = f"A common failure was caught in main logic, refer to administrator--your ray tracer ID is {self.traceray_id}"
                 print(f"出现如下异常6-{self.traceray_id}:{excepted}")
                 #traceback.print_exc()
-                await websocket.send(wrap_ws_formatter('503', 'server_failed', response_str, 'warn'))
+                await websocket.send(self.wrap_ws_deformatter('503', 'server_failed', response_str, 'warn'))
                 continue
 
     #交互设置
@@ -872,6 +878,8 @@ class ws_threading_instance(sub_threading_instance):
                     client_options['mt_extraction'] = bool(model_params['mt_extraction'])
                 if 'stream_output' in model_params:
                     client_options['stream'] = bool(model_params['stream_output'])
+                if 'deformation' in model_params:
+                    client_options['deformation'] = bool(model_params['deformation'])
                 if 'target_lang' in model_params:
                     client_options['target_lang'] = 'en' if model_params['target_lang'] == 'en' else 'zh'
                     self.sf_inst.target_lang = 'en' if model_params['target_lang'] == 'en' else 'zh'
@@ -932,7 +940,7 @@ class ws_threading_instance(sub_threading_instance):
                     elif 0.2 < float(super_params['frequency_penalty']) <= 1.0:
                         super_params_filtered['frequency_penalty'] = float(super_params['frequency_penalty'])
                 self.alter_identity('sup', **super_params_filtered)
-            await websocket.send(wrap_ws_formatter('200', 'params_set', f"{len(client_options)+len(client_extra_options)+len(super_params_filtered)} settings passed in and taking effect", 'info'))
+            await websocket.send(self.wrap_ws_deformatter('200', 'params_set', f"{len(client_options)+len(client_extra_options)+len(super_params_filtered)} settings passed in and taking effect", 'info'))
             return True
         except websockets.exceptions.WebSocketException:
             print("Someone disconnected")
@@ -940,7 +948,7 @@ class ws_threading_instance(sub_threading_instance):
         except Exception as excepted:
             response_str = f"Choice serialization failed, check possible typo--your ray tracer ID is {self.traceray_id}"
             print(f"出现如下异常9-{self.traceray_id}:{excepted}")
-            await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
+            await websocket.send(self.wrap_ws_deformatter('405', 'wrong_input', response_str, 'warn'))
             return False
 
     #交互会话
@@ -972,11 +980,11 @@ class ws_threading_instance(sub_threading_instance):
                         elif purge_result[2]:
                             response_str = f"Determined chat session not exist, check possible typo--your ray tracer ID is {self.traceray_id}"
                             print(f"出现如下异常13-{self.traceray_id}:{purge_result[1]}")
-                            await websocket.send(wrap_ws_formatter('404', 'session_notfound', response_str, 'warn'))
+                            await websocket.send(self.wrap_ws_deformatter('404', 'session_notfound', response_str, 'warn'))
                             return False
                         else:
                             response_str = f"finished swiping user id {user_id} chat session {chat_session}"
-                            await websocket.send(wrap_ws_formatter('204', 'deleted', response_str, 'info'))
+                            await websocket.send(self.wrap_ws_deformatter('204', 'deleted', response_str, 'info'))
                             return True
                     except websockets.exceptions.WebSocketException:
                         print("Someone disconnected")
@@ -984,7 +992,7 @@ class ws_threading_instance(sub_threading_instance):
                     except Exception as excepted:
                         response_str = f"Purging chat session failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
                         print(f"出现如下异常14-{self.traceray_id}:{excepted}")
-                        await websocket.send(wrap_ws_formatter('500', 'unable_purge', response_str, 'error'))
+                        await websocket.send(self.wrap_ws_deformatter('500', 'unable_purge', response_str, 'error'))
                         await websocket.close(1000, 'Stopping connection due to critical server failure')
             if 'inspire' in request_json and not query_in:
                 if request_json['inspire']:
@@ -997,7 +1005,7 @@ class ws_threading_instance(sub_threading_instance):
                     if not query_insp[0]:
                         response_str = f"MSpire generation failed, consider retrying later--your ray tracer ID is {self.traceray_id}"
                         print(f"出现如下异常15-{self.traceray_id}:{query_insp[1]}")
-                        await websocket.send(wrap_ws_formatter('503', 'mspire_failed', response_str, 'warn'))
+                        await websocket.send(self.wrap_ws_deformatter('503', 'mspire_failed', response_str, 'warn'))
                         return False
                     query_in = query_insp[2]
             if 'postmail' in request_json and not query_in:
@@ -1038,7 +1046,7 @@ class ws_threading_instance(sub_threading_instance):
                     # if not query_vise[0]:
                     #     response_str = f"MVista generation failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
                     #     print(f"出现如下异常15.1-{self.traceray_id}:{query_vise[1]}")
-                    #     await websocket.send(wrap_ws_formatter('503', 'mvista_failed', response_str, 'warn'))
+                    #     await websocket.send(self.wrap_ws_deformatter('503', 'mvista_failed', response_str, 'warn'))
                     #     return False
                     # query_in = query_vise[2]
             if not query_in:
@@ -1061,7 +1069,7 @@ class ws_threading_instance(sub_threading_instance):
             if easter_exist:
                 easter_check = easter(query_in)
                 if easter_check:
-                    await websocket.send(wrap_ws_formatter('299', 'easter_egg', easter_check, 'info'))
+                    await websocket.send(self.wrap_ws_deformatter('299', 'easter_egg', easter_check, 'info'))
             messages0 = json.dumps({'role': 'user', 'content': query_in}, ensure_ascii=False)
             match int(chat_session):
                 case i if i == -1:
@@ -1071,7 +1079,7 @@ class ws_threading_instance(sub_threading_instance):
                         if len(messages) > 10:
                             response_str = f"Input exceeding 10 rounds, which is not permitted--your ray tracer ID is {self.traceray_id}"
                             print(f"出现如下异常16-{self.traceray_id}:rounds exceeded")
-                            await websocket.send(wrap_ws_formatter('403', 'rounds_exceeded', response_str, 'warn'))
+                            await websocket.send(self.wrap_ws_deformatter('403', 'rounds_exceeded', response_str, 'warn'))
                             return False
                     except websockets.exceptions.WebSocketException:
                         print("Someone disconnected")
@@ -1079,7 +1087,7 @@ class ws_threading_instance(sub_threading_instance):
                     except Exception as excepted:
                         response_str = f"Input serialization failed, check possible type--your ray tracer ID is {self.traceray_id}"
                         print(f"出现如下异常17-{self.traceray_id}:{excepted}")
-                        await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
+                        await websocket.send(self.wrap_ws_deformatter('405', 'wrong_input', response_str, 'warn'))
                         return False
                 case i if i == 0 or (0 < i < 10 and i % 1 == 0):
                     session_type = 0 if i == 0 else 1
@@ -1091,31 +1099,31 @@ class ws_threading_instance(sub_threading_instance):
                             message_agent_wrapped = await mfocus_main.agenting(self, query_in, chat_session, bypass_mt)
                             if message_agent_wrapped[0] == 'EMPTY':
                                 response_str = f"MFocus using instructed final guidance, suggesting LLM conclusion is empty--your ray tracer ID is {self.traceray_id}"
-                                await websocket.send(wrap_ws_formatter('200', 'agent_prog', response_str, 'debug'))
+                                await websocket.send(self.wrap_ws_deformatter('200', 'agent_prog', response_str, 'debug'))
                                 if len(message_agent_wrapped[1]) > 5:
                                     response_str = f"Due to LLM conclusion absence, falling back to instructed guidance and continuing."
-                                    await websocket.send(wrap_ws_formatter('200', 'agent_abse', response_str, 'debug'))
+                                    await websocket.send(self.wrap_ws_deformatter('200', 'agent_abse', response_str, 'debug'))
                                     info_agent_grabbed = message_agent_wrapped[1]
                                 else:
                                     response_str = f"Due to agent failure, falling back to default guidance and continuing anyway."
-                                    await websocket.send(wrap_ws_formatter('200', 'force_failsafe', response_str, 'debug'))
+                                    await websocket.send(self.wrap_ws_deformatter('200', 'force_failsafe', response_str, 'debug'))
                                     print(f"出现如下异常18-{self.traceray_id}:Corruption")
                                     info_agent_grabbed = ''
                             elif message_agent_wrapped[0] == 'FAIL':
                                 response_str = f"MFocus did not use a tool, suggesting unnecessary--your ray tracer ID is {self.traceray_id}"
-                                await websocket.send(wrap_ws_formatter('200', 'agent_none', response_str, 'debug'))
+                                await websocket.send(self.wrap_ws_deformatter('200', 'agent_none', response_str, 'debug'))
                                 info_agent_grabbed = ''
                             else:
                                 # We are defaulting instructed guidance because its more clear pattern
                                 # But if pointer entered this section, user must used mf_aggressive or something went wrong
                                 if len(message_agent_wrapped[1]) > 5 and len(message_agent_wrapped[0]) > 5:
                                     response_str = f"MFocus using LLM conclusion guidance."
-                                    await websocket.send(wrap_ws_formatter('200', 'agent_aggr', response_str, 'debug'))
+                                    await websocket.send(self.wrap_ws_deformatter('200', 'agent_aggr', response_str, 'debug'))
                                     info_agent_grabbed = message_agent_wrapped[0]
                                 else:
                                     # We do not want answers without information
                                     response_str = f"Due to agent failure, falling back to default guidance and continuing anyway."
-                                    await websocket.send(wrap_ws_formatter('200', 'force_failsafe', response_str, 'debug'))
+                                    await websocket.send(self.wrap_ws_deformatter('200', 'force_failsafe', response_str, 'debug'))
                                     print(f"出现如下异常18.5-{self.traceray_id}:Corruption")
                                     info_agent_grabbed = ''
 
@@ -1134,7 +1142,7 @@ class ws_threading_instance(sub_threading_instance):
                                 except Exception as excepted:
                                     response_str = f"MFocus insertion failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
                                     print(f"出现如下异常19-{self.traceray_id}:{excepted}")
-                                    await websocket.send(wrap_ws_formatter('500', 'insertion_failed', response_str, 'error'))
+                                    await websocket.send(self.wrap_ws_deformatter('500', 'insertion_failed', response_str, 'error'))
                                     await websocket.close(1000, 'Stopping connection due to critical server failure')
                             else:
                                 messages = [{'role': 'system', 'content': (await self.mod_once_system(chat_session_num=chat_session, known_info=overall_info_system, strict_conv=strict_conv))[2]}, {'role': 'user', 'content': query_in}]
@@ -1151,7 +1159,7 @@ class ws_threading_instance(sub_threading_instance):
                                 except Exception as excepted:
                                     response_str = f"Prompt initialization failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
                                     print(f"出现如下异常20-{self.traceray_id}:{excepted}")
-                                    await websocket.send(wrap_ws_formatter('500', 'insertion_failed', response_str, 'error'))
+                                    await websocket.send(self.wrap_ws_deformatter('500', 'insertion_failed', response_str, 'error'))
                                     await websocket.close(1000, 'Stopping connection due to critical server failure')
                             else:
                                 messages = [{'role': 'system', 'content': global_init_system('[player]', target_lang)}, {'role': 'user', 'content': query_in}]
@@ -1162,7 +1170,7 @@ class ws_threading_instance(sub_threading_instance):
                         response_str = f"Agent response acquiring failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
                         print(f"出现如下异常21-{self.traceray_id}:{excepted}")
                         traceback.print_exc()
-                        await websocket.send(wrap_ws_formatter('500', 'agent_unavailable', response_str, 'error'))
+                        await websocket.send(self.wrap_ws_deformatter('500', 'agent_unavailable', response_str, 'error'))
                         return False
                     finally:
                         strict_conv = False
@@ -1175,12 +1183,12 @@ class ws_threading_instance(sub_threading_instance):
                             else:
                                 response_str = f"Chat session reading failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
                                 print(f"出现如下异常22-{self.traceray_id}:{rw_result[1]}")
-                                await websocket.send(wrap_ws_formatter('500', 'read_failed', response_str, 'error'))
+                                await websocket.send(self.wrap_ws_deformatter('500', 'read_failed', response_str, 'error'))
                                 await websocket.close(1000, 'Stopping connection due to critical server failure')
                         else:
                             response_str = f"Chat session creation failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
                             print(f"出现如下异常23-{self.traceray_id}:{check_result[1]}")
-                            await websocket.send(wrap_ws_formatter('500', 'creation_failed', response_str, 'error'))
+                            await websocket.send(self.wrap_ws_deformatter('500', 'creation_failed', response_str, 'error'))
                             await websocket.close(1000, 'Stopping connection due to critical server failure')
                         try:
                             messages = json.loads(messages)
@@ -1190,12 +1198,12 @@ class ws_threading_instance(sub_threading_instance):
                         except Exception as excepted:
                             response_str = f"Chat input serialization failed, check possible typo--your ray tracer ID is {self.traceray_id}"
                             print(f"出现如下异常24-{self.traceray_id}:{excepted}")
-                            await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
+                            await websocket.send(self.wrap_ws_deformatter('405', 'wrong_input', response_str, 'warn'))
                             return False
                 case _:
                     response_str = f"Chat session num mistaken, check possible typo--your ray tracer ID is {self.traceray_id}"
                     print(f"出现如下异常25-{self.traceray_id}:{chat_session}")
-                    await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
+                    await websocket.send(self.wrap_ws_deformatter('405', 'wrong_input', response_str, 'warn'))
                     return False
         except websockets.exceptions.WebSocketException:
             print("Someone disconnected")
@@ -1204,7 +1212,7 @@ class ws_threading_instance(sub_threading_instance):
             #traceback.print_exc()
             response_str = f"Query serialization failed, check possible typo--your ray tracer ID is {self.traceray_id}"
             print(f"出现如下异常26-{self.traceray_id}:{excepted}")
-            await websocket.send(wrap_ws_formatter('405', 'wrong_input', response_str, 'warn'))
+            await websocket.send(self.wrap_ws_deformatter('405', 'wrong_input', response_str, 'warn'))
             return False
         try:
             completion_args = {
@@ -1254,15 +1262,15 @@ class ws_threading_instance(sub_threading_instance):
                     if token != '':
                         if True:
                             reply_appended = reply_appended + token
-                            await websocket.send(wrap_ws_formatter('100', 'continue', token, 'carriage'))
+                            await websocket.send(self.wrap_ws_deformatter('100', 'continue', token, 'carriage'))
                         else:
                             break
-                await websocket.send(wrap_ws_formatter('1000', 'streaming_done', f"streaming has finished with seed {completion_args['seed']}", 'info'))
+                await websocket.send(self.wrap_ws_deformatter('1000', 'streaming_done', f"streaming has finished with seed {completion_args['seed']}", 'info'))
                 print(f"Finished replying-{self.traceray_id}:{session['username']}, with seed {completion_args['seed']}")
             else:
                 reply_appended = stream_resp.choices[0].message.content
                 print(reply_appended)
-                await websocket.send(wrap_ws_formatter('200', 'reply', reply_appended, 'carriage'))
+                await websocket.send(self.wrap_ws_deformatter('200', 'reply', reply_appended, 'carriage'))
 
 
             # Can be post-processed here
@@ -1280,12 +1288,12 @@ class ws_threading_instance(sub_threading_instance):
 
             trigger_succ, trigger_sce = trigger_resp
             if trigger_succ:
-                await websocket.send(wrap_ws_formatter('1010', 'mtrigger_done', trigger_sce, 'info'))
+                await websocket.send(self.wrap_ws_deformatter('1010', 'mtrigger_done', trigger_sce, 'info'))
             else:
                 if trigger_sce:
                     response_str = f"Trigger response acquiring failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
                     print(f"出现如下异常27-{self.traceray_id}:{trigger_sce}")
-                    await websocket.send(wrap_ws_formatter('503', 'mtrigger_failed', response_str, 'warn'))
+                    await websocket.send(self.wrap_ws_deformatter('503', 'mtrigger_failed', response_str, 'warn'))
                 else:
                     print('No trigger passed in')
             if int(chat_session) > 0:
@@ -1298,24 +1306,24 @@ class ws_threading_instance(sub_threading_instance):
                         if stored[4]:
                             match stored[4]:
                                 case 1:
-                                    await websocket.send(wrap_ws_formatter('204', 'deleted', f"Since session {chat_session} of user {username} exceeded {max_token_hint} characters, The former part has been deleted to save storage--your ray tracer ID is {self.traceray_id}.", 'info'))
+                                    await websocket.send(self.wrap_ws_deformatter('204', 'deleted', f"Since session {chat_session} of user {username} exceeded {max_token_hint} characters, The former part has been deleted to save storage--your ray tracer ID is {self.traceray_id}.", 'info'))
                                 case 2:
-                                    await websocket.send(wrap_ws_formatter('200', 'delete_hint', f"Session {chat_session} of user {username} exceeded {warn_token_hint} characters, which will be chopped after exceeding {max_token_hint}, make backups if you want to--your ray tracer ID is {self.traceray_id}.", 'info'))
+                                    await websocket.send(self.wrap_ws_deformatter('200', 'delete_hint', f"Session {chat_session} of user {username} exceeded {warn_token_hint} characters, which will be chopped after exceeding {max_token_hint}, make backups if you want to--your ray tracer ID is {self.traceray_id}.", 'info'))
                     else:
                         response_str = f"Chat reply recording failed, refer to administrator--your ray tracer ID is {self.traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
                         print(f"出现如下异常27-{self.traceray_id}:{stored[1]}")
-                        await websocket.send(wrap_ws_formatter('500', 'store_failed', response_str, 'error'))
+                        await websocket.send(self.wrap_ws_deformatter('500', 'store_failed', response_str, 'error'))
                         await websocket.close(1000, 'Stopping connection due to critical server failure')
                 else:
                     response_str = f"Chat query recording failed, refer to administrator--your ray tracer ID is {self.traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
                     print(f"出现如下异常28-{self.traceray_id}:{stored[1]}")
-                    await websocket.send(wrap_ws_formatter('500', 'store_failed', response_str, 'error'))
+                    await websocket.send(self.wrap_ws_deformatter('500', 'store_failed', response_str, 'error'))
                     await websocket.close(1000, 'Stopping connection due to critical server failure')
                 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished entire loop-{self.traceray_id}:{session['username']}")
             else:
                 success = True
                 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished non-recording loop-{self.traceray_id}:{session['username']}")
-            await websocket.send(wrap_ws_formatter('202', 'loop_finished', f"An entire communication loop has finished, reentering loop gracefully--your ray tracer ID is {self.traceray_id}.", 'info'))
+            await websocket.send(self.wrap_ws_deformatter('202', 'loop_finished', f"An entire communication loop has finished, reentering loop gracefully--your ray tracer ID is {self.traceray_id}.", 'info'))
         except websockets.exceptions.WebSocketException:
             print("Someone disconnected")
             raise Exception('Force closure of connection')
@@ -1323,7 +1331,7 @@ class ws_threading_instance(sub_threading_instance):
             #traceback.print_exc()
             response_str = f"Core model failed to respond, refer to administrator--your ray tracer ID is {self.traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
             print(f"出现如下异常29-{self.traceray_id}:{excepted}")
-            await websocket.send(wrap_ws_formatter('500', 'respond_failed', response_str, 'error'))
+            await websocket.send(self.wrap_ws_deformatter('500', 'respond_failed', response_str, 'error'))
             await websocket.close(1000, 'Stopping connection due to critical server failure')
 
 

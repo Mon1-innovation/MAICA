@@ -27,7 +27,7 @@ async def wrap_triggering(parent, input, output, chat_session):
     
 async def triggering(parent, input, output, chat_session):
     if parent:
-        sf_extraction = parent.options['opt']['sf_extraction'] or parent.options['temp']['sf_extraction_once']
+        sf_extraction, deformation = parent.options['opt']['sf_extraction'] or parent.options['temp']['sf_extraction_once'], parent.options['opt']['deformation']
         post_additive = parent.options['eopt']['post_additive']
         websocket = parent.websocket
         sf_inst, mt_inst = parent.sf_inst, parent.mt_inst
@@ -272,8 +272,8 @@ async def triggering(parent, input, output, chat_session):
         response_str1 = f'MTrigger 1st round finished, response is:\n{response}\nEnding due to returning none or corruption.'
         response_str2 = f'No tool called by MTrigger.'
     if websocket:
-        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_triggering', response_str1, 'debug'))
-        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_end', response_str2, 'info'))
+        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_triggering', response_str1, 'debug', deformation))
+        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_end', response_str2, 'info', deformation))
     print(response_str1)
     print(response_str2)
     cycle = 0
@@ -283,7 +283,7 @@ async def triggering(parent, input, output, chat_session):
             break
         print(f"MTrigger triggered {trigger_name} with params {trigger_params_json}.")
         if websocket:
-            await websocket.send(maica_ws.wrap_ws_formatter('110', 'mtrigger_trigger', [trigger_name, trigger_params_json], 'carriage'))
+            await websocket.send(maica_ws.wrap_ws_formatter('110', 'mtrigger_trigger', [trigger_name, trigger_params_json], 'carriage', deformation))
         return_instruction = '{"status": "success"}'
         messages.append({'role': 'assistant', 'content': response})
         messages.append({'role': 'tool', 'content': return_instruction})
@@ -305,14 +305,14 @@ async def triggering(parent, input, output, chat_session):
             response_str1 = f'MTrigger {cycle+1}nd/rd/th round finished, response is:\n{response}\nEnding due to returning none or corruption.'
             response_str2 = f'No tool called by MTrigger.'
         if websocket:
-            await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_triggering', response_str1, 'debug'))
-            await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_end', response_str2, 'info'))
+            await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_triggering', response_str1, 'debug', deformation))
+            await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_end', response_str2, 'info', deformation))
         print(response_str1)
         print(response_str2)
     finish_sentence = f"{cycle} MTrigger requests sent, active trigger finished." if cycle else "No MTrigger activated."
     print(finish_sentence)
     # if websocket:
-    #     await websocket.send(maica_ws.wrap_ws_formatter('1010', 'mtrigger_done', finish_sentence, 'info'))
+    #     await websocket.send(maica_ws.wrap_ws_formatter('1010', 'mtrigger_done', finish_sentence, 'info', deformation))
     return True, finish_sentence
 
 if __name__ == "__main__":

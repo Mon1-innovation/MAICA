@@ -21,7 +21,7 @@ async def wrap_run_in_exc(loop, func, *args, **kwargs):
 async def agenting(parent, input, chat_session, bypass_mt=False):
     #nest_asyncio.apply()
     if parent:
-        sf_extraction, target_lang = parent.options['opt']['sf_extraction'] or parent.options['temp']['sf_extraction_once'], parent.options['opt']['target_lang']
+        sf_extraction, deformation, target_lang = parent.options['opt']['sf_extraction'] or parent.options['temp']['sf_extraction_once'], parent.options['opt']['deformation'], parent.options['opt']['target_lang']
         pre_additive, tnd_aggressive, mf_aggressive, esc_aggressive, amt_aggressive, tz = parent.options['eopt']['pre_additive'], parent.options['eopt']['tnd_aggressive'], parent.options['eopt']['mf_aggressive'], parent.options['eopt']['esc_aggressive'], parent.options['eopt']['amt_aggressive'], parent.options['eopt']['tz']
         websocket = parent.websocket
         sf_inst, mt_inst = parent.sf_inst, parent.mt_inst
@@ -30,6 +30,7 @@ async def agenting(parent, input, chat_session, bypass_mt=False):
     else:
         # These are testing values
         sf_extraction = True
+        deformation = False
         session = {"user_id": 23, "username": "edge"}
         target_lang = 'zh'
         pre_additive = 0
@@ -298,8 +299,8 @@ async def agenting(parent, input, chat_session, bypass_mt=False):
         response_str1 = f'MFocus main 1st round finished, response is:\n{response}\nEnding due to returning none or corruption.'
         response_str2 = f'No tool called by MFocus.'
     if websocket:
-        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug'))
-        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'info'))
+        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug', deformation))
+        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'info', deformation))
     print(response_str1)
     print(response_str2)
   
@@ -440,8 +441,8 @@ async def agenting(parent, input, chat_session, bypass_mt=False):
                 response_str1 = f'MFocus main {cycle+1}nd/rd/th round finished, response is:\n{response}\nEnding due to returning none or corruption.'
                 response_str2 = f'No tool called by MFocus.'
             if websocket:
-                await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug'))
-                await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'info'))
+                await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug', deformation))
+                await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'info', deformation))
             print(response_str1)
             print(response_str2)
             if not tool_calls:
@@ -472,17 +473,17 @@ async def agenting(parent, input, chat_session, bypass_mt=False):
             fin_final_answer = ''
     if mf_aggressive and instructed_final_answer_joined:
         response_str3 = f"MFocus callback achieved, response is:\n{fin_final_answer}\nInfo acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."
-        if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'info'))
+        if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'info', deformation))
         print(response_str3)
         return fin_final_answer, instructed_final_answer_joined
     elif instructed_final_answer_joined:
         response_str3 = f"MFocus falling back, Info acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."
-        if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'info'))
+        if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'info', deformation))
         print(response_str3)
         return 'EMPTY', instructed_final_answer_joined
     else:
         response_str3 = f"MFocus failed or missed, Ending MFocus callback."
-        if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'info'))
+        if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'info', deformation))
         print(response_str3)
         return 'FAIL', ''
 
