@@ -101,4 +101,8 @@ if __name__ == '__main__':
     users = [load_env('MCORE_USER'), load_env('MFOCUS_USER')]
     pwds = [load_env('MCORE_PWD'), load_env('MFOCUS_PWD')]
     tables = [load_env('MCORE_NODE'), load_env('MFOCUS_NODE')]
-    nvwatchd(hosts, users, pwds, tables)
+    while True:
+        try:
+            nvwatchd(hosts, users, pwds, tables)
+        except:
+            time.sleep(10)
