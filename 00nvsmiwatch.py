@@ -94,15 +94,16 @@ def nvwatchd(hosts, users, pwds, tables):
         print(f'Quiting nvwatchd!')
 
 if __name__ == '__main__':
-    host_filter = re.compile(r"^https?://(.*?)(:|/|$).*", re.I)
-    mcore_addr = host_filter.match(load_env('MCORE_ADDR'))[1]
-    mfocus_addr = host_filter.match(load_env('MFOCUS_ADDR'))[1]
-    hosts = [mcore_addr, mfocus_addr]
-    users = [load_env('MCORE_USER'), load_env('MFOCUS_USER')]
-    pwds = [load_env('MCORE_PWD'), load_env('MFOCUS_PWD')]
-    tables = [load_env('MCORE_NODE'), load_env('MFOCUS_NODE')]
-    while True:
-        try:
-            nvwatchd(hosts, users, pwds, tables)
-        except:
-            time.sleep(10)
+    if load_env("ENABLE_NVW") == '1':
+        host_filter = re.compile(r"^https?://(.*?)(:|/|$).*", re.I)
+        mcore_addr = host_filter.match(load_env('MCORE_ADDR'))[1]
+        mfocus_addr = host_filter.match(load_env('MFOCUS_ADDR'))[1]
+        hosts = [mcore_addr, mfocus_addr]
+        users = [load_env('MCORE_USER'), load_env('MFOCUS_USER')]
+        pwds = [load_env('MCORE_PWD'), load_env('MFOCUS_PWD')]
+        tables = [load_env('MCORE_NODE'), load_env('MFOCUS_NODE')]
+        while True:
+            try:
+                nvwatchd(hosts, users, pwds, tables)
+            except:
+                time.sleep(10)

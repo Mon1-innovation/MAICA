@@ -1,8 +1,11 @@
 import os
 import time
 import socket
+import psutil
 import platform
 import subprocess
+import schedule
+from loadenv import load_env
 
 def check_port(host, port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -11,6 +14,18 @@ def check_port(host, port):
         return False
     else:
         return True
+
+def force_ws_gc():
+    while check_port('0.0.0.0', 5000):
+        time.sleep(1)
+        for c in psutil.net_connections():
+            if c.laddr.port == 5000 and c.status == 'LISTEN':
+                p = psutil.Process(c.pid)
+                p.terminate()
+                break
+    print('Forcing gc: websocket process killed')
+    p = subprocess.Popen([python3, "./maica_ws.py"])
+    time.sleep(10)
 
 if __name__ == "__main__":
     sysstruct = platform.system()
@@ -23,6 +38,8 @@ if __name__ == "__main__":
             print('Your system is not supported!')
             quit()
     print(f'Keepalive daemon for {sysstruct} started')
+    if load_env("FORCE_WSGC") == '1':
+        schedule.every().day.at("04:00").do(force_ws_gc)
     while True:
         time.sleep(5)
         ws_status = check_port('0.0.0.0', 5000)
@@ -61,6 +78,7 @@ if __name__ == "__main__":
             except Exception as excepted:
                 broken = f'Host pullup command failed: {excepted}'
                 break
+        schedule.run_pending()
     if broken:
         print(f'Common failure caught in keepalived: {broken}\nStopping entire process')
         try:
