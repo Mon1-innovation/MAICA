@@ -1338,7 +1338,7 @@ class ws_threading_instance(sub_threading_instance):
             print("Someone disconnected")
             raise Exception('Force closure of connection')
         except Exception as excepted:
-            #traceback.print_exc()
+            traceback.print_exc()
             response_str = f"Core model failed to respond, refer to administrator--your ray tracer ID is {self.traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
             print(f"出现如下异常29-{self.traceray_id}:{excepted}")
             await websocket.send(self.wrap_ws_deformatter('500', 'respond_failed', response_str, 'error'))
