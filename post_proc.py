@@ -81,7 +81,7 @@ def filter_format(reply_appended, target_lang='zh'):
             else:
                 fwd = '[player]'
         else:
-            sig_striped = sig.strip('[').strip(']')
+            sig_striped = sig.strip('[').strip(']').replace(' ', '')
             (curr_emoset, oppo_emoset) = (emotion_etz, emotion_zte) if target_lang == 'zh' else (emotion_zte, emotion_etz)
             if sig_striped in oppo_emoset.keys():
                 continue
