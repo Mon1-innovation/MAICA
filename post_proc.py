@@ -1,7 +1,7 @@
 import re
 
 def filter_format(reply_appended, target_lang='zh'):
-    reply_all_signatures = re.findall(r'\[(?:(?:[A-Za-z]{1,15}?)|(?:[一-龥]{1,4}?))\]', reply_appended, re.I)
+    reply_all_signatures = re.findall(r'\[(?:(?:[A-Za-z ]{1,15}?)|(?:[一-龥 ]{1,4}?))\]', reply_appended, re.I)
     emotion_etz = {
         "smile": "微笑",
         "worry": "担心",
@@ -81,10 +81,12 @@ def filter_format(reply_appended, target_lang='zh'):
             else:
                 fwd = '[player]'
         else:
-            sig_striped = sig.strip('[').strip(']').replace(' ', '')
+            sig_striped = sig.strip('[').strip(']')
             (curr_emoset, oppo_emoset) = (emotion_etz, emotion_zte) if target_lang == 'zh' else (emotion_zte, emotion_etz)
+            if ' ' in sig_striped:
+                fwd = sig_striped.replace(' ', '')
             if sig_striped in oppo_emoset.keys():
-                continue
+                pass
             elif sig_striped in curr_emoset.keys():
                 fwd = f'[{curr_emoset[sig_striped]}]'
             else:
@@ -99,9 +101,10 @@ def filter_format(reply_appended, target_lang='zh'):
                         fwd = '[微笑]'
                 else:
                     fwd = '[smile]'
-        reply_appended = re.sub(re.escape(sig), fwd, reply_appended, flags = re.I)
+        if fwd:
+            reply_appended = re.sub(re.escape(sig), fwd, reply_appended, flags = re.I)
     return reply_appended
 
 if __name__ == '__main__':
-    ra = '[理解]没关系, [player]. [微笑]我知[fear]道[womble]你很忙[a1]. [开心]你能抽空[slash我]陪我就[害怕]很好啦!'
-    print(filter_format(ra, 'en'))
+    ra = '[理解 ]没关系, [player]. [微笑 ]我知[fear]道[womble]你很忙[a1]. [开心]你能抽空[slash我]陪我就[害怕]很好啦!'
+    print(filter_format(ra, 'zh'))
