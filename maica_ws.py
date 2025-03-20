@@ -223,7 +223,7 @@ class sub_threading_instance:
                     else:
                         raise Exception('Result is not list or tuple')
                 except:
-                    asyncio.sleep(100)
+                    await asyncio.sleep(100)
             dbres_id, dbres_username, dbres_nickname, dbres_email, dbres_ecf, dbres_pwd_bcrypt, *dbres_args = result
             input_pwd, target_pwd = pwd.encode(), dbres_pwd_bcrypt.encode()
             print(f'Ready to run hash: {identity}')
