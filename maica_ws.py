@@ -112,35 +112,47 @@ class sub_threading_instance:
 
     async def send_query(self, expression, values=None, pool='maicapool', fetchall=False) -> list:
         global authpool, maicapool
-        pool = authpool if pool == 'authpool' else maicapool
-        if pool.closed:
-            await self._init_pools()
-            pool = authpool if pool == 'authpool' else maicapool
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                if not values:
-                    await cur.execute(expression)
-                else:
-                    await cur.execute(expression, values)
-                #print(cur.description)
-                results = await cur.fetchone() if not fetchall else await cur.fetchall()
-                #print(results)
+        results = None
+        for tries in range(0, 3):
+            try:
+                pool = authpool if pool == 'authpool' else maicapool
+                if pool.closed:
+                    await self._init_pools()
+                    pool = authpool if pool == 'authpool' else maicapool
+                async with pool.acquire() as conn:
+                    async with conn.cursor() as cur:
+                        if not values:
+                            await cur.execute(expression)
+                        else:
+                            await cur.execute(expression, values)
+                        #print(cur.description)
+                        results = await cur.fetchone() if not fetchall else await cur.fetchall()
+                        #print(results)
+                break
+            except:
+                await asyncio.sleep(100)
         return results
 
     async def send_modify(self, expression, values=None, pool='maicapool', fetchall=False) -> int:
         global authpool, maicapool
-        pool = authpool if pool == 'authpool' else maicapool
-        if pool.closed:
-            await self._init_pools()
-            pool = authpool if pool == 'authpool' else maicapool
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                if not values:
-                    await cur.execute(expression)
-                else:
-                    await cur.execute(expression, values)
-                await conn.commit()
-                lrid = cur.lastrowid
+        lrid = None
+        for tries in range(0, 3):
+            try:
+                pool = authpool if pool == 'authpool' else maicapool
+                if pool.closed:
+                    await self._init_pools()
+                    pool = authpool if pool == 'authpool' else maicapool
+                async with pool.acquire() as conn:
+                    async with conn.cursor() as cur:
+                        if not values:
+                            await cur.execute(expression)
+                        else:
+                            await cur.execute(expression, values)
+                        await conn.commit()
+                        lrid = cur.lastrowid
+                break
+            except:
+                await asyncio.sleep(100)
         return lrid
     
     # Tough situation, have to mix thread and aio
@@ -215,15 +227,11 @@ class sub_threading_instance:
         else:
             sql_expression = 'SELECT * FROM users WHERE username = %s'
         try:
-            for tries in [0,1,2]:
-                try:
-                    result = await self.send_query(expression=sql_expression, values=(identity), pool='authpool')
-                    if result[0]:
-                        break
-                    else:
-                        raise Exception('Result is not list or tuple')
-                except:
-                    await asyncio.sleep(100)
+            result = await self.send_query(expression=sql_expression, values=(identity), pool='authpool')
+            if result[0]:
+                pass
+            else:
+                raise Exception('Result has no id')
             dbres_id, dbres_username, dbres_nickname, dbres_email, dbres_ecf, dbres_pwd_bcrypt, *dbres_args = result
             input_pwd, target_pwd = pwd.encode(), dbres_pwd_bcrypt.encode()
             print(f'Ready to run hash: {identity}')
@@ -1307,23 +1315,15 @@ class ws_threading_instance(sub_threading_instance):
                 else:
                     print('No trigger passed in')
             if int(chat_session) > 0:
-                stored = await self.rw_chat_session(chat_session, 'w', messages0)
+                stored = await self.rw_chat_session(chat_session, 'w', f'{messages0},{reply_appended_insertion}')
                 #print(stored)
                 if stored[0]:
-                    stored2 = await self.rw_chat_session(chat_session, 'w', reply_appended_insertion)
-                    if stored2[0]:
-                        success = True
-                        if stored[4]:
-                            match stored[4]:
-                                case 1:
-                                    await websocket.send(self.wrap_ws_deformatter('204', 'deleted', f"Since session {chat_session} of user {username} exceeded {max_token_hint} characters, The former part has been deleted to save storage--your ray tracer ID is {self.traceray_id}.", 'info'))
-                                case 2:
-                                    await websocket.send(self.wrap_ws_deformatter('200', 'delete_hint', f"Session {chat_session} of user {username} exceeded {warn_token_hint} characters, which will be chopped after exceeding {max_token_hint}, make backups if you want to--your ray tracer ID is {self.traceray_id}.", 'info'))
-                    else:
-                        response_str = f"Chat reply recording failed, refer to administrator--your ray tracer ID is {self.traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
-                        print(f"出现如下异常27-{self.traceray_id}:{stored[1]}")
-                        await websocket.send(self.wrap_ws_deformatter('500', 'store_failed', response_str, 'error'))
-                        return common_backend_failure.CRITICAL_FAILURE
+                    success = True
+                    match stored[4]:
+                        case 1:
+                            await websocket.send(self.wrap_ws_deformatter('204', 'deleted', f"Since session {chat_session} of user {username} exceeded {max_token_hint} characters, The former part has been deleted to save storage--your ray tracer ID is {self.traceray_id}.", 'info'))
+                        case 2:
+                            await websocket.send(self.wrap_ws_deformatter('200', 'delete_hint', f"Session {chat_session} of user {username} exceeded {warn_token_hint} characters, which will be chopped after exceeding {max_token_hint}, make backups if you want to--your ray tracer ID is {self.traceray_id}.", 'info'))
                 else:
                     response_str = f"Chat query recording failed, refer to administrator--your ray tracer ID is {self.traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
                     print(f"出现如下异常28-{self.traceray_id}:{stored[1]}")
