@@ -130,6 +130,7 @@ class sub_threading_instance:
                         #print(results)
                 break
             except:
+                print('DB temporary failure')
                 await asyncio.sleep(100)
         return results
 
@@ -152,6 +153,7 @@ class sub_threading_instance:
                         lrid = cur.lastrowid
                 break
             except:
+                print('DB temporary failure')
                 await asyncio.sleep(100)
         return lrid
     
