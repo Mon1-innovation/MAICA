@@ -15,11 +15,15 @@ MAICA项目的详细介绍页是https://maica.monika.love/.
 
 MAICA的后端仓库地址是https://github.com/Mon1-innovation/MAICA.
 
+MAICA-MTTS的仓库地址是https://github.com/Mon1-innovation/MAICA_MTTS.
+
 MAICA的子模组前端仓库地址是https://github.com/Mon1-innovation/MAICA_ChatSubmod.
 
 MAICA LIA分支的模型地址是https://huggingface.co/edgeinfinity/MAICAv0-LIA-72B.
 
 MAICA LOA分支的模型地址是https://huggingface.co/edgeinfinity/MAICAv0-LOA-7B.
+
+MAICA-MTTS模型地址是https://huggingface.co/edgeinfinity/MTTSv0-VoiceClone.
 
 MAICA的基本数据集仓库位于https://huggingface.co/datasets/edgeinfinity/MAICA_ds_basis.
 
