@@ -136,7 +136,7 @@ async def agenting(parent, input, chat_session, bypass_mt=False):
         },
         {
             "name": "persistent_acquire",
-            "description": "调用该工具以查询你或用户的记忆, 例如你或用户的喜好, 兴趣, 经历, 体验, 关系或个人信息. 只要你被问及你作为AI不具有的记忆, 经历, 个性, 喜好或其它事物, 就使用此工具查找记忆. " if target_lang == 'zh' else "Call this tool to get any additional information from your memory or user's memory, such as your or user's preferences, hobbies, experiences, appearence, relationship or personal information. Always use this tool if the conversation mentions memories, personality, preferences, hobbies, experience or any other thing you don't have as an AI.",
+            "description": "调用该工具以查询你(莫妮卡)或用户的记忆, 例如你或用户的喜好, 兴趣, 经历, 体验, 关系或个人信息. 只要你被问及你作为AI不具有的记忆, 经历, 个性, 喜好或其它事物, 就使用此工具查找记忆. " if target_lang == 'zh' else "Call this tool to get any additional information from your(Monika's) memory or user's memory, such as your or user's preferences, hobbies, experiences, appearence, relationship or personal information. Always use this tool if the conversation mentions memories, personality, preferences, hobbies, experience or any other thing you don't have as an AI.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -490,7 +490,7 @@ async def agenting(parent, input, chat_session, bypass_mt=False):
 if __name__ == "__main__":
     import time
     start_time = time.time()
-    agented = asyncio.run(agenting(None, '我们来做个测试，你知道我的生日是几月几号吗？', 1))
+    agented = asyncio.run(agenting(None, '你的身高是多少', 1))
     print(agented[0])
     print(agented[1])
     end_time = time.time()
