@@ -490,7 +490,7 @@ async def agenting(parent, input, chat_session, bypass_mt=False):
 if __name__ == "__main__":
     import time
     start_time = time.time()
-    agented = asyncio.run(agenting(None, '你的身高是多少', 1))
+    agented = asyncio.run(agenting(None, '你记得我上次上线是什么时候吗', 1))
     print(agented[0])
     print(agented[1])
     end_time = time.time()

@@ -261,7 +261,7 @@ async def persistent_acquire(params, sf_extraction, session, chat_session, sf_in
                 persistent_friendly = pers_response[3]
             else:
                 success = False
-                exception = content[1]
+                exception = pers_response[1]
                 content = '没有相关信息' if target_lang == 'zh' else "No related information found"
                 persistent_friendly = ''
         except Exception as excepted:
