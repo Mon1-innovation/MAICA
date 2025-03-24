@@ -109,7 +109,7 @@ def filter_format(reply_appended, target_lang='zh'):
             reply_appended = re.sub(re.escape(sig), fwd, reply_appended, flags = re.I)
     filter_all_sentences = re.findall(r'\[(.*?)\]', reply_appended)
     for sen in filter_all_sentences:
-        if get_equal_len(sen) >= 16:
+        if get_equal_len(sen) >= 16 and not '[' in sen and not ']' in sen:
             reply_appended = reply_appended.replace(f'[{sen}]', sen)
     return reply_appended
 
