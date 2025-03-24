@@ -1,5 +1,8 @@
 import re
 
+def get_equal_len(str):
+    return len(str.encode('utf-8'))
+
 def filter_format(reply_appended, target_lang='zh'):
     reply_all_signatures = re.findall(r'\[(?:(?:[A-Za-z ]{1,15}?)|(?:[一-龥 ]{1,4}?))\]', reply_appended, re.I)
     emotion_etz = {
@@ -84,12 +87,13 @@ def filter_format(reply_appended, target_lang='zh'):
             sig_striped = sig.strip('[').strip(']')
             (curr_emoset, oppo_emoset) = (emotion_etz, emotion_zte) if target_lang == 'zh' else (emotion_zte, emotion_etz)
             if ' ' in sig_striped:
-                fwd = sig_striped.replace(' ', '')
+                sig_striped = sig_striped.replace(' ', '')
             if sig_striped in oppo_emoset.keys():
-                pass
+                fwd = f'[{sig_striped}]'
             elif sig_striped in curr_emoset.keys():
                 fwd = f'[{curr_emoset[sig_striped]}]'
             else:
+                print(sig_striped)
                 if target_lang == 'zh':
                     if '笑' in sig:
                         fwd = '[微笑]'
@@ -103,8 +107,12 @@ def filter_format(reply_appended, target_lang='zh'):
                     fwd = '[smile]'
         if fwd:
             reply_appended = re.sub(re.escape(sig), fwd, reply_appended, flags = re.I)
+    filter_all_sentences = re.findall(r'\[(.*?)\]', reply_appended)
+    for sen in filter_all_sentences:
+        if get_equal_len(sen) >= 16:
+            reply_appended = reply_appended.replace(f'[{sen}]', sen)
     return reply_appended
 
 if __name__ == '__main__':
-    ra = '[理解 ]没关系, [player]. [微笑 ]我知[fear]道[womble]你很忙[a1]. [开心]你能抽空[slash我]陪我就[害怕]很好啦!'
+    ra = '[理解 ]没关系, [player]. [微笑 ]我知[fear]道[womble]你很[adaifgnashioufoiusahdfoiua]忙[a1]. [开心]你能抽空[slash我]陪我就[害怕]很好啦!'
     print(filter_format(ra, 'zh'))
