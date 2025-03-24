@@ -3,8 +3,8 @@ If you want to read in English, use a translator.
 
 此文档是MAICA接口的使用文档. 文档内容和API结构可能在此后会有变化, 请开发者关注.
 
-连接地址: wss://maicadev.monika.love/websocket
-websocket服务器传信遵守以下原则:
+MAICA服务的主要功能基于websocket传输, 官方部署的连接地址是wss://maicadev.monika.love/websocket. 剩余功能基于http-post传输.
+websocket服务器传输遵守以下原则:
     服务器只会输出固定格式的json信息:
     {"code": "状态码", "status": "运行步骤", "content": "有效载荷", "type": "信息类型", "time_ms": 时间戳(毫秒)}
     其中, 1xx类的各种信息代表工作正常但此输出只是完整输出的一部分, 常见于流式传输或工具调用.
@@ -14,7 +14,7 @@ websocket服务器传信遵守以下原则:
     应当注意, 虽然此状态码与运行步骤的格式参照http状态码, 但其用途并不相同.
     接口输出的提醒, 警告和错误信息都会在content项中提供易读的解释. 此解释仅供开发调试参考或提示用户用, 请避免将其作为程序处理的一部分.
     websocket服务器不允许同一账号同时建立超过一个连接, 后续建立的连接会返回403 connection_reuse.
-半双工http服务器传信一般遵守以下原则:
+http-post服务器传输一般遵守以下原则:
     服务器一般会输出形如此格式的json信息:
     {"success": 是否成功, "exception": "详细问题描述", "载荷键": "载荷值"}
 
