@@ -326,7 +326,7 @@ if __name__ == "__main__":
     import asyncio
     print(asyncio.run(time_acquire(None)))
     #print(date_acquire(None, True, [0, 0, 23], 1))
-    print(asyncio.run(event_acquire({"year": 2025, "month": 1, "day": 15}, True, ["0", "0", "23"], -1, True, 'zh')))
+    #print(asyncio.run(event_acquire({"year": 2025, "month": 1, "day": 15}, True, ["0", "0", "23"], -1, True, 'zh')))
     #print(internet_acquire({"question": "番茄炒蛋怎么做"}))
     #print(weather_acquire({}, True, [0, 0, 23], 1, 'zh'))
-    #print(persistent_acquire({}, True, [0, 0, 23], 1, '你是谁'))
+    print(asyncio.run(persistent_acquire({}, True, [0, 0, 23], 1, '你是谁')))

@@ -193,7 +193,7 @@ class sf_bound_instance():
         data1 = self.read_from_sf('mas_affection')
         if data1[0]:
             if data1[2]:
-                match int(data1[2]):
+                match int(float(data1[2])):
                     case affection if affection < 200:
                         result.append('莫妮卡与[player]是初识的情侣关系.' if target_lang == 'zh' else "Monika and [player] are new lovers.")
                     case affection if 200 <= affection < 400:
@@ -1138,7 +1138,7 @@ Begin!"""
 
 if __name__ == "__main__":
     async def test():
-        ins = sf_bound_instance(23, 1, 'en')
+        ins = sf_bound_instance(21293, 1, 'en')
         await ins.init1()
     
     #print(ins.mfocus_form_info()[2])
