@@ -80,7 +80,7 @@ async def date_acquire(params, sf_extraction, sf_inst, target_lang='zh', tz=None
         case date if 12 <= date.month or date.month < 3:
             season = '冬季' if target_lang == 'zh' else 'winter'
     date_friendly = f"今天是{date.year}年{season}{date.month}月{date.day}日{weekday}" if target_lang == 'zh' else f"Today is {date.year}.{date.month}.{date.day} {season}, {weekday}"
-    content = f'{date.year}.{date.month}.{date.day}'
+    content = f'{date.year}.{date.month}.{date.day}, {weekday}'
     return success, exception, content, date_friendly
 async def weather_acquire(params, sf_extraction, sf_inst, target_lang='zh'):
     success = True
