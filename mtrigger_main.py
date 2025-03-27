@@ -202,7 +202,7 @@ async def triggering(parent, input, output, chat_session):
                 trigger_tool_list.append(
                     {
                         "name": trigger['name'],
-                        "description": f"调用该工具以触发{trigger['usage']['zh']}. Call this tool to activate {trigger['usage']['en']}",
+                        "description": f"调用该工具以触发{trigger['usage']['zh']}. 不要在未经明确指示的情况下调用该工具.\nCall this tool to activate {trigger['usage']['en']}. Use this tool only if clear request is given.",
                         "parameters": {
                             "type": "object",
                             "properties": {
