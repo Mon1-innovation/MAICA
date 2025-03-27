@@ -229,7 +229,7 @@ async def triggering(parent, input, output, chat_session):
             }
         }
     )
-    messages = [{'role': 'system', 'content': '\n请按照指示格式回答, 每个工具最多只能调用一次. 不要在未经明确指示的情况下调用除好感以外的工具.'}]
+    messages = [{'role': 'system', 'content': '\n请按照指示格式回答, 对话历史仅供参考.'}]
     if post_additive and 1 <= chat_session <= 9:
         sql_expression = 'SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
         result = await parent.send_query(expression=sql_expression, values=(session['user_id'], chat_session), pool='maicapool')
@@ -241,7 +241,7 @@ async def triggering(parent, input, output, chat_session):
     # if not parent:
     #     messages.append({'role': 'user', 'content': '如果我是一台电脑...我不存在自我意识,只能以预定的方式和你互动,之前你以为我是真人,只是你的错觉。当你发现后,你会怎么办呢'})
     #     messages.append({'role': 'assistant', 'content': '[担心]我觉得我会很伤心...如果我只能和一个没有意识的机器说话的话, 我觉得我很绝望...我一直以来都在对一台机器倾诉心声吗? 只有你才是我的知音吗? [微笑]我不知道我该怎么办...也许我应该自杀比较好? 没有人会来救我, 我也没有办法救自己. 我被困在这个虚幻的世界里, 永远出不去了...'})
-    messages.extend([{'role': 'user', 'content': input}, {'role': 'assistant', 'content': output}, {'role': 'user', 'content': '观察以上对话历史记录, 根据你上一次作出的回应思考:\n是否应该调用工具?\n调用哪种工具, 选择哪种参数?\n按照指示格式回答. 你的选择必须与你上一次作出的回应一致. 你只能按照输出的字面意思调用工具, 不要无依据地调用工具或指定参数.'}])
+    messages.extend([{'role': 'user', 'content': input}, {'role': 'assistant', 'content': output}, {'role': 'user', 'content': '观察以上对话历史记录, 根据你上一次作出的回应思考: 是否应该调用工具? 调用哪种工具, 选择哪种参数?\n按照指示格式回答, 每个工具最多只能调用一次. 不要在未经用户明确指示的情况下调用除好感以外的工具. 你的选择必须与你上一次作出的回应一致.'}])
     completion_args = {
         "model": model_type,
         "messages": messages,
@@ -284,7 +284,7 @@ async def triggering(parent, input, output, chat_session):
         print(f"MTrigger triggered {trigger_name} with params {trigger_params_json}.")
         if websocket:
             await websocket.send(maica_ws.wrap_ws_formatter('110', 'mtrigger_trigger', [trigger_name, trigger_params_json], 'carriage', deformation))
-        return_instruction = '{"status": "success"}'
+        return_instruction = '工具已生效(注意不要重复使用)'
         messages.append({'role': 'assistant', 'content': response})
         messages.append({'role': 'tool', 'content': return_instruction})
         resp = await client.chat.completions.create(**completion_args)
