@@ -2,7 +2,7 @@ I'm sorry for not offering an English ver of this document but it's just too muc
 If you want to read in English, use a translator.
 
 此文档是MAICA接口后端"幻象引擎"的部署文档. 请注意"幻象引擎"是协调通信程序, 模型接口需要另行部署.
-由于开发变动频繁, "幻象引擎"不提供release. 在示例与官方部署中, 部署环境是windows powershell. 如需在linux部署请自行调整部分命令.
+由于开发变动频繁, "幻象引擎"不提供release. 在示例中, 部署环境是windows powershell. 部分命令的linux版本在注释中.
 
 #首先确认你拥有Python3与对应版本的pip:
     python -V
