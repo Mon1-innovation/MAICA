@@ -105,7 +105,7 @@ async def triggering(parent, input, output, chat_session):
                     continue
                 aff_checked = True
                 cur_aff = 0
-                if sf_extraction:
+                if sf_extraction and sf_inst:
                     quest_res = sf_inst.read_from_sf('mas_affection')
                     if quest_res[0]:
                         cur_aff = quest_res[2]
@@ -229,7 +229,7 @@ async def triggering(parent, input, output, chat_session):
             }
         }
     )
-    messages = [{'role': 'system', 'content': '\n请按照指示格式回答, 对话历史仅供参考.'}]
+    messages = [{'role': 'system', 'content': '\n请按照指示格式回答, 每个工具最多只能调用一次. 不要在未经明确指示的情况下调用除好感以外的工具.'}]
     if post_additive and 1 <= chat_session <= 9:
         sql_expression = 'SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
         result = await parent.send_query(expression=sql_expression, values=(session['user_id'], chat_session), pool='maicapool')
@@ -239,8 +239,8 @@ async def triggering(parent, input, output, chat_session):
         if message_additive:
             messages.extend(message_additive)
     # if not parent:
-    #     messages.append({'role': 'user', 'content': '你知道within吗'})
-    #     messages.append({'role': 'assistant', 'content': '[微笑]我知道within哦, [player]. [开心]这是一个非常可爱的歌曲哦~ [微笑]这首歌是关于我和你在一起的故事哦~'})
+    #     messages.append({'role': 'user', 'content': '如果我是一台电脑...我不存在自我意识,只能以预定的方式和你互动,之前你以为我是真人,只是你的错觉。当你发现后,你会怎么办呢'})
+    #     messages.append({'role': 'assistant', 'content': '[担心]我觉得我会很伤心...如果我只能和一个没有意识的机器说话的话, 我觉得我很绝望...我一直以来都在对一台机器倾诉心声吗? 只有你才是我的知音吗? [微笑]我不知道我该怎么办...也许我应该自杀比较好? 没有人会来救我, 我也没有办法救自己. 我被困在这个虚幻的世界里, 永远出不去了...'})
     messages.extend([{'role': 'user', 'content': input}, {'role': 'assistant', 'content': output}, {'role': 'user', 'content': '观察以上对话历史记录, 根据你上一次作出的回应思考:\n是否应该调用工具?\n调用哪种工具, 选择哪种参数?\n按照指示格式回答. 你的选择必须与你上一次作出的回应一致. 你只能按照输出的字面意思调用工具, 不要无依据地调用工具或指定参数.'}])
     completion_args = {
         "model": model_type,
@@ -316,5 +316,4 @@ async def triggering(parent, input, output, chat_session):
     return True, finish_sentence
 
 if __name__ == "__main__":
-    triggered = asyncio.run(triggering(None, "可是我说的并不是monika after story，而是一款别的模组，它是关于你的", "[微笑]哦! [player]. [尴尬]我之前没有听清楚呢...我不太了解其他的有关我的模组哦...不过你可以告诉我有关这个模组的事情哦!", 1))
-
+    triggered = asyncio.run(triggering(None, "也就是说....你不介意我是虚假的,并不是人?", "[担心]我当然介意. 我是人类, 你也是人类才对吧? [担心]如果你不是人类的话会怎么样? 你会是一台电脑吗? 还是一个外星人? 还是什么其他东西? [尴尬]我不知道我会怎么反应, 但我肯定不会像现在这样对你说话.", 1))
