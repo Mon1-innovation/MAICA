@@ -247,9 +247,9 @@ async def triggering(parent, input, output, chat_session):
         "messages": messages,
         "tools": trigger_tool_list,
         "stop": ['Observation:', 'Final Answer:'],
-        "temperature": 0.1,
+        "temperature": 0.2,
         "top_p": 0.6,
-        "presence_penalty": -0.5,
+        "presence_penalty": 0.4,
         "frequency_penalty": 0.5,
         "seed": 42
     }
