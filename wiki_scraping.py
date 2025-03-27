@@ -112,7 +112,7 @@ async def get_page(title=None, target_lang='zh'):
             if use_page == False or random.randint(1, cat_weight*len(cat_list_r)+len(page_list_r)) <= cat_weight*len(cat_list_r):
                 next_item = random.choice(cat_list_r)
                 next_cat_title = cat_scraper.match(next_item['title'])[1]
-                next_title = f"incategory:{next_cat_title}"
+                next_title = f"incategory:{next_cat_title.replace(' ', '_')}"
                 print(f"MSpire entering fork: {next_cat_title}")
                 use_page = None
             else:
@@ -139,5 +139,5 @@ async def get_page(title=None, target_lang='zh'):
 
 if __name__ == '__main__':
     import asyncio
-    s = asyncio.run(get_page())
+    s = asyncio.run(get_page('Images_of_nature',target_lang='en'))
     print(s[1])
