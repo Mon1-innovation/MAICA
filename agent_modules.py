@@ -191,7 +191,7 @@ async def event_acquire(params, sf_extraction, sf_inst, pred_length=-1, small_ev
             # Check player bday
             if player_has_bday:
                 player_age = thisday_instance.year - int(player_bday[0])
-                if int(time_instance.month) == int(player_bday[1]) and int(time_instance.day) == int(player_bday[2]):
+                if int(thisday_instance.month) == int(player_bday[1]) and int(thisday_instance.day) == int(player_bday[2]):
                     match player_age % 10:
                         case 1:
                             st_nd_rd = 'st'
@@ -324,9 +324,9 @@ async def internet_acquire(params, sf_extraction, sf_inst, original_query, esc_a
 
 if __name__ == "__main__":
     import asyncio
-    print(asyncio.run(time_acquire(None)))
+    #print(asyncio.run(time_acquire(None)))
     #print(date_acquire(None, True, [0, 0, 23], 1))
-    #print(asyncio.run(event_acquire({"year": 2025, "month": 1, "day": 15}, True, ["0", "0", "23"], -1, True, 'zh')))
+    print(asyncio.run(event_acquire(None, True, ["0", "0", "28028"], -1, True, 'zh')))
     #print(internet_acquire({"question": "番茄炒蛋怎么做"}))
     #print(weather_acquire({}, True, [0, 0, 23], 1, 'zh'))
-    print(asyncio.run(persistent_acquire({}, True, [0, 0, 23], 1, '你是谁')))
+    #print(asyncio.run(persistent_acquire({}, True, [0, 0, 23], 1, '你是谁')))
