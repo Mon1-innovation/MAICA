@@ -8,9 +8,14 @@ from loadenv import load_env
 async def get_json(url):
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'}
     try:
-        client = httpx.AsyncClient(proxy=load_env("PROXY_ADDR"))
-        res = (await client.get(url, headers=headers)).json()
-        await asyncio.sleep(0)
+        for tries in range(0, 3):
+            try:
+                client = httpx.AsyncClient(proxy=load_env("PROXY_ADDR"))
+                res = (await client.get(url, headers=headers)).json()
+                break
+            except:
+                print('Wiki temporary failure')
+                await asyncio.sleep(100)
     except:
         raise Exception('Wiki connection failure')
     finally:
