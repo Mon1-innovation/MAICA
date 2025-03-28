@@ -110,7 +110,7 @@ async def triggering(parent, input, output, chat_session):
                     if quest_res[0]:
                         cur_aff = quest_res[2]
                     if cur_aff:
-                        desc_aff = f"当你认为你对用户的好感度应发生变化时调用该工具, 当前好感度是{cur_aff}. 例如, 当用户发送夸赞, 关心, 或表现积极的情感时可以调用该工具. Call this tool to change your affection towards user when you think you should, current affection is {cur_aff}. For example, you can call this tool when user is complimenting, showing care, or expressing positive emotion."
+                        desc_aff = f"当你认为你对用户的好感度应发生变化时调用该工具, 当前好感度是{int(float(cur_aff))}. 例如, 当用户发送夸赞, 关心, 或表现积极的情感时可以调用该工具. Call this tool to change your affection towards user when you think you should, current affection is {int(float(cur_aff))}. For example, you can call this tool when user is complimenting, showing care, or expressing positive emotion."
                 if not sf_extraction or not cur_aff:
                     desc_aff = "当你认为对用户的好感度应发生变化时调用该工具. 例如, 当用户发送夸赞, 关心, 或表现明显的情感时可以调用该工具. Call this tool to change affection when you think you should. For example, you can call this tool when user is complimenting, showing care, or expressing notable emotion."
                 trigger_tool_list.append(
