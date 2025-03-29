@@ -285,8 +285,18 @@ async def agenting(parent, input, chat_session, bypass_mt=False):
     }
     if not mf_aggressive:
         completion_args['stop'].append('Final Answer:')
-    resp = await client.chat.completions.create(**completion_args)
-    response = resp.choices[0].message.content
+
+    for tries in range(0, 2):
+        try:
+            resp = await client.chat.completions.create(**completion_args)
+            response = resp.choices[0].message.content
+        except:
+            if tries < 1:
+                print('Model temporary failure')
+                await asyncio.sleep(100)
+            else:
+                raise Exception('Model connection failure')
+                    
     #print(resp.choices[0].message.tool_calls)
     if resp.choices[0].message.tool_calls:
         tool_calls = resp.choices[0].message.tool_calls[0]
@@ -423,13 +433,23 @@ async def agenting(parent, input, chat_session, bypass_mt=False):
             print(f"MFocus acquired instruction: {return_instruction}")
             messages.append({'role': 'assistant', 'content': response})
             messages.append({'role': 'tool', 'content': return_instruction})
-            resp = await client.chat.completions.create(**completion_args)
+
+            for tries in range(0, 2):
+                try:
+                    resp = await client.chat.completions.create(**completion_args)
+                    response = resp.choices[0].message.content
+                except:
+                    if tries < 1:
+                        print('Model temporary failure')
+                        await asyncio.sleep(100)
+                    else:
+                        raise Exception('Model connection failure')
+
             if resp.choices[0].message.tool_calls:
                 if resp.choices[0].message.tool_calls[0].function:
                     if resp.choices[0].message.tool_calls[0].function == tool_calls.function:
                         print('Total repetition detected, aborting')
                         break
-            response = resp.choices[0].message.content
             if resp.choices[0].message.tool_calls:
                 tool_calls = resp.choices[0].message.tool_calls[0]
             else:

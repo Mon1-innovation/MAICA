@@ -1121,8 +1121,18 @@ Begin!"""
                     "frequency_penalty": 0.5,
                     "seed": 42
                 }
-                resp = await client.chat.completions.create(**completion_args)
-                response = resp.choices[0].message.content
+
+                for tries in range(0, 2):
+                    try:
+                        resp = await client.chat.completions.create(**completion_args)
+                        response = resp.choices[0].message.content
+                    except:
+                        if tries < 1:
+                            print('Model temporary failure')
+                            await asyncio.sleep(100)
+                        else:
+                            raise Exception('Model connection failure')
+                        
             print(f"MFocus sfe searching persistent, response is:\n{response}\nEnd of MFocus sfe searching persistent")
             answer_re = re.search(r'Answer\s*:\s*(\[.*\])', response, re.I)
             if answer_re and not re.match(r'\s*none', answer_re[1], re.I):

@@ -14,8 +14,11 @@ async def get_json(url):
                 res = (await client.get(url, headers=headers)).json()
                 break
             except:
-                print('Wiki temporary failure')
-                await asyncio.sleep(100)
+                if tries < 2:
+                    print('Wiki temporary failure')
+                    await asyncio.sleep(100)
+                else:
+                    raise Exception('Wiki connection failure')
     except:
         raise Exception('Wiki connection failure')
     finally:

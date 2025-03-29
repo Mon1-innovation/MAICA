@@ -253,8 +253,18 @@ async def triggering(parent, input, output, chat_session):
         "frequency_penalty": 0.5,
         "seed": 42
     }
-    resp = await client.chat.completions.create(**completion_args)
-    response = resp.choices[0].message.content
+
+    for tries in range(0, 2):
+        try:
+            resp = await client.chat.completions.create(**completion_args)
+            response = resp.choices[0].message.content
+        except:
+            if tries < 1:
+                print('Model temporary failure')
+                await asyncio.sleep(100)
+            else:
+                raise Exception('Model connection failure')
+            
     #print(resp.choices[0].message.tool_calls)
     if resp.choices[0].message.tool_calls:
         tool_calls = resp.choices[0].message.tool_calls[0]
@@ -287,8 +297,18 @@ async def triggering(parent, input, output, chat_session):
         return_instruction = '工具已生效(不要再次使用此工具)'
         messages.append({'role': 'assistant', 'content': response})
         messages.append({'role': 'tool', 'content': return_instruction})
-        resp = await client.chat.completions.create(**completion_args)
-        response = resp.choices[0].message.content
+
+        for tries in range(0, 2):
+            try:
+                resp = await client.chat.completions.create(**completion_args)
+                response = resp.choices[0].message.content
+            except:
+                if tries < 1:
+                    print('Model temporary failure')
+                    await asyncio.sleep(100)
+                else:
+                    raise Exception('Model connection failure')
+            
         if resp.choices[0].message.tool_calls:
             tool_calls = resp.choices[0].message.tool_calls[0]
             trigger_name = tool_calls.function.name

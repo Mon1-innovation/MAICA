@@ -130,8 +130,11 @@ class sub_threading_instance:
                         #print(results)
                 break
             except:
-                print('DB temporary failure')
-                await asyncio.sleep(100)
+                if tries < 2:
+                    print('DB temporary failure')
+                    await asyncio.sleep(100)
+                else:
+                    raise Exception('DB connection failure')
         return results
 
     async def send_modify(self, expression, values=None, pool='maicapool', fetchall=False) -> int:
@@ -153,8 +156,11 @@ class sub_threading_instance:
                         lrid = cur.lastrowid
                 break
             except:
-                print('DB temporary failure')
-                await asyncio.sleep(100)
+                if tries < 2:
+                    print('DB temporary failure')
+                    await asyncio.sleep(100)
+                else:
+                    raise Exception('DB connection failure')
         return lrid
     
     # Tough situation, have to mix thread and aio
@@ -1265,11 +1271,18 @@ class ws_threading_instance(sub_threading_instance):
             print(f"Query ready to go, last query line is:\n{query_in}\nSending query.")
 
 
-
-            task_stream_resp = asyncio.create_task(sock1.chat.completions.create(**completion_args))
-            await task_stream_resp
-            stream_resp = task_stream_resp.result()
-
+            for tries in range(0, 2):
+                try:
+                    task_stream_resp = asyncio.create_task(sock1.chat.completions.create(**completion_args))
+                    await task_stream_resp
+                    stream_resp = task_stream_resp.result()
+                    break
+                except:
+                    if tries < 1:
+                        print('Model temporary failure')
+                        await asyncio.sleep(100)
+                    else:
+                        raise Exception('Model connection failure')
 
 
             if completion_args['stream']:
