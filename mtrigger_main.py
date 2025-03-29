@@ -284,7 +284,7 @@ async def triggering(parent, input, output, chat_session):
         print(f"MTrigger triggered {trigger_name} with params {trigger_params_json}.")
         if websocket:
             await websocket.send(maica_ws.wrap_ws_formatter('110', 'mtrigger_trigger', [trigger_name, trigger_params_json], 'carriage', deformation))
-        return_instruction = '工具已生效(注意不要重复使用)'
+        return_instruction = '工具已生效(不要再次使用此工具)'
         messages.append({'role': 'assistant', 'content': response})
         messages.append({'role': 'tool', 'content': return_instruction})
         resp = await client.chat.completions.create(**completion_args)
