@@ -133,7 +133,7 @@ class sub_threading_instance:
             except:
                 if tries < 2:
                     print('DB temporary failure')
-                    await asyncio.sleep(100)
+                    await asyncio.sleep(500)
                 else:
                     raise Exception('DB connection failure')
         return results
@@ -159,7 +159,7 @@ class sub_threading_instance:
             except:
                 if tries < 2:
                     print('DB temporary failure')
-                    await asyncio.sleep(100)
+                    await asyncio.sleep(500)
                 else:
                     raise Exception('DB connection failure')
         return lrid
@@ -1274,7 +1274,7 @@ class ws_threading_instance(sub_threading_instance):
                 except:
                     if tries < 1:
                         print('Model temporary failure')
-                        await asyncio.sleep(100)
+                        await asyncio.sleep(500)
                     else:
                         raise Exception('Model connection failure')
 

@@ -3,7 +3,7 @@ import random
 import asyncio
 import zhconv
 from loadenv import load_env
-from maica_utils import get_json
+from maica_utils import *
  
 
 async def get_multi_json(*list_url):

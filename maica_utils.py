@@ -20,7 +20,7 @@ async def get_json(url):
             except:
                 if tries < 2:
                     print('Http temporary failure')
-                    await asyncio.sleep(100)
+                    await asyncio.sleep(500)
                 else:
                     raise Exception('Http connection failure')
     except:

@@ -1123,7 +1123,7 @@ Begin!"""
                     except:
                         if tries < 1:
                             print('Model temporary failure')
-                            await asyncio.sleep(100)
+                            await asyncio.sleep(500)
                         else:
                             raise Exception('Model connection failure')
                         
