@@ -11,13 +11,7 @@ import traceback
 from random import sample
 from openai import AsyncOpenAI # type: ignore
 from loadenv import load_env
-
-async def wrap_run_in_exc(loop, func, *args, **kwargs):
-    if not loop:
-        loop = asyncio.get_running_loop()
-    result = await loop.run_in_executor(
-        None, functools.partial(func, *args, **kwargs))
-    return result
+from maica_utils import *
 
 class sf_bound_instance():
 

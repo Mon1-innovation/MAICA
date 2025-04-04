@@ -27,6 +27,7 @@ from Crypto.Signature import PKCS1_PSS
 from Crypto.Hash import SHA256
 from openai import AsyncOpenAI
 from loadenv import load_env
+from maica_utils import *
 try:
     from easter_egg import easter
     easter_exist = True
@@ -653,13 +654,6 @@ def wrap_ws_formatter(code, status, content, type, deformation=False):
         "time_ms" : int(round(time.time() * 1000))
     }
     return json.dumps(output, ensure_ascii=deformation)
-
-async def wrap_run_in_exc(loop, func, *args, **kwargs):
-    if not loop:
-        loop = asyncio.get_running_loop()
-    result = await loop.run_in_executor(
-        None, functools.partial(func, *args, **kwargs))
-    return result
 
 #与websocket绑定的异步化类, 继承sql类
 

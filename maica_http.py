@@ -22,13 +22,7 @@ from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_PSS
 from Crypto.Hash import SHA256
 from loadenv import load_env
-
-async def wrap_run_in_exc(loop, func, *args, **kwargs):
-    if not loop:
-        loop = asyncio.get_running_loop()
-    result = await loop.run_in_executor(
-        None, functools.partial(func, *args, **kwargs))
-    return result
+from maica_utils import *
 
 app = Quart(import_name=__name__)
 

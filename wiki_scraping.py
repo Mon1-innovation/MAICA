@@ -1,29 +1,10 @@
 import re
 import random
 import asyncio
-import httpx
 import zhconv
 from loadenv import load_env
+from maica_utils import get_json
  
-async def get_json(url):
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'}
-    try:
-        for tries in range(0, 3):
-            try:
-                client = httpx.AsyncClient(proxy=load_env("PROXY_ADDR"))
-                res = (await client.get(url, headers=headers)).json()
-                break
-            except:
-                if tries < 2:
-                    print('Wiki temporary failure')
-                    await asyncio.sleep(100)
-                else:
-                    raise Exception('Wiki connection failure')
-    except:
-        raise Exception('Wiki connection failure')
-    finally:
-        await client.aclose()
-    return res
 
 async def get_multi_json(*list_url):
     list_resp = await asyncio.gather(*[get_json(u) for u in list_url])

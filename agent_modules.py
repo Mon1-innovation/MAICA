@@ -1,6 +1,5 @@
 import datetime
 import pytz
-import requests
 import json
 import re
 import traceback
@@ -8,6 +7,7 @@ import mfocus_sfe
 from enet_scraping import internet_search
 from weather_scraping import weather_api_get
 from loadenv import load_env
+from maica_utils import get_json
 
 def time_tz(tz="zh"):
     if tz == 'zh':
@@ -157,90 +157,85 @@ async def event_acquire(params, sf_extraction, sf_inst, pred_length=-1, small_ev
     else:
         player_has_bday = False
     time_defined_combined = ','.join(time_defined_list)
-    r = requests.get(f"{load_env('MFOCUS_AGENT_TOOLS')}/event/api.php?date={time_defined_combined}")
-    if not 200 <= int(r.status_code) < 400:
-        excepted = r.status_code
-        return success, excepted, None, None
-    else:
-        json_res = json.loads(r.content.decode('utf-8'))
-        thisday = 0
-        for evday in json_res:
-            event_day_list = []
-            thisday_instance = time_instance_0 + datetime.timedelta(days=thisday)
-            thisday_defined = evday['date']
-            if is_today:
-                match thisday:
-                    case 0:
-                        today = "今天" if target_lang == 'zh' else "Today"
-                    case 1:
-                        today = "明天" if target_lang == 'zh' else "Tomorrow"
-                    case 2:
-                        today = "后天" if target_lang == 'zh' else "The day after tomorrow"
-                    case _:
-                        today = f"{thisday}天后" if target_lang == 'zh' else f"{thisday} days later"
-            else:
-                match thisday:
-                    case 0:
-                        today = "这一天" if target_lang == 'zh' else "This day"
-                    case 1:
-                        today = f"这一天后{thisday}天" if target_lang == 'zh' else f"{thisday} day after this day"
-                    case _:
-                        today = f"这一天后{thisday}天" if target_lang == 'zh' else f"{thisday} days after this day"
-            thisday += 1
-
-            # Check player bday
-            if player_has_bday:
-                player_age = thisday_instance.year - int(player_bday[0])
-                if int(thisday_instance.month) == int(player_bday[1]) and int(thisday_instance.day) == int(player_bday[2]):
-                    match player_age % 10:
-                        case 1:
-                            st_nd_rd = 'st'
-                        case 2:
-                            st_nd_rd = 'nd'
-                        case 3:
-                            st_nd_rd = 'rd'
-                        case _:
-                            st_nd_rd = 'th'
-                    bday_sentence = f"[player]的{player_age}岁生日" if target_lang == 'zh' else f"[player]'s {player_age}{st_nd_rd} birthday"
-                    event_day_list.append(bday_sentence)
-
-            # Check monika bday and extendables
-            match (thisday_instance.month, thisday_instance.day):
-                case (9,22):
-                    mbday_sentence = f"莫妮卡的生日" if target_lang == 'zh' else f"Monika's birthday"
-                    event_day_list.append(mbday_sentence)
-
-            # Check common events
-            for desc in evday['describe']:
-                if 'Start' in desc and (desc['IsNotWork'] or (thisday == 1 and small_eves)):
-                    evname = desc['Name'] if target_lang == 'zh' else desc['EnglishName']
-                    event_day_list.append(evname)
-
-            today_is_exp = f"{today}是" if target_lang == 'zh' else f"{today} is "
-            join_exp = ", 也是" if target_lang == 'zh' else ", and also "
-            event_day = today_is_exp + join_exp.join(event_day_list) if len(event_day_list) else ''
-            if event_day:
-                event_days_list.append(event_day)
-            elif thisday == 1:
-                today_non_spec = f"{today}不是特殊节日" if target_lang == 'zh' else f"{today} is not a special event or holiday"
-                event_days_list.append(today_non_spec)
-        
-        if event_days_list:
-            event_days = '; '.join(event_days_list)
-            return success, exception, event_days, event_days
+    json_res = await get_json(f"{load_env('MFOCUS_AGENT_TOOLS')}/event/api.php?date={time_defined_combined}")
+    thisday = 0
+    for evday in json_res:
+        event_day_list = []
+        thisday_instance = time_instance_0 + datetime.timedelta(days=thisday)
+        thisday_defined = evday['date']
+        if is_today:
+            match thisday:
+                case 0:
+                    today = "今天" if target_lang == 'zh' else "Today"
+                case 1:
+                    today = "明天" if target_lang == 'zh' else "Tomorrow"
+                case 2:
+                    today = "后天" if target_lang == 'zh' else "The day after tomorrow"
+                case _:
+                    today = f"{thisday}天后" if target_lang == 'zh' else f"{thisday} days later"
         else:
-            match [is_today, target_lang]:
-                case [p, t] if p and t == 'zh':
-                    today_or_not = "今天"
-                case [p, t] if p and t == 'en':
-                    today_or_not = "Today"
-                case [p, t] if not p and t == 'zh':
-                    today_or_not = "这一天"
-                case [p, t] if not p and t == 'en':
-                    today_or_not = "This day"
-            content = "[None]"
-            holiday_friendly = f"{today_or_not}不是特殊节日" if target_lang == 'zh' else f"{today_or_not} is not a special event or holiday"
-        return success, exception, content, holiday_friendly
+            match thisday:
+                case 0:
+                    today = "这一天" if target_lang == 'zh' else "This day"
+                case 1:
+                    today = f"这一天后{thisday}天" if target_lang == 'zh' else f"{thisday} day after this day"
+                case _:
+                    today = f"这一天后{thisday}天" if target_lang == 'zh' else f"{thisday} days after this day"
+        thisday += 1
+
+        # Check player bday
+        if player_has_bday:
+            player_age = thisday_instance.year - int(player_bday[0])
+            if int(thisday_instance.month) == int(player_bday[1]) and int(thisday_instance.day) == int(player_bday[2]):
+                match player_age % 10:
+                    case 1:
+                        st_nd_rd = 'st'
+                    case 2:
+                        st_nd_rd = 'nd'
+                    case 3:
+                        st_nd_rd = 'rd'
+                    case _:
+                        st_nd_rd = 'th'
+                bday_sentence = f"[player]的{player_age}岁生日" if target_lang == 'zh' else f"[player]'s {player_age}{st_nd_rd} birthday"
+                event_day_list.append(bday_sentence)
+
+        # Check monika bday and extendables
+        match (thisday_instance.month, thisday_instance.day):
+            case (9,22):
+                mbday_sentence = f"莫妮卡的生日" if target_lang == 'zh' else f"Monika's birthday"
+                event_day_list.append(mbday_sentence)
+
+        # Check common events
+        for desc in evday['describe']:
+            if 'Start' in desc and (desc['IsNotWork'] or (thisday == 1 and small_eves)):
+                evname = desc['Name'] if target_lang == 'zh' else desc['EnglishName']
+                event_day_list.append(evname)
+
+        today_is_exp = f"{today}是" if target_lang == 'zh' else f"{today} is "
+        join_exp = ", 也是" if target_lang == 'zh' else ", and also "
+        event_day = today_is_exp + join_exp.join(event_day_list) if len(event_day_list) else ''
+        if event_day:
+            event_days_list.append(event_day)
+        elif thisday == 1:
+            today_non_spec = f"{today}不是特殊节日" if target_lang == 'zh' else f"{today} is not a special event or holiday"
+            event_days_list.append(today_non_spec)
+    
+    if event_days_list:
+        event_days = '; '.join(event_days_list)
+        return success, exception, event_days, event_days
+    else:
+        match [is_today, target_lang]:
+            case [p, t] if p and t == 'zh':
+                today_or_not = "今天"
+            case [p, t] if p and t == 'en':
+                today_or_not = "Today"
+            case [p, t] if not p and t == 'zh':
+                today_or_not = "这一天"
+            case [p, t] if not p and t == 'en':
+                today_or_not = "This day"
+        content = "[None]"
+        holiday_friendly = f"{today_or_not}不是特殊节日" if target_lang == 'zh' else f"{today_or_not} is not a special event or holiday"
+    return success, exception, content, holiday_friendly
 async def persistent_acquire(params, sf_extraction, session, chat_session, sf_inst, target_lang='zh'):
     #print(params)
     success = True
