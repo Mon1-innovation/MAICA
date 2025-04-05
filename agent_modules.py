@@ -6,8 +6,7 @@ import traceback
 import mfocus_sfe
 from enet_scraping import internet_search
 from weather_scraping import weather_api_get
-from loadenv import load_env
-from maica_utils import get_json
+from maica_utils import *
 
 def time_tz(tz="zh"):
     if tz == 'zh':

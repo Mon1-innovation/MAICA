@@ -21,7 +21,6 @@ from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_PSS
 from Crypto.Hash import SHA256
-from loadenv import load_env
 from maica_utils import *
 
 app = Quart(import_name=__name__)

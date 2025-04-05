@@ -26,7 +26,6 @@ from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_PSS
 from Crypto.Hash import SHA256
 from openai import AsyncOpenAI
-from loadenv import load_env
 from maica_utils import *
 try:
     from easter_egg import easter

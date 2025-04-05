@@ -2,7 +2,6 @@ import re
 import random
 import asyncio
 import zhconv
-from loadenv import load_env
 from maica_utils import *
  
 

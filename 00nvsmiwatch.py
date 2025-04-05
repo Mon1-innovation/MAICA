@@ -6,7 +6,7 @@ import csv
 import sqlite3
 import traceback
 import paramiko
-from loadenv import load_env
+from maica_utils import *
 
 def nvbasis(ssh_client, db_client, table_name):
     stdin, stdout, stderr = ssh_client.exec_command("nvidia-smi --query-gpu=name,memory.total --format=csv")

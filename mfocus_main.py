@@ -9,7 +9,6 @@ import nest_asyncio
 import maica_ws
 import agent_modules
 from openai import AsyncOpenAI # type: ignore
-from loadenv import load_env
 from maica_utils import *
 
 async def agenting(parent, input, chat_session, bypass_mt=False):

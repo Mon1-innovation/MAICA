@@ -1,7 +1,7 @@
 import json
 import datetime
 import requests
-from loadenv import load_env
+from maica_utils import *
 
 def weather_api_get(location):
     success = False

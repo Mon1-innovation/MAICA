@@ -10,7 +10,6 @@ import functools
 import traceback
 from random import sample
 from openai import AsyncOpenAI # type: ignore
-from loadenv import load_env
 from maica_utils import *
 
 class sf_bound_instance():

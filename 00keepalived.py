@@ -5,7 +5,8 @@ import psutil
 import platform
 import subprocess
 import schedule
-from loadenv import load_env
+from maica_utils import *
+from rotate_cache import rotation_instance
 
 def check_port(host, port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -27,6 +28,9 @@ def force_ws_gc():
     p = subprocess.Popen([python3, "./maica_ws.py"])
     time.sleep(10)
 
+def rotate_cache():
+    rotation = rotation_instance()
+
 if __name__ == "__main__":
     sysstruct = platform.system()
     match sysstruct:
@@ -40,6 +44,8 @@ if __name__ == "__main__":
     print(f'Keepalive daemon for {sysstruct} started')
     if load_env("FORCE_WSGC") == '1':
         schedule.every().day.at("04:00").do(force_ws_gc)
+    if load_env('ROTATE_MSCACHE') != '0':
+        schedule.every().day.at("04:00").do(rotate_cache)
     while True:
         time.sleep(5)
         ws_status = check_port('0.0.0.0', 5000)

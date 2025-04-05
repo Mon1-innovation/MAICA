@@ -2,7 +2,15 @@ import asyncio
 import httpx
 import functools
 import hashlib
-from loadenv import load_env
+import os
+from dotenv import load_dotenv as __load_dotenv
+
+def load_env(key):
+    __load_dotenv()
+    result = os.getenv(key)
+    if not result:
+        raise ValueError("Environment variables are missing.")
+    return result
 
 async def wrap_run_in_exc(loop, func, *args, **kwargs):
     if not loop:
@@ -34,3 +42,4 @@ async def hash_sha256(str):
     def hash_sync(str):
         return hashlib.new('sha256', str).hexdigest()
     return await wrap_run_in_exc(None, hash_sync, str)
+
