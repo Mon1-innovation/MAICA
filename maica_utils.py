@@ -1,6 +1,7 @@
 import asyncio
 import httpx
 import functools
+import hashlib
 from loadenv import load_env
 
 async def wrap_run_in_exc(loop, func, *args, **kwargs):
@@ -19,8 +20,8 @@ async def get_json(url):
                 break
             except:
                 if tries < 2:
-                    print('Http temporary failure')
-                    await asyncio.sleep(500)
+                    print('HTTP temporary failure')
+                    await asyncio.sleep(0.5)
                 else:
                     raise Exception('Http connection failure')
     except:
@@ -28,3 +29,8 @@ async def get_json(url):
     finally:
         await client.aclose()
     return res
+
+async def hash_sha256(str):
+    def hash_sync(str):
+        return hashlib.new('sha256', str).hexdigest()
+    return await wrap_run_in_exc(None, hash_sync, str)

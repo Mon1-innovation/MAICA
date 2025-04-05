@@ -133,7 +133,7 @@ class sub_threading_instance:
             except:
                 if tries < 2:
                     print('DB temporary failure')
-                    await asyncio.sleep(500)
+                    await asyncio.sleep(0.5)
                 else:
                     raise Exception('DB connection failure')
         return results
@@ -159,7 +159,7 @@ class sub_threading_instance:
             except:
                 if tries < 2:
                     print('DB temporary failure')
-                    await asyncio.sleep(500)
+                    await asyncio.sleep(0.5)
                 else:
                     raise Exception('DB connection failure')
         return lrid
@@ -376,9 +376,9 @@ class sub_threading_instance:
     async def purge_chat_session(self, chat_session_num) -> list[bool, Exception, bool]:
         success = False
         user_id = self.options['vfc']['user_id']
-        sql_expression1 = "SELECT chat_session_id, content FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
         try:
             self.check_essentials()
+            sql_expression1 = "SELECT chat_session_id, content FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
             result = await self.send_query(expression=sql_expression1, values=(user_id, chat_session_num), pool='maicapool')
             if not result or len(result) == 0:
                 success = True
@@ -404,9 +404,9 @@ class sub_threading_instance:
     async def restore_chat_session(self, chat_session_num, restore_content) -> list[bool, Exception]:
         success = False
         user_id = self.options['vfc']['user_id']
-        sql_expression1 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
         try:
             self.check_essentials()
+            sql_expression1 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
             if not isinstance(restore_content, str):
                 restore_content = json.dumps(restore_content, ensure_ascii=False).strip('[').strip(']')
             await self.check_create_chat_session(chat_session_num)
@@ -419,7 +419,7 @@ class sub_threading_instance:
         
     async def check_create_chat_session(self, chat_session_num) -> list[bool, Exception, bool, int]:
         success = False
-        exist =None
+        exist = None
         chat_session_id = None
         user_id = self.options['vfc']['user_id']
         try:
@@ -430,7 +430,6 @@ class sub_threading_instance:
                 chat_session_id = result[0]
                 success = True
                 exist = True
-                return success, None, exist, chat_session_id
             else:
                 sql_expression2 = "INSERT INTO chat_session VALUES (NULL, %s, %s, '')"
                 chat_session_id = await self.send_modify(expression=sql_expression2, values=(user_id, chat_session_num), pool='maicapool')
@@ -439,10 +438,49 @@ class sub_threading_instance:
                 await self.send_modify(expression=sql_expression3, values=(content, chat_session_id), pool='maicapool')
                 success = True
                 exist = False
-                return success, None, exist, chat_session_id
+            return success, None, exist, chat_session_id
         except Exception as excepted:
             success = False
             return success, excepted, exist, chat_session_id
+
+    async def check_get_hashed_cache(self, hash_identity) -> list[bool, Exception, bool, str]:
+        success = False
+        exist = None
+        content = ''
+        timestamp = str(time.time())
+        try:
+            sql_expression1 = "SELECT spire_id, content FROM ms_cache WHERE hash = %s"
+            result = await self.send_query(expression=sql_expression1, values=(hash_identity), pool='maicapool')
+            if result:
+                spire_id, content = result
+                sql_expression2 = "UPDATE ms_cache SET timestamp = %s WHERE spire_id = %s"
+                await self.send_modify(expression=sql_expression2, values=(timestamp, spire_id), pool='maicapool')
+                success = True
+                exist = True
+                print('Hit a stored cache for MSpire')
+            else:
+                success = True
+                exist = False
+                print('No persist cache for MSpire')
+            return success, None, exist, content
+        except Exception as excepted:
+            traceback.print_exc()
+            success = False
+            return success, excepted, exist, content
+        
+    async def store_hashed_cache(self, hash_identity, content) -> list[bool, Exception]:
+        success = False
+        timestamp = str(time.time())
+        try:
+            sql_expression1 = "INSERT INTO ms_cache VALUES (NULL, %s, %s, %s)"
+            spire_id = await self.send_modify(expression=sql_expression1, values=(hash_identity, timestamp, content), pool='maicapool')
+            success = True
+            print('Stored MSpire cache')
+            return success, None
+        except Exception as excepted:
+            traceback.print_exc()
+            success = False
+            return success, excepted
 
     async def mod_chat_session_system(self, chat_session_num, new_system_init) -> list[bool, Exception, int]:
         success = False
@@ -976,7 +1014,7 @@ class ws_threading_instance(sub_threading_instance):
     async def do_communicate(self, recv_json):
         websocket, sock1, session, options_opt, options_eopt = self.websocket, self.sock1, self.options['vfc'], self.options['opt'], self.options['eopt']
         sfe_aggressive, mf_aggressive, tnd_aggressive, esc_aggressive, nsfw_acceptive = options_eopt['sfe_aggressive'], options_eopt['mf_aggressive'], options_eopt['tnd_aggressive'], options_eopt['esc_aggressive'], options_eopt['nsfw_acceptive']
-        bypass_mf = False; bypass_mt = False; bypass_stream = False; ic_prep = False; strict_conv = True; overall_info_system = ''
+        bypass_mf = False; bypass_mt = False; bypass_stream = False; bypass_sup = False; bypass_gen = False; ic_prep = False; strict_conv = True; ms_cache = False; overall_info_system = ''; replace_generation = ''; ms_cache_identity = ''
         self.alter_identity('temp', sf_extraction_once=False, mt_extraction_once=False)
         try:
             request_json = recv_json
@@ -1020,6 +1058,10 @@ class ws_threading_instance(sub_threading_instance):
                         query_insp = await mspire.make_inspire(title_in=request_json['inspire'], target_lang=target_lang)
                     else:
                         query_insp = await mspire.make_inspire(target_lang=target_lang)
+                    if 'use_cache' in request_json and request_json['use_cache'] and chat_session == 0:
+                        ms_cache = True
+                    else:
+                        ms_cache = False
                     bypass_mf = True
                     bypass_mt = True
                     if not query_insp[0]:
@@ -1027,7 +1069,16 @@ class ws_threading_instance(sub_threading_instance):
                         print(f"出现如下异常15-{self.traceray_id}:{query_insp[1]}")
                         await websocket.send(self.wrap_ws_deformatter('503', 'mspire_failed', response_str, 'warn'))
                         return False
+                    if ms_cache:
+                        bypass_sup = True
+                        ms_cache_identity = query_insp[3]
+                        cache_insp = await self.check_get_hashed_cache(ms_cache_identity)
+                        if cache_insp[0] and cache_insp[2]:
+                            bypass_gen = True
+                            replace_generation = cache_insp[3]
+                            
                     query_in = query_insp[2]
+
             if 'postmail' in request_json and not query_in:
                 if request_json['postmail']:
                     if isinstance(request_json['postmail'], dict):
@@ -1057,6 +1108,7 @@ class ws_threading_instance(sub_threading_instance):
                         raise Exception('Postmail format wrong')
                     
                     query_in = query_insp[2]
+
             elif 'vision' in request_json:
                 if request_json['vision']:
                     if isinstance(request_json['vision'], str):
@@ -1247,14 +1299,16 @@ class ws_threading_instance(sub_threading_instance):
                 "max_tokens": 1600,
                 "frequency_penalty": 0.4,
                 "presence_penalty": 0.4,
-                "seed": random.randint(0,99999)
+                "seed": random.randint(0,99999) if not bypass_sup else 42
                 #default_seed = 42
             }
+            
             for super_param in ['top_p', 'temperature', 'max_tokens', 'frequency_penalty', 'presence_penalty', 'seed']:
-                if super_param in self.options['sup']:
+                if not bypass_sup and super_param in self.options['sup']:
                     completion_args[super_param] = self.options['sup'][super_param]
                 else:
                     completion_args[super_param] = default_sparams[super_param]
+            bypass_sup = False
 
             if bypass_stream:
                 bypass_stream = False
@@ -1265,39 +1319,55 @@ class ws_threading_instance(sub_threading_instance):
             print(f"Query ready to go, last query line is:\n{query_in}\nSending query.")
 
 
-            for tries in range(0, 2):
-                try:
-                    task_stream_resp = asyncio.create_task(sock1.chat.completions.create(**completion_args))
-                    await task_stream_resp
-                    stream_resp = task_stream_resp.result()
-                    break
-                except:
-                    if tries < 1:
-                        print('Model temporary failure')
-                        await asyncio.sleep(500)
-                    else:
-                        raise Exception('Model connection failure')
+            if not bypass_gen or not replace_generation:
 
 
-            if completion_args['stream']:
-            #print(f'query: {query}')
-                reply_appended = ''
-                async for chunk in stream_resp:
-                    token = chunk.choices[0].delta.content
-                    await asyncio.sleep(0)
-                    print(token, end='', flush=True)
-                    if token != '':
-                        if True:
-                            reply_appended = reply_appended + token
-                            await websocket.send(self.wrap_ws_deformatter('100', 'continue', token, 'carriage'))
+                for tries in range(0, 2):
+                    try:
+                        task_stream_resp = asyncio.create_task(sock1.chat.completions.create(**completion_args))
+                        await task_stream_resp
+                        stream_resp = task_stream_resp.result()
+                        break
+                    except:
+                        if tries < 1:
+                            print('Model temporary failure')
+                            await asyncio.sleep(0.5)
                         else:
-                            break
-                await websocket.send(self.wrap_ws_deformatter('1000', 'streaming_done', f"streaming has finished with seed {completion_args['seed']}", 'info'))
-                print(f"Finished replying-{self.traceray_id}:{session['username']}, with seed {completion_args['seed']}")
+                            raise Exception('Model connection failure')
+
+
+                if completion_args['stream']:
+                #print(f'query: {query}')
+                    reply_appended = ''
+                    async for chunk in stream_resp:
+                        token = chunk.choices[0].delta.content
+                        await asyncio.sleep(0)
+                        print(token, end='', flush=True)
+                        if token != '':
+                            if True:
+                                reply_appended = reply_appended + token
+                                await websocket.send(self.wrap_ws_deformatter('100', 'continue', token, 'carriage'))
+                            else:
+                                break
+                    await websocket.send(self.wrap_ws_deformatter('1000', 'streaming_done', f"streaming has finished with seed {completion_args['seed']}", 'info'))
+                    print(f"Finished replying-{self.traceray_id}:{session['username']}, with seed {completion_args['seed']}")
+                else:
+                    reply_appended = stream_resp.choices[0].message.content
+                    print(reply_appended)
+                    await websocket.send(self.wrap_ws_deformatter('200', 'reply', reply_appended, 'carriage'))
+                    print(f"Finished replying-{self.traceray_id}:{session['username']}, with seed {completion_args['seed']}")
+
             else:
-                reply_appended = stream_resp.choices[0].message.content
-                print(reply_appended)
-                await websocket.send(self.wrap_ws_deformatter('200', 'reply', reply_appended, 'carriage'))
+                reply_appended = replace_generation
+                if completion_args['stream']:
+                    print(reply_appended)
+                    await websocket.send(self.wrap_ws_deformatter('100', 'continue', reply_appended, 'carriage'))
+                    await websocket.send(self.wrap_ws_deformatter('1000', 'streaming_done', f"streaming has finished with cache", 'info'))
+                    print(f"Finished replying-{self.traceray_id}:{session['username']}, with cache")
+                else:
+                    print(reply_appended)
+                    await websocket.send(self.wrap_ws_deformatter('200', 'reply', reply_appended, 'carriage'))
+                    print(f"Finished replying-{self.traceray_id}:{session['username']}, with cache")
 
 
             # Can be post-processed here
@@ -1312,6 +1382,13 @@ class ws_threading_instance(sub_threading_instance):
             else:
                 bypass_mt = False
                 trigger_resp = (False, None)
+
+            if ms_cache and not bypass_gen and not replace_generation:
+                await self.store_hashed_cache(ms_cache_identity, reply_appended)
+                ms_cache = False
+                ms_cache_identity = ''
+
+            bypass_gen = False; replace_generation = ''
 
             trigger_succ, trigger_sce = trigger_resp
             if trigger_succ:

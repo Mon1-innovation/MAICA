@@ -362,7 +362,7 @@ MAICA上传触发器表的接口位于https://maicadev.monika.love/api/trigger. 
 触发器表json的总长度上限是10万字符, 远大于对话请求限制的4096字符. 对于内容较多的触发器表, 建议优先使用触发器表上传功能.
 
 在对话阶段, 用户可以发起MSpire请求, 其能使MAICA作出类似主动发问的响应. 你应当按以下格式范例发起请求:
-    {"type": "query", "chat_session": "1", "inspire": MSpire条目}
+    {"type": "query", "chat_session": "1", "inspire": MSpire条目, "use_cache": true}
     其中, 若将MSpire条目设置为true则采用默认设置, 将其设置为一个dict可进行更详细的设置:
         {"type": "指定搜索类型", "sample": 采样广度, "title": "搜索关键词"}
         str(type):
@@ -378,6 +378,8 @@ MAICA上传触发器表的接口位于https://maicadev.monika.love/api/trigger. 
         str(title):
             用于搜索的关键词.
     若采用默认设置, 则MSpire将从(对应语言的)['自然', '自然科学', '社会', '人文學科', '世界', '生活', '艺术', '文化']列表中随机一项作为搜索关键词, 并采用类似in_fuzzy_all的模式寻找页面.
+    若将use_cache设置为true, 则缓存响应并优先从缓存中获取响应. 默认值为false.
+    当use_cache设置为true时, 使用默认高级参数并固定种子为42. 若chat_session不为0, use_cache将被覆盖为false.
 MSpire的工作原理是在对应语言的wikipedia.org上查找页面, 并从中刮削信息指导模型发问.
 目前为止MSpire的行为仅为替换query, 实际上与前端实现没有本质区别. 在一个chat_session中频繁使用MSpire可能导致后续回答模式紊乱.
 MSpire的chat_session可以被设为0-9, 不能使用-1. 如果不需要对MSpire话题作后续讨论, 建议使用chat_session 0.

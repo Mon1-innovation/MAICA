@@ -107,6 +107,18 @@ CREATE TABLE `triggers` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 """
                 )
+                await cur.execute(
+"""
+CREATE TABLE `ms_cache` (
+  `spire_id` int(11) NOT NULL AUTO_INCREMENT,
+  `hash` longtext NOT NULL,
+  `timestamp` int(11) NOT NULL,
+  `content` longtext NOT NULL,
+  PRIMARY KEY (`spire_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+"""
+                )
+
 
 if __name__ == "__main__":
     i = poolinit_instance()
