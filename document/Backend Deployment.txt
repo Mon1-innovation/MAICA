@@ -91,6 +91,8 @@ MAICA_DB = 'maica'
 LOGIN_VERIFICATION = "enabled"
     #将其设为disabled会使MAICA放弃校验用户的合法性.
     #如果你的实例可以从公开网络访问或需要与不信任的人共用, 一定不要关闭此校验.
+KICK_STALE_CONNS = 'enabled'
+    #将其设为disabled以禁止用户重复登陆, 设为enabled则自动踢出旧的连接.
 DB_ADDR = '127.0.0.1:3306'
     #此处应填入Mysql数据库的地址
     #前述的两个数据库均使用这一地址. 不建议分离, 如有需要请自行改代码.

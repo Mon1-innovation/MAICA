@@ -420,7 +420,7 @@ async def agenting(parent, input, chat_session, bypass_mt=False):
                 raise Exception('No function matched, making early break')
         except Exception as excepted:
             exception_return = excepted
-            #traceback.print_exc()
+            traceback.print_exc()
             print(f'MFocus main early broke: {exception_return}')
         if not exception_return:
             print(f"MFocus acquired instruction: {return_instruction}")

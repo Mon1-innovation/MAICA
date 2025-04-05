@@ -259,6 +259,7 @@ async def persistent_acquire(params, sf_extraction, session, chat_session, sf_in
                 content = '没有相关信息' if target_lang == 'zh' else "No related information found"
                 persistent_friendly = ''
         except Exception as excepted:
+            #traceback.print_exc()
             success = False
             exception = excepted
             content = '没有相关信息' if target_lang == 'zh' else "No related information found"
@@ -320,7 +321,7 @@ if __name__ == "__main__":
     import asyncio
     #print(asyncio.run(time_acquire(None)))
     #print(date_acquire(None, True, [0, 0, 23], 1))
-    print(asyncio.run(event_acquire(None, True, ["0", "0", "28028"], -1, True, 'zh')))
+    #print(asyncio.run(event_acquire(None, True, ["0", "0", "28028"], -1, True, 'zh')))
     #print(internet_acquire({"question": "番茄炒蛋怎么做"}))
     #print(weather_acquire({}, True, [0, 0, 23], 1, 'zh'))
-    #print(asyncio.run(persistent_acquire({}, True, [0, 0, 23], 1, '你是谁')))
+    print(asyncio.run(persistent_acquire({}, True, {'user_id': 23}, 1, '你是谁')))

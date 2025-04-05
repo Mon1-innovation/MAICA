@@ -719,10 +719,10 @@ class ws_threading_instance(sub_threading_instance):
     #身份验证
 
     async def check_permit(self):
-        global online_list
+        global online_dict
         websocket = self.websocket
         print('Someone started a connection')
-        print(f"Current onliners: {online_list}")
+        print(f"Current onliners: {list(online_dict.keys())}")
         while True:
             self.flush_traceray()
             try:
@@ -746,29 +746,43 @@ class ws_threading_instance(sub_threading_instance):
                         await websocket.send(self.wrap_ws_deformatter('403', 'account_banned', response_str, 'warn', False))
                         await websocket.close(1000, 'Permission denied')
                     else:
-                        if verification_result[2] in online_list:
+                        if verification_result[2] in online_dict:
                             response_str = f"You have an established connection already--your ray tracer ID is {self.traceray_id}"
                             print(f"出现如下异常4.1-{self.traceray_id}:reusage")
                             await websocket.send(self.wrap_ws_deformatter('403', 'connection_reuse', response_str, 'warn', False))
-                            await websocket.close(1000, 'Permission denied')
-                        else:
-                            self.cookie = cookie = str(uuid.uuid4())
-                            self.enforce_cookie = False
-                            await websocket.send(self.wrap_ws_deformatter('206', 'session_created', "Authencation passed!", 'info', False))
-                            await websocket.send(self.wrap_ws_deformatter('200', 'user_id', f"{verification_result[2]}", 'debug', True))
-                            await websocket.send(self.wrap_ws_deformatter('200', 'username', f"{verification_result[3]}", 'debug', True))
-                            await websocket.send(self.wrap_ws_deformatter('200', 'nickname', f"{verification_result[4]}", 'debug', True))
-                            await websocket.send(self.wrap_ws_deformatter('190', 'ws_cookie', cookie, 'cookie', True))
-                            #await websocket.send(self.wrap_ws_deformatter('200', 'session_created', f"email {verification_result[5]}", 'debug', False))
-                            #print(verification_result[0])
-                            verificated_result = {
-                                "user_id": verification_result[2],
-                                "username": verification_result[3],
-                                "nickname": verification_result[4],
-                                "email": verification_result[5]
-                            }
-                            self.alter_identity('vfc', **verificated_result)
-                            return verification_result
+                            try:
+                                stale_conn = online_dict[verification_result[2]][0]
+                                stale_lock = online_dict[verification_result[2]][1]
+                                try:
+                                    await stale_conn.close(1000, 'Displaced as stale')
+                                except:
+                                    print('The stale connection is already dead')
+                                try:
+                                    online_dict.pop(verification_result[2])
+                                except:
+                                    pass
+                                async with stale_lock:
+                                    print('Stale connection released')
+                            except:
+                                #traceback.print_exc()
+                                await websocket.close(1000, 'Permission denied')
+                        self.cookie = cookie = str(uuid.uuid4())
+                        self.enforce_cookie = False
+                        await websocket.send(self.wrap_ws_deformatter('206', 'session_created', "Authencation passed!", 'info', False))
+                        await websocket.send(self.wrap_ws_deformatter('200', 'user_id', f"{verification_result[2]}", 'debug', True))
+                        await websocket.send(self.wrap_ws_deformatter('200', 'username', f"{verification_result[3]}", 'debug', True))
+                        await websocket.send(self.wrap_ws_deformatter('200', 'nickname', f"{verification_result[4]}", 'debug', True))
+                        await websocket.send(self.wrap_ws_deformatter('190', 'ws_cookie', cookie, 'cookie', True))
+                        #await websocket.send(self.wrap_ws_deformatter('200', 'session_created', f"email {verification_result[5]}", 'debug', False))
+                        #print(verification_result[0])
+                        verificated_result = {
+                            "user_id": verification_result[2],
+                            "username": verification_result[3],
+                            "nickname": verification_result[4],
+                            "email": verification_result[5]
+                        }
+                        self.alter_identity('vfc', **verificated_result)
+                        return verification_result
                 else:
                     if isinstance(verification_result[1], dict):
                         if 'f2b' in verification_result[1]:
@@ -1442,36 +1456,37 @@ def callback_check_permit(future):
 #主要线程驱动器
 
 async def main_logic(websocket, test):
-    try:
-        global online_list
-        locked = False
-        loop = asyncio.get_event_loop()
-        thread_instance = ws_threading_instance(websocket, test=test)
-
-        permit = await thread_instance.check_permit()
-
-        if not isinstance(permit, tuple) or not permit[0]:
-            raise Exception('Security exception occured')
-        else:
-            online_list.append(permit[2])
-            print(f"Locking session for {permit[2]} as {permit[3]}")
-
-        return_status = await thread_instance.function_switch()
-        # If function switch returned, something must have went wrong
-        if return_status:
-            raise Exception(return_status)
-
-    except Exception as excepted:
-        print(f'Exception: {excepted}. Likely connection loss.')
-    finally:
+    unique_lock = asyncio.Lock()
+    async with unique_lock:
         try:
-            online_list.remove(permit[2])
-            print(f"Lock released for {permit[2]} as {permit[3]}")
-        except:
-            print('No lock to release')
-        await websocket.close()
-        await websocket.wait_closed()
-        print('Destroying connection')
+            global online_dict
+            loop = asyncio.get_event_loop()
+            thread_instance = ws_threading_instance(websocket, test=test)
+
+            permit = await thread_instance.check_permit()
+
+            if not isinstance(permit, tuple) or not permit[0]:
+                raise Exception('Security exception occured')
+            else:
+                online_dict[permit[2]] = [websocket, unique_lock]
+                print(f"Locking session for {permit[2]} as {permit[3]}")
+
+            return_status = await thread_instance.function_switch()
+            # If function switch returned, something must have went wrong
+            if return_status:
+                raise Exception(return_status)
+
+        except Exception as excepted:
+            print(f'Exception: {excepted}. Likely connection loss.')
+        finally:
+            try:
+                online_dict.pop(permit[2])
+                print(f"Lock released for {permit[2]} as {permit[3]}")
+            except:
+                print('No lock to release')
+            await websocket.close()
+            await websocket.wait_closed()
+            print('Destroying connection')
 
 
 async def prepare_thread():
@@ -1494,8 +1509,8 @@ async def prepare_thread():
     return client1, client2, test
 
 def run_ws():
-    global online_list, sock1, sock2
-    online_list = []
+    global online_dict, sock1, sock2
+    online_dict = {}
 
     sock1, sock2, test = asyncio.run(prepare_thread())
     print('Server started!' if load_env('DEV_STATUS') == 'serving' else 'Server started in testing mode!')
