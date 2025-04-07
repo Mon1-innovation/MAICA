@@ -460,7 +460,7 @@ class sf_bound_instance():
             if data1[2]:
                 result.append('[player]有独特的音乐品位.' if target_lang == 'zh' else "[player] has a special taste of music.")
                 data2 = self.read_from_sf('_mas_pm_like_other_music_history')
-                if data2[0] and re.search("u'(.*)'", data2[2]):
+                if data2[0] and re.search("u'(.*)'", str(data2[2])):
                     result.append(f'[player]还喜欢{re.search("u'(.*)'", data2[2])[1]}音乐.' if target_lang == 'zh' else f"[player] also likes {re.search("u'(.*)'", data2[2])[1]} music.")
         
 
