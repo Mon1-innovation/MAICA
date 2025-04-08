@@ -1181,7 +1181,7 @@ class ws_threading_instance(sub_threading_instance):
 
                     try:
                         if options_opt['full_maica'] and not bypass_mf:
-                            message_agent_wrapped = await mfocus_main.agenting(self, query_in, chat_session, bypass_mt)
+                            message_agent_wrapped = await mfocus_main.agenting(self, query_in, chat_session, bypass_mt, ic_prep)
                             if message_agent_wrapped[0] == 'EMPTY':
                                 response_str = f"MFocus using instructed final guidance, suggesting LLM conclusion is empty--your ray tracer ID is {self.traceray_id}"
                                 await websocket.send(self.wrap_ws_deformatter('200', 'agent_prog', response_str, 'debug'))

@@ -388,7 +388,7 @@ MSpire的chat_session可以被设为0-9, 不能使用-1. 如果不需要对MSpir
 在对话阶段, 用户可以发起MPostal请求, 其能使MAICA作出类似信件往来的响应. 你应当按以下格式范例发起请求:
     {"type": "query", "chat_session": "1", "postmail": MPostal请求体}
     其中, 若为MPostal提供一str作为信件内容则采用默认设置, 将其设置为一个dict可进行更详细的设置:
-        {"header": "信件标题", "content": "信件内容", "bypass_mf": 是否跳过MFocus, "bypass_mt": 是否跳过MTrigger, "bypass_stream": 是否关闭流式输出, "ic_prep": 是否微调prep, "strict_conv": 是否开启严格对话格式}
+        {"header": "信件标题", "content": "信件内容", "bypass_mf": 是否跳过MFocus, "bypass_mt": 是否跳过MTrigger, "bypass_stream": 是否关闭流式输出, "ic_prep": 是否启用场景微调, "strict_conv": 是否开启严格对话格式}
         str(header):
             信件的标题, 默认留空.
         str(content):
@@ -400,7 +400,7 @@ MSpire的chat_session可以被设为0-9, 不能使用-1. 如果不需要对MSpir
         bool(bypass_stream):
             是否在该轮应答中关闭流式输出, 默认为True.
         bool(ic_prep):
-            是否在该轮应答中自动微操presence_penalty, 以规避额外的重复生成问题. 默认为True.
+            是否在该轮应答中自动调整高级参数, 以提高生成准确率和避免问题. 默认为True.
         bool(strict_conv):
             是否开启严格对话模式要求, 包括MAICA默认的聊天语境, 每句字数限制和添加表情要求. 默认为False.
 MPostal的工作原理是将信件整理为query, 指导模型回信.

@@ -11,7 +11,7 @@ import agent_modules
 from openai import AsyncOpenAI # type: ignore
 from maica_utils import *
 
-async def agenting(parent, input, chat_session, bypass_mt=False):
+async def agenting(parent, input, chat_session, bypass_mt=False, ic_prep=False):
     #nest_asyncio.apply()
     if parent:
         sf_extraction, deformation, target_lang = parent.options['opt']['sf_extraction'] or parent.options['temp']['sf_extraction_once'], parent.options['opt']['deformation'], parent.options['opt']['target_lang']
@@ -45,6 +45,8 @@ async def agenting(parent, input, chat_session, bypass_mt=False):
         loop = asyncio.get_event_loop()
     if mt_inst and not bypass_mt:
         trigger_list = await wrap_run_in_exc(None, mt_inst.get_valid_triggers)
+    if ic_prep:
+        tnd_aggressive = 2
     else:
         trigger_list = None
     

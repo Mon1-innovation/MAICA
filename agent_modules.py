@@ -319,8 +319,8 @@ async def internet_acquire(params, sf_extraction, sf_inst, original_query, esc_a
 if __name__ == "__main__":
     import asyncio
     #print(asyncio.run(time_acquire(None)))
-    #print(date_acquire(None, True, [0, 0, 23], 1))
+    print(date_acquire(None, True, [0, 0, 23], 1))
     #print(asyncio.run(event_acquire(None, True, ["0", "0", "28028"], -1, True, 'zh')))
     #print(internet_acquire({"question": "番茄炒蛋怎么做"}))
     #print(weather_acquire({}, True, [0, 0, 23], 1, 'zh'))
-    print(asyncio.run(persistent_acquire({}, True, {'user_id': 23}, 1, '你是谁')))
+    #print(asyncio.run(persistent_acquire({}, True, {'user_id': 23}, 1, '你是谁')))
