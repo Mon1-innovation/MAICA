@@ -57,9 +57,9 @@ async def internet_search(query, original_query, esc_aggressive=True, target_lan
             model_type = model_list.data[0].id
             print(f'MFocus enet addressing model, response is:\n{model_type}\nEnd of MFocus enet addressing model')
             system_init = """你是一个人工智能助手, 你接下来会收到一个问题和一些来自互联网的信息.
-以单行自然语言的形式, 总结有用的信息, 并回答用户的原始问题. 如果你最终认为提供的信息不足以作答, 仅回答None.
+以单行自然语言的形式, 回答用户的原始问题, 并整理提供相关的信息. 如果你最终认为提供的信息不足以作答, 仅回答None.
 Begin!""" if target_lang == 'zh' else """You are a helpful assistant, now you will recieve a question and some information from the Internet.
-Answer the question in a single natural sentence, including useful information. If you think the provided information is not enough finally, answer None.
+Answer the question in a single natural sentence, and conclude and offer related information briefly. If you think the provided information is not enough finally, answer None.
 Begin!"""
             messages = [{'role': 'system', 'content': system_init}]
             messages.append({'role': 'user', 'content': f'question: {original_query}; information: {slt_full}'})
