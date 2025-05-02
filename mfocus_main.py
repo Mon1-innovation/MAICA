@@ -45,10 +45,10 @@ async def agenting(parent, input, chat_session, bypass_mt=False, ic_prep=False):
         loop = asyncio.get_event_loop()
     if mt_inst and not bypass_mt:
         trigger_list = await wrap_run_in_exc(None, mt_inst.get_valid_triggers)
-    if ic_prep:
-        tnd_aggressive = 2
     else:
         trigger_list = None
+    if ic_prep:
+        tnd_aggressive = 2
     
     model_list = await client.models.list()
     model_type = model_list.data[0].id
