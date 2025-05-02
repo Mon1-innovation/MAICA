@@ -264,9 +264,10 @@ async def agenting(parent, input, chat_session, bypass_mt=False, ic_prep=False):
             lines_num = min(pre_additive * 2, len(res_dict) - 1)
             message_additive = res_dict[-lines_num:] if lines_num > 0 else []
             if message_additive:
-                messages.append({'role': 'system', 'content': '\n请按照指示格式回答, 对话历史仅供参考.'}  if target_lang == 'zh' else {'role': 'system', 'content': 'Answer according to the format guidance, the chat history is just a reference.'})
+                #messages.append({'role': 'system', 'content': '\n请按照指示格式回答, 对话历史仅供参考.'}  if target_lang == 'zh' else {'role': 'system', 'content': 'Answer according to the format guidance, the chat history is just a reference.'})
                 messages.extend(message_additive)
     messages.append({'role': 'user', 'content': input})
+    messages[-1]['content'] += '/no_think'
     completion_args = {
         "model": model_type,
         "messages": messages,

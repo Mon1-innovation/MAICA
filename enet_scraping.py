@@ -8,20 +8,26 @@ from openai import AsyncOpenAI # type: ignore
 async def internet_search(query, original_query, esc_aggressive=True, target_lang='zh'):
     success = True
     exception = None
-    try:
-    # Here goes the search module
-    # Highly unstable I would say
-    # Fuck google
-        searched_aiolist = asearch(query, advanced=True, proxy=load_env("PROXY_ADDR"))
-        results = []
-        async for searched_item in searched_aiolist:
-            results.append({"title": searched_item.title, "text": searched_item.description})
-    except:
-        traceback.print_exc()
-        success = False
-        exception = "Search failed"
-        slt_default = slt_humane = ''
-        return success, exception, slt_default, slt_humane
+    for tries in range(0, 3):
+        try:
+        # Here goes the search module
+        # Highly unstable I would say
+        # Fuck google
+            searched_aiolist = asearch(query, advanced=True, proxy=load_env("PROXY_ADDR"))
+            results = []
+            async for searched_item in searched_aiolist:
+                results.append({"title": searched_item.title, "text": searched_item.description})
+        except:
+            if tries < 2:
+                print('Search temporary failure')
+                await asyncio.sleep(0.5)
+            else:
+                print('Search connection failure')
+                #traceback.print_exc()
+                success = False
+                exception = "Search failed"
+                slt_default = slt_humane = ''
+                return success, exception, slt_default, slt_humane
     slt_full = []
     slt_default = []
     slt_humane = ''
@@ -50,21 +56,14 @@ async def internet_search(query, original_query, esc_aggressive=True, target_lan
             model_list = await client.models.list()
             model_type = model_list.data[0].id
             print(f'MFocus enet addressing model, response is:\n{model_type}\nEnd of MFocus enet addressing model')
-            system_init = """你是一个人工智能助手, 你的任务是分析和检索信息. 你接下来会收到一个问题和一些来自互联网的信息.
-请你将这些信息整理为一条内容总结, 用以回答问题. 如果你最终认为没有信息符合条件, 回答None.
-注意不要编造信息, 并以单行自然语言的形式, 输出客观可信的总结.
-使用以下格式回答:
-Thought: 简要地思考以上信息关于何种内容, 与内容是否存在相关性, 以及如何从中选取.
-Answer: 将你认为有用的信息整理总结, 并以单行自然语言的形式输出. 如果你最终认为没有信息符合条件, 回答None.
-Begin!""" if target_lang == 'zh' else """You are a helpful assistant, your task is sorting and analyzing information. Now you will recieve a question and some information from the Internet.
-Please conclude the information into a brief sentence that helps answering the question. If you think no information provided is helpful, return None.
-Remember not to make up information not mentioned. Output a single natural sentence that is objective and dependable.
-Answer in the following format:
-Thought: Think briefly what the information provided are about, how the information is related with the question, and how to make a conclusion.
-Answer: Output you conclusion in a single natural sentence. If you think no information provided is helpful at last, answer None.
+            system_init = """你是一个人工智能助手, 你接下来会收到一个问题和一些来自互联网的信息.
+以单行自然语言的形式, 总结有用的信息, 并回答用户的原始问题. 如果你最终认为提供的信息不足以作答, 仅回答None.
+Begin!""" if target_lang == 'zh' else """You are a helpful assistant, now you will recieve a question and some information from the Internet.
+Answer the question in a single natural sentence, including useful information. If you think the provided information is not enough finally, answer None.
 Begin!"""
             messages = [{'role': 'system', 'content': system_init}]
             messages.append({'role': 'user', 'content': f'question: {original_query}; information: {slt_full}'})
+            messages[-1]['content'] += '/think'
             completion_args = {
                 "model": model_type,
                 "messages": messages,
@@ -87,10 +86,10 @@ Begin!"""
                         raise Exception('Model connection failure')
 
         print(f"MFocus enet searching internet, response is:\n{response}\nEnd of MFocus enet searching internet")
-        answer_re = re.search(r'Answer\s*:\s*(.*)', response, re.I)
+        answer_re = re.search(r'</think>[\s\n]*(.*)', response, re.I)
         if answer_re:
             if not re.match(r'\s*none', answer_re[1], re.I):
-                slt_humane = slt_default = answer_re[1]
+                slt_humane = slt_default = re.sub(r'\*', '', answer_re[1], 0, re.I)
             else:
                 slt_humane = ''; slt_default = 'None'
         # If corrupted we proceed anyway
@@ -104,5 +103,5 @@ Begin!"""
 if __name__ == '__main__':
     import asyncio
     import time
-    searched = asyncio.run(internet_search('24奥运会','你知道24年奥运会在哪里吗', esc_aggressive=True))
+    searched = asyncio.run(internet_search('24奥运会','Where did 2024 Olympics take place?', esc_aggressive=True, target_lang='en'))
     print(searched)
