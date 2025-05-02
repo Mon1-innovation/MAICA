@@ -256,7 +256,7 @@ async def agenting(parent, input, chat_session, bypass_mt=False, ic_prep=False):
             },
         )
     messages = []
-    messages.append({'role': 'system', 'content': '\n你应在回答前加上\'Final Answer:\'字样.'}  if target_lang == 'zh' else {'role': 'system', 'content': '\nYou should add \'Final Answer:\' before your answer.'})
+    messages.append({'role': 'system', 'content': '\n你应在最后回答前加上\'Final Answer:\'字样.'}  if target_lang == 'zh' else {'role': 'system', 'content': '\nYou should add \'Final Answer:\' before your answer.'})
     if pre_additive and 1 <= chat_session <= 9:
         sql_expression = 'SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
         result = await parent.send_query(expression=sql_expression, values=(session['user_id'], chat_session), pool='maicapool')
