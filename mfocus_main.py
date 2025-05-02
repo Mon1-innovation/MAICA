@@ -256,6 +256,7 @@ async def agenting(parent, input, chat_session, bypass_mt=False, ic_prep=False):
             },
         )
     messages = []
+    messages.append({'role': 'system', 'content': '\n你应在回答前加上\'Final Answer:\'字样.'}  if target_lang == 'zh' else {'role': 'system', 'content': '\nYou should add \'Final Answer:\' before your answer.'})
     if pre_additive and 1 <= chat_session <= 9:
         sql_expression = 'SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
         result = await parent.send_query(expression=sql_expression, values=(session['user_id'], chat_session), pool='maicapool')
@@ -264,8 +265,7 @@ async def agenting(parent, input, chat_session, bypass_mt=False, ic_prep=False):
             lines_num = min(pre_additive * 2, len(res_dict) - 1)
             message_additive = res_dict[-lines_num:] if lines_num > 0 else []
             if message_additive:
-                #messages.append({'role': 'system', 'content': '\n请按照指示格式回答, 对话历史仅供参考.'}  if target_lang == 'zh' else {'role': 'system', 'content': 'Answer according to the format guidance, the chat history is just a reference.'})
-                messages.extend(message_additive)
+                messages = messages[:1] + message_additive + messages[1:]
     messages.append({'role': 'user', 'content': input})
     messages[-1]['content'] += '/no_think'
     completion_args = {
@@ -483,7 +483,8 @@ async def agenting(parent, input, chat_session, bypass_mt=False, ic_prep=False):
         fin_final_answer = final_answer + '"' + conc_final_answer + '"'
     else:
         try:
-            conc_final_answer = re.search((r'\s*Final\s*Answer\s*:\s*(.*)\s*$'), response, re.I|re.S)[1]
+            conc_final_answer = re.search((r'</think>[\s\n]*(.*)'), response, re.I|re.S)[1]
+            conc_final_answer = re.sub(r'Final Answer:\s*')
             fin_final_answer = final_answer + '"' + conc_final_answer + '"'
         except:
             fin_final_answer = ''
