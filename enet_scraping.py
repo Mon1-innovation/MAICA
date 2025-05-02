@@ -57,9 +57,9 @@ async def internet_search(query, original_query, esc_aggressive=True, target_lan
             model_type = model_list.data[0].id
             print(f'MFocus enet addressing model, response is:\n{model_type}\nEnd of MFocus enet addressing model')
             system_init = """你是一个人工智能助手, 你接下来会收到一个问题和一些来自互联网的信息.
-以单行自然语言的形式, 回答用户的原始问题, 并整理提供相关的信息. 如果你最终认为提供的信息不足以作答, 仅回答None.
+以单行不换行的自然语言的形式, 回答用户的原始问题, 并整理提供相关的信息. 如果你最终认为提供的信息不足以作答, 仅回答None.
 Begin!""" if target_lang == 'zh' else """You are a helpful assistant, now you will recieve a question and some information from the Internet.
-Answer the question in a single natural sentence, and conclude and offer related information briefly. If you think the provided information is not enough finally, answer None.
+Answer the question in a single line of natural sentence, and conclude and offer related information briefly. If you think the provided information is not enough finally, answer None.
 Begin!"""
             messages = [{'role': 'system', 'content': system_init}]
             messages.append({'role': 'user', 'content': f'question: {original_query}; information: {slt_full}'})
@@ -86,10 +86,10 @@ Begin!"""
                         raise Exception('Model connection failure')
 
         print(f"MFocus enet searching internet, response is:\n{response}\nEnd of MFocus enet searching internet")
-        answer_re = re.search(r'</think>[\s\n]*(.*)', response, re.I)
+        answer_re = re.search(r'</think>[\s\n]*(.*)', response, re.I|re.S)
         if answer_re:
             if not re.match(r'\s*none', answer_re[1], re.I):
-                slt_humane = slt_default = re.sub(r'\*', '', answer_re[1], 0, re.I)
+                slt_humane = slt_default = re.sub(r'\n+', '; ', re.sub(r'\*+', '', answer_re[1], 0, re.I), 0, re.I|re.S)
             else:
                 slt_humane = ''; slt_default = 'None'
         # If corrupted we proceed anyway

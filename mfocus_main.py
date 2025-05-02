@@ -256,7 +256,7 @@ async def agenting(parent, input, chat_session, bypass_mt=False, ic_prep=False):
             },
         )
     messages = []
-    messages.append({'role': 'system', 'content': '\n你应在最后回答前加上\'Final Answer:\'字样.'}  if target_lang == 'zh' else {'role': 'system', 'content': '\nYou should add \'Final Answer:\' before your answer.'})
+    #messages.append({'role': 'system', 'content': '\n你应在最后回答前加上\'Final Answer:\'字样.'}  if target_lang == 'zh' else {'role': 'system', 'content': '\nYou should add \'Final Answer:\' before your answer.'})
     if pre_additive and 1 <= chat_session <= 9:
         sql_expression = 'SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
         result = await parent.send_query(expression=sql_expression, values=(session['user_id'], chat_session), pool='maicapool')
@@ -285,7 +285,6 @@ async def agenting(parent, input, chat_session, bypass_mt=False, ic_prep=False):
     for tries in range(0, 2):
         try:
             resp = await client.chat.completions.create(**completion_args)
-            response = resp.choices[0].message.content
         except:
             if tries < 1:
                 print('Model temporary failure')
@@ -293,28 +292,11 @@ async def agenting(parent, input, chat_session, bypass_mt=False, ic_prep=False):
             else:
                 raise Exception('Model connection failure')
                     
-    #print(resp.choices[0].message.tool_calls)
-    if resp.choices[0].message.tool_calls:
-        tool_calls = resp.choices[0].message.tool_calls[0]
-    else:
-        tool_calls = None
-    if tool_calls and tool_calls.function.name != 'none':
-        response_str1 = f'MFocus main 1st round finished, response is:\n{response}\nEnd of MFocus main 1st round.'
-        response_str2 = f'Acquiring tool call from MFocus main 1st round, response is:\n{tool_calls}\nEnd of tool call acquiration.'
-    else:
-        response_str1 = f'MFocus main 1st round finished, response is:\n{response}\nEnding due to returning none or corruption.'
-        response_str2 = f'No tool called by MFocus.'
-    if websocket:
-        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug', deformation))
-        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'info', deformation))
-    print(response_str1)
-    print(response_str2)
-  
-
-    final_answer = ''
+    final_first_answer = ''
     instructed_final_answer = {}
     return_instruction = ''
     inst_wea = inst_time = inst_date = inst_event = inst_pst = inst_search = inst_rct = inst_conc = False
+    message_adder = False
     if int(tnd_aggressive) >= 1:
         instructed_final_answer['time'] = f"[{(await agent_modules.time_acquire(None, target_lang, tz))[3]}]"
         instructed_final_answer['event'] = f"[{(await agent_modules.event_acquire(None, sf_extraction, sf_inst, -1, False, target_lang, tz))[3]}]"
@@ -325,115 +307,145 @@ async def agenting(parent, input, chat_session, bypass_mt=False, ic_prep=False):
     instructed_first_answer = instructed_final_answer
     # to be extended
     cycle = 0
-    while tool_calls and tool_calls.function.name != 'none':
-        cycle += 1
-        if cycle >= 7:
-            break
-            # something must have went wrong
-        exception_return = ''
-        # to be added
-        try:
-            predict_action_function = tool_calls.function.name
-            try:
-                real_parameters_dict = json.loads(re.search(r'(\{.*\})', re.sub(r"(?!=\\)'", '"', tool_calls.function.arguments))[1])
-            except:
-                real_parameters_dict = {"common": tool_calls.function.arguments}
-            if re.search((r'time.*acquire'), predict_action_function, re.I):
-                time_acquired = await agent_modules.time_acquire(real_parameters_dict, target_lang, tz)
-                if time_acquired[0]:
-                    return_instruction = f"[{{'time': '{time_acquired[2]}'}}]"
-                    if time_acquired[3]:
-                        instructed_final_answer['time'] = f"[{time_acquired[3]}]"
-                        inst_time = True
-                else:
-                    raise Exception(time_acquired[1])
-            elif re.search((r'date.*acquire'), predict_action_function, re.I):
-                date_acquired = await agent_modules.date_acquire(real_parameters_dict, sf_extraction, sf_inst, target_lang, tz)
-                if date_acquired[0]:
-                    return_instruction = f"[{{'date': '{date_acquired[2]}'}}]"
-                    if date_acquired[3]:
-                        instructed_final_answer['date'] = f"[{date_acquired[3]}]"
-                        inst_date = True
-                else:
-                    raise Exception(date_acquired[1])
-            elif re.search((r'weather.*acquire'), predict_action_function, re.I):
-                weather_acquired = await agent_modules.weather_acquire(real_parameters_dict, sf_extraction, sf_inst, target_lang)
-                if weather_acquired[0]:
-                    return_instruction = f"[{{'weather': '{weather_acquired[2]}'}}]"
-                    if weather_acquired[3]:
-                        instructed_final_answer['weather'] = f"[{weather_acquired[3]}]"
-                        inst_wea = True
-                else:
-                    raise Exception(weather_acquired[1])
-            elif re.search((r'event.*acquire'), predict_action_function, re.I):
-                event_acquired = await agent_modules.event_acquire(real_parameters_dict, sf_extraction, sf_inst, -1, True, target_lang, tz)
-                if event_acquired[0]:
-                    return_instruction = f"[{{'event': '{event_acquired[2]}'}}]"
-                    if event_acquired[3]:
-                        instructed_final_answer['event'] = f"[{event_acquired[3]}]"
-                        inst_event = True
-                else:
-                    raise Exception(event_acquired[1])
-            elif re.search((r'persistent.*acquire'), predict_action_function, re.I):
-                persistent_acquired = await agent_modules.persistent_acquire(real_parameters_dict, sf_extraction, session, chat_session, sf_inst, target_lang)
-                if persistent_acquired[0]:
-                    return_instruction = f"[{{'known_info': {persistent_acquired[2]}}}]"
-                    if persistent_acquired[3]:
-                        if 'persistent' in instructed_final_answer:
-                            persis_old_list = json.loads(re.sub("'",'"',instructed_final_answer['persistent']))
-                            persis_new_list = json.loads(re.sub("'",'"',persistent_acquired[3]))
-                            for item_plus in persis_new_list:
-                                if not item_plus in persis_old_list:
-                                    persis_old_list.append(item_plus)
-                            instructed_final_answer['persistent'] = re.sub('"',"'",json.dumps(persis_old_list, ensure_ascii=False))
-                        else:
-                            instructed_final_answer['persistent'] = f'{persistent_acquired[3]}'
-                        inst_pst = True
-                else:
-                    raise Exception(persistent_acquired[1])
-            elif re.search((r'search.*internet'), predict_action_function, re.I):
-                internet_acquired = await agent_modules.internet_acquire(real_parameters_dict, sf_extraction, sf_inst, input, esc_aggressive, target_lang)
-                if internet_acquired[0]:
-                    return_instruction = f"[{{'search_result': '{internet_acquired[2]}'}}]"
-                    if internet_acquired[3]:
-                        instructed_final_answer['internet'] = f'"{internet_acquired[3]}"'
-                        inst_search= True
-                else:
-                    raise Exception(internet_acquired[1])
-            elif re.search((r'react.*trigger'), predict_action_function, re.I):
-                trigger_ability = real_parameters_dict[list(real_parameters_dict.keys())[0]]
-                return_instruction = f"[{{'reaction_correct': True}}]"
-                if not trigger_ability or (isinstance(trigger_ability, str) and trigger_ability.lower() == "false"):
-                    instructed_final_answer['trigger'] = '"[player]的请求当前无法被满足. 请表示你做不到, 并建议[player]自行解决或寻找其它方法."' if target_lang == 'zh' else '"[player]\'s current request cannot be satisfied. please indicate that you can\'t do it, and suggest [player] doing it themselves or find another way."'
-                else:
-                    if str(trigger_ability).lower() in str(choice_checklist).lower():
-                        choice_conclusion.append(str(trigger_ability))
-                        instructed_final_answer['trigger'] = f'"[player]的请求是你所了解的, 且会被系统完成, 请作出关于{', '.join(choice_conclusion)}的正面答复."' if target_lang == 'zh' else f'"[player]\'s request is understood and will be done by system, please make positive answer about {', '.join(choice_conclusion)}."'
-                        inst_rct = True
-                    elif not inst_rct:
-                        instructed_final_answer['trigger'] = '"[player]的请求是你所了解的, 且会被系统完成, 请作出正面答复."' if target_lang == 'zh' else '"[player]\'s request is understood and will be done by system, please make positive answer."'
-                #print(real_parameters_dict)
-                inst_rct = True
-            elif re.search((r'conclude.*information'), predict_action_function, re.I):
-                #print(real_parameters_dict)
-                conc_final_answer = f"\"{real_parameters_dict[list(real_parameters_dict.keys())[0]]}\""
-                inst_conc = True
-                raise Exception('Final conclusion provided, making early break')
-            else:
-                raise Exception('No function matched, making early break')
-        except Exception as excepted:
-            exception_return = excepted
-            #traceback.print_exc()
-            print(f'MFocus main early broke: {exception_return}')
-        if not exception_return:
-            print(f"MFocus acquired instruction: {return_instruction}")
-            messages.append({'role': 'assistant', 'content': response})
-            messages.append({'role': 'tool', 'content': return_instruction})
 
+    while cycle < 7:
+        cycle += 1
+        response = resp.choices[0].message.content
+        #print(resp.choices[0].message.tool_calls)
+        if resp.choices[0].message.tool_calls:
+            tools_calls = resp.choices[0].message.tool_calls
+        else:
+            tools_calls = []
+        tool_count = 0
+        for tool_calls in tools_calls:
+            tool_count += 1
+            if tool_calls and tool_calls.function.name != 'none':
+                response_str1 = f'MFocus main {cycle} round finished, response is:\n{response}\nEnd of MFocus main {cycle} round.'
+                response_str2 = f'Acquiring tool call from MFocus main {cycle} round, response is:\n{tool_calls}\nEnd of tool call acquiration.'
+                if websocket:
+                    if tool_count == 1:
+                        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug', deformation))
+                    await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'info', deformation))
+                if tool_count == 1:
+                    print(response_str1)
+                print(response_str2)
+                exception_return = ''
+                # to be added
+                try:
+                    predict_action_function = tool_calls.function.name
+                    try:
+                        real_parameters_dict = json.loads(re.search(r'(\{.*\})', re.sub(r"(?!=\\)'", '"', tool_calls.function.arguments))[1])
+                    except:
+                        real_parameters_dict = {"common": tool_calls.function.arguments}
+                    if re.search((r'time.*acquire'), predict_action_function, re.I):
+                        time_acquired = await agent_modules.time_acquire(real_parameters_dict, target_lang, tz)
+                        if time_acquired[0]:
+                            return_instruction = f"[{{'time': '{time_acquired[2]}'}}]"
+                            if time_acquired[3]:
+                                instructed_final_answer['time'] = f"[{time_acquired[3]}]"
+                                inst_time = True
+                        else:
+                            raise Exception(time_acquired[1])
+                    elif re.search((r'date.*acquire'), predict_action_function, re.I):
+                        date_acquired = await agent_modules.date_acquire(real_parameters_dict, sf_extraction, sf_inst, target_lang, tz)
+                        if date_acquired[0]:
+                            return_instruction = f"[{{'date': '{date_acquired[2]}'}}]"
+                            if date_acquired[3]:
+                                instructed_final_answer['date'] = f"[{date_acquired[3]}]"
+                                inst_date = True
+                        else:
+                            raise Exception(date_acquired[1])
+                    elif re.search((r'weather.*acquire'), predict_action_function, re.I):
+                        weather_acquired = await agent_modules.weather_acquire(real_parameters_dict, sf_extraction, sf_inst, target_lang)
+                        if weather_acquired[0]:
+                            return_instruction = f"[{{'weather': '{weather_acquired[2]}'}}]"
+                            if weather_acquired[3]:
+                                instructed_final_answer['weather'] = f"[{weather_acquired[3]}]"
+                                inst_wea = True
+                        else:
+                            raise Exception(weather_acquired[1])
+                    elif re.search((r'event.*acquire'), predict_action_function, re.I):
+                        event_acquired = await agent_modules.event_acquire(real_parameters_dict, sf_extraction, sf_inst, -1, True, target_lang, tz)
+                        if event_acquired[0]:
+                            return_instruction = f"[{{'event': '{event_acquired[2]}'}}]"
+                            if event_acquired[3]:
+                                instructed_final_answer['event'] = f"[{event_acquired[3]}]"
+                                inst_event = True
+                        else:
+                            raise Exception(event_acquired[1])
+                    elif re.search((r'persistent.*acquire'), predict_action_function, re.I):
+                        persistent_acquired = await agent_modules.persistent_acquire(real_parameters_dict, sf_extraction, session, chat_session, sf_inst, target_lang)
+                        if persistent_acquired[0]:
+                            return_instruction = f"[{{'known_info': {persistent_acquired[2]}}}]"
+                            if persistent_acquired[3]:
+                                if 'persistent' in instructed_final_answer:
+                                    persis_old_list = json.loads(re.sub("'",'"',instructed_final_answer['persistent']))
+                                    persis_new_list = json.loads(re.sub("'",'"',persistent_acquired[3]))
+                                    for item_plus in persis_new_list:
+                                        if not item_plus in persis_old_list:
+                                            persis_old_list.append(item_plus)
+                                    instructed_final_answer['persistent'] = re.sub('"',"'",json.dumps(persis_old_list, ensure_ascii=False))
+                                else:
+                                    instructed_final_answer['persistent'] = f'{persistent_acquired[3]}'
+                                inst_pst = True
+                        else:
+                            raise Exception(persistent_acquired[1])
+                    elif re.search((r'search.*internet'), predict_action_function, re.I):
+                        internet_acquired = await agent_modules.internet_acquire(real_parameters_dict, sf_extraction, sf_inst, input, esc_aggressive, target_lang)
+                        if internet_acquired[0]:
+                            return_instruction = f"[{{'search_result': '{internet_acquired[2]}'}}]"
+                            if internet_acquired[3]:
+                                instructed_final_answer['internet'] = f'"{internet_acquired[3]}"'
+                                inst_search= True
+                        else:
+                            raise Exception(internet_acquired[1])
+                    elif re.search((r'react.*trigger'), predict_action_function, re.I):
+                        trigger_ability = real_parameters_dict[list(real_parameters_dict.keys())[0]]
+                        return_instruction = f"[{{'reaction_correct': True}}]"
+                        if not trigger_ability or (isinstance(trigger_ability, str) and trigger_ability.lower() == "false"):
+                            instructed_final_answer['trigger'] = '"[player]的请求当前无法被满足. 请表示你做不到, 并建议[player]自行解决或寻找其它方法."' if target_lang == 'zh' else '"[player]\'s current request cannot be satisfied. please indicate that you can\'t do it, and suggest [player] doing it themselves or find another way."'
+                        else:
+                            if str(trigger_ability).lower() in str(choice_checklist).lower():
+                                choice_conclusion.append(str(trigger_ability))
+                                instructed_final_answer['trigger'] = f'"[player]的请求是你所了解的, 且会被系统完成, 请作出关于{', '.join(choice_conclusion)}的正面答复."' if target_lang == 'zh' else f'"[player]\'s request is understood and will be done by system, please make positive answer about {', '.join(choice_conclusion)}."'
+                                inst_rct = True
+                            elif not inst_rct:
+                                instructed_final_answer['trigger'] = '"[player]的请求是你所了解的, 且会被系统完成, 请作出正面答复."' if target_lang == 'zh' else '"[player]\'s request is understood and will be done by system, please make positive answer."'
+                        #print(real_parameters_dict)
+                        inst_rct = True
+                    elif re.search((r'conclude.*information'), predict_action_function, re.I):
+                        #print(real_parameters_dict)
+                        conc_final_answer = f"\"{real_parameters_dict[list(real_parameters_dict.keys())[0]]}\""
+                        inst_conc = True
+                        raise Exception('Final conclusion provided, making early break')
+                    else:
+                        raise Exception('No function matched, making early break')
+                except Exception as excepted:
+                    exception_return = excepted
+                    #traceback.print_exc()
+                    print(f'MFocus main early broke: {exception_return}')
+                if not exception_return:
+                    print(f"MFocus acquired instruction: {return_instruction}")
+                    if tool_count == 1:
+                        messages.append({'role': 'assistant', 'content': response})
+                    messages.append({'role': 'tool', 'content': return_instruction})
+                    message_adder = True
+            else:
+                response_str1 = f'MFocus main {cycle} round finished, response is:\n{response}\nEnding due to returning none or corruption.'
+                response_str2 = f'No tool called by MFocus.'
+                if websocket:
+                    if tool_count == 1:
+                        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug', deformation))
+                    await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'info', deformation))
+                if tool_count == 1:
+                    print(response_str1)
+                print(response_str2)
+        
+        if message_adder:
+            message_adder = False
             for tries in range(0, 2):
                 try:
                     resp = await client.chat.completions.create(**completion_args)
-                    response = resp.choices[0].message.content
                 except:
                     if tries < 1:
                         print('Model temporary failure')
@@ -442,29 +454,13 @@ async def agenting(parent, input, chat_session, bypass_mt=False, ic_prep=False):
                         raise Exception('Model connection failure')
 
             if resp.choices[0].message.tool_calls:
-                if resp.choices[0].message.tool_calls[0].function:
-                    if resp.choices[0].message.tool_calls[0].function == tool_calls.function:
+                for tool_calls_temp in resp.choices[0].message.tool_calls:
+                    if tool_calls_temp.function == tool_calls.function:
                         print('Total repetition detected, aborting')
                         break
-            if resp.choices[0].message.tool_calls:
-                tool_calls = resp.choices[0].message.tool_calls[0]
-            else:
-                tool_calls = None
-            if tool_calls:
-                response_str1 = f'MFocus main {cycle+1}nd/rd/th round finished, response is:\n{response}\nEnd of MFocus main following round.'
-                response_str2 = f'Acquiring tool call from MFocus main {cycle+1}nd/rd/th round, response is:\n{tool_calls}\nEnd of tool call acquiration.'
-            else:
-                response_str1 = f'MFocus main {cycle+1}nd/rd/th round finished, response is:\n{response}\nEnding due to returning none or corruption.'
-                response_str2 = f'No tool called by MFocus.'
-            if websocket:
-                await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug', deformation))
-                await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'info', deformation))
-            print(response_str1)
-            print(response_str2)
-            if not tool_calls:
-                break
         else:
             break
+
     #print(instructed_final_answer)
     if 'persistent' in instructed_final_answer:
         instructed_final_answer['persistent'] = f"\"{str(instructed_final_answer['persistent']).strip('[').strip(']')}\""
@@ -478,14 +474,14 @@ async def agenting(parent, input, chat_session, bypass_mt=False, ic_prep=False):
     if inst_wea and 'weather' in instructed_first_answer:
         instructed_first_answer.pop('weather')
     for key in instructed_first_answer.keys():
-        final_answer += instructed_first_answer[key]
+        final_first_answer += instructed_first_answer[key]
     if inst_conc:
-        fin_final_answer = final_answer + '"' + conc_final_answer + '"'
+        fin_final_answer = '"' + conc_final_answer + '"'
     else:
         try:
             conc_final_answer = re.search((r'</think>[\s\n]*(.*)'), response, re.I|re.S)[1]
-            conc_final_answer = re.sub(r'Final Answer:\s*')
-            fin_final_answer = final_answer + '"' + conc_final_answer + '"'
+            conc_final_answer = re.sub(r'Final Answer:\s*', '', conc_final_answer)
+            fin_final_answer = '"' + conc_final_answer + '"'
         except:
             fin_final_answer = ''
     if mf_aggressive and instructed_final_answer_joined:
@@ -507,7 +503,7 @@ async def agenting(parent, input, chat_session, bypass_mt=False, ic_prep=False):
 if __name__ == "__main__":
     import time
     start_time = time.time()
-    agented = asyncio.run(agenting(None, '你记得我的生日吗', 1))
+    agented = asyncio.run(agenting(None, '现在几点了? 天气怎么样?', 1))
     print(agented[0])
     print(agented[1])
     end_time = time.time()

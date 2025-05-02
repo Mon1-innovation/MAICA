@@ -132,7 +132,7 @@ async def triggering(parent, input, output, chat_session):
                 item_list = trigger['exprop']['item_list']
                 cur_item = trigger['exprop']['curr_item'] if 'curr_item' in trigger['exprop'] else ''
                 sugg = trigger['exprop']['suggestion'] if 'suggestion' in trigger['exprop'] else ''
-                desc_switch = f"调用该工具以切换{item_name_bil['zh']}, 当前的{item_name_bil['zh']}是{cur_item}. 不要在未经明确指示的情况下调用该工具.\nCall this tool to switch {item_name_bil['en']}, current {item_name_bil['en']} is {cur_item}. Use this tool only if clear request is given." if cur_item else f"调用该工具以切换{item_name_bil['zh']}. 不要在未经明确指示的情况下调用该工具.\nCall this tool to switch {item_name_bil['en']}. Use this tool only if clear request is given."
+                desc_switch = f"调用该工具以切换{item_name_bil['zh']}, 当前的{item_name_bil['zh']}是{cur_item}.\nCall this tool to switch {item_name_bil['en']}, current {item_name_bil['en']} is {cur_item}." if cur_item else f"调用该工具以切换{item_name_bil['zh']}.\nCall this tool to switch {item_name_bil['en']}."
                 trigger_tool_list.append(
                     {
                         "name": trigger['name'],
@@ -169,7 +169,7 @@ async def triggering(parent, input, output, chat_session):
                 item_name_bil = trigger['exprop']['item_name']
                 value_limits = trigger['exprop']['value_limits']
                 cur_value = trigger['exprop']['curr_value'] if 'curr_value' in trigger['exprop'] else ''
-                desc_meter = f"调用该工具以调整{item_name_bil['zh']}, 当前的{item_name_bil['zh']}是{cur_value}. 不要在未经明确指示的情况下调用该工具.\nCall this tool to adjust {item_name_bil['en']}, current {item_name_bil['en']} is {cur_value}. Use this tool only if clear request is given." if cur_value else f"调用该工具以调整{item_name_bil['zh']}. 不要在未经明确指示的情况下调用该工具.\nCall this tool to adjust {item_name_bil['en']}. Use this tool only if clear request is given."
+                desc_meter = f"调用该工具以调整{item_name_bil['zh']}, 当前的{item_name_bil['zh']}是{cur_value}. \nCall this tool to adjust {item_name_bil['en']}, current {item_name_bil['en']} is {cur_value}." if cur_value else f"调用该工具以调整{item_name_bil['zh']}. \nCall this tool to adjust {item_name_bil['en']}."
                 trigger_tool_list.append(
                     {
                         "name": trigger['name'],
@@ -195,7 +195,7 @@ async def triggering(parent, input, output, chat_session):
                 trigger_tool_list.append(
                     {
                         "name": trigger['name'],
-                        "description": f"调用该工具以触发{trigger['usage']['zh']}. 不要在未经明确指示的情况下调用该工具.\nCall this tool to activate {trigger['usage']['en']}. Use this tool only if clear request is given.",
+                        "description": f"调用该工具以触发{trigger['usage']['zh']}. \nCall this tool to activate {trigger['usage']['en']}. ",
                         "parameters": {
                             "type": "object",
                             "properties": {
@@ -234,7 +234,7 @@ async def triggering(parent, input, output, chat_session):
     # if not parent:
     #     messages.append({'role': 'user', 'content': '如果我是一台电脑...我不存在自我意识,只能以预定的方式和你互动,之前你以为我是真人,只是你的错觉。当你发现后,你会怎么办呢'})
     #     messages.append({'role': 'assistant', 'content': '[担心]我觉得我会很伤心...如果我只能和一个没有意识的机器说话的话, 我觉得我很绝望...我一直以来都在对一台机器倾诉心声吗? 只有你才是我的知音吗? [微笑]我不知道我该怎么办...也许我应该自杀比较好? 没有人会来救我, 我也没有办法救自己. 我被困在这个虚幻的世界里, 永远出不去了...'})
-    messages.extend([{'role': 'user', 'content': input}, {'role': 'assistant', 'content': output}, {'role': 'user', 'content': '观察以上对话历史记录, 依据你上一次作出的回应思考并调用工具, 每个工具最多只能调用一次. 不要在未经用户明确指示的情况下调用除好感以外的工具. 你的选择必须与你上一次作出的回应一致. 你应在最后回答前加上\'Final Answer:\'字样.'}])
+    messages.extend([{'role': 'user', 'content': input}, {'role': 'assistant', 'content': output}, {'role': 'user', 'content': '观察以上对话历史记录, 依据你上一次作出的回应思考并调用工具, 每个工具最多只能调用一次. 你的选择必须与你上一次作出的回应一致.'}])
     messages[-1]['content'] += '/think'
     completion_args = {
         "model": model_type,
@@ -251,7 +251,7 @@ async def triggering(parent, input, output, chat_session):
     for tries in range(0, 2):
         try:
             resp = await client.chat.completions.create(**completion_args)
-            response = resp.choices[0].message.content
+            
         except:
             if tries < 1:
                 print('Model temporary failure')
@@ -259,70 +259,63 @@ async def triggering(parent, input, output, chat_session):
             else:
                 raise Exception('Model connection failure')
             
-    #print(resp.choices[0].message.tool_calls)
-    if resp.choices[0].message.tool_calls:
-        tool_calls = resp.choices[0].message.tool_calls[0]
-        trigger_name = tool_calls.function.name
-        try:
-            trigger_params_json = json.loads(re.search(r'(\{.*\})', re.sub(r"(?!=\\)'", '"', tool_calls.function.arguments))[1])
-        except:
-            trigger_params_json = {}
-    else:
-        tool_calls = None
-    if tool_calls and not re.search(r'agent.*finished', trigger_name, re.I):
-        response_str1 = f'MTrigger 1st round finished, response is:\n{response}\nEnd of MTrigger 1st round.'
-        response_str2 = f'Acquiring tool call from MTrigger 1st round, response is:\n{tool_calls}\nEnd of tool call acquiration.'
-    else:
-        response_str1 = f'MTrigger 1st round finished, response is:\n{response}\nEnding due to returning none or corruption.'
-        response_str2 = f'No tool called by MTrigger.'
-    if websocket:
-        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_triggering', response_str1, 'debug', deformation))
-        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_end', response_str2, 'info', deformation))
-    print(response_str1)
-    print(response_str2)
     cycle = 0
-    while tool_calls and not re.search(r'agent.*finished', trigger_name, re.I):
-        cycle += 1
-        if cycle >= 7:
-            break
-        print(f"MTrigger triggered {trigger_name} with params {trigger_params_json}.")
-        if websocket:
-            await websocket.send(maica_ws.wrap_ws_formatter('110', 'mtrigger_trigger', [trigger_name, trigger_params_json], 'carriage', deformation))
-        return_instruction = '工具已生效(不要再次使用此工具)'
-        messages.append({'role': 'assistant', 'content': response})
-        messages.append({'role': 'tool', 'content': return_instruction})
+    message_adder = False
 
-        for tries in range(0, 2):
-            try:
-                resp = await client.chat.completions.create(**completion_args)
-                response = resp.choices[0].message.content
-            except:
-                if tries < 1:
-                    print('Model temporary failure')
-                    await asyncio.sleep(0.5)
-                else:
-                    raise Exception('Model connection failure')
-            
+    while cycle < 7:
+        cycle += 1
+        response = resp.choices[0].message.content
+        #print(resp.choices[0].message.tool_calls)
         if resp.choices[0].message.tool_calls:
-            tool_calls = resp.choices[0].message.tool_calls[0]
+            tools_calls = resp.choices[0].message.tool_calls
+        else:
+            tools_calls = []
+        tool_count = 0
+        for tool_calls in tools_calls:
+            tool_count += 1
             trigger_name = tool_calls.function.name
             try:
-                trigger_params_json = re.search(r'(\{.*\})', re.sub(r"(?!=\\)'", '"', tool_calls.function.arguments))[1]
+                trigger_params_json = json.loads(re.search(r'(\{.*\})', re.sub(r"(?!=\\)'", '"', tool_calls.function.arguments))[1])
             except:
                 trigger_params_json = {}
+            if tool_calls and not re.search(r'agent.*finished', trigger_name, re.I):
+                response_str1 = f'MTrigger {cycle} round finished, response is:\n{response}\nEnd of MTrigger {cycle} round.'
+                response_str2 = f'Acquiring tool call from MTrigger {cycle} round, response is:\n{tool_calls}\nEnd of tool call acquiration.'
+            else:
+                response_str1 = f'MTrigger {cycle} round finished, response is:\n{response}\nEnding due to returning none or corruption.'
+                response_str2 = f'No tool called by MTrigger.'
+            if websocket:
+                if tool_count == 1:
+                    await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_triggering', response_str1, 'debug', deformation))
+                await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_end', response_str2, 'info', deformation))
+            if tool_count == 1:
+                print(response_str1)
+            print(response_str2)
+
+            if not re.search(r'agent.*finished', trigger_name, re.I):
+                print(f"MTrigger triggered {trigger_name} with params {trigger_params_json}.")
+                if websocket:
+                    await websocket.send(maica_ws.wrap_ws_formatter('110', 'mtrigger_trigger', [trigger_name, trigger_params_json], 'carriage', deformation))
+                return_instruction = '工具已生效(不要重复使用)'
+                if tool_count == 1:
+                    messages.append({'role': 'assistant', 'content': re.sub(r'[\n\s]*<think>.*?</think>[\n\s]*', '', response, 0, re.I|re.S)})
+                messages.append({'role': 'tool', 'content': return_instruction})
+                message_adder = True
+
+        if message_adder:
+            message_adder = False
+            for tries in range(0, 2):
+                try:
+                    resp = await client.chat.completions.create(**completion_args)
+                except:
+                    if tries < 1:
+                        print('Model temporary failure')
+                        await asyncio.sleep(0.5)
+                    else:
+                        raise Exception('Model connection failure')
         else:
-            tool_calls = None
-        if tool_calls:
-            response_str1 = f'MTrigger {cycle+1}nd/rd/th round finished, response is:\n{response}\nEnd of MTrigger following round.'
-            response_str2 = f'Acquiring tool call from MTrigger {cycle+1}nd/rd/th round, response is:\n{tool_calls}\nEnd of tool call acquiration.'
-        else:
-            response_str1 = f'MTrigger {cycle+1}nd/rd/th round finished, response is:\n{response}\nEnding due to returning none or corruption.'
-            response_str2 = f'No tool called by MTrigger.'
-        if websocket:
-            await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_triggering', response_str1, 'debug', deformation))
-            await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_end', response_str2, 'info', deformation))
-        print(response_str1)
-        print(response_str2)
+            break
+
     finish_sentence = f"{cycle} MTrigger requests sent, active trigger finished." if cycle else "No MTrigger activated."
     print(finish_sentence)
     # if websocket:
@@ -330,4 +323,4 @@ async def triggering(parent, input, output, chat_session):
     return True, finish_sentence
 
 if __name__ == "__main__":
-    triggered = asyncio.run(triggering(None, "也就是说....你不介意我是虚假的,并不是人?", "[担心]我当然介意. 我是人类, 你也是人类才对吧? [担心]如果你不是人类的话会怎么样? 你会是一台电脑吗? 还是一个外星人? 还是什么其他东西? [尴尬]我不知道我会怎么反应, 但我肯定不会像现在这样对你说话.", 1))
+    triggered = asyncio.run(triggering(None, "Can you close the game?", "Sure, [player]. [daydreaming]I love you~", 1))
