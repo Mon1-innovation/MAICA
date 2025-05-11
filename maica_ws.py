@@ -1352,16 +1352,18 @@ class ws_threading_instance(sub_threading_instance):
                 if completion_args['stream']:
                 #print(f'query: {query}')
                     reply_appended = ''
+                    send_lock = asyncio.Lock()
                     async for chunk in stream_resp:
-                        token = chunk.choices[0].delta.content
-                        await asyncio.sleep(0)
-                        print(token, end='', flush=True)
-                        if token != '':
-                            if True:
-                                reply_appended = reply_appended + token
-                                await websocket.send(self.wrap_ws_deformatter('100', 'continue', token, 'carriage'))
-                            else:
-                                break
+                        async with send_lock:
+                            token = chunk.choices[0].delta.content
+                            await asyncio.sleep(0)
+                            print(token, end='', flush=True)
+                            if token != '':
+                                if True:
+                                    reply_appended = reply_appended + token
+                                    await websocket.send(self.wrap_ws_deformatter('100', 'continue', token, 'carriage'))
+                                else:
+                                    break
                     await websocket.send(self.wrap_ws_deformatter('1000', 'streaming_done', f"streaming has finished with seed {completion_args['seed']}", 'info'))
                     print(f"Finished replying-{self.traceray_id}:{session['username']}, with seed {completion_args['seed']}")
                 else:
