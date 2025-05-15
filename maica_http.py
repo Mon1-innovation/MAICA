@@ -38,24 +38,9 @@ async def save_upload():
         print(access_token)
         if int(chat_session) < 1 or int(chat_session) > 9:
             raise Exception('Chat session out of range')
-        exec_unbase64_token = await maica_ws.wrap_run_in_exc(None, base64.b64decode, access_token)
-        exec_decrypted_token = await maica_ws.wrap_run_in_exc(None, decryptor.decrypt, exec_unbase64_token)
-        decrypted_token = exec_decrypted_token.decode("utf-8")
-        login_cridential = json.loads(decrypted_token)
-        if 'username' in login_cridential:
-            login_identity = login_cridential['username']
-            login_is_email = False
-        elif 'email' in login_cridential:
-            login_identity = login_cridential['email']
-            login_is_email = True
-        else:
-            raise Exception('No Identity Provided')
-        login_password = login_cridential['password']
         hduplex_instance = maica_ws.sub_threading_instance()
-        verification_result = await hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password)
-        if not verification_result[0]:
-            raise Exception('Identity hashing failed')
-        else:
+        verification_result = await wrap_verify_token(access_token, hduplex_instance)
+        if verification_result:
             if len(str(content)) < 100000:
                 try:
                     content_text = json.dumps(content, ensure_ascii=False)
@@ -98,24 +83,9 @@ async def trigger_upload():
         print(access_token)
         if int(chat_session) < 1 or int(chat_session) > 9:
             raise Exception('Chat session out of range')
-        exec_unbase64_token = await maica_ws.wrap_run_in_exc(None, base64.b64decode, access_token)
-        exec_decrypted_token = await maica_ws.wrap_run_in_exc(None, decryptor.decrypt, exec_unbase64_token)
-        decrypted_token = exec_decrypted_token.decode("utf-8")
-        login_cridential = json.loads(decrypted_token)
-        if 'username' in login_cridential:
-            login_identity = login_cridential['username']
-            login_is_email = False
-        elif 'email' in login_cridential:
-            login_identity = login_cridential['email']
-            login_is_email = True
-        else:
-            raise Exception('No Identity Provided')
-        login_password = login_cridential['password']
         hduplex_instance = maica_ws.sub_threading_instance()
-        verification_result = await hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password)
-        if not verification_result[0]:
-            raise Exception('Identity hashing failed')
-        else:
+        verification_result = await wrap_verify_token(access_token, hduplex_instance)
+        if verification_result:
             if len(str(content)) < 100000:
                 try:
                     content_text = json.dumps(content, ensure_ascii=False)
@@ -158,24 +128,9 @@ async def history_download():
         print(access_token)
         if int(chat_session) < 1 or int(chat_session) > 9:
             raise Exception('Chat session out of range')
-        exec_unbase64_token = await maica_ws.wrap_run_in_exc(None, base64.b64decode, access_token)
-        exec_decrypted_token = await maica_ws.wrap_run_in_exc(None, decryptor.decrypt, exec_unbase64_token)
-        decrypted_token = exec_decrypted_token.decode("utf-8")
-        login_cridential = json.loads(decrypted_token)
-        if 'username' in login_cridential:
-            login_identity = login_cridential['username']
-            login_is_email = False
-        elif 'email' in login_cridential:
-            login_identity = login_cridential['email']
-            login_is_email = True
-        else:
-            raise Exception('No Identity Provided')
-        login_password = login_cridential['password']
         hduplex_instance = maica_ws.sub_threading_instance()
-        verification_result = await hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password)
-        if not verification_result[0]:
-            raise Exception('Identity hashing failed')
-        else:
+        verification_result = await wrap_verify_token(access_token, hduplex_instance)
+        if verification_result:
             session = verification_result
             hisjson = await hduplex_instance.rw_chat_session(chat_session, 'r', None)
             print(hisjson)
@@ -222,24 +177,9 @@ async def history_restore():
         print(access_token)
         if int(chat_session) < 1 or int(chat_session) > 9:
             raise Exception('Chat session out of range')
-        exec_unbase64_token = await maica_ws.wrap_run_in_exc(None, base64.b64decode, access_token)
-        exec_decrypted_token = await maica_ws.wrap_run_in_exc(None, decryptor.decrypt, exec_unbase64_token)
-        decrypted_token = exec_decrypted_token.decode("utf-8")
-        login_cridential = json.loads(decrypted_token)
-        if 'username' in login_cridential:
-            login_identity = login_cridential['username']
-            login_is_email = False
-        elif 'email' in login_cridential:
-            login_identity = login_cridential['email']
-            login_is_email = True
-        else:
-            raise Exception('No Identity Provided')
-        login_password = login_cridential['password']
         hduplex_instance = maica_ws.sub_threading_instance()
-        verification_result = await hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password)
-        if not verification_result[0]:
-            raise Exception('Identity hashing failed')
-        else:
+        verification_result = await wrap_verify_token(access_token, hduplex_instance)
+        if verification_result:
             sigb64, to_verify = data['history']
             to_verify = await wrap_run_in_exc(None, seri_message, to_verify)
             vfresult = await wrap_run_in_exc(None, veri_message, json.dumps(to_verify, ensure_ascii=False), sigb64)
@@ -269,24 +209,9 @@ async def sl_prefs():
         data = json.loads(await request.data)
         access_token = data['access_token']
         print(access_token)
-        exec_unbase64_token = await maica_ws.wrap_run_in_exc(None, base64.b64decode, access_token)
-        exec_decrypted_token = await maica_ws.wrap_run_in_exc(None, decryptor.decrypt, exec_unbase64_token)
-        decrypted_token = exec_decrypted_token.decode("utf-8")
-        login_cridential = json.loads(decrypted_token)
-        if 'username' in login_cridential:
-            login_identity = login_cridential['username']
-            login_is_email = False
-        elif 'email' in login_cridential:
-            login_identity = login_cridential['email']
-            login_is_email = True
-        else:
-            raise Exception('No Identity Provided')
-        login_password = login_cridential['password']
         hduplex_instance = maica_ws.sub_threading_instance()
-        verification_result = await hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password)
-        if not verification_result[0]:
-            raise Exception('Identity hashing failed')
-        else:
+        verification_result = await wrap_verify_token(access_token, hduplex_instance)
+        if verification_result:
             overall_prefs = await hduplex_instance.check_user_preferences(key=False)
             user_prof_exist, prefs_old = overall_prefs[2], overall_prefs[3]
             if not prefs_old:
@@ -490,6 +415,31 @@ def seri_message(message):
         line_new = {"role": line['role'], "content": line['content']}
         message_new.append(line_new)
     return message_new
+
+async def wrap_verify_token(access_token, hduplex_instance=None):
+    exec_unbase64_token = await wrap_run_in_exc(None, base64.b64decode, access_token)
+    exec_decrypted_token = await wrap_run_in_exc(None, decryptor.decrypt, exec_unbase64_token)
+    decrypted_token = exec_decrypted_token.decode("utf-8")
+    login_cridential = json.loads(decrypted_token)
+    if 'username' in login_cridential:
+        login_identity = login_cridential['username']
+        login_is_email = False
+    elif 'email' in login_cridential:
+        login_identity = login_cridential['email']
+        login_is_email = True
+    else:
+        # raise Exception('No Identity Provided')
+        return False
+    login_password = login_cridential['password']
+    if not hduplex_instance:
+        hduplex_instance = maica_ws.sub_threading_instance()
+    verification_result = await hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password)
+    if not verification_result[0]:
+        # raise Exception('Identity hashing failed')
+        return False
+    else:
+        return verification_result
+
 
 # class StandaloneApplication(WSGIApplication):
 #     def __init__(self, app_uri, options=None):

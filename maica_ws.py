@@ -682,7 +682,7 @@ def global_init_system(player_name, target_lang='zh', strict_conv=True):
             system_init = f"You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Reply to the following mail from {player_name} properly as Monika. You should only answer consistently in natural written language in English, and do not make up things you don't know."
     return system_init
 
-def wrap_ws_formatter(code, status, content, type, deformation=False):
+def wrap_ws_formatter(code, status, content, type, deformation=False, **kwargs):
     output = {
         "code" : code,
         "status" : status,
@@ -690,6 +690,7 @@ def wrap_ws_formatter(code, status, content, type, deformation=False):
         "type" : type,
         "time_ms" : int(round(time.time() * 1000))
     }
+    output.update(kwargs)
     return json.dumps(output, ensure_ascii=deformation)
 
 #与websocket绑定的异步化类, 继承sql类
@@ -711,10 +712,10 @@ class ws_threading_instance(sub_threading_instance):
         self.websocket = websocket
         super().__init__(test=test)
 
-    def wrap_ws_deformatter(self, code, status, content, type, deformation=None):
+    def wrap_ws_deformatter(self, code, status, content, type, deformation=None, **kwargs):
         if deformation is None:
             deformation = self.options['opt']['deformation']
-        return wrap_ws_formatter(code, status, content, type, deformation)
+        return wrap_ws_formatter(code, status, content, type, deformation, **kwargs)
 
     #身份验证
 
@@ -1353,6 +1354,7 @@ class ws_threading_instance(sub_threading_instance):
                 #print(f'query: {query}')
                     reply_appended = ''
                     send_lock = asyncio.Lock()
+                    seq = 0
                     async for chunk in stream_resp:
                         async with send_lock:
                             token = chunk.choices[0].delta.content
@@ -1361,7 +1363,8 @@ class ws_threading_instance(sub_threading_instance):
                             if token != '':
                                 if True:
                                     reply_appended = reply_appended + token
-                                    await websocket.send(self.wrap_ws_deformatter('100', 'continue', token, 'carriage'))
+                                    await websocket.send(self.wrap_ws_deformatter('100', 'continue', token, 'carriage', None, seq=seq))
+                                    seq += 1
                                 else:
                                     break
                     await websocket.send(self.wrap_ws_deformatter('1000', 'streaming_done', f"streaming has finished with seed {completion_args['seed']}", 'info'))
@@ -1390,7 +1393,7 @@ class ws_threading_instance(sub_threading_instance):
             reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
 
 
-            if not bypass_mt:
+            if options_opt['full_maica'] and not bypass_mt:
                 task_trigger_resp = asyncio.create_task(mtrigger_main.wrap_triggering(self, query_in, reply_appended, chat_session))
                 await task_trigger_resp
                 trigger_resp = task_trigger_resp.result()
