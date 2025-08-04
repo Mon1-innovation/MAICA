@@ -169,9 +169,8 @@ key/
 *.key
 *.db
 bash/
-maica/
 persistents/
 triggers/
 
-easter*
+easter_egg.py
 test/

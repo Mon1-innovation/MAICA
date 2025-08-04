@@ -1071,7 +1071,7 @@ class sf_bound_instance():
             conclusion.extend(self.conclude_moni_sf(2) or [])
 
         if load_env('LOG_PERSISTENT') == '1':
-            with open(f'persistents/{self.user_id}_{self.chat_session_num}_friendly.json', 'w+', encoding = 'utf-8') as sf_friendly:
+            with open(f'../persistents/{self.user_id}_{self.chat_session_num}_friendly.json', 'w+', encoding = 'utf-8') as sf_friendly:
                 sf_friendly.write(json.dumps(conclusion, ensure_ascii=False))
 
         self.formed_info = conclusion

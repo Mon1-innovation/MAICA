@@ -213,9 +213,9 @@ class sub_threading_instance:
         self.traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
 
     def get_keys(self) -> None:
-        with open("key/prv.key", "r") as privkey_file:
+        with open("../key/prv.key", "r") as privkey_file:
             privkey = privkey_file.read()
-        with open("key/pub.key", "r") as pubkey_file:
+        with open("../key/pub.key", "r") as pubkey_file:
             pubkey = pubkey_file.read()
         pubkey_loaded = RSA.import_key(pubkey)
         privkey_loaded = RSA.import_key(privkey)

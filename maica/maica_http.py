@@ -459,9 +459,9 @@ async def wrap_verify_token(access_token, hduplex_instance=None):
 def run_http():
     global encryptor, decryptor, verifier, signer
     global known_servers
-    with open("key/prv.key", "r") as privkey_file:
+    with open("../key/prv.key", "r") as privkey_file:
         privkey = privkey_file.read()
-    with open("key/pub.key", "r") as pubkey_file:
+    with open("../key/pub.key", "r") as pubkey_file:
         pubkey = pubkey_file.read()
     try:
         with open(".servers", "r", encoding='utf-8') as servers_file:
