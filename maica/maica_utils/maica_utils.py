@@ -1,9 +1,9 @@
 import asyncio
-import aiomysql
 import httpx
 import functools
 import hashlib
 import os
+import re
 import json
 import inspect
 import colorama
@@ -61,7 +61,10 @@ class MaicaConnectionWarning(CommonMaicaWarning):
 class MaicaInternetWarning(CommonMaicaWarning):
     """This suggests the backend request action is not behaving normal."""
 
-def wrap_ws_formatter(code, status, content, type, deformation=False, **kwargs):
+class re_utils():
+    re_sub_password_spoiler = re.compile(rf'"password"\s*:\s*"(.*?)"')
+
+def wrap_ws_formatter(code, status, content, type, deformation=False, **kwargs) -> str:
     output = {
         "code" : code,
         "status" : status,
@@ -72,7 +75,8 @@ def wrap_ws_formatter(code, status, content, type, deformation=False, **kwargs):
     output.update(kwargs)
     return json.dumps(output, ensure_ascii=deformation)
 
-async def common_context_handler(websocket=None, status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaError]=None, prefix='', type='', color='', add_time=True, no_print=False):
+async def common_context_handler(websocket=None, status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaError]=None, prefix='', type='', color='', add_time=True, no_print=False) -> None:
+    """It could handle most log printing, websocket sending and exception raising jobs pretty automatically."""
     if error:
         info = error.message if not info else info; code = error.error_code if code == "0" else code
     if type and not prefix and not 100 <= int(code) < 200:
@@ -98,6 +102,8 @@ async def common_context_handler(websocket=None, status='', info='', code='0', t
     # This is especially for streaming output
     if not prefix and type == "carriage":
         msg_print = msg_send = info
+    elif type == "plain":
+        msg_print = msg_send = info
     else:
         msg_print = f"<WS_{prefix}>"; msg_print += f"-[{time.strftime('%Y-%m-%d %H:%M:%S')}]" if add_time else ''; msg_print += f"-[{str(code)}]" if code else ''; msg_print += f": {str(info)}"; msg_print += f"; traceray ID {traceray_id}" if traceray_id else ''
         msg_send = f"{str(info)}"; msg_send += f" -- your traceray ID is {traceray_id}" if traceray_id else ''
@@ -109,6 +115,8 @@ async def common_context_handler(websocket=None, status='', info='', code='0', t
         stack.pop(0)
     if not no_print:
         match type:
+            case "plain":
+                print((color or '') + msg_print, end='')
             case "carriage":
                 if not prefix:
                     print((color or colorama.Fore.LIGHTGREEN_EX) + msg_print, end='', flush=True)
@@ -133,20 +141,23 @@ async def common_context_handler(websocket=None, status='', info='', code='0', t
         raise error
     return
 
-def load_env(key):
+def load_env(key) -> str:
+    """Load something from .env."""
     __load_dotenv()
     result = os.getenv(key)
     if not result:
         raise ValueError("Environment variables are missing.")
     return result
 
-async def wrap_run_in_exc(loop, func, *args, **kwargs):
+async def wrap_run_in_exc(loop, func, *args, **kwargs) -> any:
+    """Just wrapped run_in_executer. Convenient!"""
     if not loop:
         loop = asyncio.get_running_loop()
     result = await loop.run_in_executor(None, functools.partial(func, *args, **kwargs))
     return result
 
-async def get_json(url):
+async def get_json(url) -> json:
+    """Get JSON context from an endpoint."""
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'}
     try:
         for tries in range(0, 3):
@@ -166,7 +177,8 @@ async def get_json(url):
         await client.aclose()
     return res
 
-async def hash_sha256(str):
+async def hash_sha256(str) -> str:
+    """Get SHA256 for a string."""
     def hash_sync(str):
         return hashlib.new('sha256', str).hexdigest()
     return await wrap_run_in_exc(None, hash_sync, str)

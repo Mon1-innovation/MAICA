@@ -291,10 +291,9 @@ class sub_threading_instance:
             verification = False
             return verification, excepted
         login_cridential = json.loads(decrypted_token)
-        login_cridential_print = copy.copy(login_cridential)
-        login_cridential_print['password'] = colorama.Fore.BLACK + login_cridential_print['password'] + colorama.Fore.CYAN
-        login_cridential_print = json.dumps(login_cridential_print, ensure_ascii=False)
-        await common_context_handler(info=f'Login cridential acquired: {login_cridential_print}')
+        login_cridential_print = re_utils.re_sub_password_spoiler.sub(rf'"password": "{colorama.Fore.BLACK}\1{colorama.Fore.CYAN}"', decrypted_token)
+
+        await common_context_handler(info=f'Login cridential acquired: {login_cridential_print}', color=colorama.Fore.CYAN)
 
         if 'username' in login_cridential and login_cridential['username']:
             login_identity = login_cridential['username']
@@ -1422,7 +1421,7 @@ class ws_threading_instance(sub_threading_instance):
                             await asyncio.sleep(0)
                             await common_context_handler(websocket, 'maica_core_streaming_continue', token, '100')
                             reply_appended += token
-                    print('\n', end='')
+                    await common_context_handler(info='\n', type='plain')
                     await common_context_handler(websocket, 'maica_core_streaming_done', f'Streaming finished with seed {completion_args['seed']} for {session['username']}', '1000', traceray_id=self.traceray_id)
                 else:
                     reply_appended = stream_resp.choices[0].message.content
@@ -1435,7 +1434,7 @@ class ws_threading_instance(sub_threading_instance):
 
                 reply_appended = replace_generation
                 if completion_args['stream']:
-                    await common_context_handler(websocket, 'maica_core_streaming_continue', reply_appended, '100'); print('\n', end='')
+                    await common_context_handler(websocket, 'maica_core_streaming_continue', reply_appended, '100'); await common_context_handler(info='\n', type='plain')
                     await common_context_handler(websocket, 'maica_core_streaming_done', f'Streaming finished with cache for {session['username']}', '1000', traceray_id=self.traceray_id)
                 else:
                     await common_context_handler(websocket, 'maica_core_nostream_reply', reply_appended, '200', type='carriage')
