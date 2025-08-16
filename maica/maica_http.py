@@ -491,7 +491,10 @@ def run_http():
     config = Config()
     config.bind = ['0.0.0.0:6000']
     print('HTTP server started!')
-    asyncio.run(serve(app, config))
+    try:
+        asyncio.run(serve(app, config))
+    except KeyboardInterrupt:
+        print("HTTP Server stopped!")
     # server_thread.serve_forever()
 
 if __name__ == '__main__':

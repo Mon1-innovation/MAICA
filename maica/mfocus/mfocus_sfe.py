@@ -22,11 +22,11 @@ class sf_bound_instance():
         self.formed_info = None
         asyncio.run(self._init_pools())
 
-    def __del__(self):
-        try:
-            self.loop.run_until_complete(self._close_pools())
-        except:
-            pass
+    # def __del__(self):
+    #     try:
+    #         self.loop.run_until_complete(self._close_pools())
+    #     except:
+    #         pass
 
     async def _init_pools(self) -> None:
         global maicapool
@@ -1099,7 +1099,7 @@ Pick 1 to 5 independent items from the information that helps answering the ques
 Begin!"""
                 messages = [{'role': 'system', 'content': system_init}]
                 messages.append({'role': 'user', 'content': f'question: {query}; information: {information}'})
-                messages[-1]['content'] += '/think'
+                # messages[-1]['content'] += '/think'
                 completion_args = {
                     "model": model_type,
                     "messages": messages,

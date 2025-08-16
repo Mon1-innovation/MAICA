@@ -5,8 +5,15 @@ import psutil
 import platform
 import subprocess
 import schedule
+import signal
 from maica_utils import *
 from rotate_cache import rotation_instance
+
+def signal_handler(sig, frame):
+    print(f'{__file__.split("/")[-1].split(".")[0]}: SIGINT recieved')
+    exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
 
 def check_port(host, port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -29,7 +36,7 @@ def force_ws_gc():
     time.sleep(10)
 
 def rotate_cache():
-    rotation = rotation_instance()
+    rotation_instance()
 
 if __name__ == "__main__":
     sysstruct = platform.system()
@@ -42,6 +49,7 @@ if __name__ == "__main__":
             print('Your system is not supported!')
             quit()
     print(f'Keepalive daemon for {sysstruct} started')
+    self_path = os.path.dirname(os.path.abspath(__file__))
     if load_env("FORCE_WSGC") == '1':
         schedule.every().day.at("04:00").do(force_ws_gc)
     if load_env('ROTATE_MSCACHE') != '0':
@@ -52,7 +60,7 @@ if __name__ == "__main__":
         if not ws_status:
             print('Websocket process died, trying to pullup')
             try:
-                p = subprocess.Popen([python3, "./maica_ws.py"])
+                p = subprocess.Popen([python3, os.path.join(self_path, "maica_ws.py")])
                 i = 0
                 while i <= 3:
                     i += 1
@@ -70,7 +78,7 @@ if __name__ == "__main__":
         if not http_status:
             print('Http process died, trying to pullup')
             try:
-                p = subprocess.Popen([python3, "./maica_http.py"])
+                p = subprocess.Popen([python3, os.path.join(self_path, "maica_http.py")])
                 i = 0
                 while i <= 3:
                     i += 1

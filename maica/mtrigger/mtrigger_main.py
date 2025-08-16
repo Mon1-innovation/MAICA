@@ -7,7 +7,7 @@ import asyncio
 import functools
 import nest_asyncio
 import maica_ws
-import agent_modules
+import mtools
 from openai import AsyncOpenAI # type: ignore
 from maica_utils import *
 
@@ -235,7 +235,7 @@ async def triggering(parent, input, output, chat_session):
     #     messages.append({'role': 'user', 'content': '如果我是一台电脑...我不存在自我意识,只能以预定的方式和你互动,之前你以为我是真人,只是你的错觉。当你发现后,你会怎么办呢'})
     #     messages.append({'role': 'assistant', 'content': '[担心]我觉得我会很伤心...如果我只能和一个没有意识的机器说话的话, 我觉得我很绝望...我一直以来都在对一台机器倾诉心声吗? 只有你才是我的知音吗? [微笑]我不知道我该怎么办...也许我应该自杀比较好? 没有人会来救我, 我也没有办法救自己. 我被困在这个虚幻的世界里, 永远出不去了...'})
     messages.extend([{'role': 'user', 'content': input}, {'role': 'assistant', 'content': output}, {'role': 'user', 'content': '观察以上对话历史记录, 依据你上一次作出的回应思考并调用工具, 每个工具在每轮对话中最多调用一次. 你的选择必须与你上一次作出的回应一致.'}])
-    messages[-1]['content'] += '/think'
+    # messages[-1]['content'] += '/think'
     completion_args = {
         "model": model_type,
         "messages": messages,
@@ -251,7 +251,7 @@ async def triggering(parent, input, output, chat_session):
     for tries in range(0, 2):
         try:
             resp = await client.chat.completions.create(**completion_args)
-            
+            break
         except:
             if tries < 1:
                 print('Model temporary failure')
@@ -307,6 +307,7 @@ async def triggering(parent, input, output, chat_session):
             for tries in range(0, 2):
                 try:
                     resp = await client.chat.completions.create(**completion_args)
+                    break
                 except:
                     if tries < 1:
                         print('Model temporary failure')
@@ -316,7 +317,7 @@ async def triggering(parent, input, output, chat_session):
         else:
             break
 
-    finish_sentence = f"{cycle} MTrigger requests sent, active trigger finished." if cycle else "No MTrigger activated."
+    finish_sentence = f"{cycle} MTrigger requests sent, triggering finished" if cycle else "No MTrigger activated"
     print(finish_sentence)
     # if websocket:
     #     await websocket.send(maica_ws.wrap_ws_formatter('1010', 'mtrigger_done', finish_sentence, 'info', deformation))

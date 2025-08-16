@@ -22,11 +22,11 @@ class mt_bound_instance():
         self.valid_triggers = None
         asyncio.run(self._init_pools())
 
-    def __del__(self):
-        try:
-            self.loop.run_until_complete(self._close_pools())
-        except:
-            pass
+    # def __del__(self):
+    #     try:
+    #         self.loop.run_until_complete(self._close_pools())
+    #     except:
+    #         pass
 
     async def _init_pools(self) -> None:
         global maicapool

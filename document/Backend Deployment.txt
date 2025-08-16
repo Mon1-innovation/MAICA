@@ -71,7 +71,7 @@ MFOCUS_AGENT_TOOLS = 'https://mfocusdev.monika.love'
         #目录/event/
             #部署项目https://github.com/edgeinfinity1/MFocus_eventApi
     #如无特别需求可以保留默认值.
-AUTHENTICATOR_DB = 'flarum_db'
+AUTH_DB = 'flarum_db'
     #此处应填入MAICA使用的认证数据库名.
     #该数据库至少应该拥有以下结构:
     #表"users"
@@ -98,7 +98,7 @@ DB_ADDR = '127.0.0.1:3306'
     #前述的两个数据库均使用这一地址. 不建议分离, 如有需要请自行改代码.
 DB_USER = 'usr'
     #此处应填入Mysql数据库的用户名.
-    #此用户应当对MAICA_DB有完全权限, 对AUTHENTICATOR_DB有读权限.
+    #此用户应当对MAICA_DB有完全权限, 对AUTH_DB有读权限.
     #前述的两个数据库均使用这一用户. 建议新建一个用户并赋予对应权限使用.
 DB_PASSWORD = '123456'
     #此处应填入Mysql数据库的用户密码.

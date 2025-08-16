@@ -11,7 +11,7 @@ class poolinit_instance():
         host = load_env('DB_ADDR'), 
         user = load_env('DB_USER'),
         password = load_env('DB_PASSWORD'),
-        authdb = load_env('AUTHENTICATOR_DB'),
+        authdb = load_env('AUTH_DB'),
         maicadb = load_env('MAICA_DB'),
         login = load_env('LOGIN_VERIFICATION'),
         test = False

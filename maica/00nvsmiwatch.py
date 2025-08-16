@@ -6,7 +6,14 @@ import csv
 import sqlite3
 import traceback
 import paramiko
+import signal
 from maica_utils import *
+
+def signal_handler(sig, frame):
+    print(f'{__file__.split("/")[-1].split(".")[0]}: SIGINT recieved')
+    exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
 
 def nvbasis(ssh_client, db_client, table_name):
     stdin, stdout, stderr = ssh_client.exec_command("nvidia-smi --query-gpu=name,memory.total --format=csv")
@@ -57,6 +64,7 @@ def nvwatchd(hosts, users, pwds, tables):
     excepted = ''
     client_list = []
     try:
+        self_path = os.path.dirname(os.path.abspath(__file__))
         i=0
         for host in hosts:
             ssh_client = paramiko.SSHClient()
@@ -64,7 +72,7 @@ def nvwatchd(hosts, users, pwds, tables):
             ssh_client.connect(hostname=host, port=22, username=users[i], password=pwds[i])
             client_list.append(ssh_client)
             i+=1
-        db_client = sqlite3.connect('./.nvsw.db', autocommit=True)
+        db_client = sqlite3.connect(os.path.join(self_path, ".nvsw.db"), autocommit=True)
         db_client.execute(f'CREATE TABLE IF NOT EXISTS `{load_env('MCORE_NODE')}` (id INT PRIMARY KEY, name TEXT, memory TEXT, history TEXT);')
         db_client.execute(f'CREATE TABLE IF NOT EXISTS `{load_env('MFOCUS_NODE')}` (id INT PRIMARY KEY, name TEXT, memory TEXT, history TEXT);')
         i=0
@@ -88,7 +96,7 @@ def nvwatchd(hosts, users, pwds, tables):
         for client in client_list:
             client.close()
         try:
-            os.remove('./.nvsw.db')
+            os.remove(os.path.join(self_path, ".nvsw.db"))
         except:
             pass
         print(f'Quiting nvwatchd!')
@@ -105,5 +113,5 @@ if __name__ == '__main__':
         while True:
             try:
                 nvwatchd(hosts, users, pwds, tables)
-            except:
+            except Exception:
                 time.sleep(10)

@@ -63,7 +63,7 @@ Answer the question in a single line of natural sentence, and conclude and offer
 Begin!"""
             messages = [{'role': 'system', 'content': system_init}]
             messages.append({'role': 'user', 'content': f'question: {original_query}; information: {slt_full}'})
-            messages[-1]['content'] += '/think'
+            # messages[-1]['content'] += '/think'
             completion_args = {
                 "model": model_type,
                 "messages": messages,

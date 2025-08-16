@@ -1,7 +1,7 @@
 import re
 import json
 import traceback
-import wiki_scraping
+from . import wiki_scraping
 from openai import AsyncOpenAI
 from maica_utils import *
 

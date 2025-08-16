@@ -3,9 +3,8 @@ import pytz
 import json
 import re
 import traceback
-import mfocus_sfe
-from enet_scraping import internet_search
-from weather_scraping import weather_api_get
+from .enet_scraping import internet_search
+from .weather_scraping import weather_api_get
 from maica_utils import *
 
 def time_tz(tz="zh"):

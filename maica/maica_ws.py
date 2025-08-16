@@ -11,13 +11,12 @@ import bcrypt
 import uuid
 import re
 import random
+import copy
 import traceback
-import mspire
-import mpostal
-import mfocus_main
-import mfocus_sfe
-import mtrigger_main
-import mtrigger_sfe
+import colorama
+import mtools
+import mfocus
+import mtrigger
 import post_proc
 #import maica_http
 from Crypto.Random import random as CRANDOM
@@ -33,14 +32,6 @@ try:
 except:
     easter_exist = False
 
-class common_backend_failure:
-    CRITICAL_FAILURE = "c_f"
-    PERMISSION_DENIED = "p_d"
-    EMPTY_INPUT = "e_i"
-    BAD_RESPONSE = "b_r"
-
-    BREAKING_GROUP = (CRITICAL_FAILURE, PERMISSION_DENIED, EMPTY_INPUT, BAD_RESPONSE)
-
 #与sql有关的异步化类
 
 class sub_threading_instance:
@@ -55,7 +46,7 @@ class sub_threading_instance:
         host = load_env('DB_ADDR'), 
         user = load_env('DB_USER'),
         password = load_env('DB_PASSWORD'),
-        authdb = load_env('AUTHENTICATOR_DB'),
+        authdb = load_env('AUTH_DB'),
         maicadb = load_env('MAICA_DB'),
         login = load_env('LOGIN_VERIFICATION'),
         test = False
@@ -70,11 +61,11 @@ class sub_threading_instance:
         asyncio.run(self._init_pools())
         asyncio.run(wrap_run_in_exc(None, self.get_keys))
 
-    def __del__(self):
-        try:
-            self.loop.run_until_complete(self._close_pools())
-        except:
-            pass
+    # def __del__(self):
+    #     try:
+    #         self.loop.run_until_complete(self._close_pools())
+    #     except:
+    #         pass
 
     #以下是抽象方法
 
@@ -87,15 +78,15 @@ class sub_threading_instance:
         try:
             async with authpool.acquire() as testc:
                 pass
-        except:
+        except Exception:
             authpool = await aiomysql.create_pool(host=self.host,user=self.user, password=self.password,db=self.authdb,loop=self.loop,autocommit=True)
-            print("Recreated authpool")
+            await common_context_handler(None, 'auth_db_reconn', "Recreated auth_pool since cannot acquire", '301', type='warn')
         try:
             async with maicapool.acquire() as testc:
                 pass
-        except:
+        except Exception:
             maicapool = await aiomysql.create_pool(host=self.host,user=self.user, password=self.password,db=self.maicadb,loop=self.loop,autocommit=True)
-            print("Recreated maicapool")
+            await common_context_handler(None, 'maica_db_reconn', "Recreated maica_pool since cannot acquire", '301', type='warn')
 
     async def _close_pools(self) -> None:
         global authpool, maicapool
@@ -125,16 +116,15 @@ class sub_threading_instance:
                             await cur.execute(expression)
                         else:
                             await cur.execute(expression, values)
-                        #print(cur.description)
                         results = await cur.fetchone() if not fetchall else await cur.fetchall()
-                        #print(results)
                 break
             except:
                 if tries < 2:
-                    print('DB temporary failure')
+                    await common_context_handler(info=f'DB temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
-                    raise Exception('DB connection failure')
+                    error = MaicaDbError(f'DB connection failure after {str(tries + 1)} times')
+                    await common_context_handler(None, 'db_connection_failed', traceray_id=self.traceray_id, error=error)
         return results
 
     async def send_modify(self, expression, values=None, pool='maicapool', fetchall=False) -> int:
@@ -157,10 +147,11 @@ class sub_threading_instance:
                 break
             except:
                 if tries < 2:
-                    print('DB temporary failure')
+                    await common_context_handler(info=f'DB temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
-                    raise Exception('DB connection failure')
+                    error = MaicaDbError(f'DB connection failure after {str(tries + 1)} times')
+                    await common_context_handler(None, 'db_connection_failed', traceray_id=self.traceray_id, error=error)
         return lrid
     
     # Tough situation, have to mix thread and aio
@@ -228,7 +219,7 @@ class sub_threading_instance:
     async def run_hash_dcc(self, identity, is_email, pwd) -> list[bool, Exception, int, str, str, str] :
         success = True
         exception = ''
-        if self.login == 'disabled':
+        if self.login == '0':
             return True, None, 1, identity, '', identity
         if is_email:
             sql_expression = 'SELECT * FROM users WHERE email = %s'
@@ -242,9 +233,10 @@ class sub_threading_instance:
                 raise Exception('Result has no id')
             dbres_id, dbres_username, dbres_nickname, dbres_email, dbres_ecf, dbres_pwd_bcrypt, *dbres_args = result
             input_pwd, target_pwd = pwd.encode(), dbres_pwd_bcrypt.encode()
-            print(f'Ready to run hash: {identity}')
+
             verification = await wrap_run_in_exc(None, bcrypt.checkpw, input_pwd, target_pwd)
-            print(f'Hashing finished: {verification}')
+            await common_context_handler(info=f'Hashing for {identity} finished: {verification}')
+
             self.alter_identity('id', user_id=dbres_id, username=dbres_username, email=dbres_email)
             f2b_count, f2b_stamp = (await asyncio.gather(self.check_user_status('f2b_count'), self.check_user_status('f2b_stamp')))
             f2b_count, f2b_stamp = f2b_count[3], f2b_stamp[3]
@@ -299,7 +291,11 @@ class sub_threading_instance:
             verification = False
             return verification, excepted
         login_cridential = json.loads(decrypted_token)
-        print(f'Token decrypted: {login_cridential[list(login_cridential.keys())[0]]}')
+        login_cridential_print = copy.copy(login_cridential)
+        login_cridential_print['password'] = colorama.Fore.BLACK + login_cridential_print['password'] + colorama.Fore.CYAN
+        login_cridential_print = json.dumps(login_cridential_print, ensure_ascii=False)
+        await common_context_handler(info=f'Login cridential acquired: {login_cridential_print}')
+
         if 'username' in login_cridential and login_cridential['username']:
             login_identity = login_cridential['username']
             login_is_email = False
@@ -307,8 +303,11 @@ class sub_threading_instance:
             login_identity = login_cridential['email']
             login_is_email = True
         else:
-            raise Exception('No Identity Provided')
-        login_password = login_cridential['password']
+            raise Exception('No identity provided')
+        try:
+            login_password = login_cridential['password']
+        except:
+            raise Exception('No password provided')
         return await self.run_hash_dcc(login_identity, login_is_email, login_password)
 
     async def init_side_instance(self) -> None:
@@ -316,7 +315,7 @@ class sub_threading_instance:
         user_id = self.options['vfc']['user_id']
         try:
             self.check_essentials()
-            self.sf_inst, self.mt_inst = mfocus_sfe.sf_bound_instance(user_id, 1), mtrigger_sfe.mt_bound_instance(user_id, 1)
+            self.sf_inst, self.mt_inst = mfocus.sf_bound_instance(user_id, 1), mtrigger.mt_bound_instance(user_id, 1)
             await asyncio.gather(self.sf_inst.init1(), self.mt_inst.init1())
         except Exception as excepted:
             #traceback.print_exc()
@@ -456,11 +455,11 @@ class sub_threading_instance:
                 await self.send_modify(expression=sql_expression2, values=(timestamp, spire_id), pool='maicapool')
                 success = True
                 exist = True
-                print('Hit a stored cache for MSpire')
+                await common_context_handler(None, 'maica_spire_cache_hit', 'Hit a stored cache for MSpire', '200')
             else:
                 success = True
                 exist = False
-                print('No persist cache for MSpire')
+                await common_context_handler(None, 'maica_spire_cache_missed', 'No stored cache for MSpire', '200')
             return success, None, exist, content
         except Exception as excepted:
             traceback.print_exc()
@@ -474,7 +473,7 @@ class sub_threading_instance:
             sql_expression1 = "INSERT INTO ms_cache VALUES (NULL, %s, %s, %s)"
             spire_id = await self.send_modify(expression=sql_expression1, values=(hash_identity, timestamp, content), pool='maicapool')
             success = True
-            print('Stored MSpire cache')
+            await common_context_handler(None, 'maica_spire_cache_stored', 'Stored a cache for MSpire', '200')
             return success, None
         except Exception as excepted:
             traceback.print_exc()
@@ -672,26 +671,15 @@ class sub_threading_instance:
 def global_init_system(player_name, target_lang='zh', strict_conv=True):
     if target_lang == 'zh':
         if strict_conv:
-            system_init = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答. 你只应使用前后一致的中文自然语言, 以聊天语气回答, 每个句子自然且不超过60字, 不要编造信息, 并在每个句子前用方括号中的文字表示情绪."
+            system_init = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答. 你只应使用中文自然语言, 以聊天语气回答, 每个句子自然且不超过60字, 不要编造信息, 并在每个句子前用方括号中的文字表示情绪."
         else:
-            system_init = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的来信, 请作为莫妮卡作出合适的回复. 你只应使用前后一致的中文书面语言作答, 不要编造信息."
+            system_init = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的来信, 请作为莫妮卡作出合适的回复. 你只应使用中文书面语言作答, 不要编造信息."
     else:
         if strict_conv:
-            system_init = f"You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Answer the following query from {player_name} properly as Monika. You should only answer consistently in casual natural tone in English, each sentence should not exceed 180 characters, do not make up things you don't know, and express your emotion at the beginning of each sentence by wrapping them in square brackets."
+            system_init = f"You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Answer the following query from {player_name} properly as Monika. You should only answer in casual natural tone in English, each sentence should not exceed 180 characters, do not make up things you don't know, and express your emotion at the beginning of each sentence by wrapping them in square brackets."
         else:
-            system_init = f"You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Reply to the following mail from {player_name} properly as Monika. You should only answer consistently in natural written language in English, and do not make up things you don't know."
+            system_init = f"You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Reply to the following mail from {player_name} properly as Monika. You should only answer in natural written language in English, and do not make up things you don't know."
     return system_init
-
-def wrap_ws_formatter(code, status, content, type, deformation=False, **kwargs):
-    output = {
-        "code" : code,
-        "status" : status,
-        "content" : content,
-        "type" : type,
-        "time_ms" : int(round(time.time() * 1000))
-    }
-    output.update(kwargs)
-    return json.dumps(output, ensure_ascii=deformation)
 
 #与websocket绑定的异步化类, 继承sql类
 
@@ -702,19 +690,21 @@ class ws_threading_instance(sub_threading_instance):
         try:
             if sock1.is_closed():
                 sock1 = AsyncOpenAI(api_key='EMPTY', base_url=load_env('MCORE_ADDR'))
-                print('Recreated sock1')
+                asyncio.run(common_context_handler(None, 'maica_recover_core_model', 'Backend reconnecting core model since socket closed', '301', type='warn'))
             if sock2.is_closed():
                 sock2 = AsyncOpenAI(api_key='EMPTY', base_url=load_env('MFOCUS_ADDR'))
-                print('Recreated sock2')
+                asyncio.run(common_context_handler(None, 'maica_recover_agent_model', 'Backend reconnecting agent model since socket closed', '301', type='warn'))
         except:
             sock1 = sock2 = None
         self.sock1, self.sock2 = sock1, sock2
         self.websocket = websocket
         super().__init__(test=test)
 
+    # Deprecated
+
     def wrap_ws_deformatter(self, code, status, content, type, deformation=None, **kwargs):
         if deformation is None:
-            deformation = self.options['opt']['deformation']
+            deformation = False
         return wrap_ws_formatter(code, status, content, type, deformation, **kwargs)
 
     #身份验证
@@ -722,60 +712,81 @@ class ws_threading_instance(sub_threading_instance):
     async def check_permit(self):
         global online_dict
         websocket = self.websocket
-        print('Someone started a connection')
-        print(f"Current onliners: {list(online_dict.keys())}")
+        await common_context_handler(info='An anonymous connection initiated', color=colorama.Fore.LIGHTBLUE_EX)
+        await common_context_handler(info=f'Current online users: {list(online_dict.keys())}', color=colorama.Fore.LIGHTBLUE_EX)
+
+        # Starting loop from here
+
         while True:
-            self.flush_traceray()
             try:
+
+                # Initiation
+
+                self.flush_traceray()
                 recv_text = await websocket.recv()
-                if not recv_text:
-                    print('Empty recieved, likely connection loss')
-                    await websocket.close()
-                    await websocket.wait_closed()
-                print(f'[{time.strftime('%Y-%m-%d %H:%M:%S')}] Recieved an input on stage1: {recv_text}')
-                verification_result = await self.hashing_verify(access_token=recv_text)
+                await common_context_handler(info=f'Recieved an input on stage1.', color=colorama.Fore.CYAN)
+
+                # Context security check first
+
+                if len(recv_text) > 4096:
+                    error = MaicaInputWarning('Input length exceeded', '413')
+                    await common_context_handler(websocket, "input_length_exceeded", traceray_id=self.traceray_id, error=error)
+                try:
+                    recv_loaded_json = json.loads(recv_text)
+                except:
+                    error = MaicaInputWarning('Request body not JSON', '400')
+                    await common_context_handler(websocket, "request_body_not_json", traceray_id=self.traceray_id, error=error)
+                try:
+                    recv_token = recv_loaded_json['token']
+                except:
+                    error = MaicaInputWarning('Request contains no token', '405')
+                    await common_context_handler(websocket, "request_body_no_token", traceray_id=self.traceray_id, error=error)
+
+                # Initiate account check
+
+                verification_result = await self.hashing_verify(access_token=recv_token)
                 if verification_result[0]:
+
+                    # Account security check
+
                     checked_status = await self.check_user_status(key='banned')
                     if not checked_status[0]:
-                        response_str = f"Account service failed to fetch, refer to administrator--your ray tracer ID is {self.traceray_id}"
-                        print(f"出现如下异常3-{self.traceray_id}:{checked_status[1]}")
-                        await websocket.send(self.wrap_ws_deformatter('500', 'unable_verify', response_str, 'error', False))
-                        await websocket.close(1000, 'Stopping connection due to critical server failure')
+                        error = MaicaDbError('Account service failed', '502')
+                        try:
+                            error.message += f": {str(checked_status[1])}"
+                        except Exception:
+                            error.message += ", no reason provided"
+                        await common_context_handler(websocket, "auth_db_failure", traceray_id=self.traceray_id, error=error)
                     elif checked_status[3]:
-                        response_str = f"Your account disobeied our terms of service and was permenantly banned--your ray tracer ID is {self.traceray_id}"
-                        print(f"出现如下异常4-{self.traceray_id}:banned")
-                        await websocket.send(self.wrap_ws_deformatter('403', 'account_banned', response_str, 'warn', False))
-                        await websocket.close(1000, 'Permission denied')
+                        error = MaicaPermissionError('Account banned by MAICA', '403')
+                        await common_context_handler(websocket, "maica_account_banned", traceray_id=self.traceray_id, error=error)
                     else:
                         if verification_result[2] in online_dict:
-                            response_str = f"You have an established connection already--your ray tracer ID is {self.traceray_id}"
-                            print(f"出现如下异常4.1-{self.traceray_id}:reusage")
-                            await websocket.send(self.wrap_ws_deformatter('403', 'connection_reuse', response_str, 'warn', False))
-                            try:
-                                stale_conn = online_dict[verification_result[2]][0]
-                                stale_lock = online_dict[verification_result[2]][1]
+                            if load_env("KICK_STALE_CONNS") == "0":
+                                error = MaicaConnectionWarning('A connection was established already and kicking not enabled', '406')
+                                await common_context_handler(websocket, 'maica_connection_reuse_denied', traceray_id=self.traceray_id, error=error)
+                            else:
+                                await common_context_handler(websocket, "maica_connection_reuse_attempt", "A connection was established already", "300", self.traceray_id)
+                                stale_conn, stale_lock = online_dict[verification_result[2]]
                                 try:
+                                    await common_context_handler(stale_conn, 'maica_connection_reuse_stale', 'A new connection has been established', '300', self.traceray_id)
                                     await stale_conn.close(1000, 'Displaced as stale')
                                 except:
-                                    print('The stale connection is already dead')
+                                    await common_context_handler(None, 'maica_connection_stale_dead', 'The stale connection has died already', '204')
                                 try:
                                     online_dict.pop(verification_result[2])
                                 except:
                                     pass
                                 async with stale_lock:
-                                    print('Stale connection released')
-                            except:
-                                #traceback.print_exc()
-                                await websocket.close(1000, 'Permission denied')
+                                    await common_context_handler(None, 'maica_connection_stale_kicked', 'The stale connection is kicked', '204')
                         self.cookie = cookie = str(uuid.uuid4())
                         self.enforce_cookie = False
-                        await websocket.send(self.wrap_ws_deformatter('206', 'session_created', "Authencation passed!", 'info', False))
-                        await websocket.send(self.wrap_ws_deformatter('200', 'user_id', f"{verification_result[2]}", 'debug', True))
-                        await websocket.send(self.wrap_ws_deformatter('200', 'username', f"{verification_result[3]}", 'debug', True))
-                        await websocket.send(self.wrap_ws_deformatter('200', 'nickname', f"{verification_result[4]}", 'debug', True))
-                        await websocket.send(self.wrap_ws_deformatter('190', 'ws_cookie', cookie, 'cookie', True))
-                        #await websocket.send(self.wrap_ws_deformatter('200', 'session_created', f"email {verification_result[5]}", 'debug', False))
-                        #print(verification_result[0])
+                        await common_context_handler(websocket, 'maica_login_succeeded', 'Authentication passed', '201', type='info', color=colorama.Fore.LIGHTCYAN_EX)
+                        await common_context_handler(websocket, 'maica_login_id', f"{verification_result[2]}", '200')
+                        await common_context_handler(websocket, 'maica_login_user', f"{verification_result[3]}", '200')
+                        await common_context_handler(websocket, 'maica_login_nickname', f"{verification_result[4]}", '200', no_print=True)
+                        await common_context_handler(websocket, 'maica_connection_security_cookie', cookie, '200', no_print=True)
+
                         verificated_result = {
                             "user_id": verification_result[2],
                             "username": verification_result[3],
@@ -787,34 +798,38 @@ class ws_threading_instance(sub_threading_instance):
                 else:
                     if isinstance(verification_result[1], dict):
                         if 'f2b' in verification_result[1]:
-                            response_str = f"Fail2Ban locking {verification_result[1]['f2b']} seconds before release, wait and retry--your ray tracer ID is {self.traceray_id}"
-                            print(f"出现如下异常1.1-{self.traceray_id}:{verification_result}")
-                            await websocket.send(self.wrap_ws_deformatter('403', 'unauthorized', response_str, 'warn', False))
-                            continue
+                            error = MaicaPermissionError(f'Account locked by Fail2Ban, {verification_result[1]['f2b']} seconds remaining', '429')
+                            await common_context_handler(websocket, 'maica_login_denied_fail2ban', traceray_id=self.traceray_id, error=error)
                         elif 'necf' in verification_result[1]:
-                            response_str = f"Your account Email not verified, check inbox and retry--your ray tracer ID is {self.traceray_id}"
-                            print(f"出现如下异常1.2-{self.traceray_id}:{verification_result}")
-                            await websocket.send(self.wrap_ws_deformatter('403', 'unauthorized', response_str, 'warn', False))
-                            continue
+                            error = MaicaPermissionError(f'Account Email not verified, check inbox and retry', '401')
+                            await common_context_handler(websocket, 'maica_login_denied_email', traceray_id=self.traceray_id, error=error)
                         elif 'pwdw' in verification_result[1]:
-                            response_str = f"Bcrypt hashing failed {verification_result[1]['pwdw']} times, check your password--your ray tracer ID is {self.traceray_id}"
-                            print(f"出现如下异常1.3-{self.traceray_id}:{verification_result}")
-                            await websocket.send(self.wrap_ws_deformatter('403', 'unauthorized', response_str, 'warn', False))
-                            continue
+                            error = MaicaPermissionWarning(f'Password hashing failed {verification_result[1]['pwdw']} times, check password and retry', '403')
+                            await common_context_handler(websocket, 'maica_login_denied_password', traceray_id=self.traceray_id, error=error)
                     else:
-                        response_str = f"RSA cognition failed, check possible typo--your ray tracer ID is {self.traceray_id}"
-                        print(f"出现如下异常2-{self.traceray_id}:{verification_result}")
-                        await websocket.send(self.wrap_ws_deformatter('403', 'unauthorized', response_str, 'warn', False))
-                        continue
+                        error = MaicaPermissionError('Security token not RSA', '400')
+                        await common_context_handler(websocket, 'maica_login_denied_rsa', traceray_id=self.traceray_id, error=error)
+
+            # Handle expected exceptions
+
+            except CommonMaicaException as ce:
+                if ce.is_critical():
+                    return 2
+                elif ce.is_breaking():
+                    return 1
+                else:
+                    continue
+
             except websockets.exceptions.WebSocketException:
-                print("Someone disconnected")
-                raise Exception('Force closure of connection')
-            except Exception as excepted:
-                response_str = f"Caught a serialization failure in hashing section, check possible typo--your ray tracer ID is {self.traceray_id}"
-                print(f"出现如下异常5-{self.traceray_id}:{excepted}")
+                await common_context_handler(None, 'maica_connection_terminated', 'Connection passively terminated', '204')
+                return 0
+
+            # Handle unexpected exceptions
+
+            except Exception as e:
                 traceback.print_exc()
-                await websocket.send(self.wrap_ws_deformatter('403', 'unauthorized', response_str, 'warn', False))
-                continue
+                return 3
+
     
     #接管输入
 
@@ -825,8 +840,9 @@ class ws_threading_instance(sub_threading_instance):
         client_options = {
             "model_actual" : self.model_type_actual,
             "stream" : True,
-            "deformation": False,
-            "full_maica": True,
+            "deformation": False, # Deprecated
+            "enable_mf": True,
+            "enable_mt": True,
             "sf_extraction": True,
             "mt_extraction": True,
             "target_lang": 'zh',
@@ -845,65 +861,75 @@ class ws_threading_instance(sub_threading_instance):
         }
         self.alter_identity('opt', **client_options)
         self.alter_identity('eopt', **client_extra_options)
-        await websocket.send(self.wrap_ws_deformatter('206', 'thread_ready', "Thread is ready for input or setting adjustment", 'info'))
-        await websocket.send(self.wrap_ws_deformatter('200', 'ok', f"Service provider is {load_env('DEV_IDENTITY')}", 'info'))
+        await common_context_handler(websocket, "maica_connection_established", "MAICA connection established", "201", type='info', no_print=True)
+        await common_context_handler(websocket, "maica_provider_anno", f"Current service provider is {load_env('DEV_IDENTITY')}", "200", type='info', no_print=True)
 
         # Starting loop from here
 
         while True:
-            self.flush_traceray()
-            return_status = ''
-            checked_status = await self.check_user_status(key='banned')
-            if not checked_status[0]:
-                response_str = f"Account service failed to fetch, refer to administrator--your ray tracer ID is {self.traceray_id}"
-                print(f"出现如下异常3-{self.traceray_id}:{checked_status[1]}")
-                await websocket.send(self.wrap_ws_deformatter('500', 'unable_verify', response_str, 'error'))
-                return common_backend_failure.CRITICAL_FAILURE
-            elif checked_status[3]:
-                response_str = f"Your account disobeied our terms of service and was permenantly banned--your ray tracer ID is {self.traceray_id}"
-                print(f"出现如下异常4-{self.traceray_id}:banned")
-                await websocket.send(self.wrap_ws_deformatter('403', 'account_banned', response_str, 'warn'))
-                return common_backend_failure.PERMISSION_DENIED
-            recv_text = await websocket.recv()
-            if not recv_text:
-                print('Empty recieved, likely connection loss')
-                return common_backend_failure.EMPTY_INPUT
-            print(f'[{time.strftime('%Y-%m-%d %H:%M:%S')}] Recieved an input on stage2: {recv_text}')
-            if len(recv_text) > 4096:
-                response_str = f"Input exceeding 4096 characters, which is not permitted--your ray tracer ID is {self.traceray_id}"
-                print(f"出现如下异常12-{self.traceray_id}:length exceeded")
-                await websocket.send(self.wrap_ws_deformatter('403', 'length_exceeded', response_str, 'warn'))
-                continue
             try:
+
+                # Initiation
+
+                self.flush_traceray()
+                return_status = 0
+
+                # Context security check first
+
+                checked_status = await self.check_user_status(key='banned')
+                if not checked_status[0]:
+                    error = MaicaDbError('Account service failed', '502')
+                    try:
+                        error.message += f": {str(checked_status[1])}"
+                    except Exception:
+                        error.message += ", no reason provided"
+                    await common_context_handler(websocket, "auth_db_failure", traceray_id=self.traceray_id, error=error)
+                elif checked_status[3]:
+                    error = MaicaPermissionError('Account banned by MAICA', '403')
+                    await common_context_handler(websocket, "maica_account_banned", traceray_id=self.traceray_id, error=error)
+
+                # Then we examine the input
+
+                recv_text = await websocket.recv()
+                await common_context_handler(info=f'Recieved an input on stage2: {recv_text}', color=colorama.Fore.CYAN)
+
+                # Then context validation
+
+                if len(recv_text) > 4096:
+                    error = MaicaInputWarning('Input length exceeded', '413')
+                    await common_context_handler(websocket, "input_length_exceeded", traceray_id=self.traceray_id, error=error)
                 try:
                     recv_loaded_json = json.loads(recv_text)
                 except:
-                    recv_loaded_json = {}
+                    error = MaicaInputWarning('Request body not JSON', '400')
+                    await common_context_handler(websocket, "request_body_not_json", traceray_id=self.traceray_id, error=error)
                 try:
                     recv_type = recv_loaded_json['type']
                 except:
                     recv_type = 'unknown'
-                if 'cookie' in recv_loaded_json:
+                    await common_context_handler(websocket, "future_warning", "Requests with no type declaration will be deprecated in the future", "426")
+
+                # Handle this cookie thing
+
+                if 'cookie' in recv_loaded_json and recv_loaded_json['cookie']:
                     if str(recv_loaded_json['cookie']) == self.cookie:
                         if not self.enforce_cookie:
-                            await websocket.send(self.wrap_ws_deformatter('200', 'ok', f"Cookie verification passed and strict sucurity mode enabled", 'info'))
+                            await common_context_handler(websocket, "security_cookie_accepted", "Cookie verification passed, enabling strict mode", "200", no_print=True)
                             self.enforce_cookie = True
                         else:
-                            await websocket.send(self.wrap_ws_deformatter('200', 'ok', f"Cookie verification passed", 'debug'))
+                            await common_context_handler(websocket, "security_cookie_correct", "Cookie verification passed", "200", no_print=True)
                     else:
-                        response_str = f"Cookie verification failed with strict security enforced--your ray tracer ID is {self.traceray_id}"
-                        print(f"出现如下异常5-{self.traceray_id}:{recv_loaded_json['cookie']} unequal {self.cookie}")
-                        await websocket.send(self.wrap_ws_deformatter('403', 'cookie_mismatch', response_str, 'warn'))
-                        return common_backend_failure.PERMISSION_DENIED
+                        error = MaicaPermissionError('Cookie provided but mismatch', '403')
+                        await common_context_handler(websocket, 'security_cookie_mismatch', traceray_id=self.traceray_id, error=error)
                 elif self.enforce_cookie:
-                    response_str = f"No cookie provided with strict security enforced--your ray tracer ID is {self.traceray_id}"
-                    print(f"出现如下异常5.1-no cookie")
-                    await websocket.send(self.wrap_ws_deformatter('403', 'cookie_absent', response_str, 'warn'))
-                    return common_backend_failure.PERMISSION_DENIED
+                    error = MaicaPermissionError('Cookie enforced but missing', '403')
+                    await common_context_handler(websocket, 'security_cookie_missing', traceray_id=self.traceray_id, error=error)
+
+                # Route request
+
                 match recv_type.lower():
                     case 'ping':
-                        await websocket.send(self.wrap_ws_deformatter('199', 'ping_reaction', "PONG", 'heartbeat'))
-                        print(f"recieved PING from {session['username']}")
+                        await common_context_handler(websocket, "pong", f"Ping recieved from {session['username']} and responded", "200")
                     case 'params':
                         return_status = await self.def_model(recv_loaded_json)
                     case 'query':
@@ -913,176 +939,244 @@ class ws_threading_instance(sub_threading_instance):
                     case placeholder if "chat_session" in recv_loaded_json:
                         return_status = await self.do_communicate(recv_loaded_json)
                     case _:
-                        response_str = f"Input is unrecognizable, check possible typo--your ray tracer ID is {self.traceray_id}"
-                        print(f"出现如下异常6.1-{self.traceray_id}:{recv_text}")
-                        await websocket.send(self.wrap_ws_deformatter('405', 'wrong_form', response_str, 'warn')) 
-                        continue
-                if return_status in common_backend_failure.BREAKING_GROUP:
-                    return return_status
+                        error = MaicaInputWarning('Type cannot be determined', '422')
+                        await common_context_handler(websocket, 'request_type_not_determined', traceray_id=self.traceray_id, error=error)
+
+                if return_status and int(return_status) > 2:
+                    error = CriticalMaicaError('Unexpected exception happened in child of stage2', '500')
+                    await common_context_handler(websocket, 'maica_frame_critical', traceray_id=self.traceray_id, error=error)
+
+            # Handle expected exceptions
+
+            except CommonMaicaException as ce:
+                if ce.is_critical():
+                    return 2
+                elif ce.is_breaking():
+                    return 1
+                else:
+                    continue
+
             except websockets.exceptions.WebSocketException:
-                print("Someone disconnected")
-                raise Exception('Force closure of connection')
-            except Exception as excepted:
-                response_str = f"A common failure was caught in main logic, refer to administrator--your ray tracer ID is {self.traceray_id}"
-                print(f"出现如下异常6-{self.traceray_id}:{excepted}")
-                #traceback.print_exc()
-                await websocket.send(self.wrap_ws_deformatter('503', 'server_failed', response_str, 'warn'))
-                continue
+                await common_context_handler(None, 'maica_connection_terminated', 'Connection passively terminated', '204')
+                return 0
+
+            # Handle unexpected exceptions
+
+            except Exception as e:
+                traceback.print_exc()
+                return 3
+
+
 
     #交互设置
 
-    async def def_model(self, recv_json):
+    async def def_model(self, recv_loaded_json):
+
+        # Initiations
+
         websocket, session = self.websocket, self.options['vfc']
+        client_options, client_extra_options, super_params_filtered = {}, {}, {}
+        active_params = 0; in_params = 0
         try:
-            model_choice = recv_json
-            client_options, client_extra_options, super_params_filtered = {}, {}, {}
-            if 'model_params' in model_choice:
-                model_params = model_choice['model_params']
-                if 'model' in model_params and model_params['model'] in ['maica_main', 'maica_core']:
-                    using_model = model_params['model']
-                else:
-                    using_model = 'maica_main' if self.options['opt']['full_maica'] else 'maica_core'
-                is_full_maica = True if using_model == 'maica_main' else False
-                client_options['full_maica'] = is_full_maica
+
+            # model_params or self.options['opt'] are major params that impacts MAICA's behavior.
+
+            if 'model_params' in recv_loaded_json:
+                model_params = recv_loaded_json['model_params']
+                in_params += len(model_params)
+                if 'model' in model_params and model_params['model'] in ['MAICA']:
+
+                    active_params += 1
+                if 'enable_mf' in model_params:
+                    client_options['enable_mf'] = bool(model_params['enable_mf'])
+                    active_params += 1
+                if 'enable_mt' in model_params:
+                    client_options['enable_mt'] = bool(model_params['enable_mt'])
+                    active_params += 1
                 if 'sf_extraction' in model_params:
                     client_options['sf_extraction'] = bool(model_params['sf_extraction'])
+                    active_params += 1
                 if 'mt_extraction' in model_params:
                     client_options['mt_extraction'] = bool(model_params['mt_extraction'])
+                    active_params += 1
                 if 'stream_output' in model_params:
                     client_options['stream'] = bool(model_params['stream_output'])
+                    active_params += 1
                 if 'deformation' in model_params:
                     client_options['deformation'] = bool(model_params['deformation'])
+                    active_params += 1
                 if 'target_lang' in model_params:
                     client_options['target_lang'] = 'en' if model_params['target_lang'] == 'en' else 'zh'
-                    self.sf_inst.target_lang = 'en' if model_params['target_lang'] == 'en' else 'zh'
-                if 'max_token' in model_params and 512 <= int(model_params['max_token']) <= 28672:
-                    client_options['max_token'] = int(model_params['max_token'])
+                    self.sf_inst.target_lang = client_options['target_lang']
+                    active_params += 1
+                if 'max_length' in model_params and 512 <= int(model_params['max_length']) <= 28672:
+                    client_options['max_length'] = int(model_params['max_length'])
+                    active_params += 1
+
+                # Store them in
+
                 self.alter_identity('opt', **client_options)
-            if 'perf_params' in model_choice:
-                perf_params = model_choice['perf_params']
+
+            # perf_params or self.options['eopt'] are params that aren't that important.
+
+            if 'perf_params' in recv_loaded_json:
+                perf_params = recv_loaded_json['perf_params']
+                in_params += len(perf_params)
                 if 'sfe_aggressive' in perf_params:
                     client_extra_options['sfe_aggressive'] = bool(perf_params['sfe_aggressive'])
+                    active_params += 1
                 if 'mf_aggressive' in perf_params:
                     client_extra_options['mf_aggressive'] = bool(perf_params['mf_aggressive'])
+                    active_params += 1
                 if 'tnd_aggressive' in perf_params:
                     client_extra_options['tnd_aggressive'] = int(perf_params['tnd_aggressive'])
+                    active_params += 1
                 if 'esc_aggressive' in perf_params:
                     client_extra_options['esc_aggressive'] = bool(perf_params['esc_aggressive'])
+                    active_params += 1
                 if 'amt_aggressive' in perf_params:
                     client_extra_options['amt_aggressive'] = bool(perf_params['amt_aggressive'])
+                    active_params += 1
                 if 'nsfw_acceptive' in perf_params:
                     client_extra_options['nsfw_acceptive'] = bool(perf_params['nsfw_acceptive'])
+                    active_params += 1
                 if 'pre_additive' in perf_params and 0 <= int(perf_params['pre_additive']) <= 5:
                     client_extra_options['pre_additive'] = int(perf_params['pre_additive'])
+                    active_params += 1
                 if 'post_additive' in perf_params and 0 <= int(perf_params['post_additive']) <= 5:
                     client_extra_options['post_additive'] = int(perf_params['post_additive'])
+                    active_params += 1
                 if 'tz' in perf_params and (isinstance(perf_params['tz'], str) or perf_params['tz'] is None):
                     client_extra_options['tz'] = perf_params['tz']
+                    active_params += 1
+
+                # Store them in
+
                 self.alter_identity('eopt', **client_extra_options)
-            if 'super_params' in model_choice:
-                super_params = model_choice['super_params']
+
+            # super_params or self.options['sup'] are passthrough params to core LLM.
+
+            if 'super_params' in recv_loaded_json:
+                super_params = recv_loaded_json['super_params']
+                in_params += len(super_params)
                 if 'max_tokens' in super_params:
                     if isinstance(super_params['max_tokens'], int) and int(super_params['max_tokens']) == -1:
                         self.options['sup'].pop('max_tokens')
+                        active_params += 1
                     elif 0 < int(super_params['max_tokens']) <= 2048:
                         super_params_filtered['max_tokens'] = int(super_params['max_tokens'])
+                        active_params += 1
                 if 'seed' in super_params:
                     if isinstance(super_params['seed'], int) and int(super_params['seed']) == -1:
                         self.options['sup'].pop('seed')
+                        active_params += 1
                     elif 0 < int(super_params['seed']) <= 99999:
                         super_params_filtered['seed'] = int(super_params['seed'])
+                        active_params += 1
                 if 'top_p' in super_params:
                     if isinstance(super_params['top_p'], int) and int(super_params['top_p']) == -1:
                         self.options['sup'].pop('top_p')
+                        active_params += 1
                     elif 0.1 < float(super_params['top_p']) <= 1.0:
                         super_params_filtered['top_p'] = float(super_params['top_p'])
+                        active_params += 1
                 if 'temperature' in super_params:
                     if isinstance(super_params['temperature'], int) and int(super_params['temperature']) == -1:
                         self.options['sup'].pop('temperature')
+                        active_params += 1
                     elif 0.0 < float(super_params['temperature']) <= 1.0:
                         super_params_filtered['temperature'] = float(super_params['temperature'])
+                        active_params += 1
                 if 'presence_penalty' in super_params:
                     if isinstance(super_params['presence_penalty'], int) and int(super_params['presence_penalty']) == -1:
                         self.options['sup'].pop('presence_penalty')
+                        active_params += 1
                     elif 0.0 < float(super_params['presence_penalty']) <= 1.0:
                         super_params_filtered['presence_penalty'] = float(super_params['presence_penalty'])
+                        active_params += 1
                 if 'frequency_penalty' in super_params:
                     if isinstance(super_params['frequency_penalty'], int) and int(super_params['frequency_penalty']) == -1:
                         self.options['sup'].pop('frequency_penalty')
+                        active_params += 1
                     elif 0.2 < float(super_params['frequency_penalty']) <= 1.0:
                         super_params_filtered['frequency_penalty'] = float(super_params['frequency_penalty'])
+                        active_params += 1
+
+                # Again store them in
+
                 self.alter_identity('sup', **super_params_filtered)
-            await websocket.send(self.wrap_ws_deformatter('200', 'params_set', f"{len(client_options)+len(client_extra_options)+len(super_params_filtered)} settings passed in and taking effect", 'info'))
-            return True
-        except websockets.exceptions.WebSocketException:
-            print("Someone disconnected")
-            raise Exception('Force closure of connection')
-        except Exception as excepted:
-            response_str = f"Choice serialization failed, check possible typo--your ray tracer ID is {self.traceray_id}"
-            print(f"出现如下异常9-{self.traceray_id}:{excepted}")
-            await websocket.send(self.wrap_ws_deformatter('405', 'wrong_input', response_str, 'warn'))
-            return False
+            await common_context_handler(websocket, 'maica_params_accepted', f"{active_params} out of {in_params} settings accepted", "200")
+            return 0
+        
+        # Specifically we have to handle input errors here
+
+        except Exception as e:
+            error = MaicaInputWarning(str(e), '405')
+            await common_context_handler(websocket, 'maica_params_denied', traceray_id=self.traceray_id, error=error)
 
     #交互会话
 
-    async def do_communicate(self, recv_json):
+    async def do_communicate(self, recv_loaded_json):
+
+        # Initiations
+
         websocket, sock1, session, options_opt, options_eopt = self.websocket, self.sock1, self.options['vfc'], self.options['opt'], self.options['eopt']
+        username = session['username']; sf_extraction = options_opt['sf_extraction']; mt_extraction = options_opt['mt_extraction']; target_lang = options_opt['target_lang']; max_token_hint = options_opt['max_token']; warn_token_hint = int(max_token_hint * (2/3)); query_in = ''
         sfe_aggressive, mf_aggressive, tnd_aggressive, esc_aggressive, nsfw_acceptive = options_eopt['sfe_aggressive'], options_eopt['mf_aggressive'], options_eopt['tnd_aggressive'], options_eopt['esc_aggressive'], options_eopt['nsfw_acceptive']
         bypass_mf = False; bypass_mt = False; bypass_stream = False; bypass_sup = False; bypass_gen = False; ic_prep = False; strict_conv = True; ms_cache = False; overall_info_system = ''; replace_generation = ''; ms_cache_identity = ''
         self.alter_identity('temp', sf_extraction_once=False, mt_extraction_once=False)
         try:
-            request_json = recv_json
-            chat_session = int(request_json['chat_session'])
-            username = session['username']
-            sf_extraction = options_opt['sf_extraction']
-            mt_extraction = options_opt['mt_extraction']
-            target_lang = options_opt['target_lang']
-            max_token_hint = options_opt['max_token']
-            warn_token_hint = int(max_token_hint * (2/3))
-            query_in = ''
-            if target_lang != 'zh' and target_lang != 'en':
-                raise Exception('Language choice unrecognized')
-            if 'purge' in request_json:
-                if request_json['purge']:
-                    try:
-                        user_id = session['user_id']
-                        purge_result = await self.purge_chat_session(chat_session)
-                        if not purge_result[0]:
-                            raise Exception(purge_result[1])
-                        elif purge_result[2]:
-                            response_str = f"Determined chat session not exist, check possible typo--your ray tracer ID is {self.traceray_id}"
-                            print(f"出现如下异常13-{self.traceray_id}:{purge_result[1]}")
-                            await websocket.send(self.wrap_ws_deformatter('404', 'session_notfound', response_str, 'warn'))
-                            return False
-                        else:
-                            response_str = f"finished swiping user id {user_id} chat session {chat_session}"
-                            await websocket.send(self.wrap_ws_deformatter('204', 'deleted', response_str, 'info'))
-                            return True
-                    except websockets.exceptions.WebSocketException:
-                        print("Someone disconnected")
-                        raise Exception('Force closure of connection')
-                    except Exception as excepted:
-                        response_str = f"Purging chat session failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
-                        print(f"出现如下异常14-{self.traceray_id}:{excepted}")
-                        await websocket.send(self.wrap_ws_deformatter('500', 'unable_purge', response_str, 'error'))
-                        return common_backend_failure.CRITICAL_FAILURE
-            if 'inspire' in request_json and not query_in:
-                if request_json['inspire']:
-                    if isinstance(request_json['inspire'], dict):
-                        query_insp = await mspire.make_inspire(title_in=request_json['inspire'], target_lang=target_lang)
+
+            # Param assertions here
+
+            try:
+                chat_session = int(recv_loaded_json['chat_session'])
+                assert -1 <= chat_session < 10, "Wrong chat_session range"
+                assert target_lang in ['zh', 'en'], "Wrong target_lang value"
+            except Exception as e:
+                error = MaicaInputWarning(str(e), '405')
+                await common_context_handler(websocket, 'maica_query_denied', traceray_id=self.traceray_id, error=error)
+
+            if 'reset' in recv_loaded_json:
+                if recv_loaded_json['reset']:
+                    user_id = session['user_id']
+                    purge_result = await self.purge_chat_session(chat_session)
+                    if not purge_result[0]:
+                        error = MaicaDbError('Chat session resetting failed', '502')
+                        try:
+                            error.message += f": {str(purge_result[1])}"
+                        except Exception:
+                            error.message += ", no reason provided"
+                        await common_context_handler(websocket, "maica_db_failure", traceray_id=self.traceray_id, error=error)
+                    elif purge_result[2]:
+                        await common_context_handler(websocket, "maica_session_nout_found", "Determined chat_session doesn't exist", "302", self.traceray_id)
+                        return 0
                     else:
-                        query_insp = await mspire.make_inspire(target_lang=target_lang)
-                    if 'use_cache' in request_json and request_json['use_cache'] and chat_session == 0:
+                        await common_context_handler(websocket, "maica_session_reset", "Determined chat_session reset", "204", self.traceray_id)
+                        return 0
+ 
+            if 'inspire' in recv_loaded_json and not query_in:
+                if recv_loaded_json['inspire']:
+                    if isinstance(recv_loaded_json['inspire'], dict):
+                        query_insp = await mtools.make_inspire(title_in=recv_loaded_json['inspire'], target_lang=target_lang)
+                    else:
+                        query_insp = await mtools.make_inspire(target_lang=target_lang)
+                    if 'use_cache' in recv_loaded_json and recv_loaded_json['use_cache'] and chat_session == 0:
                         ms_cache = True
                     else:
                         ms_cache = False
                     bypass_mf = True
                     bypass_mt = True
                     if not query_insp[0]:
-                        response_str = f"MSpire generation failed, consider retrying later--your ray tracer ID is {self.traceray_id}"
-                        print(f"出现如下异常15-{self.traceray_id}:{query_insp[1]}")
-                        await websocket.send(self.wrap_ws_deformatter('503', 'mspire_failed', response_str, 'warn'))
-                        return False
+                        if str(query_insp[1]) == 'mspire_insanity_limit_reached':
+                            error = MaicaInternetWarning('MSpire scraping failed', '404')
+                            await common_context_handler(websocket, "mspire_scraping_failed", traceray_id=self.traceray_id, error=error, type="error")
+                        elif str(query_insp[1]) == 'mspire_title_insane':
+                            error = MaicaInputWarning('MSpire prompt not found on wikipedia', '410')
+                            await common_context_handler(websocket, "mspire_prompt_bad", traceray_id=self.traceray_id, error=error)
+                        else:
+                            error = MaicaInternetWarning('MSpire failed connecting wikipedia', '408')
+                            await common_context_handler(websocket, "mspire_conn_failed", traceray_id=self.traceray_id, error=error, type="error")
                     if ms_cache:
                         bypass_sup = True
                         ms_cache_identity = query_insp[3]
@@ -1093,214 +1187,183 @@ class ws_threading_instance(sub_threading_instance):
                             
                     query_in = query_insp[2]
 
-            if 'postmail' in request_json and not query_in:
-                if request_json['postmail']:
-                    if isinstance(request_json['postmail'], dict):
-                        query_insp = await mpostal.make_postmail(**request_json['postmail'], target_lang=target_lang)
-                        if 'bypass_mf' in request_json['postmail'] and request_json['postmail']['bypass_mf']:
+            if 'postmail' in recv_loaded_json and not query_in:
+                if recv_loaded_json['postmail']:
+                    if isinstance(recv_loaded_json['postmail'], dict):
+                        query_insp = await mtools.make_postmail(**recv_loaded_json['postmail'], target_lang=target_lang)
+                        # We're using the old school way to avoid using eval()
+                        if 'bypass_mf' in recv_loaded_json['postmail'] and recv_loaded_json['postmail']['bypass_mf']:
                             bypass_mf = True
-                        if 'bypass_mt' in request_json['postmail'] and request_json['postmail']['bypass_mt']:
+                        if 'bypass_mt' in recv_loaded_json['postmail'] and recv_loaded_json['postmail']['bypass_mt']:
                             bypass_mt = True
-                        if 'bypass_stream' in request_json['postmail'] and not request_json['postmail']['bypass_stream']:
+                        if 'bypass_stream' in recv_loaded_json['postmail'] and not recv_loaded_json['postmail']['bypass_stream']:
                             bypass_stream = False
                         else:
                             bypass_stream = True
-                        if 'ic_prep' in request_json['postmail'] and not request_json['postmail']['ic_prep']:
+                        if 'ic_prep' in recv_loaded_json['postmail'] and not recv_loaded_json['postmail']['ic_prep']:
                             ic_prep = False
                         else:
                             ic_prep = True
-                        if 'strict_conv' in request_json['postmail'] and request_json['postmail']['strict_conv']:
+                        if 'strict_conv' in recv_loaded_json['postmail'] and recv_loaded_json['postmail']['strict_conv']:
                             strict_conv = True
                         else:
                             strict_conv = False
-                    elif isinstance(request_json['postmail'], str):
-                        query_insp = await mpostal.make_postmail(content=request_json['postmail'], target_lang=target_lang)
+                    elif isinstance(recv_loaded_json['postmail'], str):
+                        query_insp = await mtools.make_postmail(content=recv_loaded_json['postmail'], target_lang=target_lang)
                         bypass_stream = True
                         ic_prep = True
                         strict_conv = False
                     else:
-                        raise Exception('Postmail format wrong')
+                        error = MaicaInputWarning('Wrong MPostal request format', '405')
+                        await common_context_handler(websocket, 'mpostal_input_bad', traceray_id=self.traceray_id, error=error)
                     
                     query_in = query_insp[2]
 
-            elif 'vision' in request_json:
-                if request_json['vision']:
-                    if isinstance(request_json['vision'], str):
+            # This is future reserved for MVista
+
+            if 'vision' in recv_loaded_json and not query_in:
+                if recv_loaded_json['vision']:
+                    if isinstance(recv_loaded_json['vision'], str):
                         pass
                     else:
                         pass
-                    # if not query_vise[0]:
-                    #     response_str = f"MVista generation failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
-                    #     print(f"出现如下异常15.1-{self.traceray_id}:{query_vise[1]}")
-                    #     await websocket.send(self.wrap_ws_deformatter('503', 'mvista_failed', response_str, 'warn'))
-                    #     return False
-                    # query_in = query_vise[2]
+
             if not query_in:
-                query_in = request_json['query']
+                query_in = recv_loaded_json['query']
             if sf_extraction and not bypass_mf:
                 await self.sf_inst.init2(chat_session_num=chat_session)
-                if 'savefile' in request_json:
-                    await wrap_run_in_exc(None, self.sf_inst.add_extra, request_json['savefile'])
-            elif 'savefile' in request_json:
+                if 'savefile' in recv_loaded_json:
+                    await wrap_run_in_exc(None, self.sf_inst.add_extra, recv_loaded_json['savefile'])
+            elif 'savefile' in recv_loaded_json:
                 self.alter_identity('temp', sf_extraction_once=True)
-                self.sf_inst.use_only(request_json['savefile'])
+                self.sf_inst.use_only(recv_loaded_json['savefile'])
             if mt_extraction and not bypass_mt:
                 await self.mt_inst.init2(chat_session_num=chat_session)
-                if 'trigger' in request_json:
-                    await wrap_run_in_exc(None, self.mt_inst.add_extra, request_json['trigger'])
-            elif 'trigger' in request_json:
+                if 'trigger' in recv_loaded_json:
+                    await wrap_run_in_exc(None, self.mt_inst.add_extra, recv_loaded_json['trigger'])
+            elif 'trigger' in recv_loaded_json:
                 self.alter_identity('temp', mt_extraction_once=True)
-                self.mt_inst.use_only(request_json['trigger'])
-            global easter_exist
-            if easter_exist:
-                easter_check = easter(query_in)
-                if easter_check:
-                    await websocket.send(self.wrap_ws_deformatter('299', 'easter_egg', easter_check, 'info'))
+                self.mt_inst.use_only(recv_loaded_json['trigger'])
+
+            # Deprecated: The easter egg thing
+
+            # global easter_exist
+            # if easter_exist:
+            #     easter_check = easter(query_in)
+            #     if easter_check:
+            #         await websocket.send(self.wrap_ws_deformatter('299', 'easter_egg', easter_check, 'info'))
+
             messages0 = json.dumps({'role': 'user', 'content': query_in}, ensure_ascii=False)
             match int(chat_session):
-                case i if i == -1:
+                case -1:
+
+                    # chat_session == -1 means query contains an entire chat history(sequence mode)
+
                     session_type = -1
                     try:
                         messages = json.loads(query_in)
+                        query_in = messages[-1]['text']
                         if len(messages) > 10:
-                            response_str = f"Input exceeding 10 rounds, which is not permitted--your ray tracer ID is {self.traceray_id}"
-                            print(f"出现如下异常16-{self.traceray_id}:rounds exceeded")
-                            await websocket.send(self.wrap_ws_deformatter('403', 'rounds_exceeded', response_str, 'warn'))
-                            return False
-                    except websockets.exceptions.WebSocketException:
-                        print("Someone disconnected")
-                        raise Exception('Force closure of connection')
+                            error = MaicaInputWarning('Sequence exceeded 10 rounds for chat_session -1', '414')
+                            await common_context_handler(websocket, 'maica_sequence_rounds_exceeded', traceray_id=self.traceray_id, error=error)
                     except Exception as excepted:
-                        response_str = f"Input serialization failed, check possible type--your ray tracer ID is {self.traceray_id}"
-                        print(f"出现如下异常17-{self.traceray_id}:{excepted}")
-                        await websocket.send(self.wrap_ws_deformatter('405', 'wrong_input', response_str, 'warn'))
-                        return False
-                case i if i == 0 or (0 < i < 10 and i % 1 == 0):
+                        error = MaicaInputWarning('Sequence is not JSON for chat_session -1', '405')
+                        await common_context_handler(websocket, 'maica_sequence_not_json', traceray_id=self.traceray_id, error=error)
+
+                case i if 0 <= i < 10:
+
+                    # chat_session == 0 means single round, else normal
+
                     session_type = 0 if i == 0 else 1
 
-                    #MAICA_agent 在这里调用
+                    # Introducing MFocus
 
-                    try:
-                        if options_opt['full_maica'] and not bypass_mf:
-                            message_agent_wrapped = await mfocus_main.agenting(self, query_in, chat_session, bypass_mt, ic_prep)
-                            if message_agent_wrapped[0] == 'EMPTY':
-                                response_str = f"MFocus using instructed final guidance, suggesting LLM conclusion is empty--your ray tracer ID is {self.traceray_id}"
-                                await websocket.send(self.wrap_ws_deformatter('200', 'agent_prog', response_str, 'debug'))
-                                if len(message_agent_wrapped[1]) > 5:
-                                    response_str = f"Due to LLM conclusion absence, falling back to instructed guidance and continuing."
-                                    await websocket.send(self.wrap_ws_deformatter('200', 'agent_abse', response_str, 'debug'))
-                                    info_agent_grabbed = message_agent_wrapped[1]
-                                else:
-                                    response_str = f"Due to agent failure, falling back to default guidance and continuing anyway."
-                                    await websocket.send(self.wrap_ws_deformatter('200', 'force_failsafe', response_str, 'debug'))
-                                    print(f"出现如下异常18-{self.traceray_id}:Corruption")
-                                    info_agent_grabbed = ''
-                            elif message_agent_wrapped[0] == 'FAIL':
-                                response_str = f"MFocus did not use a tool, suggesting unnecessary--your ray tracer ID is {self.traceray_id}"
-                                await websocket.send(self.wrap_ws_deformatter('200', 'agent_none', response_str, 'debug'))
+                    if options_opt['enable_mf'] and not bypass_mf:
+
+                        # From here MFocus is surely enabled
+
+                        message_agent_wrapped = await mfocus.agenting(self, query_in, chat_session, bypass_mt, ic_prep)
+
+                        if message_agent_wrapped[0] == 'EMPTY':
+                            if len(message_agent_wrapped[1]) > 5:
+                                await common_context_handler(websocket, 'maica_agent_using_inst', 'MFocus got instruction and used', '200')
+                                info_agent_grabbed = message_agent_wrapped[1]
+                            else:
+                                await common_context_handler(websocket, 'maica_agent_no_inst', 'MFocus got no instruction, falling back and proceeding', '404', traceray_id=self.traceray_id)
+                                info_agent_grabbed = ''
+                        elif message_agent_wrapped[0] == 'FAIL':
+                            await common_context_handler(websocket, 'maica_agent_no_tool', 'MFocus called no tool', '204')
+                            info_agent_grabbed = ''
+                        else:
+                            # We are defaulting instructed guidance because its more clear pattern
+                            # But if pointer entered this section, user must used mf_aggressive or something went wrong
+                            if len(message_agent_wrapped[1]) > 5 and len(message_agent_wrapped[0]) > 5:
+                                await common_context_handler(websocket, 'maica_agent_using_conc', 'MFocus got conclusion and used', '200')
+                                info_agent_grabbed = message_agent_wrapped[0]
+                            elif len(message_agent_wrapped[1]) > 5:
+                                # Conclusion likely failed, but at least there is instruction
+                                await common_context_handler(websocket, 'maica_agent_no_conc', 'MFocus got no conclusion, likely failed', '404', traceray_id=self.traceray_id)
                                 info_agent_grabbed = ''
                             else:
-                                # We are defaulting instructed guidance because its more clear pattern
-                                # But if pointer entered this section, user must used mf_aggressive or something went wrong
-                                if len(message_agent_wrapped[1]) > 5 and len(message_agent_wrapped[0]) > 5:
-                                    response_str = f"MFocus using LLM conclusion guidance."
-                                    await websocket.send(self.wrap_ws_deformatter('200', 'agent_aggr', response_str, 'debug'))
-                                    info_agent_grabbed = message_agent_wrapped[0]
+                                await common_context_handler(websocket, 'maica_agent_no_inst', 'MFocus got no instruction, falling back and proceeding', '404', traceray_id=self.traceray_id)
+                                info_agent_grabbed = ''
+
+                        # Everything should be grabbed by now
+
+                        overall_info_system += info_agent_grabbed
+
+                        if session_type == 1:
+                            agent_insertion = await self.wrap_mod_system(chat_session_num=chat_session, known_info=overall_info_system, strict_conv=strict_conv)
+                            if not agent_insertion[0]:
+                                error = MaicaDbError('Chat session modding failed', '502')
+                                try:
+                                    error.message += f": {str(agent_insertion[1])}"
+                                except Exception:
+                                    error.message += ", no reason provided"
+                                await common_context_handler(websocket, "maica_db_failure", traceray_id=self.traceray_id, error=error)
+
+                        elif session_type == 0:
+                            messages = [{'role': 'system', 'content': (await self.mod_once_system(chat_session_num=chat_session, known_info=overall_info_system, strict_conv=strict_conv))[2]}, {'role': 'user', 'content': query_in}]
+
+                    else:
+                        bypass_mf = False
+                        if session_type == 1:
+                            agent_insertion = await self.wrap_mod_system(chat_session_num=chat_session, known_info=None, strict_conv=strict_conv)
+                            if not agent_insertion[0]:
+                                error = MaicaDbError('Chat session modding failed', '502')
+                                try:
+                                    error.message += f": {str(agent_insertion[1])}"
+                                except Exception:
+                                    error.message += ", no reason provided"
+                                await common_context_handler(websocket, "maica_db_failure", traceray_id=self.traceray_id, error=error)
+
+                        elif session_type == 0:
+                            messages = [{'role': 'system', 'content': global_init_system('[player]', target_lang)}, {'role': 'user', 'content': query_in}]
+
+                    strict_conv = False
+
+                    if session_type == 1:
+                        try:
+                            check_result = await self.check_create_chat_session(chat_session)
+                            if check_result[0]:
+                                rw_result = await self.rw_chat_session(chat_session, 'r', messages0)
+                                if rw_result[0]:
+                                    messages = f'[{rw_result[3]}]'
                                 else:
-                                    # We do not want answers without information
-                                    response_str = f"Due to agent failure, falling back to default guidance and continuing anyway."
-                                    await websocket.send(self.wrap_ws_deformatter('200', 'force_failsafe', response_str, 'debug'))
-                                    print(f"出现如下异常18.5-{self.traceray_id}:Corruption")
-                                    info_agent_grabbed = ''
-
-                            # Everything should be grabbed by now
-
-                            overall_info_system += info_agent_grabbed
-
-                            if session_type:
-                                try:
-                                    agent_insertion = await self.wrap_mod_system(chat_session_num=chat_session, known_info=overall_info_system, strict_conv=strict_conv)
-                                    if not agent_insertion[0]:
-                                        raise Exception(agent_insertion[1])
-                                except websockets.exceptions.WebSocketException:
-                                    print("Someone disconnected")
-                                    raise Exception('Force closure of connection')
-                                except Exception as excepted:
-                                    response_str = f"MFocus insertion failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
-                                    print(f"出现如下异常19-{self.traceray_id}:{excepted}")
-                                    await websocket.send(self.wrap_ws_deformatter('500', 'insertion_failed', response_str, 'error'))
-                                    return common_backend_failure.CRITICAL_FAILURE
+                                    raise Exception('Chat session reading failed')
                             else:
-                                messages = [{'role': 'system', 'content': (await self.mod_once_system(chat_session_num=chat_session, known_info=overall_info_system, strict_conv=strict_conv))[2]}, {'role': 'user', 'content': query_in}]
-                        else:
-                            bypass_mf = False
-                            if session_type:
-                                try:
-                                    agent_insertion = await self.wrap_mod_system(chat_session_num=chat_session, known_info=None, strict_conv=strict_conv)
-                                    if not agent_insertion[0]:
-                                        raise Exception(agent_insertion[1])
-                                except websockets.exceptions.WebSocketException:
-                                    print("Someone disconnected")
-                                    raise Exception('Force closure of connection')
-                                except Exception as excepted:
-                                    response_str = f"Prompt initialization failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
-                                    print(f"出现如下异常20-{self.traceray_id}:{excepted}")
-                                    await websocket.send(self.wrap_ws_deformatter('500', 'insertion_failed', response_str, 'error'))
-                                    return common_backend_failure.CRITICAL_FAILURE
-                            else:
-                                messages = [{'role': 'system', 'content': global_init_system('[player]', target_lang)}, {'role': 'user', 'content': query_in}]
-                    except websockets.exceptions.WebSocketException:
-                        print("Someone disconnected")
-                        raise Exception('Force closure of connection')
-                    except Exception as excepted:
-                        response_str = f"Agent response acquiring failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
-                        print(f"出现如下异常21-{self.traceray_id}:{excepted}")
-                        traceback.print_exc()
-                        await websocket.send(self.wrap_ws_deformatter('500', 'agent_unavailable', response_str, 'error'))
-                        return common_backend_failure.BAD_RESPONSE
-                    finally:
-                        strict_conv = False
-                    if session_type:
-                        check_result = await self.check_create_chat_session(chat_session)
-                        if check_result[0]:
-                            rw_result = await self.rw_chat_session(chat_session, 'r', messages0)
-                            if rw_result[0]:
-                                messages = f'[{rw_result[3]}]'
-                            else:
-                                response_str = f"Chat session reading failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
-                                print(f"出现如下异常22-{self.traceray_id}:{rw_result[1]}")
-                                await websocket.send(self.wrap_ws_deformatter('500', 'read_failed', response_str, 'error'))
-                                return common_backend_failure.CRITICAL_FAILURE
-                        else:
-                            response_str = f"Chat session creation failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
-                            print(f"出现如下异常23-{self.traceray_id}:{check_result[1]}")
-                            await websocket.send(self.wrap_ws_deformatter('500', 'creation_failed', response_str, 'error'))
-                            return common_backend_failure.CRITICAL_FAILURE
+                                raise Exception('Chat session creation failed')
+                        except Exception as e:
+                            error = MaicaDbError(str(e), '500')
+                            await common_context_handler(websocket, 'maica_db_failure', traceray_id=self.traceray_id, error=error)
                         try:
                             messages = json.loads(messages)
-                        except websockets.exceptions.WebSocketException:
-                            print("Someone disconnected")
-                            raise Exception('Force closure of connection')
-                        except Exception as excepted:
-                            response_str = f"Chat input serialization failed, check possible typo--your ray tracer ID is {self.traceray_id}"
-                            print(f"出现如下异常24-{self.traceray_id}:{excepted}")
-                            await websocket.send(self.wrap_ws_deformatter('405', 'wrong_input', response_str, 'warn'))
-                            return False
-                case _:
-                    response_str = f"Chat session num mistaken, check possible typo--your ray tracer ID is {self.traceray_id}"
-                    print(f"出现如下异常25-{self.traceray_id}:{chat_session}")
-                    await websocket.send(self.wrap_ws_deformatter('405', 'wrong_input', response_str, 'warn'))
-                    return False
-        except websockets.exceptions.WebSocketException:
-            print("Someone disconnected")
-            raise Exception('Force closure of connection')
-        except Exception as excepted:
-            #traceback.print_exc()
-            response_str = f"Query serialization failed, check possible typo--your ray tracer ID is {self.traceray_id}"
-            print(f"出现如下异常26-{self.traceray_id}:{excepted}")
-            await websocket.send(self.wrap_ws_deformatter('405', 'wrong_input', response_str, 'warn'))
-            return False
-        try:
+                        except Exception as e:
+                            error = MaicaDbError(f'Chat session not JSON: {str(e)}', '500')
+                            await common_context_handler(websocket, 'maica_db_corruption', traceray_id=self.traceray_id, error=error)
+
+            # Construction part done, communication part started
+
             completion_args = {
                 "model": options_opt['model_actual'],
                 "messages": messages,
@@ -1309,12 +1372,12 @@ class ws_threading_instance(sub_threading_instance):
             }
             default_sparams = {
                 "top_p": 0.7,
-                "temperature": 0.2,
+                "temperature": 0.22,
                 "max_tokens": 1600,
-                "frequency_penalty": 0.4,
-                "presence_penalty": 0.4,
+                "frequency_penalty": 0.44,
+                "presence_penalty": 0.34,
                 "seed": random.randint(0,99999) if not bypass_sup else 42
-                #default_seed = 42
+                # default_seed = 42
             }
             
             for super_param in ['top_p', 'temperature', 'max_tokens', 'frequency_penalty', 'presence_penalty', 'seed']:
@@ -1330,11 +1393,11 @@ class ws_threading_instance(sub_threading_instance):
             if ic_prep:
                 ic_prep = False
                 completion_args['presence_penalty'] = 1.0-(1.0-completion_args['presence_penalty'])*(2/3)
-            print(f"Query ready to go, last query line is:\n{query_in}\nSending query.")
+            await common_context_handler(None, 'maica_chat_query_ready', f'Query constrcted and ready to go, last input is:\n{query_in}\nSending query...', '206', color=colorama.Fore.LIGHTCYAN_EX)
 
+            if not bypass_gen or not replace_generation: # They should present together
 
-            if not bypass_gen or not replace_generation:
-
+                # Generation here
 
                 for tries in range(0, 2):
                     try:
@@ -1344,57 +1407,47 @@ class ws_threading_instance(sub_threading_instance):
                         break
                     except:
                         if tries < 1:
-                            print('Model temporary failure')
+                            await common_context_handler(info=f'Model temporary failure, retrying {str(tries + 1)} time(s)')
                             await asyncio.sleep(0.5)
                         else:
-                            raise Exception('Model connection failure')
-
+                            error = MaicaResponseError(f'Cannot reach model endpoint after {str(tries + 1)} times', '502')
+                            await common_context_handler(websocket, 'maica_core_model_inaccessible', traceray_id=self.traceray_id, error=error)
 
                 if completion_args['stream']:
-                #print(f'query: {query}')
                     reply_appended = ''
-                    send_lock = asyncio.Lock()
-                    seq = 0
+
                     async for chunk in stream_resp:
-                        async with send_lock:
-                            token = chunk.choices[0].delta.content
+                        token = chunk.choices[0].delta.content
+                        if token:
                             await asyncio.sleep(0)
-                            print(token, end='', flush=True)
-                            if token != '':
-                                if True:
-                                    reply_appended = reply_appended + token
-                                    await websocket.send(self.wrap_ws_deformatter('100', 'continue', token, 'carriage', None, seq=seq))
-                                    seq += 1
-                                else:
-                                    break
-                    await websocket.send(self.wrap_ws_deformatter('1000', 'streaming_done', f"streaming has finished with seed {completion_args['seed']}", 'info'))
-                    print(f"Finished replying-{self.traceray_id}:{session['username']}, with seed {completion_args['seed']}")
+                            await common_context_handler(websocket, 'maica_core_streaming_continue', token, '100')
+                            reply_appended += token
+                    print('\n', end='')
+                    await common_context_handler(websocket, 'maica_core_streaming_done', f'Streaming finished with seed {completion_args['seed']} for {session['username']}', '1000', traceray_id=self.traceray_id)
                 else:
                     reply_appended = stream_resp.choices[0].message.content
-                    print(reply_appended)
-                    await websocket.send(self.wrap_ws_deformatter('200', 'reply', reply_appended, 'carriage'))
-                    print(f"Finished replying-{self.traceray_id}:{session['username']}, with seed {completion_args['seed']}")
+                    await common_context_handler(websocket, 'maica_core_nostream_reply', reply_appended, '200', type='carriage')
+                    await common_context_handler(None, 'maica_core_nostream_done', f'Reply sent with seed {completion_args['seed']} for {session['username']}', '1000', traceray_id=self.traceray_id)
 
             else:
+
+                # We just pretend it was generated
+
                 reply_appended = replace_generation
                 if completion_args['stream']:
-                    print(reply_appended)
-                    await websocket.send(self.wrap_ws_deformatter('100', 'continue', reply_appended, 'carriage'))
-                    await websocket.send(self.wrap_ws_deformatter('1000', 'streaming_done', f"streaming has finished with cache", 'info'))
-                    print(f"Finished replying-{self.traceray_id}:{session['username']}, with cache")
+                    await common_context_handler(websocket, 'maica_core_streaming_continue', reply_appended, '100'); print('\n', end='')
+                    await common_context_handler(websocket, 'maica_core_streaming_done', f'Streaming finished with cache for {session['username']}', '1000', traceray_id=self.traceray_id)
                 else:
-                    print(reply_appended)
-                    await websocket.send(self.wrap_ws_deformatter('200', 'reply', reply_appended, 'carriage'))
-                    print(f"Finished replying-{self.traceray_id}:{session['username']}, with cache")
-
+                    await common_context_handler(websocket, 'maica_core_nostream_reply', reply_appended, '200', type='carriage')
+                    await common_context_handler(None, 'maica_core_nostream_done', f'Reply sent with cache for {session['username']}', '1000', traceray_id=self.traceray_id)
 
             # Can be post-processed here
+
             reply_appended = await wrap_run_in_exc(None, post_proc.filter_format, reply_appended, target_lang)
             reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
 
-
-            if options_opt['full_maica'] and not bypass_mt:
-                task_trigger_resp = asyncio.create_task(mtrigger_main.wrap_triggering(self, query_in, reply_appended, chat_session))
+            if options_opt['enable_mt'] and not bypass_mt:
+                task_trigger_resp = asyncio.create_task(mtrigger.wrap_triggering(self, query_in, reply_appended, chat_session))
                 await task_trigger_resp
                 trigger_resp = task_trigger_resp.result()
             else:
@@ -1410,53 +1463,53 @@ class ws_threading_instance(sub_threading_instance):
 
             trigger_succ, trigger_sce = trigger_resp
             if trigger_succ:
-                await websocket.send(self.wrap_ws_deformatter('1010', 'mtrigger_done', trigger_sce, 'info'))
+                await common_context_handler(websocket, 'maica_trigger_done', trigger_sce, '1010')
             else:
                 if trigger_sce:
-                    response_str = f"Trigger response acquiring failed, refer to administrator--your ray tracer ID is {self.traceray_id}"
-                    print(f"出现如下异常27-{self.traceray_id}:{trigger_sce}")
-                    await websocket.send(self.wrap_ws_deformatter('503', 'mtrigger_failed', response_str, 'warn'))
+                    error = MaicaResponseError('MTrigger failed to response', '502')
+                    await common_context_handler(websocket, 'maica_trigger_failed', traceray_id=self.traceray_id, error=error)
                 else:
-                    print('No trigger passed in')
-            if int(chat_session) > 0:
+                    await common_context_handler(None, 'maica_trigger_empty', 'No trigger passed in', '200')
+
+            # Store history here
+
+            if session_type == 1:
                 stored = await self.rw_chat_session(chat_session, 'w', f'{messages0},{reply_appended_insertion}')
-                #print(stored)
                 if stored[0]:
                     success = True
                     match stored[4]:
                         case 1:
-                            await websocket.send(self.wrap_ws_deformatter('204', 'deleted', f"Since session {chat_session} of user {username} exceeded {max_token_hint} characters, The former part has been deleted to save storage--your ray tracer ID is {self.traceray_id}.", 'info'))
+                            await common_context_handler(websocket, 'maica_history_sliced', f"Session {chat_session} of {username} exceeded {max_token_hint} characters and sliced", '204')
                         case 2:
-                            await websocket.send(self.wrap_ws_deformatter('200', 'delete_hint', f"Session {chat_session} of user {username} exceeded {warn_token_hint} characters, which will be chopped after exceeding {max_token_hint}, make backups if you want to--your ray tracer ID is {self.traceray_id}.", 'info'))
+                            await common_context_handler(websocket, 'maica_history_slice_hint', f"Session {chat_session} of {username} exceeded {warn_token_hint} characters, will slice at {max_token_hint}", '200', no_print=True)
                 else:
-                    response_str = f"Chat query recording failed, refer to administrator--your ray tracer ID is {self.traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
-                    print(f"出现如下异常28-{self.traceray_id}:{stored[1]}")
-                    await websocket.send(self.wrap_ws_deformatter('500', 'store_failed', response_str, 'error'))
-                    return common_backend_failure.CRITICAL_FAILURE
-                print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished entire loop-{self.traceray_id}:{session['username']}")
+                    error = MaicaDbError(f'Chat session writing failed: {str(stored[1])}', '502')
+                    await common_context_handler(websocket, 'maica_history_write_failure', traceray_id=self.traceray_id, error=error)
+                await common_context_handler(websocket, 'maica_chat_loop_finished', f'Finished chat loop from {username}', '200', traceray_id=self.traceray_id)
             else:
                 success = True
-                print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished non-recording loop-{self.traceray_id}:{session['username']}")
-            await websocket.send(self.wrap_ws_deformatter('202', 'loop_finished', f"An entire communication loop has finished, reentering loop gracefully--your ray tracer ID is {self.traceray_id}.", 'info'))
-        except websockets.exceptions.WebSocketException:
-            print("Someone disconnected")
-            raise Exception('Force closure of connection')
-        except Exception as excepted:
+                await common_context_handler(websocket, 'maica_chat_loop_finished', f'Finished non-recording chat loop from {username}', '200', traceray_id=self.traceray_id)
+
+        # Handle expected exceptions
+
+        except CommonMaicaException as ce:
+            raise ce # Will be handled by stage2 loop
+
+        # Handle unexpected exceptions
+
+        except Exception as e:
             traceback.print_exc()
-            response_str = f"Core model failed to respond, refer to administrator--your ray tracer ID is {self.traceray_id}. This can be a severe problem thats breaks your session savefile, stopping entire session."
-            print(f"出现如下异常29-{self.traceray_id}:{excepted}")
-            await websocket.send(self.wrap_ws_deformatter('500', 'respond_failed', response_str, 'error'))
-            return common_backend_failure.BAD_RESPONSE
+            return 3
 
 
 
 #异步标记程序, 不是必要的. 万一要用呢?
 
 def callback_func_switch(future):
-    print(f'!Stage2 passed abnormally!')
+    pass
 
 def callback_check_permit(future):
-    print(f'Stage1 passed:\n{future.result()}')
+    pass
     
 #主要线程驱动器
 
@@ -1469,12 +1522,10 @@ async def main_logic(websocket, test):
             thread_instance = ws_threading_instance(websocket, test=test)
 
             permit = await thread_instance.check_permit()
+            assert isinstance(permit, tuple) and permit[0], "Recieved a return state"
 
-            if not isinstance(permit, tuple) or not permit[0]:
-                raise Exception('Security exception occured')
-            else:
-                online_dict[permit[2]] = [websocket, unique_lock]
-                print(f"Locking session for {permit[2]} as {permit[3]}")
+            online_dict[permit[2]] = [websocket, unique_lock]
+            await common_context_handler(info=f"Locking session for {permit[2]} named {permit[3]}")
 
             return_status = await thread_instance.function_switch()
             # If function switch returned, something must have went wrong
@@ -1482,16 +1533,25 @@ async def main_logic(websocket, test):
                 raise Exception(return_status)
 
         except Exception as excepted:
-            print(f'Exception: {excepted}. Likely connection loss.')
+            match str(excepted):
+                case '0':
+                    await common_context_handler(info=f'Function quitted. Likely connection loss.', color=colorama.Fore.LIGHTBLUE_EX)
+                case '1':
+                    await common_context_handler(info=f'Function broke by a warning.', type='warn')
+                case '2':
+                    await common_context_handler(info=f'Function broke by a critical', type='error')
+                case '3':
+                    await common_context_handler(info=f'Function broke by an unknown exception', type='error')
+
         finally:
             try:
                 online_dict.pop(permit[2])
-                print(f"Lock released for {permit[2]} as {permit[3]}")
+                await common_context_handler(info=f"Lock released for {permit[2]} as {permit[3]}")
             except:
-                print('No lock to release')
+                await common_context_handler(info=f"No lock for this connection")
             await websocket.close()
             await websocket.wait_closed()
-            print('Destroying connection')
+            await common_context_handler(info=f"Closing connection gracefully")
 
 
 async def prepare_thread():
@@ -1506,10 +1566,12 @@ async def prepare_thread():
     try:
         model_list = await client1.models.list()
         model_type = model_list.data[0].id
-        print(f"First time confirm--model type is {model_type}")
+        model_focus_list = await client2.models.list()
+        model_focus_type = model_focus_list.data[0].id
+        await common_context_handler(info=f"Main model is {model_type}, MFocus model is {model_focus_type}", color=colorama.Fore.MAGENTA)
         test = False
     except:
-        print(f"Model deployment cannot be reached--running in test mode")
+        await common_context_handler(info=f"Model deployment cannot be reached -- running in minimal testing mode", color=colorama.Fore.MAGENTA)
         test = True
     return client1, client2, test
 
@@ -1517,8 +1579,8 @@ def run_ws():
     global online_dict, sock1, sock2
     online_dict = {}
 
+    asyncio.run(common_context_handler(info='Server started!' if load_env('DEV_STATUS') == 'serving' else 'Server started in developing mode!', color=colorama.Fore.LIGHTMAGENTA_EX))
     sock1, sock2, test = asyncio.run(prepare_thread())
-    print('Server started!' if load_env('DEV_STATUS') == 'serving' else 'Server started in testing mode!')
 
     new_loop = asyncio.new_event_loop()
     asyncio.set_event_loop(new_loop)
@@ -1528,8 +1590,7 @@ def run_ws():
         asyncio.get_event_loop().run_until_complete(start_server)
         asyncio.get_event_loop().run_forever()
     except KeyboardInterrupt:
-        print("Server stopped!")
-
+        asyncio.run(common_context_handler(info='Stopping WS server on SIGINT received', color=colorama.Fore.MAGENTA))
 
 if __name__ == '__main__':
     run_ws()
