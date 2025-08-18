@@ -17,7 +17,7 @@ async def internet_search(query, original_query, esc_aggressive=True, target_lan
             results = []
             async for searched_item in searched_aiolist:
                 results.append({"title": searched_item.title, "text": searched_item.description})
-        except:
+        except Exception:
             if tries < 2:
                 print('Search temporary failure')
                 await asyncio.sleep(0.5)
@@ -78,7 +78,7 @@ Begin!"""
                 try:
                     resp = await client.chat.completions.create(**completion_args)
                     response = resp.choices[0].message.content
-                except:
+                except Exception:
                     if tries < 1:
                         print('Model temporary failure')
                         await asyncio.sleep(0.5)

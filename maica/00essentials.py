@@ -14,7 +14,7 @@ match sysstruct:
         quit()
 try:
     proxyaddr = load_env('PROXY_ADDR')
-except:
+except Exception:
     proxyaddr = ''
 if proxyaddr:
     print(f"Global proxy detected, using {proxyaddr}")

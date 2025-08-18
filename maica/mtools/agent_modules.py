@@ -14,7 +14,7 @@ def time_tz(tz="zh"):
         tz = "America/Indiana/Vincennes"
     try:
         time_now = datetime.datetime.now(tz=pytz.timezone(tz))
-    except:
+    except Exception:
         time_now = datetime.datetime.now()
     return time_now
 
@@ -150,7 +150,7 @@ async def event_acquire(params, sf_extraction, sf_inst, pred_length=-1, small_ev
             player_bday = sf_inst.read_from_sf('mas_player_bday')[2]
             player_bday[0], player_bday[1], player_bday[2]
             player_has_bday = True
-        except:
+        except Exception:
             player_has_bday = False
     else:
         player_has_bday = False

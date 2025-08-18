@@ -14,10 +14,9 @@ class rotation_instance():
         password = load_env('DB_PASSWORD'),
         authdb = load_env('AUTH_DB'),
         maicadb = load_env('MAICA_DB'),
-        login = load_env('LOGIN_VERIFICATION'),
         test = False
     ):
-        self.host, self.user, self.password, self.authdb, self.maicadb, self.login, self.test = host, user, password, authdb, maicadb, login, test
+        self.host, self.user, self.password, self.authdb, self.maicadb, self.test = host, user, password, authdb, maicadb, test
         asyncio.run(self.create_pool())
         asyncio.run(self.rotate_caches())
     

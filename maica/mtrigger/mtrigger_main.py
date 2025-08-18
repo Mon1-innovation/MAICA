@@ -34,7 +34,7 @@ async def triggering(parent, input, output, chat_session):
         session = {"user_id": 23393, "username": "edge"}
         sf_inst = None
         import mtrigger_sfe
-        mt_inst = mtrigger_sfe.mt_bound_instance(23393, 1)
+        mt_inst = mtrigger_sfe.MtBoundCoroutine(23393, 1)
         await mt_inst.init1()
         client = AsyncOpenAI(
             api_key='EMPTY',
@@ -252,7 +252,7 @@ async def triggering(parent, input, output, chat_session):
         try:
             resp = await client.chat.completions.create(**completion_args)
             break
-        except:
+        except Exception:
             if tries < 1:
                 print('Model temporary failure')
                 await asyncio.sleep(0.5)
@@ -276,7 +276,7 @@ async def triggering(parent, input, output, chat_session):
             trigger_name = tool_calls.function.name
             try:
                 trigger_params_json = json.loads(re.search(r'(\{.*\})', re.sub(r"(?!=\\)'", '"', tool_calls.function.arguments))[1])
-            except:
+            except Exception:
                 trigger_params_json = {}
             if tool_calls and not re.search(r'agent.*finished', trigger_name, re.I):
                 response_str1 = f'MTrigger {cycle} round finished, response is:\n{response}\nEnd of MTrigger {cycle} round.'
@@ -308,7 +308,7 @@ async def triggering(parent, input, output, chat_session):
                 try:
                     resp = await client.chat.completions.create(**completion_args)
                     break
-                except:
+                except Exception:
                     if tries < 1:
                         print('Model temporary failure')
                         await asyncio.sleep(0.5)

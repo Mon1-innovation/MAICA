@@ -50,7 +50,7 @@ def nvwatch(ssh_client, db_client, table_name):
                 raise Exception('No data')
             else:
                 history = json.loads(res1.fetchall()[0][0])
-        except:
+        except Exception:
             traceback.print_exc()
             history = []
         this_gpu_curr_stat = {"u":gpu_curr_stat[gpu]["utilization.gpu [%]"].strip('%').strip(' '),"m":gpu_curr_stat[gpu][" memory.used [MiB]"].strip('BiM').strip(' '),"p":gpu_curr_stat[gpu][" power.draw [W]"].strip('W').strip(' ')}
@@ -97,7 +97,7 @@ def nvwatchd(hosts, users, pwds, tables):
             client.close()
         try:
             os.remove(os.path.join(self_path, ".nvsw.db"))
-        except:
+        except Exception:
             pass
         print(f'Quiting nvwatchd!')
 

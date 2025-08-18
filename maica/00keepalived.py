@@ -98,5 +98,5 @@ if __name__ == "__main__":
         try:
             p = subprocess.Popen(["killall", python3])
             p.wait()
-        except:
+        except Exception:
             print('Stopping failed! Stop manually and check reason before restart')

@@ -11,7 +11,7 @@ import mtools
 from openai import AsyncOpenAI # type: ignore
 from maica_utils import *
 
-async def agenting(parent, input, chat_session, bypass_mt=False, ic_prep=False):
+async def agenting(settings, input, chat_session):
     #nest_asyncio.apply()
     if parent:
         sf_extraction, deformation, target_lang = parent.options['opt']['sf_extraction'] or parent.options['temp']['sf_extraction_once'], parent.options['opt']['deformation'], parent.options['opt']['target_lang']
@@ -33,7 +33,7 @@ async def agenting(parent, input, chat_session, bypass_mt=False, ic_prep=False):
         amt_aggressive = True
         websocket = None
         import mfocus_sfe
-        sf_inst = mfocus_sfe.sf_bound_instance(23,1,target_lang)
+        sf_inst = mfocus_sfe.SfBoundCoroutine(23,1,target_lang)
         await sf_inst.init1()
         mt_inst = None
         client = AsyncOpenAI(
@@ -286,7 +286,7 @@ async def agenting(parent, input, chat_session, bypass_mt=False, ic_prep=False):
         try:
             resp = await client.chat.completions.create(**completion_args)
             break
-        except:
+        except Exception:
             if tries < 1:
                 print('Model temporary failure')
                 await asyncio.sleep(0.5)
@@ -336,7 +336,7 @@ async def agenting(parent, input, chat_session, bypass_mt=False, ic_prep=False):
                     predict_action_function = tool_calls.function.name
                     try:
                         real_parameters_dict = json.loads(re.search(r'(\{.*\})', re.sub(r"(?!=\\)'", '"', tool_calls.function.arguments))[1])
-                    except:
+                    except Exception:
                         real_parameters_dict = {"common": tool_calls.function.arguments}
                     if re.search((r'time.*acquire'), predict_action_function, re.I):
                         time_acquired = await mtools.time_acquire(real_parameters_dict, target_lang, tz)
@@ -448,7 +448,7 @@ async def agenting(parent, input, chat_session, bypass_mt=False, ic_prep=False):
                 try:
                     resp = await client.chat.completions.create(**completion_args)
                     break
-                except:
+                except Exception:
                     if tries < 1:
                         print('Model temporary failure')
                         await asyncio.sleep(0.5)
@@ -484,7 +484,7 @@ async def agenting(parent, input, chat_session, bypass_mt=False, ic_prep=False):
             conc_final_answer = re.search((r'</think>[\s\n]*(.*)'), response, re.I|re.S)[1]
             conc_final_answer = re.sub(r'Final Answer:\s*', '', conc_final_answer)
             fin_final_answer = '"' + conc_final_answer + '"'
-        except:
+        except Exception:
             fin_final_answer = ''
     if mf_aggressive and instructed_final_answer_joined:
         response_str3 = f"MFocus callback achieved, response is:\n{fin_final_answer}\nInfo acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."

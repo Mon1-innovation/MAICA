@@ -8,7 +8,7 @@ import json
 import inspect
 import colorama
 import time
-from typing import Optional
+from typing import Optional, Union
 from dotenv import load_dotenv as __load_dotenv
 
 colorama.init(autoreset=True)
@@ -61,8 +61,25 @@ class MaicaConnectionWarning(CommonMaicaWarning):
 class MaicaInternetWarning(CommonMaicaWarning):
     """This suggests the backend request action is not behaving normal."""
 
-class re_utils():
+class FullSocketsContainer():
+    """For convenience consideration."""
+    class RealtimeSocketsContainer():
+        """For no-setting usage."""
+        def __init__(self, websocket, traceray_id):
+            self.websocket, self.traceray_id = websocket, traceray_id
+    
+    def __init__(self, websocket=None, traceray_id='', maica_settings=None):
+        self.rsc = self.RealtimeSocketsContainer(websocket, traceray_id)
+        self.maica_settings = maica_settings() if not maica_settings else maica_settings
+
+
+class ReUtils():
     re_sub_password_spoiler = re.compile(rf'"password"\s*:\s*"(.*?)"')
+
+
+def default(exp, default, default_list: list=[None]) -> any:
+    """If exp is in default list(normally None), use default."""
+    return default if exp in default_list else exp
 
 def wrap_ws_formatter(code, status, content, type, deformation=False, **kwargs) -> str:
     output = {
@@ -165,13 +182,13 @@ async def get_json(url) -> json:
                 client = httpx.AsyncClient(proxy=load_env("PROXY_ADDR"))
                 res = (await client.get(url, headers=headers)).json()
                 break
-            except:
+            except Exception:
                 if tries < 2:
                     print('HTTP temporary failure')
                     await asyncio.sleep(0.5)
                 else:
                     raise Exception('Http connection failure')
-    except:
+    except Exception:
         raise Exception('Http connection failure')
     finally:
         await client.aclose()

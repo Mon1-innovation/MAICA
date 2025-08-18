@@ -12,7 +12,7 @@ from random import sample
 from openai import AsyncOpenAI # type: ignore
 from maica_utils import *
 
-class mt_bound_instance():
+class MtBoundCoroutine():
 
     maicapool = None
 
@@ -25,7 +25,7 @@ class mt_bound_instance():
     # def __del__(self):
     #     try:
     #         self.loop.run_until_complete(self._close_pools())
-    #     except:
+    #     except Exception:
     #         pass
 
     async def _init_pools(self) -> None:
@@ -33,7 +33,7 @@ class mt_bound_instance():
         try:
             async with maicapool.acquire() as testc:
                 pass
-        except:
+        except Exception:
             maicapool = await aiomysql.create_pool(host=load_env('DB_ADDR'),user=load_env('DB_USER'), password=load_env('DB_PASSWORD'),db=load_env('MAICA_DB'),loop=self.loop,autocommit=True)
             print("MTrigger recreated maicapool")
 
@@ -42,7 +42,7 @@ class mt_bound_instance():
         try:
             maicapool.close()
             await maicapool.wait_closed()
-        except:
+        except Exception:
             pass
 
     async def send_query(self, expression, values=None, pool='maicapool', fetchall=False) -> list:
@@ -91,7 +91,7 @@ class mt_bound_instance():
             else:
                 content = result[0]
             self.sf_content = json.loads(content)
-        except:
+        except Exception:
             #traceback.print_exc()
             self.sf_content = []
         self.sf_content_temp = self.sf_content
@@ -111,7 +111,7 @@ class mt_bound_instance():
             else:
                 content = result[0]
             self.sf_content = json.loads(content)
-        except:
+        except Exception:
             self.sf_content = []
         self.sf_content_temp = self.sf_content
     def add_extra(self, extra):

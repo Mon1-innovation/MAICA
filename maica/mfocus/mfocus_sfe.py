@@ -12,71 +12,12 @@ from random import sample
 from openai import AsyncOpenAI # type: ignore
 from maica_utils import *
 
-class sf_bound_instance():
-
-    maicapool = None
-
-    def __init__(self, user_id, chat_session_num, target_lang='zh'):
-        self.user_id, self.chat_session_num, self.target_lang = user_id, chat_session_num, target_lang
-        self.loop = asyncio.get_event_loop()
+class SfBoundCoroutine():
+    def __init__(self, fsc: FullSocketsContainer, maica_pool: DbPoolCoroutine):
+        self.settings = fsc.maica_settings
+        self.maica_pool = maica_pool
         self.formed_info = None
         asyncio.run(self._init_pools())
-
-    # def __del__(self):
-    #     try:
-    #         self.loop.run_until_complete(self._close_pools())
-    #     except:
-    #         pass
-
-    async def _init_pools(self) -> None:
-        global maicapool
-        try:
-            async with maicapool.acquire() as testc:
-                pass
-        except:
-            maicapool = await aiomysql.create_pool(host=load_env('DB_ADDR'),user=load_env('DB_USER'), password=load_env('DB_PASSWORD'),db=load_env('MAICA_DB'),loop=self.loop,autocommit=True)
-            print("MFocus recreated maicapool")
-
-    async def _close_pools(self) -> None:
-        global maicapool
-        try:
-            maicapool.close()
-            await maicapool.wait_closed()
-        except:
-            pass
-
-    async def send_query(self, expression, values=None, pool='maicapool', fetchall=False) -> list:
-        global maicapool
-        pool = maicapool
-        if pool.closed:
-            await self._init_pools()
-            pool = maicapool
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                if not values:
-                    await cur.execute(expression)
-                else:
-                    await cur.execute(expression, values)
-                #print(cur.description)
-                results = await cur.fetchone() if not fetchall else await cur.fetchall()
-                #print(results)
-        return results
-
-    async def send_modify(self, expression, values=None, pool='maicapool', fetchall=False) -> int:
-        global maicapool
-        pool = maicapool
-        if pool.closed:
-            await self._init_pools()
-            pool = maicapool
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                if not values:
-                    await cur.execute(expression)
-                else:
-                    await cur.execute(expression, values)
-                await conn.commit()
-                lrid = cur.lastrowid
-        return lrid
 
     async def init1(self):
         user_id, chat_session_num = self.user_id, self.chat_session_num
@@ -91,7 +32,7 @@ class sf_bound_instance():
             else:
                 content = result[0]
             self.sf_content = json.loads(content)
-        except:
+        except Exception:
             #traceback.print_exc()
             self.sf_content = {}
         self.sf_content_temp = self.sf_content
@@ -111,7 +52,7 @@ class sf_bound_instance():
             else:
                 content = result[0]
             self.sf_content = json.loads(content)
-        except:
+        except Exception:
             self.sf_content = {}
         self.sf_content_temp = self.sf_content
     def add_extra(self, extra):
@@ -210,19 +151,19 @@ class sf_bound_instance():
                 regex_fs = re.search(r"first_session.*?datetime\(([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\)", data1[2], re.I)
                 try:
                     result.append(f'莫妮卡和[player]在{regex_fs[1]}年{regex_fs[2]}月{regex_fs[3]}日初次见面.' if target_lang == 'zh' else f"Monika and player had their first date on {serialize_date(regex_fs[1], regex_fs[2], regex_fs[3])}.")
-                except:
+                except Exception:
                     pass
                 regex_ts = re.search(r"total_sessions.*?([0-9]*)\s?,", data1[2], re.I)
                 regex_tp = re.search(r"total_playtime.*?([0-9]*)\s?,", data1[2], re.I)
                 try:
                     result.append(f'[player]已经陪伴莫妮卡{regex_ts[1]}次, 共{regex_tp[1]}天了.' if target_lang == 'zh' else f"[player] has been together with Monika for {regex_ts[1]} times, {regex_tp[1]} days in total.")
-                except:
+                except Exception:
                     pass
                 regex_le = re.search(r"last_session_end.*?datetime\(([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\)", data1[2], re.I)
                 regex_cs = re.search(r"current_session_start.*?datetime\(([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\)", data1[2], re.I)
                 try:
                     result.append(f'[player]上次下线于{regex_le[1]}年{regex_le[2]}月{regex_le[3]}日{str(regex_le[4]).zfill(2)}:{str(regex_le[5]).zfill(2)}, 本次上线于{regex_cs[1]}年{regex_cs[2]}月{regex_cs[3]}日{str(regex_cs[4]).zfill(2)}:{str(regex_cs[5]).zfill(2)}.' if target_lang == 'zh' else f"[player] last left at {str(regex_le[4]).zfill(2)}:{str(regex_le[5]).zfill(2)}, {serialize_date(regex_le[1], regex_le[2], regex_le[3])}, last logged in at {str(regex_cs[4]).zfill(2)}:{str(regex_cs[5]).zfill(2)}, {serialize_date(regex_cs[1], regex_cs[2], regex_cs[3])}")
-                except:
+                except Exception:
                     pass
 
         data1 = self.read_from_sf('_mas_pm_added_custom_bgm')
@@ -1114,7 +1055,7 @@ Begin!"""
                     try:
                         resp = await client.chat.completions.create(**completion_args)
                         response = resp.choices[0].message.content
-                    except:
+                    except Exception:
                         if tries < 1:
                             print('Model temporary failure')
                             await asyncio.sleep(0.5)
@@ -1136,7 +1077,7 @@ Begin!"""
 
 if __name__ == "__main__":
     async def test():
-        ins = sf_bound_instance(21293, 1, 'en')
+        ins = SfBoundCoroutine(21293, 1, 'en')
         await ins.init1()
     
     #print(ins.mfocus_form_info()[2])

@@ -38,7 +38,7 @@ async def save_upload():
         print(access_token)
         if int(chat_session) < 1 or int(chat_session) > 9:
             raise Exception('Chat session out of range')
-        hduplex_instance = maica_ws.sub_threading_instance()
+        hduplex_instance = maica_ws.NoWsCoroutine()
         verification_result = await wrap_verify_token(access_token, hduplex_instance)
         if verification_result:
             if len(str(content)) < 100000:
@@ -53,7 +53,7 @@ async def save_upload():
                     else:
                         sql_expression2 = 'INSERT INTO persistents (user_id, chat_session_num, content) VALUES (%s, %s, %s)'
                         await hduplex_instance.send_modify(sql_expression2, (hduplex_instance.options['vfc']['user_id'], chat_session, content_text))
-                except:
+                except Exception:
                     raise Exception('Database writing failed')
             else:
                 raise Exception('Content length exceeded')
@@ -67,7 +67,7 @@ async def save_upload():
     finally:
         try:
             await hduplex_instance._close_pools()
-        except:
+        except Exception:
             pass
 
 @app.route('/trigger', methods=["POST"])
@@ -83,7 +83,7 @@ async def trigger_upload():
         print(access_token)
         if int(chat_session) < 1 or int(chat_session) > 9:
             raise Exception('Chat session out of range')
-        hduplex_instance = maica_ws.sub_threading_instance()
+        hduplex_instance = maica_ws.NoWsCoroutine()
         verification_result = await wrap_verify_token(access_token, hduplex_instance)
         if verification_result:
             if len(str(content)) < 100000:
@@ -98,7 +98,7 @@ async def trigger_upload():
                     else:
                         sql_expression2 = 'INSERT INTO triggers (user_id, chat_session_num, content) VALUES (%s, %s, %s)'
                         await hduplex_instance.send_modify(sql_expression2, (hduplex_instance.options['vfc']['user_id'], chat_session, content_text))
-                except:
+                except Exception:
                     raise Exception('Database writing failed')
             else:
                 raise Exception('Content length exceeded')
@@ -112,7 +112,7 @@ async def trigger_upload():
     finally:
         try:
             await hduplex_instance._close_pools()
-        except:
+        except Exception:
             pass
 
 @app.route('/history', methods=["POST"])
@@ -128,7 +128,7 @@ async def history_download():
         print(access_token)
         if int(chat_session) < 1 or int(chat_session) > 9:
             raise Exception('Chat session out of range')
-        hduplex_instance = maica_ws.sub_threading_instance()
+        hduplex_instance = maica_ws.NoWsCoroutine()
         verification_result = await wrap_verify_token(access_token, hduplex_instance)
         if verification_result:
             session = verification_result
@@ -162,7 +162,7 @@ async def history_download():
     finally:
         try:
             await hduplex_instance._close_pools()
-        except:
+        except Exception:
             pass
 
 @app.route('/restore', methods=["POST"])
@@ -177,7 +177,7 @@ async def history_restore():
         print(access_token)
         if int(chat_session) < 1 or int(chat_session) > 9:
             raise Exception('Chat session out of range')
-        hduplex_instance = maica_ws.sub_threading_instance()
+        hduplex_instance = maica_ws.NoWsCoroutine()
         verification_result = await wrap_verify_token(access_token, hduplex_instance)
         if verification_result:
             sigb64, to_verify = data['history']
@@ -197,7 +197,7 @@ async def history_restore():
     finally:
         try:
             await hduplex_instance._close_pools()
-        except:
+        except Exception:
             pass
 
 @app.route('/preferences', methods=["POST"])
@@ -209,7 +209,7 @@ async def sl_prefs():
         data = json.loads(await request.data)
         access_token = data['access_token']
         print(access_token)
-        hduplex_instance = maica_ws.sub_threading_instance()
+        hduplex_instance = maica_ws.NoWsCoroutine()
         verification_result = await wrap_verify_token(access_token, hduplex_instance)
         if verification_result:
             overall_prefs = await hduplex_instance.check_user_preferences(key=False)
@@ -243,7 +243,7 @@ async def sl_prefs():
     finally:
         try:
             await hduplex_instance._close_pools()
-        except:
+        except Exception:
             pass
 
 @app.route('/register', methods=["POST"])
@@ -297,7 +297,7 @@ async def legal():
         else:
             raise Exception('No Identity Provided')
         login_password = login_cridential['password']
-        hduplex_instance = maica_ws.sub_threading_instance()
+        hduplex_instance = maica_ws.NoWsCoroutine()
         verification_result = await hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password)
         if verification_result[0]:
             checked_status = await hduplex_instance.check_user_status('banned')
@@ -331,7 +331,7 @@ async def legal():
     finally:
         try:
             await hduplex_instance._close_pools()
-        except:
+        except Exception:
             pass
 
 @app.route('/servers', methods=["POST"])
@@ -432,7 +432,7 @@ async def wrap_verify_token(access_token, hduplex_instance=None):
         return False
     login_password = login_cridential['password']
     if not hduplex_instance:
-        hduplex_instance = maica_ws.sub_threading_instance()
+        hduplex_instance = maica_ws.NoWsCoroutine()
     verification_result = await hduplex_instance.run_hash_dcc(login_identity, login_is_email, login_password)
     if not verification_result[0]:
         # raise Exception('Identity hashing failed')
@@ -466,7 +466,7 @@ def run_http():
     try:
         with open(".servers", "r", encoding='utf-8') as servers_file:
             known_servers = json.loads(servers_file.read())
-    except:
+    except Exception:
         known_servers = False
     privkey_loaded = RSA.import_key(privkey)
     pubkey_loaded = RSA.import_key(pubkey)
