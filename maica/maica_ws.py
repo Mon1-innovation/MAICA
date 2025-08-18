@@ -31,7 +31,7 @@ class NoWsCoroutine():
         self.traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
         self.settings = MaicaSettings()
         self.fsc = FullSocketsContainer(self.websocket, self.traceray_id, self.settings)
-        self.acc = AccountCursor(self.fsc, self.auth_pool, self.maica_pool)
+        self.hasher = AccountCursor(self.fsc, self.auth_pool, self.maica_pool)
 
     def check_essentials(self) -> None:
         if not self.settings.verification.user_id:
@@ -52,8 +52,8 @@ class NoWsCoroutine():
                 use_result = result
                 archive_id = use_result[0]
             if not use_result:
-                sql_expression2 = 'INSERT INTO cchop_archived (chat_session_id, content, archived) VALUES (%s, "", 0)'
-                archive_id = await self.maica_pool.query_modify(expression=sql_expression2, values=(chat_session_id))
+                sql_expression_2 = 'INSERT INTO cchop_archived (chat_session_id, content, archived) VALUES (%s, "", 0)'
+                archive_id = await self.maica_pool.query_modify(expression=sql_expression_2, values=(chat_session_id))
                 use_result = [archive_id, chat_session_id, '', 0]
             archive_content = use_result[2]
             # Now an avaliable cchop should be ready
@@ -71,8 +71,8 @@ class NoWsCoroutine():
 
             # Wrapping this makes it non-blocking
             await wrap_run_in_exc(None, cpub_chop_session)
-            sql_expression3 = 'UPDATE cchop_archived SET content = %s WHERE archive_id = %s' if len(archive_content) <= 100000 else 'UPDATE cchop_archived SET content = %s, archived = 1 WHERE archive_id = %s'
-            await self.maica_pool.query_modify(expression=sql_expression3, values=(archive_content, archive_id))
+            sql_expression_3 = 'UPDATE cchop_archived SET content = %s WHERE archive_id = %s' if len(archive_content) <= 100000 else 'UPDATE cchop_archived SET content = %s, archived = 1 WHERE archive_id = %s'
+            await self.maica_pool.query_modify(expression=sql_expression_3, values=(archive_content, archive_id))
             cutted = 1
         elif len_content_actual >= warn_length_ascii:
             cutted = 2
@@ -116,9 +116,9 @@ class NoWsCoroutine():
                     success = False
                     return success, excepted
             elif rw == 'w':
-                sql_expression1 = "SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
+                sql_expression_1 = "SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
                 try:
-                    result = await self.maica_pool.query_get(expression=sql_expression1, values=(user_id, chat_session_num))
+                    result = await self.maica_pool.query_get(expression=sql_expression_1, values=(user_id, chat_session_num))
                     #success = True
                     chat_session_id = result[0]
                     content = result[3]
@@ -132,9 +132,9 @@ class NoWsCoroutine():
 
                 cutted, content = await self.chop_session(chat_session_id, content)
 
-                sql_expression2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
+                sql_expression_2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
                 try:
-                    await self.maica_pool.query_modify(expression=sql_expression2, values=(content, chat_session_id))
+                    await self.maica_pool.query_modify(expression=sql_expression_2, values=(content, chat_session_id))
                     success = True
                     return success, None, chat_session_id, None, cutted
                 except Exception as excepted:
@@ -149,8 +149,8 @@ class NoWsCoroutine():
         user_id = self.settings.verification.user_id
         try:
             self.check_essentials()
-            sql_expression1 = "SELECT chat_session_id, content FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
-            result = await self.maica_pool.query_get(expression=sql_expression1, values=(user_id, chat_session_num))
+            sql_expression_1 = "SELECT chat_session_id, content FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
+            result = await self.maica_pool.query_get(expression=sql_expression_1, values=(user_id, chat_session_num))
             if not result or len(result) == 0:
                 success = True
                 inexist = True
@@ -158,11 +158,11 @@ class NoWsCoroutine():
             else:
                 chat_session_id = result[0]
                 content_to_archive = result[1]
-                sql_expression2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
+                sql_expression_2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
                 content = f'{{"role": "system", "content": "{global_init_system('[player]', self.settings.basic.target_lang)}"}}'
-                await self.maica_pool.query_modify(expression=sql_expression2, values=(content, chat_session_id))
-                sql_expression3 = "INSERT INTO csession_archived (chat_session_id, content) VALUES (%s, %s)"
-                await self.maica_pool.query_modify(expression=sql_expression3, values=(chat_session_id, content_to_archive))
+                await self.maica_pool.query_modify(expression=sql_expression_2, values=(content, chat_session_id))
+                sql_expression_3 = "INSERT INTO csession_archived (chat_session_id, content) VALUES (%s, %s)"
+                await self.maica_pool.query_modify(expression=sql_expression_3, values=(chat_session_id, content_to_archive))
                 sql_expression4 = "UPDATE cchop_archived SET archived = 1 WHERE chat_session_id = %s"
                 await self.maica_pool.query_modify(expression=sql_expression4, values=(chat_session_id))
                 success = True
@@ -177,11 +177,11 @@ class NoWsCoroutine():
         user_id = self.settings.verification.user_id
         try:
             self.check_essentials()
-            sql_expression1 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
+            sql_expression_1 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
             if not isinstance(restore_content, str):
                 restore_content = json.dumps(restore_content, ensure_ascii=False).strip('[').strip(']')
             await self.check_create_chat_session(chat_session_num)
-            await self.maica_pool.query_modify(expression=sql_expression1, values=(restore_content, chat_session_num))
+            await self.maica_pool.query_modify(expression=sql_expression_1, values=(restore_content, chat_session_num))
             success = True
             return success, None
         except Exception as excepted:
@@ -195,18 +195,18 @@ class NoWsCoroutine():
         user_id = self.settings.verification.user_id
         try:
             self.check_essentials()
-            sql_expression1 = "SELECT chat_session_id FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
-            result = await self.maica_pool.query_get(expression=sql_expression1, values=(user_id, chat_session_num))
+            sql_expression_1 = "SELECT chat_session_id FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
+            result = await self.maica_pool.query_get(expression=sql_expression_1, values=(user_id, chat_session_num))
             if result:
                 chat_session_id = result[0]
                 success = True
                 exist = True
             else:
-                sql_expression2 = "INSERT INTO chat_session VALUES (NULL, %s, %s, '')"
-                chat_session_id = await self.maica_pool.query_modify(expression=sql_expression2, values=(user_id, chat_session_num))
-                sql_expression3 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
+                sql_expression_2 = "INSERT INTO chat_session VALUES (NULL, %s, %s, '')"
+                chat_session_id = await self.maica_pool.query_modify(expression=sql_expression_2, values=(user_id, chat_session_num))
+                sql_expression_3 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
                 content = f'{{"role": "system", "content": "{global_init_system('[player]', self.settings.basic.target_lang)}"}}'
-                await self.maica_pool.query_modify(expression=sql_expression3, values=(content, chat_session_id))
+                await self.maica_pool.query_modify(expression=sql_expression_3, values=(content, chat_session_id))
                 success = True
                 exist = False
             return success, None, exist, chat_session_id
@@ -218,14 +218,10 @@ class NoWsCoroutine():
         success = False
         exist = None
         content = ''
-        timestamp = str(time.time())
         try:
-            sql_expression1 = "SELECT spire_id, content FROM ms_cache WHERE hash = %s"
-            result = await self.maica_pool.query_get(expression=sql_expression1, values=(hash_identity))
+            sql_expression_1 = "SELECT spire_id, content FROM ms_cache WHERE hash = %s"
+            result = await self.maica_pool.query_get(expression=sql_expression_1, values=(hash_identity))
             if result:
-                spire_id, content = result
-                sql_expression2 = "UPDATE ms_cache SET timestamp = %s WHERE spire_id = %s"
-                await self.maica_pool.query_modify(expression=sql_expression2, values=(timestamp, spire_id))
                 success = True
                 exist = True
                 await common_context_handler(None, 'maica_spire_cache_hit', 'Hit a stored cache for MSpire', '200')
@@ -241,10 +237,9 @@ class NoWsCoroutine():
         
     async def store_hashed_cache(self, hash_identity, content) -> list[bool, Exception]:
         success = False
-        timestamp = str(time.time())
         try:
-            sql_expression1 = "INSERT INTO ms_cache VALUES (NULL, %s, %s, %s)"
-            spire_id = await self.maica_pool.query_modify(expression=sql_expression1, values=(hash_identity, timestamp, content))
+            sql_expression_1 = "INSERT INTO ms_cache VALUES (NULL, %s, %s, %s)"
+            spire_id = await self.maica_pool.query_modify(expression=sql_expression_1, values=(self.settings.verification.user_id, hash_identity, content))
             success = True
             await common_context_handler(None, 'maica_spire_cache_stored', 'Stored a cache for MSpire', '200')
             return success, None
@@ -257,21 +252,21 @@ class NoWsCoroutine():
         success = False
         chat_session_id = None
         user_id = self.settings.verification.user_id
-        sql_expression1 = "SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
+        sql_expression_1 = "SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
         try:
             self.check_essentials()
-            result = await self.maica_pool.query_get(expression=sql_expression1, values=(user_id, chat_session_num))
+            result = await self.maica_pool.query_get(expression=sql_expression_1, values=(user_id, chat_session_num))
             if not result:
                 chat_session_id = (await self.check_create_chat_session(chat_session_num))[3]
-                sql_expression2 = "SELECT * FROM chat_session WHERE chat_session_id = %s"
-                result = await self.maica_pool.query_get(expression=sql_expression2, values=(chat_session_id))
+                sql_expression_2 = "SELECT * FROM chat_session WHERE chat_session_id = %s"
+                result = await self.maica_pool.query_get(expression=sql_expression_2, values=(chat_session_id))
             chat_session_id = result[0]
             content = result[3]
             modding_mat = json.loads(f'[{content}]')
             modding_mat[0]['content'] = new_system_init
             content = json.dumps(modding_mat, ensure_ascii=False).strip('[').strip(']')
-            sql_expression3 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-            await self.maica_pool.query_modify(expression=sql_expression3, values=(content, chat_session_id))
+            sql_expression_3 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
+            await self.maica_pool.query_modify(expression=sql_expression_3, values=(content, chat_session_id))
             success = True
             return success, None, chat_session_id
         except Exception as excepted:
@@ -322,7 +317,6 @@ class NoWsCoroutine():
     async def mod_once_system(self, chat_session_num, known_info, strict_conv=True) -> list[bool, Exception, str]:
         return await self.gen_a_system(chat_session_num, known_info, strict_conv)
     
-
 #没有必要实例化的方法
 
 def global_init_system(player_name, target_lang='zh', strict_conv=True):
@@ -348,8 +342,11 @@ class WsCoroutine(NoWsCoroutine):
 
     def __init__(self, websocket, auth_pool: DbPoolCoroutine, maica_pool: DbPoolCoroutine, mcore_conn: AiConnCoroutine, mfocus_conn: AiConnCoroutine):
         super().__init__(auth_pool=auth_pool, maica_pool=maica_pool, websocket=websocket)
+        
         self.fsc.rsc.websocket = websocket
+        mcore_conn.init_rsc(self.fsc.rsc); mfocus_conn.init_rsc(self.fsc.rsc)
         self.mcore_conn, self.mfocus_conn = mcore_conn, mfocus_conn
+        self.fsc.mcore_conn, self.fsc.mfocus_conn = mcore_conn, mfocus_conn
 
     # Stage 1 permission check
 
@@ -390,7 +387,7 @@ class WsCoroutine(NoWsCoroutine):
 
                 # Initiate account check
 
-                verification_result = await self.acc.hashing_verify(access_token=recv_token)
+                verification_result = await self.hasher.hashing_verify(access_token=recv_token)
                 if verification_result[0]:
 
                     # Account security check
@@ -584,9 +581,7 @@ class WsCoroutine(NoWsCoroutine):
                 traceback.print_exc()
                 return 3
 
-
-
-    #交互设置
+    # Param setting section
 
     async def def_model(self, recv_loaded_json: dict):
 
@@ -606,7 +601,7 @@ class WsCoroutine(NoWsCoroutine):
             error = MaicaInputWarning(str(e), '405')
             await common_context_handler(websocket, 'maica_params_denied', traceray_id=self.traceray_id, error=error)
 
-    #交互会话
+    # Completion section
 
     async def do_communicate(self, recv_loaded_json: dict):
 
@@ -714,14 +709,14 @@ class WsCoroutine(NoWsCoroutine):
             if self.settings.basic.sf_extraction and not self.settings.temp.bypass_mf:
                 await self.sf_inst.init2(chat_session_num=self.settings.temp.chat_session)
                 if 'savefile' in recv_loaded_json:
-                    await wrap_run_in_exc(None, self.sf_inst.add_extra, recv_loaded_json['savefile'])
+                    await wrap_run_in_exc(None, self.sf_inst.add_extra, **recv_loaded_json['savefile'])
             elif 'savefile' in recv_loaded_json:
                 self.settings.temp.update(self.fsc.rsc, sf_extraction_once=True)
                 self.sf_inst.use_only(recv_loaded_json['savefile'])
             if self.settings.basic.mt_extraction and not self.settings.temp.bypass_mt:
                 await self.mt_inst.init2(chat_session_num=self.settings.temp.chat_session)
                 if 'trigger' in recv_loaded_json:
-                    await wrap_run_in_exc(None, self.mt_inst.add_extra, recv_loaded_json['trigger'])
+                    await wrap_run_in_exc(None, self.mt_inst.add_extra, **recv_loaded_json['trigger'])
             elif 'trigger' in recv_loaded_json:
                 self.settings.temp.update(self.fsc.rsc, mt_extraction_once=True)
                 self.mt_inst.use_only(recv_loaded_json['trigger'])
@@ -763,7 +758,7 @@ class WsCoroutine(NoWsCoroutine):
 
                         # From here MFocus is surely enabled
 
-                        message_agent_wrapped = await mfocus.agenting(self.settings, )
+                        message_agent_wrapped = await mfocus.agenting(self.fsc, query_in)
 
                         if message_agent_wrapped[0] == 'EMPTY':
                             if len(message_agent_wrapped[1]) > 5:
@@ -844,7 +839,6 @@ class WsCoroutine(NoWsCoroutine):
             # Construction part done, communication part started
 
             completion_args = {
-                "model": self.settings.basic.model_actual,
                 "messages": messages,
                 "stream": self.settings.basic.stream_output,
                 "stop": ['<|im_end|>', '<|endoftext|>'],
@@ -867,12 +861,12 @@ class WsCoroutine(NoWsCoroutine):
 
                 # Generation here
 
-                stream_resp = await self.mcore_conn.make_completion(**completion_args)
+                resp = await self.mcore_conn.make_completion(**completion_args)
 
                 if completion_args['stream']:
                     reply_appended = ''
 
-                    async for chunk in stream_resp:
+                    async for chunk in resp:
                         token = chunk.choices[0].delta.content
                         if token:
                             await asyncio.sleep(0)
@@ -881,7 +875,7 @@ class WsCoroutine(NoWsCoroutine):
                     await common_context_handler(info='\n', type='plain')
                     await common_context_handler(websocket, 'maica_core_streaming_done', f'Streaming finished with seed {completion_args['seed']} for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
                 else:
-                    reply_appended = stream_resp.choices[0].message.content
+                    reply_appended = resp.choices[0].message.content
                     await common_context_handler(websocket, 'maica_core_nostream_reply', reply_appended, '200', type='carriage')
                     await common_context_handler(None, 'maica_core_nostream_done', f'Reply sent with seed {completion_args['seed']} for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
 

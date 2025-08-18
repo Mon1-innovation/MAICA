@@ -81,12 +81,12 @@ class MtBoundCoroutine():
     async def init1(self):
         user_id, chat_session_num = self.user_id, self.chat_session_num
         try:
-            sql_expression1 = 'SELECT content FROM triggers WHERE user_id = %s AND chat_session_num = %s'
-            result = await self.send_query(sql_expression1, (user_id, chat_session_num))
+            sql_expression_1 = 'SELECT content FROM triggers WHERE user_id = %s AND chat_session_num = %s'
+            result = await self.send_query(sql_expression_1, (user_id, chat_session_num))
             if not result:
                 chat_session_num = 1
-                sql_expression2 = 'SELECT content FROM triggers WHERE user_id = %s AND chat_session_num = %s'
-                result = await self.send_query(sql_expression2, (user_id, chat_session_num))
+                sql_expression_2 = 'SELECT content FROM triggers WHERE user_id = %s AND chat_session_num = %s'
+                result = await self.send_query(sql_expression_2, (user_id, chat_session_num))
                 content = result[0]
             else:
                 content = result[0]
@@ -101,12 +101,12 @@ class MtBoundCoroutine():
         if not chat_session_num:
             chat_session_num = self.chat_session_num
         try:
-            sql_expression1 = 'SELECT content FROM triggers WHERE user_id = %s AND chat_session_num = %s'
-            result = await self.send_query(sql_expression1, (user_id, chat_session_num))
+            sql_expression_1 = 'SELECT content FROM triggers WHERE user_id = %s AND chat_session_num = %s'
+            result = await self.send_query(sql_expression_1, (user_id, chat_session_num))
             if not result:
                 chat_session_num = 1
-                sql_expression2 = 'SELECT content FROM triggers WHERE user_id = %s AND chat_session_num = %s'
-                result = await self.send_query(sql_expression2, (user_id, chat_session_num))
+                sql_expression_2 = 'SELECT content FROM triggers WHERE user_id = %s AND chat_session_num = %s'
+                result = await self.send_query(sql_expression_2, (user_id, chat_session_num))
                 content = result[0]
             else:
                 content = result[0]

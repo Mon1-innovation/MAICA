@@ -62,20 +62,31 @@ class MaicaInternetWarning(CommonMaicaWarning):
     """This suggests the backend request action is not behaving normal."""
 
 class FullSocketsContainer():
-    """For convenience consideration."""
+    """
+    For convenience consideration.
+    Note that FSC contains no db_pool, since they have layer2 wrappings.
+    """
     class RealtimeSocketsContainer():
         """For no-setting usage."""
         def __init__(self, websocket, traceray_id):
             self.websocket, self.traceray_id = websocket, traceray_id
     
-    def __init__(self, websocket=None, traceray_id='', maica_settings=None):
+    def __init__(self, websocket=None, traceray_id='', maica_settings=None, mcore_conn=None, mfocus_conn=None):
         self.rsc = self.RealtimeSocketsContainer(websocket, traceray_id)
         self.maica_settings = maica_settings() if not maica_settings else maica_settings
-
+        self.mcore_conn, self.mfocus_conn = mcore_conn, mfocus_conn
 
 class ReUtils():
-    re_sub_password_spoiler = re.compile(rf'"password"\s*:\s*"(.*?)"')
-
+    re_sub_password_spoiler = re.compile(r'"password"\s*:\s*"(.*?)"')
+    re_search_sfe_fs = re.compile(r"first_session.*?datetime\(([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\)", re.I)
+    re_search_sfe_ts = re.compile(r"total_sessions.*?([0-9]*)\s?,", re.I)
+    re_search_sfe_tp = re.compile(r"total_playtime.*?([0-9]*)\s?,", re.I)
+    re_search_sfe_le = re.compile(r"last_session_end.*?datetime\(([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\)", re.I)
+    re_search_sfe_cs = re.compile(r"current_session_start.*?datetime\(([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\)", re.I)
+    re_search_sfe_unicode = re.compile(r"u'(.*)'")
+    re_search_post_think = re.compile(r'</think>[\s\n]*(.*)')
+    re_search_answer_none = re.compile(r'[\s\n:]*none[\s\n.]*$', re.I)
+    re_search_answer_json = re.compile(r'^.*?([{\[].*[}\]])', re.S)
 
 def default(exp, default, default_list: list=[None]) -> any:
     """If exp is in default list(normally None), use default."""

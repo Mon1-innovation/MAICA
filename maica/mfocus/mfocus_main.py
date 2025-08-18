@@ -11,38 +11,10 @@ import mtools
 from openai import AsyncOpenAI # type: ignore
 from maica_utils import *
 
-async def agenting(settings, input, chat_session):
-    #nest_asyncio.apply()
-    if parent:
-        sf_extraction, deformation, target_lang = parent.options['opt']['sf_extraction'] or parent.options['temp']['sf_extraction_once'], parent.options['opt']['deformation'], parent.options['opt']['target_lang']
-        pre_additive, tnd_aggressive, mf_aggressive, esc_aggressive, amt_aggressive, tz = parent.options['eopt']['pre_additive'], parent.options['eopt']['tnd_aggressive'], parent.options['eopt']['mf_aggressive'], parent.options['eopt']['esc_aggressive'], parent.options['eopt']['amt_aggressive'], parent.options['eopt']['tz']
-        websocket = parent.websocket
-        sf_inst, mt_inst = parent.sf_inst, parent.mt_inst
-        session = parent.options['vfc']
-        client = parent.sock2
-    else:
-        # These are testing values
-        sf_extraction = True
-        deformation = False
-        session = {"user_id": 23, "username": "edge"}
-        target_lang = 'zh'
-        pre_additive = 0
-        tnd_aggressive = 1
-        mf_aggressive = True
-        esc_aggressive = True
-        amt_aggressive = True
-        websocket = None
-        import mfocus_sfe
-        sf_inst = mfocus_sfe.SfBoundCoroutine(23,1,target_lang)
-        await sf_inst.init1()
-        mt_inst = None
-        client = AsyncOpenAI(
-            api_key='EMPTY',
-            base_url=load_env('MFOCUS_ADDR'),
-        )
-        tz = target_lang
-    if websocket:
-        loop = asyncio.get_event_loop()
+async def agenting(fsc: FullSocketsContainer, input):
+
+
+
     if mt_inst and not bypass_mt:
         trigger_list = await wrap_run_in_exc(None, mt_inst.get_valid_triggers)
     else:

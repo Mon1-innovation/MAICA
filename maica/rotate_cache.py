@@ -2,7 +2,7 @@ import nest_asyncio
 nest_asyncio.apply()
 import asyncio
 import aiomysql
-import time
+import datetime
 from maica_utils import *
 
 class rotation_instance():
@@ -48,13 +48,13 @@ class rotation_instance():
         return results
 
     async def rotate_caches(self, keep_time=load_env('ROTATE_MSCACHE')):
-        timestamp = time.time()
-        sql_expression1 = "SELECT spire_id, timestamp FROM ms_cache"
-        sql_expression2 = "DELETE FROM ms_cache WHERE spire_id = %s"
-        result = await self.send_query(sql_expression1, None, True)
+        timestamp = datetime.datetime.now()
+        sql_expression_1 = "SELECT spire_id, timestamp FROM ms_cache"
+        sql_expression_2 = "DELETE FROM ms_cache WHERE spire_id = %s"
+        result = await self.send_query(sql_expression_1, None, True)
         for row in result:
-            if float(row[1]) + float(keep_time) * 3600 <= timestamp:
-                await self.send_modify(sql_expression2, (row[0]))
+            if row[1] + datetime.timedelta(hours=int(keep_time)) <= timestamp:
+                await self.send_modify(sql_expression_2, (row[0]))
 
 if __name__ == '__main__':
     r = rotation_instance()

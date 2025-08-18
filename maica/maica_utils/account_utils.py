@@ -85,8 +85,8 @@ class AccountCursor():
             else:
                 stats_json = kwargs
                 stats_str = json.dumps(stats_json, ensure_ascii=False)
-                sql_expression = "REPLACE INTO account_status (user_id, status) VALUES (%s, %s)"
-                sql_args = (user_id, stats_str)
+                sql_expression = "INSERT INTO account_status (user_id, status) VALUES (%s, %s) ON DUPLICATE KEY UPDATE status = %s"
+                sql_args = (user_id, stats_str, stats_str)
 
             await self.maica_pool.query_modify(expression=sql_expression, values=sql_args)
 

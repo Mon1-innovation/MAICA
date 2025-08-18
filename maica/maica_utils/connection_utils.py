@@ -131,6 +131,11 @@ class AiConnCoroutine():
         for tries in range(0, 3):
             try:
                 await self.keep_alive()
+                kwargs.update(
+                    {
+                        "model": self.model_actual
+                    }
+                )
                 task_stream_resp = asyncio.create_task(self.socket.chat.completions.create(**kwargs))
                 await task_stream_resp
                 return task_stream_resp.result()

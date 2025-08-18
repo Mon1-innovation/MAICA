@@ -44,11 +44,10 @@ class poolinit_instance():
                 await cur.execute(
 """
 CREATE TABLE `account_status` (
-  `crid_id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) NOT NULL,
-  `status` longtext,
-  `preferences` longtext,
-  PRIMARY KEY (`crid_id`)
+  `status` longtext DEFAULT NULL,
+  `preferences` longtext DEFAULT NULL,
+  PRIMARY KEY (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 """
                 )
@@ -91,6 +90,7 @@ CREATE TABLE `persistents` (
   `user_id` int(11) NOT NULL,
   `chat_session_num` int(11) NOT NULL,
   `content` longtext NOT NULL,
+  `timestamp` datetime on update CURRENT_TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`persistent_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 """
@@ -102,6 +102,7 @@ CREATE TABLE `triggers` (
   `user_id` int(11) NOT NULL,
   `chat_session_num` int(11) NOT NULL,
   `content` longtext NOT NULL,
+  `timestamp` datetime on update CURRENT_TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`trigger_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 """
@@ -111,8 +112,8 @@ CREATE TABLE `triggers` (
 CREATE TABLE `ms_cache` (
   `spire_id` int(11) NOT NULL AUTO_INCREMENT,
   `hash` longtext NOT NULL,
-  `timestamp` int(11) NOT NULL,
   `content` longtext NOT NULL,
+  `timestamp` datetime on update CURRENT_TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`spire_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 """
