@@ -1,130 +1,22 @@
 import nest_asyncio
 nest_asyncio.apply()
-import os
 import re
 import json
-import copy
 import asyncio
-import aiomysql
-import functools
+import datetime
 import traceback
 from random import sample
-from openai import AsyncOpenAI # type: ignore
 from maica_utils import *
 
-class MtBoundCoroutine():
+class MtBoundCoroutine(SideBoundCoroutine):
+    DB_NAME = 'triggers'
+    PRIM_KEY = 'trigger_id'
+    FUNC_NAME = 'mtrigger'
+    DATA_TYPE = list
 
-    maicapool = None
-
-    def __init__(self, user_id, chat_session_num):
-        self.user_id, self.chat_session_num = user_id, chat_session_num
-        self.loop = asyncio.get_event_loop()
-        self.valid_triggers = None
-        asyncio.run(self._init_pools())
-
-    # def __del__(self):
-    #     try:
-    #         self.loop.run_until_complete(self._close_pools())
-    #     except Exception:
-    #         pass
-
-    async def _init_pools(self) -> None:
-        global maicapool
-        try:
-            async with maicapool.acquire() as testc:
-                pass
-        except Exception:
-            maicapool = await aiomysql.create_pool(host=load_env('DB_ADDR'),user=load_env('DB_USER'), password=load_env('DB_PASSWORD'),db=load_env('MAICA_DB'),loop=self.loop,autocommit=True)
-            print("MTrigger recreated maicapool")
-
-    async def _close_pools(self) -> None:
-        global maicapool
-        try:
-            maicapool.close()
-            await maicapool.wait_closed()
-        except Exception:
-            pass
-
-    async def send_query(self, expression, values=None, pool='maicapool', fetchall=False) -> list:
-        global maicapool
-        pool = maicapool
-        if pool.closed:
-            await self._init_pools()
-            pool = maicapool
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                if not values:
-                    await cur.execute(expression)
-                else:
-                    await cur.execute(expression, values)
-                #print(cur.description)
-                results = await cur.fetchone() if not fetchall else await cur.fetchall()
-                #print(results)
-        return results
-
-    async def send_modify(self, expression, values=None, pool='maicapool', fetchall=False) -> int:
-        global maicapool
-        pool = maicapool
-        if pool.closed:
-            await self._init_pools()
-            pool = maicapool
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                if not values:
-                    await cur.execute(expression)
-                else:
-                    await cur.execute(expression, values)
-                await conn.commit()
-                lrid = cur.lastrowid
-        return lrid
-
-    async def init1(self):
-        user_id, chat_session_num = self.user_id, self.chat_session_num
-        try:
-            sql_expression_1 = 'SELECT content FROM triggers WHERE user_id = %s AND chat_session_num = %s'
-            result = await self.send_query(sql_expression_1, (user_id, chat_session_num))
-            if not result:
-                chat_session_num = 1
-                sql_expression_2 = 'SELECT content FROM triggers WHERE user_id = %s AND chat_session_num = %s'
-                result = await self.send_query(sql_expression_2, (user_id, chat_session_num))
-                content = result[0]
-            else:
-                content = result[0]
-            self.sf_content = json.loads(content)
-        except Exception:
-            #traceback.print_exc()
-            self.sf_content = []
-        self.sf_content_temp = self.sf_content
-    async def init2(self, user_id=None, chat_session_num=None):
-        if not user_id:
-            user_id = self.user_id
-        if not chat_session_num:
-            chat_session_num = self.chat_session_num
-        try:
-            sql_expression_1 = 'SELECT content FROM triggers WHERE user_id = %s AND chat_session_num = %s'
-            result = await self.send_query(sql_expression_1, (user_id, chat_session_num))
-            if not result:
-                chat_session_num = 1
-                sql_expression_2 = 'SELECT content FROM triggers WHERE user_id = %s AND chat_session_num = %s'
-                result = await self.send_query(sql_expression_2, (user_id, chat_session_num))
-                content = result[0]
-            else:
-                content = result[0]
-            self.sf_content = json.loads(content)
-        except Exception:
-            self.sf_content = []
-        self.sf_content_temp = self.sf_content
-    def add_extra(self, extra):
-        if extra:
-            self.sf_content_temp.extend(extra)
-    def use_only(self, extra):
-        self.sf_content_temp = extra
-    def get_all_triggers(self):
-        return self.sf_content_temp
     def get_valid_triggers(self):
         aff=[];swt=[];met=[];cus=[]
-        all_triggers = self.get_all_triggers()
-        for trigger in all_triggers:
+        for trigger in self.sf_forming_buffer:
             match trigger['template']:
                 case 'common_affection_template':
                     aff.append(trigger)
@@ -146,5 +38,4 @@ class MtBoundCoroutine():
                 swt.remove(trigger)
             if len(trigger['exprop']['item_list']) > 72:
                 trigger['exprop']['item_list'] = sample(trigger['exprop']['item_list'], 72)
-        self.valid_triggers = aff+swt+met+cus
-        return self.valid_triggers
+        return aff + swt + met + cus

@@ -8,8 +8,9 @@ import json
 import inspect
 import colorama
 import time
-from typing import Optional, Union
+from typing import *
 from dotenv import load_dotenv as __load_dotenv
+"""Import layer 1"""
 
 colorama.init(autoreset=True)
 
@@ -61,20 +62,20 @@ class MaicaConnectionWarning(CommonMaicaWarning):
 class MaicaInternetWarning(CommonMaicaWarning):
     """This suggests the backend request action is not behaving normal."""
 
-class FullSocketsContainer():
-    """
-    For convenience consideration.
-    Note that FSC contains no db_pool, since they have layer2 wrappings.
-    """
+class FSCPlain():
+    """Loop importing prevention"""
     class RealtimeSocketsContainer():
         """For no-setting usage."""
         def __init__(self, websocket, traceray_id):
             self.websocket, self.traceray_id = websocket, traceray_id
     
-    def __init__(self, websocket=None, traceray_id='', maica_settings=None, mcore_conn=None, mfocus_conn=None):
+    def __init__(self, websocket=None, traceray_id='', maica_settings=None, auth_pool=None, maica_pool=None, mcore_conn=None, mfocus_conn=None):
         self.rsc = self.RealtimeSocketsContainer(websocket, traceray_id)
         self.maica_settings = maica_settings() if not maica_settings else maica_settings
-        self.mcore_conn, self.mfocus_conn = mcore_conn, mfocus_conn
+        self.auth_pool = auth_pool
+        self.maica_pool = maica_pool
+        self.mcore_conn = mcore_conn
+        self.mfocus_conn = mfocus_conn
 
 class ReUtils():
     re_sub_password_spoiler = re.compile(r'"password"\s*:\s*"(.*?)"')
@@ -87,6 +88,7 @@ class ReUtils():
     re_search_post_think = re.compile(r'</think>[\s\n]*(.*)')
     re_search_answer_none = re.compile(r'[\s\n:]*none[\s\n.]*$', re.I)
     re_search_answer_json = re.compile(r'^.*?([{\[].*[}\]])', re.S)
+    re_sub_player_name = re.compile(r'\[player\]')
 
 def default(exp, default, default_list: list=[None]) -> any:
     """If exp is in default list(normally None), use default."""
@@ -103,7 +105,7 @@ def wrap_ws_formatter(code, status, content, type, deformation=False, **kwargs) 
     output.update(kwargs)
     return json.dumps(output, ensure_ascii=deformation)
 
-async def common_context_handler(websocket=None, status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaError]=None, prefix='', type='', color='', add_time=True, no_print=False) -> None:
+async def messenger(websocket=None, status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaError]=None, prefix='', type='', color='', add_time=True, no_print=False) -> None:
     """It could handle most log printing, websocket sending and exception raising jobs pretty automatically."""
     if error:
         info = error.message if not info else info; code = error.error_code if code == "0" else code

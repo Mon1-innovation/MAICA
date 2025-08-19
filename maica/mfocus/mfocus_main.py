@@ -4,218 +4,229 @@ import random
 import datetime
 import traceback
 import asyncio
-import functools
 import nest_asyncio
 import maica_ws
 import mtools
-from openai import AsyncOpenAI # type: ignore
+from openai import *
+from typing import *
+from .mfocus_sfe import SfBoundCoroutine
+from mtrigger import MtBoundCoroutine
 from maica_utils import *
 
-async def agenting(fsc: FullSocketsContainer, input):
+class MFocusCoroutine():
+    def __init__(self, fsc: FullSocketsContainer, sf_inst: SfBoundCoroutine, mt_inst: Optional[MtBoundCoroutine]=None):
+        self.settings = fsc.maica_settings
+        self.websocket, self.traceray_id = fsc.rsc.websocket, fsc.rsc.traceray_id
+        self.mcore_conn, self.mfocus_conn = fsc.mcore_conn, fsc.mfocus_conn
+        self.sf_inst, self.mt_inst = sf_inst, mt_inst
+        self.maica_pool = fsc.maica_pool
+        asyncio.run(self.reset())
 
+    async def reset(self):
+        await asyncio.gather(self.sf_inst.reset(), self.mt_inst.reset())
+        self.tnd_aggressive = self.settings.extra.tnd_aggressive
+        if self.settings.temp.ic_prep:
+            self.tnd_aggressive = 2
+        self.tools = []
+        self.serial_messages = []
 
+    def _construct_tools(self):
+        if self.mt_inst and not self.settings.temp.bypass_mt:
+            trigger_list = self.mt_inst.get_valid_triggers()
+        else:
+            trigger_list = None
 
-    if mt_inst and not bypass_mt:
-        trigger_list = await wrap_run_in_exc(None, mt_inst.get_valid_triggers)
-    else:
-        trigger_list = None
-    if ic_prep:
-        tnd_aggressive = 2
-    
-    model_list = await client.models.list()
-    model_type = model_list.data[0].id
-    print(f'MFocus main addressing model, response is:\n{model_type}\nEnd of MFocus main addressing model')
-    tools =  [
-        {
-            "name": "time_acquire",
-            "description": "调用该工具以获取当前时间. 只要对话关于: 时间, 问候, 三餐, 休息, 生活节律与建议等, 或你需要获取当前时间以帮助回答, 就使用此工具查询时间." if target_lang == 'zh' else "Call this tool to get the current time. Always use this tool if the conversation mentions: time, greeting, meals, sleep, rest, pace of life or related suggestions, or if you want to know the current time to make your answer.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                },
-                "required": [
-                ],
-                "optional": [
-                ]
-            }
-        },
-        {
-            "name": "date_acquire",
-            "description": "调用该工具以获取当前日期. 只要对话关于: 日期, 季节, 年份, 或你需要获取当前日期以帮助回答, 就使用此工具查询日期." if target_lang == 'zh' else "Call this tool to get the current date. Always use this tool if the conversation mentions: date, season, year, or if you want to know the current date to make your answer.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                },
-                "required": [
-                ],
-                "optional": [
-                ]
-            }
-        },
-        {
-            "name": "weather_acquire",
-            "description": "调用该工具以获取当前天气. 只要对话关于: 天气, 通勤, 户外活动, 或你需要获取当前天气以帮助回答, 就使用此工具查询天气." if target_lang == 'zh' else "Call this tool to get the current weather. Always use this tool if the conversation mentions: weather, commuting, outdoor activities, or if you need to know the current weather to make your answer.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "location": {
-                        "type": "string",
-                        "description": "你需要查询天气的地理位置. 如果查询用户本地天气, 则留空." if target_lang == 'zh' else "The location which you need to get the weather of. Leave empty for the user's local weather.",
-                        "example_value": "湖北武汉" if target_lang == 'zh' else "Los Angeles"
+        self.tools =  [
+            {
+                "name": "time_acquire",
+                "description": "调用该工具以获取当前时间. 只要对话关于: 时间, 问候, 三餐, 休息, 生活节律与建议等, 或你需要获取当前时间以帮助回答, 就使用此工具查询时间." if self.settings.basic.target_lang == 'zh' else "Call this tool to get the current time. Always use this tool if the conversation mentions: time, greeting, meals, sleep, rest, pace of life or related suggestions, or if you want to know the current time to make your answer.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
                     },
-                },
-                "required": [
-                ],
-                "optional": [
-                ]
-            }
-        },
-        {
-            "name": "event_acquire",
-            "description": "调用该工具以查询当前或指定日期的节日或事件. 只要对话关于: 日期, 节日, 活动, 假期, 或你需要获取指定的事件以帮助回答, 就使用此工具查询节日或事件." if target_lang == 'zh' else "Call this tool to get the event or holiday of a given date or current date. Always use this tool if the conversation mentions: date, holiday, anniversary, activities, vacation, or if you need to know the specific event to make your answer.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "year": {
-                        "type": "int",
-                        "description": "需要查询日期的年份. 如果日期在今年, 则留空." if target_lang == 'zh' else "The year of the given date, leave empty for this year.",
-                        "example_value": "2003"
+                    "required": [
+                    ],
+                    "optional": [
+                    ]
+                }
+            },
+            {
+                "name": "date_acquire",
+                "description": "调用该工具以获取当前日期. 只要对话关于: 日期, 季节, 年份, 或你需要获取当前日期以帮助回答, 就使用此工具查询日期." if self.settings.basic.target_lang == 'zh' else "Call this tool to get the current date. Always use this tool if the conversation mentions: date, season, year, or if you want to know the current date to make your answer.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
                     },
-                    "month": {
-                        "type": "int",
-                        "description": "需要查询日期的月份. 如果日期在本月, 则留空." if target_lang == 'zh' else "The month of the given date, leave empty for this month.",
-                        "example_value": "6"
+                    "required": [
+                    ],
+                    "optional": [
+                    ]
+                }
+            },
+            {
+                "name": "weather_acquire",
+                "description": "调用该工具以获取当前天气. 只要对话关于: 天气, 通勤, 户外活动, 或你需要获取当前天气以帮助回答, 就使用此工具查询天气." if self.settings.basic.target_lang == 'zh' else "Call this tool to get the current weather. Always use this tool if the conversation mentions: weather, commuting, outdoor activities, or if you need to know the current weather to make your answer.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "你需要查询天气的地理位置. 如果查询用户本地天气, 则留空." if self.settings.basic.target_lang == 'zh' else "The location which you need to get the weather of. Leave empty for the user's local weather.",
+                            "example_value": "湖北武汉" if self.settings.basic.target_lang == 'zh' else "Los Angeles"
+                        },
                     },
-                    "day": {
-                        "type": "int",
-                        "description": "需要查询日期的日数. 如果日期在本日, 则留空." if target_lang == 'zh' else "The day of the given date, leave empty for the day today.",
-                        "example_value": "26"
-                    }
-                },
-                "required": [
-                ],
-                "optional": [
-                    "year",
-                    "month",
-                    "day"
-                ]
-            }
-        },
-        {
-            "name": "persistent_acquire",
-            "description": "调用该工具以查询你(莫妮卡)或用户的记忆, 例如你或用户的喜好, 兴趣, 经历, 体验, 关系或个人信息. 只要你被问及你作为AI不具有的记忆, 经历, 个性, 喜好或其它事物, 就使用此工具查找记忆. " if target_lang == 'zh' else "Call this tool to get any additional information from your(Monika's) memory or user's memory, such as your or user's preferences, hobbies, experiences, appearence, relationship or personal information. Always use this tool if the conversation mentions memories, personality, preferences, hobbies, experience or any other thing you don't have as an AI.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "question": {
-                        "type": "string",
-                        "description": "需要从你或用户的记忆中搜索的信息, 以尽可能直接回答问题. 以第三人称方式提出问题, 不要提及'我'或'我们'." if target_lang == 'zh' else "The question you want to search from your memory or user's memory, to answer the question as directly as possible. Ask in third person perspective, do not use appellation 'I', 'me' or 'us'.",
-                        "example_value": "莫妮卡喜欢吃什么?" if target_lang == 'zh' else "What does Monika like to eat?"
-                    }
-                },
-                "required": [
-                    "question"
-                ],
-                "optional": [
-                ]
-            }
-        },
-        {
-            "name": "search_internet",
-            "description": "调用该工具以搜索互联网. 如果你需要联网搜索信息以帮助回答, 则使用该工具搜索互联网. 如果该信息可以通过其它工具获取, 则优先使用其它工具." if target_lang == 'zh' else "Call this tool to search a question on the Internet. Use this tool if you need information from the Internet to make your answer. If another tool avaliable could provide the information, use that tool instead.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "question": {
-                        "type": "string",
-                        "description": "需要在搜索引擎中搜索的问题, 应当是一个简洁的句子." if target_lang == 'zh' else "The question needs to be searched on Google, which should be a simple sentence.",
-                        "example_value": "附近的餐馆" if target_lang == 'zh' else "Nearby restaurants"
-                    }
-                },
-                "required": [
-                    "question"
-                ],
-                "optional": [
-                ]
-            }
-        },
-    ]
-    if trigger_list and amt_aggressive:
-        choice_list = []; choice_checklist = []; choice_conclusion = []
-        for trigger in trigger_list:
-            match trigger['template']:
-                case 'common_affection_template':
-                    pass
-                case 'common_switch_template':
-                    cst_temp_list = []
-                    for i in trigger['exprop']['item_list']:
-                        choice_checklist.append(i)
-                        j = f'选择{i}' if target_lang == 'zh' else f'switch to {i}'
-                        cst_temp_list.append(j)
-                    if 'suggestion' in trigger['exprop'] and trigger['exprop']['suggestion']:
-                        comj = f"选择任意的{trigger['exprop']['item_name']['zh']}" if target_lang == 'zh' else f"Choose any other {trigger['exprop']['item_name']['en']}"
-                        cst_temp_list.append(j)
-                    cst_explaination = f"更换{trigger['exprop']['item_name']['zh']}" if target_lang == 'zh' else f"Change {trigger['exprop']['item_name']['en']}"
-                    choice_list.append({cst_explaination: cst_temp_list})
-                case 'common_meter_template':
-                    cmt_iname = trigger['exprop']['item_name']['zh'] if target_lang == 'zh' else trigger['exprop']['item_name']['en']
-                    choice_checklist.append(cmt_iname)
-                    j = f"调整{cmt_iname}, 范围是{trigger['exprop']['value_limits'][0]}到{trigger['exprop']['value_limits'][1]}" if target_lang == 'zh' else f"Adjust {cmt_iname} within range {trigger['exprop']['value_limits'][0]} to {trigger['exprop']['value_limits'][1]}"
-                    choice_list.append(j)
-                case _:
-                    cc_iname = trigger['usage']['zh'] if target_lang == 'zh' else trigger['usage']['en']
-                    choice_checklist.append(cc_iname)
-                    j = f"触发{cc_iname}" if target_lang == 'zh' else f"Trigger {cc_iname}"
-                    choice_list.append(j)
-        if choice_list:
-            tools.append(
+                    "required": [
+                    ],
+                    "optional": [
+                    ]
+                }
+            },
+            {
+                "name": "event_acquire",
+                "description": "调用该工具以查询当前或指定日期的节日或事件. 只要对话关于: 日期, 节日, 活动, 假期, 或你需要获取指定的事件以帮助回答, 就使用此工具查询节日或事件." if self.settings.basic.target_lang == 'zh' else "Call this tool to get the event or holiday of a given date or current date. Always use this tool if the conversation mentions: date, holiday, anniversary, activities, vacation, or if you need to know the specific event to make your answer.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "year": {
+                            "type": "int",
+                            "description": "需要查询日期的年份. 如果日期在今年, 则留空." if self.settings.basic.target_lang == 'zh' else "The year of the given date, leave empty for this year.",
+                            "example_value": "2003"
+                        },
+                        "month": {
+                            "type": "int",
+                            "description": "需要查询日期的月份. 如果日期在本月, 则留空." if self.settings.basic.target_lang == 'zh' else "The month of the given date, leave empty for this month.",
+                            "example_value": "6"
+                        },
+                        "day": {
+                            "type": "int",
+                            "description": "需要查询日期的日数. 如果日期在本日, 则留空." if self.settings.basic.target_lang == 'zh' else "The day of the given date, leave empty for the day today.",
+                            "example_value": "26"
+                        }
+                    },
+                    "required": [
+                    ],
+                    "optional": [
+                        "year",
+                        "month",
+                        "day"
+                    ]
+                }
+            },
+            {
+                "name": "persistent_acquire",
+                "description": "调用该工具以查询你(莫妮卡)或用户的记忆, 例如你或用户的喜好, 兴趣, 经历, 体验, 关系或个人信息. 只要你被问及你作为AI不具有的记忆, 经历, 个性, 喜好或其它事物, 就使用此工具查找记忆. " if self.settings.basic.target_lang == 'zh' else "Call this tool to get any additional information from your(Monika's) memory or user's memory, such as your or user's preferences, hobbies, experiences, appearence, relationship or personal information. Always use this tool if the conversation mentions memories, personality, preferences, hobbies, experience or any other thing you don't have as an AI.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "question": {
+                            "type": "string",
+                            "description": "需要从你或用户的记忆中搜索的信息, 以尽可能直接回答问题. 以第三人称方式提出问题, 不要提及'我'或'我们'." if self.settings.basic.target_lang == 'zh' else "The question you want to search from your memory or user's memory, to answer the question as directly as possible. Ask in third person perspective, do not use appellation 'I', 'me' or 'us'.",
+                            "example_value": "莫妮卡喜欢吃什么?" if self.settings.basic.target_lang == 'zh' else "What does Monika like to eat?"
+                        }
+                    },
+                    "required": [
+                        "question"
+                    ],
+                    "optional": [
+                    ]
+                }
+            },
+            {
+                "name": "search_internet",
+                "description": "调用该工具以搜索互联网. 如果你需要联网搜索信息以帮助回答, 则使用该工具搜索互联网. 如果该信息可以通过其它工具获取, 则优先使用其它工具." if self.settings.basic.target_lang == 'zh' else "Call this tool to search a question on the Internet. Use this tool if you need information from the Internet to make your answer. If another tool avaliable could provide the information, use that tool instead.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "question": {
+                            "type": "string",
+                            "description": "需要在搜索引擎中搜索的问题, 应当是一个简洁的句子." if self.settings.basic.target_lang == 'zh' else "The question needs to be searched on Google, which should be a simple sentence.",
+                            "example_value": "附近的餐馆" if self.settings.basic.target_lang == 'zh' else "Nearby restaurants"
+                        }
+                    },
+                    "required": [
+                        "question"
+                    ],
+                    "optional": [
+                    ]
+                }
+            },
+        ]
+
+        if trigger_list and self.settings.extra.amt_aggressive:
+            choice_list = []; choice_checklist = []
+            for trigger in trigger_list:
+                match trigger['template']:
+                    case 'common_affection_template':
+                        pass
+                    case 'common_switch_template':
+                        cst_temp_list = []
+                        for i in trigger['exprop']['item_list']:
+                            choice_checklist.append(i)
+                            j = f'选择{i}' if self.settings.basic.target_lang == 'zh' else f'switch to {i}'
+                            cst_temp_list.append(j)
+                        if trigger['exprop'].get('suggestion'):
+                            j = f"选择未列出的{trigger['exprop']['item_name']['zh']}" if self.settings.basic.target_lang == 'zh' else f"Choose an unlisted {trigger['exprop']['item_name']['en']}"
+                            cst_temp_list.append(j)
+                        cst_explaination = f"更换{trigger['exprop']['item_name']['zh']}" if self.settings.basic.target_lang == 'zh' else f"Change {trigger['exprop']['item_name']['en']}"
+                        choice_list.append({cst_explaination: cst_temp_list})
+                    case 'common_meter_template':
+                        cmt_iname = trigger['exprop']['item_name']['zh'] if self.settings.basic.target_lang == 'zh' else trigger['exprop']['item_name']['en']
+                        choice_checklist.append(cmt_iname)
+                        j = f"调整{cmt_iname}, 范围是{trigger['exprop']['value_limits'][0]}到{trigger['exprop']['value_limits'][1]}" if self.settings.basic.target_lang == 'zh' else f"Adjust {cmt_iname} within range {trigger['exprop']['value_limits'][0]} to {trigger['exprop']['value_limits'][1]}"
+                        choice_list.append(j)
+                    case _:
+                        cc_iname = trigger['usage']['zh'] if self.settings.basic.target_lang == 'zh' else trigger['usage']['en']
+                        choice_checklist.append(cc_iname)
+                        j = f"触发{cc_iname}" if self.settings.basic.target_lang == 'zh' else f"Trigger {cc_iname}"
+                        choice_list.append(j)
+            if choice_list:
+                self.tools.append(
+                    {
+                        "name": "react_trigger",
+                        "description": "此工具能检验用户的特定要求可否完成. 如果用户对你提出以下类别请求: 切换(如换衣服, 换地点, 换场景), 调整(如调距离, 调亮度), 触发(如开灯, 开启某模式), 则调用该工具." if self.settings.basic.target_lang == 'zh' else "This tool can verify if user's specific request can be done. If user is requesting you to: switching(like changing your clothes, changing location, changing scene), adjusting(like adjusting distance, adjusting brightness), triggering(like turning on light, turning on some mode), use this tool.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "prediction": {
+                                    "type": "string",
+                                    "description": f"你将收到一系列可用选项. 若某选项能够满足用户的请求, 则输出该选项, 否则输出false. 以下是可用选项: {str(choice_list)}" if self.settings.basic.target_lang == 'zh' else f"You'll be offered a list of avaliable choices. return the choice if you think it matches the query, or return false if none matches. Avaliable choices: {str(choice_list)}",
+                                    "example_value": random.choice(choice_checklist)
+                                }
+                            },
+                            "required": [
+                                "ability"
+                            ],
+                            "optional": [
+                            ]
+                        }
+                    },
+                )
+        if self.settings.extra.mf_aggressive:
+            self.tools.append(
                 {
-                    "name": "react_trigger",
-                    "description": "此工具能检验用户的特定要求可否完成. 如果用户对你提出以下类别请求: 切换(如换衣服, 换地点, 换场景), 调整(如调距离, 调亮度), 触发(如开灯, 开启某模式), 则调用该工具." if target_lang == 'zh' else "This tool can verify if user's specific request can be done. If user is requesting you to: switching(like changing your clothes, changing location, changing scene), adjusting(like adjusting distance, adjusting brightness), triggering(like turning on light, turning on some mode), use this tool.",
+                    "name": "conclude_information",
+                    "description": "此工具用于总结你的输出. 只要你已获取了所有必要信息且准备好作答, 就在作答前调用该工具." if self.settings.basic.target_lang == 'zh' else "This tool can conclude your outputs. Always use this tool if you have acquired all necessary informations before making final answer.",
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "prediction": {
+                            "conclusion": {
                                 "type": "string",
-                                "description": f"你将收到一系列可用选项. 若某选项能够满足用户的请求, 则输出该选项, 否则输出false. 以下是可用选项: {str(choice_list)}" if target_lang == 'zh' else f"You'll be offered a list of avaliable choices. return the choice if you think it matches the query, or return false if none matches. Avaliable choices: {str(choice_list)}",
-                                "example_value": random.choice(choice_checklist)
+                                "description": "总结你获取的信息和作出的推理, 并整理成一个简洁的句子." if self.settings.basic.target_lang == 'zh' else "Conclude all information you have acquired and reasonings you have made into a concise sentence.",
+                                "example_value": "现在是上午九点, 因此适合吃早餐, 且天气凉爽, 因此适合户外活动."  if self.settings.basic.target_lang == 'zh' else "It's 9:00 in the morning, suitable for breakfast. The weather is cool, good for exercising."
                             }
                         },
                         "required": [
-                            "ability"
+                            "conclusion"
                         ],
                         "optional": [
                         ]
                     }
                 },
             )
-    if mf_aggressive:
-        tools.append(
-            {
-                "name": "conclude_information",
-                "description": "此工具用于总结你的输出. 只要你已获取了所有必要信息且准备好作答, 就在作答前调用该工具." if target_lang == 'zh' else "This tool can conclude your outputs. Always use this tool if you have acquired all necessary informations before making final answer.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "conclusion": {
-                            "type": "string",
-                            "description": "总结你获取的信息和作出的推理, 并整理成一个简洁的句子." if target_lang == 'zh' else "Conclude all information you have acquired and reasonings you have made into a concise sentence.",
-                            "example_value": "现在是上午九点, 因此适合吃早餐, 且天气凉爽, 因此适合户外活动."  if target_lang == 'zh' else "It's 9:00 in the morning, suitable for breakfast. The weather is cool, good for exercising."
-                        }
-                    },
-                    "required": [
-                        "conclusion"
-                    ],
-                    "optional": [
-                    ]
-                }
-            },
-        )
-    else:
-        tools.append(
+        self.tools.append(
             {
                 "name": "none",
-                "description": "若你不需要任何工具就能作出回答, 则先调用此工具." if target_lang == 'zh' else "If you don't need any other tool to make your answer, call this tool before final answer.",
+                "description": "若你不需要任何工具就能作出回答, 则先调用此工具." if self.settings.basic.target_lang == 'zh' else "If you don't need any other tool to make your answer, call this tool before final answer.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -227,44 +238,63 @@ async def agenting(fsc: FullSocketsContainer, input):
                 }
             },
         )
-    messages = []
-    #messages.append({'role': 'system', 'content': '\n你应在最后回答前加上\'Final Answer:\'字样.'}  if target_lang == 'zh' else {'role': 'system', 'content': '\nYou should add \'Final Answer:\' before your answer.'})
-    if pre_additive and 1 <= chat_session <= 9:
-        sql_expression = 'SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
-        result = await parent.send_query(expression=sql_expression, values=(session['user_id'], chat_session), pool='maicapool')
-        if result:
-            res_dict = json.loads(f'[{result[3]}]')
-            lines_num = min(pre_additive * 2, len(res_dict) - 1)
-            message_additive = res_dict[-lines_num:] if lines_num > 0 else []
-            if message_additive:
-                messages = messages[:1] + message_additive + messages[1:]
-    messages.append({'role': 'user', 'content': input})
-    # messages[-1]['content'] += '/no_think'
-    completion_args = {
-        "model": model_type,
-        "messages": messages,
-        "tools": tools,
-        "stop": ['Observation:'],
-        "temperature": 0.2,
-        "top_p": 0.6,
-        "presence_penalty": 0.4,
-        "frequency_penalty": 0.5,
-        "seed": 42
-    }
-    if not mf_aggressive:
-        completion_args['stop'].append('Final Answer:')
 
-    for tries in range(0, 2):
-        try:
-            resp = await client.chat.completions.create(**completion_args)
-            break
-        except Exception:
-            if tries < 1:
-                print('Model temporary failure')
-                await asyncio.sleep(0.5)
-            else:
-                raise Exception('Model connection failure')
-                    
+    async def _construct_query(self, user_input=None, tool_input=None):
+        if not self.serial_messages and self.settings.extra.pre_additive and 1 <= self.settings.temp.chat_session <= 9:
+            sql_expression = 'SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
+            result = await self.maica_pool.query_get(expression=sql_expression, values=(self.settings.verification.user_id, self.settings.temp.chat_session))
+            if result:
+                res_list = json.loads(f'[{result}]')
+                lines_num = min(self.settings.extra.pre_additive * 2, len(res_list) - 1)
+                message_additive = res_list[-lines_num:] if lines_num > 0 else []
+                if message_additive:
+                    self.serial_messages.extend(message_additive)
+                    assert self.serial_messages[-1]['role'] == 'assistant', 'Additive got corrupted chat history'
+
+        if user_input:
+            self.serial_messages.append({'role': 'user', 'content': user_input})
+        if tool_input:
+            self.serial_messages.append({'role': 'tool', 'content': tool_input})
+
+    async def _send_query(self) -> tuple[str, list]:
+        completion_args = {
+            "messages": self.serial_messages,
+            "tools": self.tools,
+            "stop": ['Observation:'],
+            "temperature": 0.2,
+            "top_p": 0.6,
+            "presence_penalty": 0.4,
+            "frequency_penalty": 0.5,
+            "seed": 42
+        }
+
+        resp = await self.mfocus_conn.make_completion(**completion_args)
+        content, tool_calls = resp.choices[0].message.content, resp.choices[0].message.tool_calls
+        return content, tool_calls
+    
+    async def agenting(self, query):
+
+        # First thing first we prepare the first query
+
+        self._construct_tools()
+        await self._construct_query(user_input=query)
+        cycle = 0
+        while cycle <= 7:
+            cycle += 1
+            resp_content, resp_tools = await self._send_query()
+            for resp_tool in resp_tools:
+                pass
+
+
+
+
+
+
+        
+
+async def agenting(fsc: FullSocketsContainer, sf_inst: SfBoundCoroutine, mt_inst: MtBoundCoroutine, input):
+
+
     final_first_answer = ''
     instructed_final_answer = {}
     return_instruction = ''

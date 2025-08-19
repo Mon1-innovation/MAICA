@@ -3,6 +3,8 @@ import asyncio
 import traceback
 from openai import AsyncOpenAI
 from .maica_utils import *
+from .setting_utils import *
+"""Import layer 3"""
 
 DB_ADDR = load_env('DB_ADDR')
 DB_USER = load_env('DB_USER')
@@ -27,13 +29,13 @@ class DbPoolCoroutine():
                 pass
         except Exception:
             # traceback.print_exc()
-            await common_context_handler(None, f'{self.db}_reconn', f"Recreating {self.db} pool since cannot acquire", '301', type='warn')
+            await messenger(None, f'{self.db}_reconn', f"Recreating {self.db} pool since cannot acquire", '301', type='warn')
             try:
                 self.pool.close()
                 await self._ainit()
             except Exception:
                 error = MaicaDbError(f'Failure when trying reconnecting to {self.db}', '502')
-                await common_context_handler(None, f'{self.db}_reconn_failure', traceray_id='db_handling', type='error')
+                await messenger(None, f'{self.db}_reconn_failure', traceray_id='db_handling', type='error')
 
     async def query_get(self, expression, values=None, fetchall=False) -> list:
         results = None
@@ -50,17 +52,17 @@ class DbPoolCoroutine():
                 break
             except Exception:
                 if tries < 2:
-                    await common_context_handler(info=f'DB temporary failure, retrying {str(tries + 1)} time(s)')
+                    await messenger(info=f'DB temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
                     error = MaicaDbError(f'DB connection failure after {str(tries + 1)} times', '502')
-                    await common_context_handler(None, 'db_connection_failed', traceray_id='db_handling', error=error)
+                    await messenger(None, 'db_connection_failed', traceray_id='db_handling', error=error)
         return results
 
     async def query_modify(self, expression, values=None, fetchall=False) -> int:
         if self.ro:
             error = MaicaDbError(f'DB marked as ro, no modify permitted', '403')
-            await common_context_handler(None, 'db_modification_denied', traceray_id='db_handling', error=error)
+            await messenger(None, 'db_modification_denied', traceray_id='db_handling', error=error)
         lrid = None
         for tries in range(0, 3):
             try:
@@ -76,11 +78,11 @@ class DbPoolCoroutine():
                 break
             except Exception:
                 if tries < 2:
-                    await common_context_handler(info=f'DB temporary failure, retrying {str(tries + 1)} time(s)')
+                    await messenger(info=f'DB temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
                     error = MaicaDbError(f'DB connection failure after {str(tries + 1)} times', '502')
-                    await common_context_handler(None, 'db_connection_failed', traceray_id='db_handling', error=error)
+                    await messenger(None, 'db_connection_failed', traceray_id='db_handling', error=error)
         return lrid
 
 class AiConnCoroutine():
@@ -102,7 +104,7 @@ class AiConnCoroutine():
         if isinstance(model, str):
             await self.use_model(model) 
 
-    def init_rsc(self, rsc: FullSocketsContainer.RealtimeSocketsContainer):
+    def init_rsc(self, rsc: FSCPlain.RealtimeSocketsContainer):
         self.websocket, self.traceray_id = rsc.websocket, rsc.traceray_id
 
     async def keep_alive(self):
@@ -111,13 +113,13 @@ class AiConnCoroutine():
             if isinstance(self.model, int):
                 self.model_actual = model_list[0].id
         except Exception:
-            await common_context_handler(None, f'{self.name}_reconn', f"Recreating {self.name} client since cannot conn", '301', type='warn')
+            await messenger(None, f'{self.name}_reconn', f"Recreating {self.name} client since cannot conn", '301', type='warn')
             try:
                 await self.socket.close()
                 await self._ainit()
             except Exception:
                 error = MaicaResponseError(f'Failure when trying reconnecting to {self.name}', '502')
-                await common_context_handler(None, f'{self.name}_reconn_failure', traceray_id='ai_handling', type='error')
+                await messenger(None, f'{self.name}_reconn_failure', traceray_id='ai_handling', type='error')
 
     async def use_model(self, model: Union[int, str]=0):
         assert isinstance(model, Union[int, str]), "Model choice unrecognizable"
@@ -141,11 +143,11 @@ class AiConnCoroutine():
                 return task_stream_resp.result()
             except Exception:
                 if tries < 1:
-                    await common_context_handler(info=f'Model temporary failure, retrying {str(tries + 1)} time(s)')
+                    await messenger(info=f'Model temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
                     error = MaicaResponseError(f'Cannot reach model endpoint after {str(tries + 1)} times', '502')
-                    await common_context_handler(self.websocket, 'maica_core_model_inaccessible', traceray_id=self.traceray_id, error=error)
+                    await messenger(self.websocket, 'maica_core_model_inaccessible', traceray_id=self.traceray_id, error=error)
 
 class ConnUtils():
     """Just a wrapping for functions."""

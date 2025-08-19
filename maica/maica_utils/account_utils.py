@@ -9,6 +9,8 @@ from Crypto.Hash import SHA256
 from .connection_utils import *
 from .maica_utils import *
 from .setting_utils import *
+from .container_utils import *
+"""Import layer 5"""
 
 db_host = load_env('DB_ADDR')
 db_user = load_env('DB_USER')
@@ -16,7 +18,7 @@ db_password = load_env('DB_PASSWORD')
 authdb = load_env('AUTH_DB')
 maicadb = load_env('MAICA_DB')
 
-def _get_keys() -> list[PKCS1_OAEP.PKCS1OAEP_Cipher, PKCS1_OAEP.PKCS1OAEP_Cipher, PKCS1_PSS.PSS_SigScheme, PKCS1_PSS.PSS_SigScheme]:
+def _get_keys() -> tuple[PKCS1_OAEP.PKCS1OAEP_Cipher, PKCS1_OAEP.PKCS1OAEP_Cipher, PKCS1_PSS.PSS_SigScheme, PKCS1_PSS.PSS_SigScheme]:
     with open("../key/prv.key", "r") as privkey_file:
         privkey = privkey_file.read()
     with open("../key/pub.key", "r") as pubkey_file:
@@ -33,9 +35,8 @@ encryptor, decryptor, verifier, signer = _get_keys()
 
 class AccountCursor():
     def __init__(self, fsc:FullSocketsContainer, auth_pool=None, maica_pool=None):
-        self.settings: MaicaSettings = fsc.maica_settings
-        self.websocket = fsc.rsc.websocket
-        self.traceray_id = fsc.rsc.traceray_id
+        self.settings = fsc.maica_settings
+        self.websocket, self.traceray_id = fsc.rsc.websocket, fsc.rsc.traceray_id
         asyncio.run(self._ainit(auth_pool, maica_pool))
         
     async def _ainit(self, auth_pool, maica_pool):
@@ -73,7 +74,7 @@ class AccountCursor():
 
         except Exception as e:
             error = MaicaDbError(e, '502')
-            await common_context_handler(self.websocket, 'user_status_read_failure', traceray_id=self.traceray_id, error=error)
+            await messenger(self.websocket, 'user_status_read_failure', traceray_id=self.traceray_id, error=error)
 
     async def write_user_status(self, enforce=False, **kwargs) -> None:
         user_id = self.settings.identity.user_id
@@ -92,9 +93,9 @@ class AccountCursor():
 
         except Exception as e:
             error = MaicaDbError(e, '502')
-            await common_context_handler(self.websocket, 'user_status_write_failure', traceray_id=self.traceray_id, error=error)
+            await messenger(self.websocket, 'user_status_write_failure', traceray_id=self.traceray_id, error=error)
 
-    async def run_hash_dcc(self, identity, is_email, password) -> list[bool, Union[str, dict, None]]:
+    async def run_hash_dcc(self, identity, is_email, password) -> tuple[bool, Union[str, dict, None]]:
         sql_expression = 'SELECT * FROM users WHERE email = %s' if is_email else 'SELECT * FROM users WHERE username = %s'
         try:
             result = await self.auth_pool.query_get(expression=sql_expression, values=(identity))
@@ -103,7 +104,7 @@ class AccountCursor():
             input_pwd, target_pwd = password.encode(), dbres_pwd_bcrypt.encode()
 
             vf_result = await wrap_run_in_exc(None, bcrypt.checkpw, input_pwd, target_pwd)
-            await common_context_handler(info=f'Hashing for {identity} finished: {vf_result}')
+            await messenger(info=f'Hashing for {identity} finished: {vf_result}')
             self.settings.identity.update(self.fsc.rsc, user_id=dbres_id, username=dbres_username, email=dbres_email)
 
             f2b_count, f2b_stamp = await asyncio.run(self.check_user_status('f2b_count', 'f2b_stamp'))
@@ -149,7 +150,7 @@ class AccountCursor():
             verification = False
             return verification, e
 
-    async def hashing_verify(self, access_token) -> list[bool, Union[str, dict, None]]:
+    async def hashing_verify(self, access_token) -> tuple[bool, Union[str, dict, None]]:
         try:
             global encryptor, decryptor, verifier, signer
             exec_unbase64_token = await wrap_run_in_exc(None, base64.b64decode, access_token)
@@ -161,7 +162,7 @@ class AccountCursor():
         login_cridential = json.loads(decrypted_token)
         login_cridential_print = ReUtils.re_sub_password_spoiler.sub(rf'"password": "{colorama.Fore.BLACK}\1{colorama.Fore.CYAN}"', decrypted_token)
 
-        await common_context_handler(info=f'Login cridential acquired: {login_cridential_print}', color=colorama.Fore.CYAN)
+        await messenger(info=f'Login cridential acquired: {login_cridential_print}', color=colorama.Fore.CYAN)
 
         if login_cridential.get('username'):
             login_identity = login_cridential['username']
