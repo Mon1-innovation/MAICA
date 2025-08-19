@@ -275,7 +275,6 @@ class MFocusCoroutine():
     async def agenting(self, query):
 
         # First thing first we prepare the first query
-
         self._construct_tools()
         await self._construct_query(user_input=query)
         cycle = 0

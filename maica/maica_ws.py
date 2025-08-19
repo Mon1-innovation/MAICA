@@ -48,6 +48,29 @@ class NoWsCoroutine():
         sql_expression = "INSERT INTO chat_session (user_id, chat_session_num, content) VALUES (%s, %s, %s)"
         return await self.maica_pool.query_modify(expression=sql_expression, values=(user_id, chat_session_num, content))
 
+    async def _jsonify_chat_session(self, text) -> list:
+        try:
+            return json.loads(f'[{text}]')
+        except Exception as e:
+            error = MaicaDbError(f'Chat session not JSON: {str(e)}', '500')
+            await messenger(self.websocket, 'maica_db_corruption', traceray_id=self.traceray_id, error=error)
+
+    def _flattern_chat_session(content_json: list) -> str:
+        if content_json:
+            return json.dumps(content_json, ensure_ascii=False).strip('[').strip(']')
+        else:
+            return None
+
+    async def _try_repair_chat_session(self, text) -> list:
+        """Therotically shouldn't happen."""
+        text = text.strip(', ').strip(' ,')
+        content_json = await self._jsonify_chat_session(text)
+        if content_json[0]['role'] != 'system':
+            content_json.insert(0, {"role": "system", "content": await self.gen_system_prompt()})
+        while content_json[1]['role'] != 'user':
+            content_json.pop(1)
+        return content_json
+
     async def _chop_session(self, chat_session_id, content) -> tuple[int, str]:
         max_length_ascii = self.settings.basic.max_length * 3
         warn_length_ascii = int(max_length_ascii * (2/3))
@@ -70,7 +93,7 @@ class NoWsCoroutine():
                 popped_dict = cutting_mat.pop(1)
                 archive_content = archive_content + json.dumps(popped_dict, ensure_ascii=False)
                 len_content_actual -= (len(json.dumps(popped_dict, ensure_ascii=False).encode()) - 31)
-            content = json.dumps(cutting_mat, ensure_ascii=False).strip('[').strip(']')
+            content = self._flattern_chat_session(cutting_mat)
 
             if archive_id:
                 sql_expression_2 = "UPDATE cchop_archived SET content = %s WHERE archive_id = %s" if len(archive_content) <= 100000 else "UPDATE cchop_archived SET content = %s, archived = 1 WHERE archive_id = %s"
@@ -85,8 +108,8 @@ class NoWsCoroutine():
         else:
             cut_status = 0
         return cut_status, content
-
-    async def rw_chat_session(self, rwa='r', content_append=None) -> tuple[int, int | str]:
+    
+    async def rw_chat_session(self, irwa='r', content_append: list=None, system_prompt: str=None) -> tuple[int, int | list]:
         """A common way to operate chat sessions."""
         self._check_essentials()
 
@@ -97,6 +120,7 @@ class NoWsCoroutine():
         else:
             chat_session_id = None, content_original = ''
 
+        content_append = self._flattern_chat_session(content_append)
         if not content_append:
             content_finale = content_original
         elif content_original:
@@ -104,12 +128,33 @@ class NoWsCoroutine():
         else:
             content_finale = content_append
 
-        if rwa == 'r':
+        if irwa == 'i':
+            # By 'i' we mean initiate, so we ensure this session has a prompt
+            content_json = await self._jsonify_chat_session(content_finale)
+            if not system_prompt:
+                system_prompt = await self.gen_system_prompt()
+
+            if content_json:
+                if content_json[0]['role'] == 'system':
+                    content_json[0]['content'] = system_prompt
+                else:
+                    content_json.insert(0, {"role": "system", "content": system_prompt})
+            else:
+                content_json = [{"role": "system", "content": system_prompt}]
+            content_finale = self._flattern_chat_session(content_json)
+            if not chat_session_id:
+                chat_session_id = await self._create_session(content=content_finale)
+            else:
+                sql_expression_2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
+                await self.maica_pool.query_modify(expression=sql_expression_2, values=(content_finale, chat_session_id))
+            return chat_session_id, content_json
+
+        elif irwa == 'r':
             if not chat_session_id:
                 chat_session_id = await self._create_session()
-            return chat_session_id, content_finale
+            return chat_session_id, await self._jsonify_chat_session(content_finale)
         
-        elif rwa == 'w':
+        elif irwa == 'w':
             if not chat_session_id:
                 chat_session_id = await self._create_session(content=content_append)
             else:
@@ -117,7 +162,7 @@ class NoWsCoroutine():
                 await self.maica_pool.query_modify(expression=sql_expression_2, values=(content_append, chat_session_id))
             return chat_session_id, 0
 
-        elif rwa == 'a':
+        elif irwa == 'a':
             cut_status, content_finale = await self._chop_session(chat_session_id, content_finale)
             if not chat_session_id:
                 chat_session_id = await self._create_session(content=content_finale)
@@ -152,97 +197,32 @@ class NoWsCoroutine():
         if not chat_session_num:
             chat_session_num = self.settings.temp.chat_session
         if not isinstance(content_restore, str):
-            content_restore = json.dumps(content_restore, ensure_ascii=False).strip('[').strip(']')
+            content_restore = self._flattern_chat_session(content_restore)
 
         return await self.reset_chat_session(content_new=content_restore)
-        
-    async def check_create_chat_session(self, chat_session_num) -> tuple[bool, Exception, bool, int]:
-        success = False
-        exist = None
-        chat_session_id = None
-        user_id = self.settings.verification.user_id
-        try:
-            self._check_essentials()
-            sql_expression_1 = "SELECT chat_session_id FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
-            result = await self.maica_pool.query_get(expression=sql_expression_1, values=(user_id, chat_session_num))
-            if result:
-                chat_session_id = result[0]
-                success = True
-                exist = True
-            else:
-                sql_expression_2 = "INSERT INTO chat_session VALUES (NULL, %s, %s, '')"
-                chat_session_id = await self.maica_pool.query_modify(expression=sql_expression_2, values=(user_id, chat_session_num))
-                sql_expression_3 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-                content = f'{{"role": "system", "content": "{_basic_gen_system('[player]', self.settings.basic.target_lang)}"}}'
-                await self.maica_pool.query_modify(expression=sql_expression_3, values=(content, chat_session_id))
-                success = True
-                exist = False
-            return success, None, exist, chat_session_id
-        except Exception as excepted:
-            success = False
-            return success, excepted, exist, chat_session_id
 
-    async def check_get_hashed_cache(self, hash_identity) -> tuple[bool, Exception, bool, str]:
-        success = False
-        exist = None
-        content = ''
-        try:
-            sql_expression_1 = "SELECT spire_id, content FROM ms_cache WHERE hash = %s"
-            result = await self.maica_pool.query_get(expression=sql_expression_1, values=(hash_identity))
-            if result:
-                success = True
-                exist = True
-                await messenger(None, 'maica_spire_cache_hit', 'Hit a stored cache for MSpire', '200')
-            else:
-                success = True
-                exist = False
-                await messenger(None, 'maica_spire_cache_missed', 'No stored cache for MSpire', '200')
-            return success, None, exist, content
-        except Exception as excepted:
-            traceback.print_exc()
-            success = False
-            return success, excepted, exist, content
-        
-    async def store_hashed_cache(self, hash_identity, content) -> tuple[bool, Exception]:
-        success = False
-        try:
-            sql_expression_1 = "INSERT INTO ms_cache VALUES (NULL, %s, %s, %s)"
-            spire_id = await self.maica_pool.query_modify(expression=sql_expression_1, values=(self.settings.verification.user_id, hash_identity, content))
-            success = True
-            await messenger(None, 'maica_spire_cache_stored', 'Stored a cache for MSpire', '200')
-            return success, None
-        except Exception as excepted:
-            traceback.print_exc()
-            success = False
-            return success, excepted
+    async def find_ms_cache(self, hash_identity) -> Optional[str]:
+        """Find ms cache with corresponding prompt hash."""
 
-    async def mod_chat_session_system(self, chat_session_num, new_system_init) -> tuple[bool, Exception, int]:
-        success = False
-        chat_session_id = None
-        user_id = self.settings.verification.user_id
-        sql_expression_1 = "SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
-        try:
-            self._check_essentials()
-            result = await self.maica_pool.query_get(expression=sql_expression_1, values=(user_id, chat_session_num))
-            if not result:
-                chat_session_id = (await self.check_create_chat_session(chat_session_num))[3]
-                sql_expression_2 = "SELECT * FROM chat_session WHERE chat_session_id = %s"
-                result = await self.maica_pool.query_get(expression=sql_expression_2, values=(chat_session_id))
-            chat_session_id = result[0]
-            content = result[3]
-            modding_mat = json.loads(f'[{content}]')
-            modding_mat[0]['content'] = new_system_init
-            content = json.dumps(modding_mat, ensure_ascii=False).strip('[').strip(']')
-            sql_expression_3 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-            await self.maica_pool.query_modify(expression=sql_expression_3, values=(content, chat_session_id))
-            success = True
-            return success, None, chat_session_id
-        except Exception as excepted:
-            traceback.print_exc()
-            success = False
-            return success, excepted
+        sql_expression_1 = "SELECT content FROM ms_cache WHERE hash = %s"
+        result = await self.maica_pool.query_get(expression=sql_expression_1, values=(hash_identity))
+        if result:
+            await messenger(None, 'maica_spire_cache_hit', 'Hit a stored cache for MSpire', '200')
+            return result[0]
+        else:
+            await messenger(None, 'maica_spire_cache_missed', 'No stored cache for MSpire', '200')
+            return None
 
-    async def gen_system_prompt(self, known_info, strict_conv=None) -> tuple[bool, Exception, str]:
+    async def store_ms_cache(self, hash_identity, content) -> int:
+        """Store ms cache with prompt hash."""
+        self._check_essentials()
+
+        sql_expression_1 = "INSERT INTO ms_cache VALUES (NULL, %s, %s, %s)"
+        spire_id = await self.maica_pool.query_modify(expression=sql_expression_1, values=(self.settings.verification.user_id, hash_identity, content))
+        await messenger(None, 'maica_spire_cache_stored', 'Stored a cache for MSpire', '200')
+        return spire_id
+
+    async def gen_system_prompt(self, known_info=None, strict_conv=None) -> str:
         def _basic_gen_system(player_name, target_lang='zh', strict_conv=True):
             if target_lang == 'zh':
                 if strict_conv:
@@ -266,7 +246,7 @@ class NoWsCoroutine():
                     player_name = player_name_get[2]
                     if known_info:
                         known_info = ReUtils.re_sub_player_name.sub(player_name, known_info)
-            except:
+            except Exception:
                 pass
         if not strict_conv:
             strict_conv = self.settings.temp.strict_conv
@@ -277,35 +257,6 @@ class NoWsCoroutine():
             new_system += f" 以下是一些相关信息, 你可以参考其中有价值的部分, 并用你自己的语言方式作答: {known_info}" if self.settings.basic.target_lang == 'zh' else f" Here are some information you can refer to, then make your answer in your own way: {known_info}"
         return new_system
 
-    async def wrap_mod_system(self, chat_session_num, known_info, strict_conv=True) -> tuple[bool, Exception, int]:
-        new_system_res = await self.gen_system_prompt(chat_session_num, known_info, strict_conv)
-        try:
-            new_system = new_system_res[2]
-            return await self.mod_chat_session_system(chat_session_num, new_system)
-        except Exception as excepted:
-            success = False
-            #traceback.print_exc()
-            return success, excepted
-        
-    async def mod_once_system(self, chat_session_num, known_info, strict_conv=True) -> tuple[bool, Exception, str]:
-        return await self.gen_system_prompt(chat_session_num, known_info, strict_conv)
-    
-#没有必要实例化的方法
-
-def _basic_gen_system(player_name, target_lang='zh', strict_conv=True):
-    if target_lang == 'zh':
-        if strict_conv:
-            system_init = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答. 你只应使用中文自然语言, 以聊天语气回答, 每个句子自然且不超过60字, 不要编造信息, 并在每个句子前用方括号中的文字表示情绪."
-        else:
-            system_init = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的来信, 请作为莫妮卡作出合适的回复. 你只应使用中文书面语言作答, 不要编造信息."
-    else:
-        if strict_conv:
-            system_init = f"You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Answer the following query from {player_name} properly as Monika. You should only answer in casual natural tone in English, each sentence should not exceed 180 characters, do not make up things you don't know, and express your emotion at the beginning of each sentence by wrapping them in square brackets."
-        else:
-            system_init = f"You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Reply to the following mail from {player_name} properly as Monika. You should only answer in natural written language in English, and do not make up things you don't know."
-    return system_init
-
-#与websocket绑定的异步化类, 继承sql类
 
 class WsCoroutine(NoWsCoroutine):
     """
@@ -583,7 +534,7 @@ class WsCoroutine(NoWsCoroutine):
         websocket = self.websocket
         query_in = ''
 
-        overall_info_system = ''; replace_generation = ''; ms_cache_identity = ''
+        replace_generation = ''; ms_cache_identity = ''
         self.settings.temp.reset()
         try:
 
@@ -637,10 +588,10 @@ class WsCoroutine(NoWsCoroutine):
                     if self.settings.temp.ms_cache:
                         self.settings.temp.update(self.fsc.rsc, bypass_sup=True)
                         ms_cache_identity = query_insp[3]
-                        cache_insp = await self.check_get_hashed_cache(ms_cache_identity)
-                        if cache_insp[0] and cache_insp[2]:
+                        cache_insp = await self.find_ms_cache(ms_cache_identity)
+                        if cache_insp:
                             self.settings.temp.update(self.fsc.rsc, bypass_gen=True)
-                            replace_generation = cache_insp[3]
+                            replace_generation = cache_insp
                             
                     query_in = query_insp[2]
 
@@ -702,10 +653,8 @@ class WsCoroutine(NoWsCoroutine):
             #     if easter_check:
             #         await websocket.send(self.wrap_ws_deformatter('299', 'easter_egg', easter_check, 'info'))
 
-            messages0 = json.dumps({'role': 'user', 'content': query_in}, ensure_ascii=False)
             match int(self.settings.temp.chat_session):
                 case -1:
-
                     # chat_session == -1 means query contains an entire chat history(sequence mode)
 
                     session_type = -1
@@ -720,94 +669,49 @@ class WsCoroutine(NoWsCoroutine):
                         await messenger(websocket, 'maica_sequence_not_json', traceray_id=self.traceray_id, error=error)
 
                 case i if 0 <= i < 10:
-
                     # chat_session == 0 means single round, else normal
 
                     session_type = 0 if i == 0 else 1
-
-                    # Introducing MFocus
-
+                    messages0 = {'role': 'user', 'content': query_in}
                     if self.settings.basic.enable_mf and not self.settings.temp.bypass_mf:
-
-                        # From here MFocus is surely enabled
-
                         message_agent_wrapped = await mfocus.agenting(self.fsc, query_in)
 
                         if message_agent_wrapped[0] == 'EMPTY':
                             if len(message_agent_wrapped[1]) > 5:
                                 await messenger(websocket, 'maica_agent_using_inst', 'MFocus got instruction and used', '200')
-                                info_agent_grabbed = message_agent_wrapped[1]
+                                agent_info = message_agent_wrapped[1]
                             else:
                                 await messenger(websocket, 'maica_agent_no_inst', 'MFocus got no instruction, falling back and proceeding', '404', traceray_id=self.traceray_id)
-                                info_agent_grabbed = ''
+                                agent_info = ''
+
                         elif message_agent_wrapped[0] == 'FAIL':
                             await messenger(websocket, 'maica_agent_no_tool', 'MFocus called no tool', '204')
-                            info_agent_grabbed = ''
+                            agent_info = ''
+
                         else:
                             # We are defaulting instructed guidance because its more clear pattern
                             # But if pointer entered this section, user must used mf_aggressive or something went wrong
                             if len(message_agent_wrapped[1]) > 5 and len(message_agent_wrapped[0]) > 5:
                                 await messenger(websocket, 'maica_agent_using_conc', 'MFocus got conclusion and used', '200')
-                                info_agent_grabbed = message_agent_wrapped[0]
+                                agent_info = message_agent_wrapped[0]
                             elif len(message_agent_wrapped[1]) > 5:
                                 # Conclusion likely failed, but at least there is instruction
                                 await messenger(websocket, 'maica_agent_no_conc', 'MFocus got no conclusion, likely failed', '404', traceray_id=self.traceray_id)
-                                info_agent_grabbed = ''
+                                agent_info = ''
                             else:
                                 await messenger(websocket, 'maica_agent_no_inst', 'MFocus got no instruction, falling back and proceeding', '404', traceray_id=self.traceray_id)
-                                info_agent_grabbed = ''
-
+                                agent_info = ''
                         # Everything should be grabbed by now
-
-                        overall_info_system += info_agent_grabbed
-
-                        if session_type == 1:
-                            agent_insertion = await self.wrap_mod_system(chat_session_num=self.settings.temp.chat_session, known_info=overall_info_system, strict_conv=self.settings.temp.strict_conv)
-                            if not agent_insertion[0]:
-                                error = MaicaDbError('Chat session modding failed', '502')
-                                try:
-                                    error.message += f": {str(agent_insertion[1])}"
-                                except Exception:
-                                    error.message += ", no reason provided"
-                                await messenger(websocket, "maica_db_failure", traceray_id=self.traceray_id, error=error)
-
-                        elif session_type == 0:
-                            messages = [{'role': 'system', 'content': (await self.mod_once_system(chat_session_num=self.settings.temp.chat_session, known_info=overall_info_system, strict_conv=self.settings.temp.strict_conv))[2]}, {'role': 'user', 'content': query_in}]
 
                     else:
                         self.settings.temp.update(self.fsc.rsc, bypass_mf=False)
-                        if session_type == 1:
-                            agent_insertion = await self.wrap_mod_system(chat_session_num=self.settings.temp.chat_session, known_info=None, strict_conv=self.settings.temp.strict_conv)
-                            if not agent_insertion[0]:
-                                error = MaicaDbError('Chat session modding failed', '502')
-                                try:
-                                    error.message += f": {str(agent_insertion[1])}"
-                                except Exception:
-                                    error.message += ", no reason provided"
-                                await messenger(websocket, "maica_db_failure", traceray_id=self.traceray_id, error=error)
-
-                        elif session_type == 0:
-                            messages = [{'role': 'system', 'content': _basic_gen_system('[player]', self.settings.basic.target_lang)}, {'role': 'user', 'content': query_in}]
-
+                        agent_info=''
+                    
+                    prompt = await self.gen_system_prompt
                     if session_type == 1:
-                        try:
-                            check_result = await self.check_create_chat_session(self.settings.temp.chat_session)
-                            if check_result[0]:
-                                rw_result = await self.rw_chat_session(self.settings.temp.chat_session, 'r', messages0)
-                                if rw_result[0]:
-                                    messages = f'[{rw_result[3]}]'
-                                else:
-                                    raise Exception('Chat session reading failed')
-                            else:
-                                raise Exception('Chat session creation failed')
-                        except Exception as e:
-                            error = MaicaDbError(str(e), '500')
-                            await messenger(websocket, 'maica_db_failure', traceray_id=self.traceray_id, error=error)
-                        try:
-                            messages = json.loads(messages)
-                        except Exception as e:
-                            error = MaicaDbError(f'Chat session not JSON: {str(e)}', '500')
-                            await messenger(websocket, 'maica_db_corruption', traceray_id=self.traceray_id, error=error)
+                        messages = (await self.rw_chat_session('i', messages0, prompt))[1]
+                    elif session_type == 0:
+                        messages = [{'role': 'system', 'content': prompt}, messages0]
 
             # Construction part done, communication part started
 
@@ -878,7 +782,7 @@ class WsCoroutine(NoWsCoroutine):
                 trigger_resp = (False, None)
 
             if self.settings.temp.ms_cache and not self.settings.temp.bypass_gen and not replace_generation:
-                await self.store_hashed_cache(ms_cache_identity, reply_appended)
+                await self.store_ms_cache(ms_cache_identity, reply_appended)
 
             trigger_succ, trigger_sce = trigger_resp
             if trigger_succ:
