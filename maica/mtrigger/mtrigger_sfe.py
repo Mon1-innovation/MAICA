@@ -5,7 +5,7 @@ import json
 import asyncio
 import datetime
 import traceback
-from random import sample
+from .trigger_class import *
 from maica_utils import *
 
 class MtBoundCoroutine(SideBoundCoroutine):
@@ -17,27 +17,29 @@ class MtBoundCoroutine(SideBoundCoroutine):
     def get_valid_triggers(self):
         if not self.settings.basic.mt_extraction and not self.settings.temp.mt_extraction_once:
             return None
-        aff=[];swt=[];met=[];cus=[]
-        for trigger in self.sf_forming_buffer:
-            match trigger['template']:
+        aff_trigger_list: list[CommonAffectionTrigger] = []
+        switch_trigger_list: list[CommonSwitchTrigger] = []
+        meter_trigger_list: list[CommonMeterTrigger] = []
+        customized_trigger_list: list[CustomizedTrigger] = []
+
+        for trigger_dict in self.sf_forming_buffer:
+            match trigger_dict['template']:
                 case 'common_affection_template':
-                    aff.append(trigger)
+                    trigger_inst = CommonAffectionTrigger(**trigger_dict)
+                    aff_trigger_list.append(trigger_inst)
                 case 'common_switch_template':
-                    swt.append(trigger)
+                    trigger_inst = CommonSwitchTrigger(**trigger_dict)
+                    switch_trigger_list.append(trigger_inst)
                 case 'common_meter_template':
-                    met.append(trigger)
+                    trigger_inst = CommonMeterTrigger(**trigger_dict)
+                    meter_trigger_list.append(trigger_inst)
                 case _:
-                    cus.append(trigger)
-        aff = [aff[0]] if aff else []
-        if len(swt) > 6:
-            swt = sample(swt, 6)
-        if len(met) > 6:
-            met = sample(met, 6)
-        if len(cus) > 20:
-            cus = sample(cus, 20)
-        for trigger in swt:
-            if len(trigger['exprop']['item_list']) == 0:
-                swt.remove(trigger)
-            if len(trigger['exprop']['item_list']) > 72:
-                trigger['exprop']['item_list'] = sample(trigger['exprop']['item_list'], 72)
-        return aff + swt + met + cus
+                    trigger_inst = CustomizedTrigger(**trigger_dict)
+                    customized_trigger_list.append(trigger_inst)
+
+        aff_trigger_list = limit_length(aff_trigger_list, 1)
+        switch_trigger_list = limit_length(switch_trigger_list, 6)
+        meter_trigger_list = limit_length(meter_trigger_list, 6)
+        customized_trigger_list = limit_length(customized_trigger_list, 20)
+
+        return aff_trigger_list + switch_trigger_list + meter_trigger_list + customized_trigger_list

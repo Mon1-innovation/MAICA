@@ -23,17 +23,26 @@ class MFocusCoroutine():
         self.maica_pool = fsc.maica_pool
         
         self.agent_tools = AgentTools(fsc, sf_inst)
-        asyncio.run(self.reset())
+        self.reset()
 
-    async def reset(self):
-        await asyncio.gather(self.sf_inst.reset(), self.mt_inst.reset())
+    def reset(self):
+        """Caution: we should reset sf_inst and mt_inst here, but these are done more manually to prevent duplication."""
         self.tnd_aggressive = self.settings.extra.tnd_aggressive
         if self.settings.temp.ic_prep:
             self.tnd_aggressive = 2
         self.tools = []
         self.serial_messages = []
 
+    async def full_reset(self):
+        """This resets sf_inst and mt_inst too."""
+        reset_list = [self.sf_inst.reset()]
+        if self.mt_inst:
+            reset_list.append(self.mt_inst.reset())
+        await asyncio.gather(*reset_list)
+        self.reset()
+
     def _construct_tools(self):
+        self.tools = []
         if self.mt_inst and not self.settings.temp.bypass_mt:
             trigger_list = self.mt_inst.get_valid_triggers()
         else:
@@ -165,32 +174,32 @@ class MFocusCoroutine():
         if trigger_list and self.settings.extra.amt_aggressive:
             choice_list = []; choice_checklist = []
             for trigger in trigger_list:
-                match trigger['template']:
+                match trigger.template:
                     case 'common_affection_template':
                         pass
                     case 'common_switch_template':
                         cst_temp_list = []
-                        for i in trigger['exprop']['item_list']:
+                        for i in trigger.exprop.item_list:
                             j = f'选择{i}' if self.settings.basic.target_lang == 'zh' else f'switch to {i}'
                             choice_checklist.append(j)
                             cst_temp_list.append(j)
 
-                        if trigger['exprop'].get('suggestion'):
-                            j = f"选择未列出的{trigger['exprop']['item_name']['zh']}" if self.settings.basic.target_lang == 'zh' else f"Choose an unlisted {trigger['exprop']['item_name']['en']}"
+                        if trigger.exprop.suggestion:
+                            j = f"选择未列出的{trigger.exprop.item_name.zh}" if self.settings.basic.target_lang == 'zh' else f"Choose an unlisted {trigger.exprop.item_name.en}"
                             choice_checklist.append(j)
                             cst_temp_list.append(j)
 
-                        cst_explaination = f"更换{trigger['exprop']['item_name']['zh']}" if self.settings.basic.target_lang == 'zh' else f"Change {trigger['exprop']['item_name']['en']}"
+                        cst_explaination = f"更换{trigger.exprop.item_name.zh}" if self.settings.basic.target_lang == 'zh' else f"Change {trigger.exprop.item_name.en}"
                         choice_list.append({cst_explaination: cst_temp_list})
 
                     case 'common_meter_template':
-                        cmt_iname = f'调整{trigger['exprop']['item_name']['zh']}' if self.settings.basic.target_lang == 'zh' else f'Adjust {trigger['exprop']['item_name']['en']}'
+                        cmt_iname = f'调整{trigger.exprop.item_name.zh}' if self.settings.basic.target_lang == 'zh' else f'Adjust {trigger.exprop.item_name.en}'
                         choice_checklist.append(cmt_iname)
-                        j = f"调整{cmt_iname}, 范围是{trigger['exprop']['value_limits'][0]}到{trigger['exprop']['value_limits'][1]}" if self.settings.basic.target_lang == 'zh' else f"Adjust {cmt_iname} within range {trigger['exprop']['value_limits'][0]} to {trigger['exprop']['value_limits'][1]}"
+                        j = f"{cmt_iname}, 范围是{trigger.exprop.value_limits[0]}到{trigger.exprop.value_limits[1]}" if self.settings.basic.target_lang == 'zh' else f"{cmt_iname} within range {trigger.exprop.value_limits[0]} to {trigger.exprop.value_limits[1]}"
                         choice_list.append(j)
 
                     case _:
-                        cc_iname = trigger['usage']['zh'] if self.settings.basic.target_lang == 'zh' else trigger['usage']['en']
+                        cc_iname = trigger.exprop.item_name.zh if self.settings.basic.target_lang == 'zh' else trigger.exprop.item_name.en
                         j = f"触发{cc_iname}" if self.settings.basic.target_lang == 'zh' else f"Trigger {cc_iname}"
                         choice_checklist.append(j)
                         choice_list.append(j)
@@ -207,7 +216,7 @@ class MFocusCoroutine():
                             "properties": {
                                 "prediction": {
                                     "type": "string",
-                                    "description": f"你将收到一系列可用选项. 若某选项能够满足用户的请求, 则输出该选项, 否则输出false. 以下是可用选项: {str(choice_list)}" if self.settings.basic.target_lang == 'zh' else f"You'll be offered a list of avaliable choices. return the choice if you think it matches the query, or return false if none matches. Avaliable choices: {str(choice_list)}",
+                                    "description": f"你将收到一系列可用选项. 若某选项能够满足用户的请求, 则输出该选项, 否则输出false. 以下是可用选项:\n{str(choice_list)}" if self.settings.basic.target_lang == 'zh' else f"You'll be offered a list of avaliable choices. return the choice if you think it matches the query, or return false if none matches. Avaliable choices:\n{str(choice_list)}",
                                     "example_value": random.choice(choice_checklist)
                                 }
                             },
@@ -288,7 +297,10 @@ class MFocusCoroutine():
 
         resp = await self.mfocus_conn.make_completion(**completion_args)
         content, tool_calls = resp.choices[0].message.content, resp.choices[0].message.tool_calls
-        content_no_think = ReUtils.re_search_post_think.search(content)[1]
+        try:
+            content_no_think = ReUtils.re_search_post_think.search(content)[1]
+        except:
+            content_no_think = None
         if content_no_think:
             self.serial_messages.append({"role": "assistant", "content": content_no_think})
         return content, tool_calls
@@ -327,6 +339,7 @@ class MFocusCoroutine():
         # First thing first we prepare the first query
         self._construct_tools()
         await self._construct_query(user_input=query)
+        
         cycle = 0; ending = False
         while cycle <= 7 and not ending:
 
@@ -428,13 +441,13 @@ class MFocusCoroutine():
             await messenger(self.websocket, 'maica_mfocus_no_conclusion', 'MFocus got no conclusion, falling back to instruction', '404', traceray_id=self.traceray_id)
             
         # Then if mfa not enabled or ignored
-        if self.settings.extra.tnd_aggressive >= 1:
+        if self.tnd_aggressive >= 1:
             # Add time and events
             if not instructed_answer.get('time_acquire'):
                 _instructed_add('time_acquire', (await self.agent_tools.time_acquire())[1], False)
             if not instructed_answer.get('event_acquire'):
                 _instructed_add('event_acquire', (await self.agent_tools.event_acquire())[1], False)
-        if self.settings.extra.tnd_aggressive >= 2:
+        if self.tnd_aggressive >= 2:
             # Add date and weather
             if not instructed_answer.get('date_acquire'):
                 _instructed_add('date_acquire', (await self.agent_tools.date_acquire())[1], False)

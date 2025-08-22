@@ -332,7 +332,7 @@ maica_main和maica_core共用chat_session.
             该模板的触发器最多存在6个, 超出则随机抽取6个.
             每个该模板触发器的item_list中最多存在72项, 超出则随机抽取72项.
         模板common_meter_template:
-            范例: {"template": "common_meter_template","name": "change_distance","exprop":{"item_name": {"zh": "距离","en": "distance"},"value_limits": [0, 2.5],"curr_value": 0.67}}
+            范例: {"template": "common_meter_template","name": "change_distance","exprop":{"item_name": {"zh": "距离","en": "distance"},"value_limits": [0.0, 2.5],"curr_value": 0.67}}
             其中name的值可以任取, 建议格式与范例尽可能一致且能表明用途.
             exprop的值是该模板的附加参数, 其中item_name的值为选择类目的性质(双语), value_limits的两个项为数值可取的上下限, curr_value的值为当前值. curr_value是可留空或缺省的.
             如果触发器匹配了请求, 但范围内没有值满足条件, 返回的选择将是false.

@@ -9,6 +9,7 @@ import inspect
 import colorama
 import time
 import datetime
+import random
 from typing import *
 from dotenv import load_dotenv as __load_dotenv
 """Import layer 1"""
@@ -213,6 +214,9 @@ async def wrap_run_in_exc(loop, func, *args, **kwargs) -> any:
     result = await loop.run_in_executor(None, functools.partial(func, *args, **kwargs))
     return result
 
+def limit_length(col: list, limit: int) -> list:
+    return random.sample(col, limit) if limit < len(col) else col
+
 async def get_json(url) -> json:
     """Get JSON context from an endpoint."""
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'}
@@ -277,10 +281,12 @@ def clean_text(text: str) -> str:
 
 def try_load_json(j: str) -> dict:
     """I'd basically trust the LLM here, they're far better than the earlier ones."""
+    if not j or j.lower() in ['none', 'false']:
+        return {}
     try:
         return json.loads(j)
     except Exception:
-        return j
+        return {}
 
 async def hash_sha256(str) -> str:
     """Get SHA256 for a string."""

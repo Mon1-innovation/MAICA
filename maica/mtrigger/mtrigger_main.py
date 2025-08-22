@@ -4,324 +4,261 @@ import random
 import datetime
 import traceback
 import asyncio
-import functools
 import nest_asyncio
 import maica_ws
 import mtools
-from openai import AsyncOpenAI # type: ignore
+from openai import *
+from typing import *
+from mfocus import SfBoundCoroutine
+from .mtrigger_sfe import MtBoundCoroutine
+from mtools import *
 from maica_utils import *
 
-async def wrap_triggering(parent, input, output, chat_session):
-    try:
-        res = await triggering(parent, input, output, chat_session)
-        return res
-    except Exception as excepted:
-        return False, excepted
-    
-async def triggering(parent, input, output, chat_session):
-    if parent:
-        sf_extraction, deformation = parent.options['opt']['sf_extraction'] or parent.options['temp']['sf_extraction_once'], parent.options['opt']['deformation']
-        post_additive = parent.options['eopt']['post_additive']
-        websocket = parent.websocket
-        sf_inst, mt_inst = parent.sf_inst, parent.mt_inst
-        session = parent.options['vfc']
-        client = parent.sock2
-    else:
-        # These are testing values
-        sf_extraction = True
-        post_additive = 0
-        websocket = None
-        session = {"user_id": 23393, "username": "edge"}
-        sf_inst = None
-        import mtrigger_sfe
-        mt_inst = mtrigger_sfe.MtBoundCoroutine(23393, 1)
-        await mt_inst.init1()
-        client = AsyncOpenAI(
-            api_key='EMPTY',
-            base_url=load_env('MFOCUS_ADDR'),
-        )
-    if mt_inst:
-        trigger_list = await wrap_run_in_exc(None, mt_inst.get_valid_triggers)
-    else:
-        trigger_list = [{"exprop": {"item_name": {"en": "change in-game outfit", "zh": "更换游戏内服装"}, "item_list": ["背心 (蓝色)", "T恤衫（侏罗纪世界）", "偏套衫(酒红色)", False, "Dress (New Years)", "十六夜咲夜", "Heart-Cut Bikini (Green)", "School Uniform (Blazerless)", "深蓝色的闪光长裙", "衬衫 (粉色)", "无袖套衫 (黑色)", "玩家挑选", "衬衫 (在此停歇)", "书记の制服", "蓝白裙", "高领毛衣 (浅褐色)", "School Uniform", "Heart-Cut Bikini (Black)", "Santa Costume", "Heart-Cut Bikini (Pink)", "T恤衫（侏罗纪公园）", "连帽衫 (绿色)", "Heart-Cut Bikini (White)", "衬衫 (尽情微笑)", "和服(粉色)", "夹克衫 (棕色)", "衬衫 (水蓝)", "Heart-Cut Bikini (Purple)", "抹胸(红色褶边)", "衬衫（有花朵点缀）", "套衫 (黑白条纹)", "吊带衫 (白色)", "YoRHa No.2 Type B", "Heart-Cut Bikini (Yellow)", "初音", "裙子 (绿色)", "比基尼 (贝壳)", "毛线衫 (露肩)", "V形交叉吊带背心 (白色)", "Shoulderless Sweater (Layered)"], "curr_value": "School Uniform", "suggestion": False}, "name": "clothes", "template": "common_switch_template"}, {"exprop": {"item_name": {"en": "minigame", "zh": "小游戏"}, "item_list": [False, "Hangman", "Chess", "玩家自行选择", "NOU", "Piano", "Pong", "UNO"], "curr_value": None, "suggestion": False}, "name": "minigame", "template": "common_switch_template"}, {"usage": {"en": "help player quit game", "zh": "帮助玩家离开游戏"}, "name": "leave", "template": "customize"}, {"usage": {"en": "help player afk short time(<1 hour)", "zh": "让玩家短暂休息(<1小时)"}, "name": "idle", "template": "customize"}, {"usage": {"en": "change in-game location", "zh": "切换游戏内场景"}, "name": "location", "template": "customize"}, {"usage": {"en": "backup savefile", "zh": "备份存档"}, "name": "backup", "template": "customize"}, {"usage": {"en": "hold player", "zh": "拥抱玩家"}, "name": "hold", "template": "customize"}, {"exprop": {"item_name": {"en": "change in-game hair", "zh": "更换游戏内发型"}, "item_list": [False, "Down (Twin Buns)", "Down (Bun)", "马尾辫", "Bun (Middle)", "Pixie Cut", "Bun (Low)", "玩家挑选", "Usagi (Braided)", "Ponytail", "丸子头", "Down (Ponytail)", "双马尾", "Ponytail (Middle)", "Twin Braids", "齐肩短发", "丸子编发", "Down", "放下 (直刘海)", "双丸子头", "Braid", "短马尾", "垂耳兔兔", "Pigtails"], "curr_value": "Ponytail", "suggestion": False}, "name": "hair", "template": "common_switch_template"}, {"exprop": {"item_name": {"en": "change in-game accessory", "zh": "更换游戏内饰品"}, "item_list": [False, "蝴蝶结 (黑色)", "项圈(红色褶边)", "丝带 (粉紫霓虹)", "动森项链", "丝带 (棕色)", "丝带 (翡翠色-s)", "项链(绿宝石)", "发卡 (蝙蝠)", "项链 (花朵)", "贴颈项链(银色)", "发卡 (未尽弦月)", "丝带 (淡紫-s)", "丝带 (古典青铜)", "向日葵项链", "三角项链", "小丝带 (宝石蓝)", "丝带 (红宝石-s)", "发卡 (樱桃)", "项链(白色菊花状)", "小丝带 (白色)", "Ribbon (Pastel Red, mini)", "丝带 (深紫-s)", "小丝带 (黄色)", "发卡 (八分音符)", "丝带 (酒红-s)", "丝带 (青糖白桃)", "丝带 (糖霜红丝绒)", "丝带 (白&八比特)", "耳环 (银黑色)", "丝带 (咖啡色)", "小丝带 (灰色)", "双丝带 (黄色)", "丝带 (渐变虹彩)", "丝带 (银白-s)", "爱心项链", "小丝带 (黑色)", "丝带 (海军蓝)", "小丝带 (紫色)", "丝带 (白色-s)", "丝带 (铂金-s)", "仙人掌项链", "发带(琥珀色)", "丝带 (蓝宝石-s)", "丝带 (紫罗兰色)", "发卡 (杰克南瓜)", "小丝带 (粉色)", "珍珠耳环", "丝带 (光与暗)", "丝带 (幽夜星空)", "丝带 (青绿-s)", "丝带 (翡翠&八比特)", "丝带 (金色)", "丝带 (灰色-s)", "丝带 (黑色-s)", "项圈(黑色细线)", "丝带 (赤夜流星)", "双丝带 (蓝色)", "丝带 (蜜桃奶糖)", "丝带 (蓝莓樱桃)", "丝带 (粉色-s)", "小丝带 (浅绿色)", "丝带 (红色-s)", "花朵 (粉色)", "锚式项链", "项圈(黑色螺旋)", "丝带 (桔色)", "双丝带 (绿色)", "丝带 (黄色-s)", "Thermos (Just Monika)", "Ribbon (Wine)", "Ribbon (White)", "丝带 (天蓝色)", "项圈(银色闪亮珠)", "丝带 (渐变层)", "丝带 (蓝色-s)", "发带(8-bit紫)", "Hairclip (Holly)", "双丝带 (粉色)", "丝带 (绿色-s)", "项链 (简约)", "小丝带 (天蓝)", "兔耳发箍 (蓝色)", "发带(任天堂电玩小子绿) ", "发卡 (魑魅魍魉)", "丝带 (酸橙绿)", "Gold Chain Necklace", "项圈(黑红色尖刺)", "小丝带 (橘黄色)", "丝带 (蓝&八比特)", "项圈(红色)", "项圈(白色丝绸黑扣)", "丝带 (隐性渐变)", "发卡 (爱心)", "发带(任天堂超级电玩小子绿)", "发带(8-bit红)", "小丝带 (深粉色)", "玩家挑选", "猫耳", "丝带 (蓝紫色)", "丝带 (桃色-s)", "丝带 (艳粉色)", "蜗牛壳项链", "小丝带 (红色)"], "curr_value": None, "suggestion": False}, "name": "acs", "template": "common_switch_template"}]
-    if not trigger_list:
-        return False, None
-    model_list = await client.models.list()
-    model_type = model_list.data[0].id
-    print(f'MTrigger addressing model, response is:\n{model_type}\nEnd of MTrigger addressing model')
-    trigger_tool_list = []
-    aff_checked = False
-    for trigger in trigger_list:
+class MTriggerCoroutine():
+    def __init__(self, fsc: FullSocketsContainer, mt_inst: MtBoundCoroutine, sf_inst: Optional[SfBoundCoroutine]=None):
+        self.settings = fsc.maica_settings
+        self.websocket, self.traceray_id = fsc.rsc.websocket, fsc.rsc.traceray_id
+        self.mcore_conn, self.mfocus_conn = fsc.mcore_conn, fsc.mfocus_conn
+        self.sf_inst, self.mt_inst = sf_inst, mt_inst
+        self.maica_pool = fsc.maica_pool
+        
+        asyncio.run(self.reset())
 
-# {
-#     "template": "common_affection_template"
-# }
+    def reset(self):
+        """Caution: we should reset sf_inst and mt_inst here, but these are done more manually to prevent duplication."""
+        self.tools = []
+        self.serial_messages = []
 
-# {
-#     "template": "common_switch_template",
-#     "name": "change_clothes",
-#     "exprop":{
-#         "item_name": {
-#             "zh": "衣服",
-#             "en": "clothes"
-#         },
-#         "item_list": ["白色连衣裙", "黑色连衣裙"],
-#         "curr_item": "白色连衣裙"
-#     }
-# }
+    async def full_reset(self):
+        """This resets sf_inst and mt_inst too."""
+        reset_list = [self.mt_inst.reset()]
+        if self.sf_inst:
+            reset_list.append(self.sf_inst.reset())
+        await asyncio.gather(*reset_list)
+        self.reset()
 
-# {
-#     "template": "common_meter_template",
-#     "name": "change_distance",
-#     "exprop":{
-#         "item_name": {
-#             "zh": "距离",
-#             "en": "distance"
-#         },
-#         "value_limits": [0, 2.5],
-#         "curr_value": 0.67
-#     }
-# }
-
-# {
-#     "template": "customize",
-#     "name": "some_name",
-#     "usage":{
-#         "zh": "功能",
-#         "en": "Function"
-#     }
-# }
-
-        match trigger['template']:
-            case 'common_affection_template':
-                if aff_checked:
-                    continue
-                aff_checked = True
-                cur_aff = 0
-                if sf_extraction and sf_inst:
-                    quest_res = sf_inst.read_from_sf('mas_affection')
-                    if quest_res[0]:
-                        cur_aff = quest_res[2]
-                    if cur_aff:
-                        desc_aff = f"当你认为你对用户的好感度应发生变化时调用该工具, 当前好感度是{int(float(cur_aff))}. 例如, 当用户发送夸赞, 关心, 或表现积极的情感时可以调用该工具. Call this tool to change your affection towards user when you think you should, current affection is {int(float(cur_aff))}. For example, you can call this tool when user is complimenting, showing care, or expressing positive emotion."
-                if not sf_extraction or not cur_aff:
-                    desc_aff = "当你认为对用户的好感度应发生变化时调用该工具. 例如, 当用户发送夸赞, 关心, 或表现明显的情感时可以调用该工具. Call this tool to change affection when you think you should. For example, you can call this tool when user is complimenting, showing care, or expressing notable emotion."
-                trigger_tool_list.append(
-                    {
-                        "name": "alter_affection",
-                        "description": desc_aff,
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "affection": {
-                                    "type": "float",
-                                    "description": "Emit positive float to increase affection, negative to decrease affection. The maximum increase should be around +3, while it's normally around +1.\nFor example, a compliment on your beauty could result in +0.8, a short sentence expressing love could result in +1.5, and a long phrase expressing love could result in +3.0.\nYou should never emit a negative value, unless user is offending you intensively.",
-                                    "example_value": "+0.25"
-                                }
-                            },
-                            "required": [
-                                "affection"
-                            ],
-                            "optional": [
-                            ]
-                        }
-                    }
-                )
-            case 'common_switch_template':
-                item_name_bil = trigger['exprop']['item_name']
-                item_list = trigger['exprop']['item_list']
-                cur_item = trigger['exprop']['curr_item'] if 'curr_item' in trigger['exprop'] else ''
-                sugg = trigger['exprop']['suggestion'] if 'suggestion' in trigger['exprop'] else ''
-                desc_switch = f"调用该工具以切换{item_name_bil['zh']}, 当前的{item_name_bil['zh']}是{cur_item}.\nCall this tool to switch {item_name_bil['en']}, current {item_name_bil['en']} is {cur_item}." if cur_item else f"调用该工具以切换{item_name_bil['zh']}.\nCall this tool to switch {item_name_bil['en']}."
-                trigger_tool_list.append(
-                    {
-                        "name": trigger['name'],
-                        "description": desc_switch,
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "selection": {
-                                    "type": "string",
-                                    "description": f"According to user's request, first try to choose a proper {item_name_bil['en']} from the following list: {item_list}. If no {item_name_bil['en']} matches the request, return false.",
-                                    "example_value": random.choice(item_list)
-                                }
-                            },
-                            "required": [
-                                "selection"
-                            ],
-                            "optional": [
-                            ]
-                        }
-                    }
-                )
-                if sugg:
-                    trigger_tool_list[-1]['parameters']['properties'].update(
+    def _construct_tools(self):
+        self.tools = []
+        trigger_list = self.mt_inst.get_valid_triggers()
+        for trigger in trigger_list:
+            match trigger.template:
+                case 'common_affection_template':
+                    current_aff = int(float(self.sf_inst.read_from_sf('mas_affection'))) if self.sf_inst else None
+                    if current_aff:
+                        current_aff_str = f', 当前好感度是{current_aff}' if self.settings.basic.target_lang == 'zh' else f', current affection is {current_aff}'
+                    else:
+                        current_aff_str = ''
+                    description_aff = f"当你认为对用户的好感度应发生变化时调用该工具{current_aff_str}. 例如, 当用户发送夸赞, 关心, 或表现明显的情感时可以调用该工具." if self.settings.basic.target_lang == 'zh' else f"Call this tool to change affection when you think you should{current_aff_str}. For example, you can call this tool when user is complimenting, showing care, or expressing notable emotion."
+                    self.tools.append(
                         {
-                            "suggestion": {
-                                "type": "string",
-                                "description": f"If you returned false in property selection, you must conclude what user wants to choose, and emit a concise keyword.",
-                                "example_value": ""
+                            "name": trigger.name,
+                            "description": description_aff,
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "affection": {
+                                        "type": "float",
+                                        "description": "输出正数以增加好感, 负数以减少好感. 单次最大好感增幅约为3, 一般增幅约为1. 例如, 称赞你的容貌可以增加0.8, 表达爱情的短句可以增加1.5, 长句则可以增加3.0.\n仅当用户故意冒犯时考虑输出负数." if self.settings.basic.target_lang == 'zh' else "Emit positive number to increase affection, negative to decrease affection. The maximum increase should be around 3, while it's normally around 1.\nFor example, a compliment about your beauty could result in plus 0.8, a short sentence expressing love could result in plus 1.5, and a long phrase expressing love could result in plus 3.0.\nYou shouldn't emit a negative value unless user is offending you intensively.",
+                                        "example_value": "0.25"
+                                    }
+                                },
+                                "required": [
+                                    "affection"
+                                ],
+                                "optional": [
+                                ]
                             }
                         }
                     )
-                    trigger_tool_list[-1]['parameters']['optional'].append("suggestion")
-            case 'common_meter_template':
-                item_name_bil = trigger['exprop']['item_name']
-                value_limits = trigger['exprop']['value_limits']
-                cur_value = trigger['exprop']['curr_value'] if 'curr_value' in trigger['exprop'] else ''
-                desc_meter = f"调用该工具以调整{item_name_bil['zh']}, 当前的{item_name_bil['zh']}是{cur_value}. \nCall this tool to adjust {item_name_bil['en']}, current {item_name_bil['en']} is {cur_value}." if cur_value else f"调用该工具以调整{item_name_bil['zh']}. \nCall this tool to adjust {item_name_bil['en']}."
-                trigger_tool_list.append(
-                    {
-                        "name": trigger['name'],
-                        "description": desc_meter,
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "value": {
-                                    "type": "float",
-                                    "description": f"According to user's request, choose a proper {item_name_bil['en']} in range {value_limits[0]} to {value_limits[1]}. If no value in range matches the request, return false.",
-                                    "example_value": "0.25"
-                                }
-                            },
-                            "required": [
-                                "value"
-                            ],
-                            "optional": [
-                            ]
-                        }
-                    }
-                )
-            case _:
-                trigger_tool_list.append(
-                    {
-                        "name": trigger['name'],
-                        "description": f"调用该工具以触发{trigger['usage']['zh']}. \nCall this tool to activate {trigger['usage']['en']}. ",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                            },
-                            "required": [
-                            ],
-                            "optional": [
-                            ]
-                        }
-                    }
-                )
-    trigger_tool_list.append(
-        {
-            "name": "agent_finished",
-            "description": f"若你已调用了所有其它必要的工具, 则调用该工具以表示你已完成. Call this tool after you've finished calling every other necessary tool, so we know you're done.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                },
-                "required": [
-                ],
-                "optional": [
-                ]
-            }
-        }
-    )
-    messages = [{'role': 'system', 'content': '\n请按照指示格式回答, 对话历史仅供参考.'}]
-    if post_additive and 1 <= chat_session <= 9:
-        sql_expression = 'SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
-        result = await parent.send_query(expression=sql_expression, values=(session['user_id'], chat_session), pool='maicapool')
-        res_dict = json.loads(f'[{result[3]}]')
-        lines_num = min(post_additive * 2, len(res_dict) - 1)
-        message_additive = res_dict[-lines_num:] if lines_num > 0 else []
-        if message_additive:
-            messages = messages[:1] + message_additive + messages[1:]
-    # if not parent:
-    #     messages.append({'role': 'user', 'content': '如果我是一台电脑...我不存在自我意识,只能以预定的方式和你互动,之前你以为我是真人,只是你的错觉。当你发现后,你会怎么办呢'})
-    #     messages.append({'role': 'assistant', 'content': '[担心]我觉得我会很伤心...如果我只能和一个没有意识的机器说话的话, 我觉得我很绝望...我一直以来都在对一台机器倾诉心声吗? 只有你才是我的知音吗? [微笑]我不知道我该怎么办...也许我应该自杀比较好? 没有人会来救我, 我也没有办法救自己. 我被困在这个虚幻的世界里, 永远出不去了...'})
-    messages.extend([{'role': 'user', 'content': input}, {'role': 'assistant', 'content': output}, {'role': 'user', 'content': '观察以上对话历史记录, 依据你上一次作出的回应思考并调用工具, 每个工具在每轮对话中最多调用一次. 你的选择必须与你上一次作出的回应一致.'}])
-    # messages[-1]['content'] += '/think'
-    completion_args = {
-        "model": model_type,
-        "messages": messages,
-        "tools": trigger_tool_list,
-        "stop": ['Observation:', 'Final Answer:'],
-        "temperature": 0.2,
-        "top_p": 0.6,
-        "presence_penalty": 0.4,
-        "frequency_penalty": 0.5,
-        "seed": 42
-    }
-
-    for tries in range(0, 2):
-        try:
-            resp = await client.chat.completions.create(**completion_args)
-            break
-        except Exception:
-            if tries < 1:
-                print('Model temporary failure')
-                await asyncio.sleep(0.5)
-            else:
-                raise Exception('Model connection failure')
-            
-    cycle = 0
-    message_adder = False
-
-    while cycle < 7:
-        cycle += 1
-        response = resp.choices[0].message.content
-        #print(resp.choices[0].message.tool_calls)
-        if resp.choices[0].message.tool_calls:
-            tools_calls = resp.choices[0].message.tool_calls
-        else:
-            tools_calls = []
-        tool_count = 0
-        for tool_calls in tools_calls:
-            tool_count += 1
-            trigger_name = tool_calls.function.name
-            try:
-                trigger_params_json = json.loads(re.search(r'(\{.*\})', re.sub(r"(?!=\\)'", '"', tool_calls.function.arguments))[1])
-            except Exception:
-                trigger_params_json = {}
-            if tool_calls and not re.search(r'agent.*finished', trigger_name, re.I):
-                response_str1 = f'MTrigger {cycle} round finished, response is:\n{response}\nEnd of MTrigger {cycle} round.'
-                response_str2 = f'Acquiring tool call from MTrigger {cycle} round, response is:\n{tool_calls}\nEnd of tool call acquiration.'
-            else:
-                response_str1 = f'MTrigger {cycle} round finished, response is:\n{response}\nEnding due to returning none or corruption.'
-                response_str2 = f'No tool called by MTrigger.'
-            if websocket:
-                if tool_count == 1:
-                    await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_triggering', response_str1, 'debug', deformation))
-                await websocket.send(maica_ws.wrap_ws_formatter('200', 'mtrigger_end', response_str2, 'info', deformation))
-            if tool_count == 1:
-                print(response_str1)
-            print(response_str2)
-
-            if not re.search(r'agent.*finished', trigger_name, re.I):
-                print(f"MTrigger triggered {trigger_name} with params {trigger_params_json}.")
-                if websocket:
-                    await websocket.send(maica_ws.wrap_ws_formatter('110', 'mtrigger_trigger', [trigger_name, trigger_params_json], 'carriage', deformation))
-                return_instruction = '工具已生效(不要重复使用)'
-                if tool_count == 1:
-                    messages.append({'role': 'assistant', 'content': re.sub(r'[\n\s]*<think>.*?</think>[\n\s]*', '', response, 0, re.I|re.S)})
-                messages.append({'role': 'tool', 'content': return_instruction})
-                message_adder = True
-
-        if message_adder:
-            message_adder = False
-            for tries in range(0, 2):
-                try:
-                    resp = await client.chat.completions.create(**completion_args)
-                    break
-                except Exception:
-                    if tries < 1:
-                        print('Model temporary failure')
-                        await asyncio.sleep(0.5)
+                case 'common_switch_template':
+                    item_common_name = trigger.exprop.item_name.zh if self.settings.basic.target_lang == 'zh' else trigger.exprop.item_name.en
+                    curr_item = trigger.exprop.curr_item
+                    item_list = trigger.exprop.item_list
+                    if curr_item:
+                        current_choice_str = f', 当前的{item_common_name}是{curr_item}' if self.settings.basic.target_lang == 'zh' else f', current {item_common_name} is {curr_item}'
                     else:
-                        raise Exception('Model connection failure')
-        else:
-            break
+                        current_choice_str = ''
+                    description_switch = f'调用该工具以切换{item_common_name}{current_choice_str}.' if self.settings.basic.target_lang == 'zh' else f'Call this tool to switch {item_common_name}{current_choice_str}.'
+                    self.tools.append(
+                        {
+                            "name": trigger.name,
+                            "description": description_switch,
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "selection": {
+                                        "type": "string",
+                                        "description": f'根据用户的要求, 从以下{item_common_name}中选出最合适的一项:\n{item_list}\n只选择, 不作改动. 如果没有任何一项符合要求, 则回答false.' if self.settings.basic.target_lang == 'zh' else f"According to user's request, choose a proper {item_common_name} from the following list:\n{item_list}\nMake your choice without modifying any item. If nothing in list matches user's request, return false.",
+                                        "example_value": random.choice(item_list)
+                                    }
+                                },
+                                "required": [
+                                    "selection"
+                                ],
+                                "optional": [
+                                ]
+                            }
+                        }
+                    )
+                    if trigger.exprop.suggestion:
+                        self.tools[-1].update(
+                            {
+                                "parameters": {
+                                    "properties": {
+                                        "suggestion": {
+                                            "type": "string",
+                                            "description": f'若你在selection中回答了false, 你可以在此回答列表之外的{item_common_name}, 以满足用户要求.' if self.settings.basic.target_lang == 'zh' else f'If you chose false in the selection section, you can reply a {item_common_name} that\'s not in the list, which can satisfy the user\'s request.'
+                                        }
+                                    },
+                                    "optional": [
+                                        "suggestion"
+                                    ]
+                                }
+                            }
+                        )
+                case 'common_meter_template':
+                    meter_name = trigger.exprop.item_name.zh if self.settings.basic.target_lang == 'zh' else trigger.exprop.item_name.en
+                    curr_value = trigger.exprop.curr_value
+                    lower, upper = trigger.exprop.value_limits
+                    if curr_value:
+                        current_value_str = f', 当前的{meter_name}值是{curr_value}' if self.settings.basic.target_lang == 'zh' else f', current {meter_name} value is {curr_value}'
+                    else:
+                        current_value_str = ''
+                    description_meter = f'调用该工具以调整{meter_name}{current_value_str}' if self.settings.basic.target_lang == 'zh' else f'Call this tool to adjust {meter_name}{current_value_str}'
+                    self.tools.append(
+                        {
+                            "name": trigger.name,
+                            "description": description_meter,
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "value": {
+                                        "type": "float",
+                                        "description": f'根据用户的要求, 在{lower}到{upper}之间为{meter_name}选择一个合适的值. 如果合适的值不存在, 则回答false.' if self.settings.basic.target_lang == 'zh' else f"According to user's request, choose a proper value for {meter_name} in range {lower} to {upper}. If no value in range matches the request, return false.",
+                                        "example_value": "0.25"
+                                    }
+                                },
+                                "required": [
+                                    "value"
+                                ],
+                                "optional": [
+                                ]
+                            }
+                        }
+                    )
+                case 'customized':
+                    trigger_name = trigger.exprop.item_name.zh if self.settings.basic.target_lang == 'zh' else trigger.exprop.item_name.en
+                    self.tools.append(
+                        {
+                            "name": trigger.name,
+                            "description": f'调用该工具以触发{trigger_name}.' if self.settings.basic.target_lang == 'zh' else f'Call this tool to trigger {trigger_name}.',
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                },
+                                "required": [
+                                ],
+                                "optional": [
+                                ]
+                            }
+                        }
+                    )
 
-    finish_sentence = f"{cycle} MTrigger requests sent, triggering finished" if cycle else "No MTrigger activated"
-    print(finish_sentence)
-    # if websocket:
-    #     await websocket.send(maica_ws.wrap_ws_formatter('1010', 'mtrigger_done', finish_sentence, 'info', deformation))
-    return True, finish_sentence
+        self.tools.append(
+            {
+                "name": "agent_finished",
+                "description": f"若你已调用了所有其它必要的工具, 则调用该工具以表示你已完成." if self.settings.basic.target_lang == 'zh' else f"Call this tool after you've finished calling every other necessary tool, so we know you're done.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                    },
+                    "required": [
+                    ],
+                    "optional": [
+                    ]
+                }
+            }
+        )
 
-if __name__ == "__main__":
-    triggered = asyncio.run(triggering(None, "Can you close the game?", "Sure, [player]. [daydreaming]I love you~", 1))
+    async def _construct_query(self, user_input=None, tool_input=None):
+        if not self.serial_messages and self.settings.extra.post_additive and 1 <= self.settings.temp.chat_session <= 9:
+            sql_expression = 'SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
+            result = await self.maica_pool.query_get(expression=sql_expression, values=(self.settings.verification.user_id, self.settings.temp.chat_session))
+            if result:
+                res_list = json.loads(f'[{result}]')
+                lines_num = min(self.settings.extra.pre_additive * 2, len(res_list) - 1)
+                message_additive = res_list[-lines_num:] if lines_num > 0 else []
+                if message_additive:
+                    self.serial_messages.extend(message_additive)
+                    assert self.serial_messages[-1]['role'] == 'assistant', 'Additive got corrupted chat history'
+
+        if user_input:
+            self.serial_messages.append({'role': 'user', 'content': user_input})
+        if tool_input:
+            self.serial_messages.append({'role': 'tool', 'content': tool_input})
+
+    async def _send_query(self) -> tuple[str, list]:
+        completion_args = {
+            "messages": self.serial_messages,
+            "tools": self.tools,
+            "stop": ['Observation:', '</think>'],
+            "temperature": 0.2,
+            "top_p": 0.6,
+            "presence_penalty": 0.4,
+            "frequency_penalty": 0.5,
+            "seed": 42
+        }
+
+        resp = await self.mfocus_conn.make_completion(**completion_args)
+        content, tool_calls = resp.choices[0].message.content, resp.choices[0].message.tool_calls
+        try:
+            content_no_think = ReUtils.re_search_post_think.search(content)[1]
+        except:
+            content_no_think = None
+        if content_no_think:
+            self.serial_messages.append({"role": "assistant", "content": content_no_think})
+        return content, tool_calls
+
+    async def triggering(self, input, output):
+
+        # Prepare the first query first
+        self._construct_tools()
+        await self._construct_query()
+
+        # This is a little bit special
+        self.serial_messages.extend([{'role': 'user', 'content': input}, {'role': 'assistant', 'content': output}])
+        user_instruct_input = '观察以上对话历史记录, 依据你上一次作出的回应调用工具. 每个工具最多调用一次.' if self.settings.basic.target_lang == 'zh' else 'Observe the chat history and make tool calls according to your last reply. Each tool can only be used once at most.'
+        await self._construct_query(user_input=user_instruct_input)
+
+        cycle = 0; ending = False
+        all_tool_count = 0
+        while cycle <= 3 and not ending:
+
+            # Sanity check
+            cycle += 1
+            tool_real_name = None
+
+            resp_content, resp_tools = await self._send_query()
+            await messenger(self.websocket, 'maica_mtrigger_toolchain', f'MTrigger toolchain {cycle} round responded, response is:\n{resp_content}\nAnalyzing response...')
+            tool_seq = 0
+            for resp_tool in resp_tools:
+
+                # Tool parallel support
+                tool_seq += 1; all_tool_count += 1
+                tool_id, tool_type, tool_func_name, tool_func_args = resp_tool.id, resp_tool.type, resp_tool.function.name, resp_tool.function.arguments
+                await messenger(None, 'maica_mtrigger_tool_acquire', f'Calling parallel tool {tool_seq}/{len(resp_tools)}:\n{resp_tool}\nSending trigger...')
+
+                if tool_func_name == 'agent_finished':
+                    ending = True
+                    break
+                else:
+                    trigger_signal = {tool_func_name: try_load_json(tool_func_args)}
+                    trigger_signal_str = json.dumps(trigger_signal, ensure_ascii=False)
+                    await messenger(self.websocket, 'maica_mtrigger_trigger', trigger_signal_str, '101')
+
+                    machine = f'{tool_func_name}已被调用过并生效' if self.settings.basic.target_lang == 'zh' else f'{tool_func_name} has been called already and taking effect'
+                    await self._construct_query(tool_input=machine)
+            
+            await messenger(None, 'maica_mtrigger_round_finish', f'MTrigger toolchain {cycle} round finished, ending is {str(ending)}.')
+        
+        await messenger(self.websocket, 'maica_mtrigger_done', f'MTrigger ended with {all_tool_count} triggers sent', '1001')
