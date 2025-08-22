@@ -15,6 +15,8 @@ class MtBoundCoroutine(SideBoundCoroutine):
     DATA_TYPE = list
 
     def get_valid_triggers(self):
+        if not self.settings.basic.mt_extraction and not self.settings.temp.mt_extraction_once:
+            return None
         aff=[];swt=[];met=[];cus=[]
         for trigger in self.sf_forming_buffer:
             match trigger['template']:

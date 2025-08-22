@@ -76,6 +76,8 @@ class SideBoundCoroutine():
             self.sf_forming_buffer = kwargs
 
         def read_from_sf(self, key) -> any:
+            if not self.settings.basic.sf_extraction and not self.settings.temp.sf_extraction_once:
+                return None
             return self.sf_forming_buffer.get(key)
     else:
         def add_extra(self, *args) -> None:
@@ -85,4 +87,6 @@ class SideBoundCoroutine():
             self.sf_forming_buffer = args
 
         def read_from_sf(self, seq) -> any:
+            if not self.settings.basic.mt_extraction and not self.settings.temp.mt_extraction_once:
+                return None
             return self.sf_forming_buffer[seq]

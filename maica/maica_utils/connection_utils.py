@@ -142,7 +142,7 @@ class AiConnCoroutine():
                 await task_stream_resp
                 return task_stream_resp.result()
             except Exception:
-                if tries < 1:
+                if tries < 2:
                     await messenger(info=f'Model temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:

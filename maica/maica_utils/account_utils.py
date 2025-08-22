@@ -1,11 +1,14 @@
 import asyncio
 import bcrypt
 import base64
+import os
 from Crypto.Random import random as CRANDOM
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_PSS
+from Crypto.Signature.pss import PSS_SigScheme
 from Crypto.Hash import SHA256
+
 from .connection_utils import *
 from .maica_utils import *
 from .setting_utils import *
@@ -18,10 +21,11 @@ db_password = load_env('DB_PASSWORD')
 authdb = load_env('AUTH_DB')
 maicadb = load_env('MAICA_DB')
 
-def _get_keys() -> tuple[PKCS1_OAEP.PKCS1OAEP_Cipher, PKCS1_OAEP.PKCS1OAEP_Cipher, PKCS1_PSS.PSS_SigScheme, PKCS1_PSS.PSS_SigScheme]:
-    with open("../key/prv.key", "r") as privkey_file:
+def _get_keys() -> tuple[PKCS1_OAEP.PKCS1OAEP_Cipher, PKCS1_OAEP.PKCS1OAEP_Cipher, PSS_SigScheme, PSS_SigScheme]:
+    key_path = (os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(key_path, "../../key/prv.key"), "r") as privkey_file:
         privkey = privkey_file.read()
-    with open("../key/pub.key", "r") as pubkey_file:
+    with open(os.path.join(key_path, "../../key/pub.key"), "r") as pubkey_file:
         pubkey = pubkey_file.read()
     pubkey_loaded = RSA.import_key(pubkey)
     privkey_loaded = RSA.import_key(privkey)

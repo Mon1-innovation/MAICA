@@ -8,6 +8,7 @@ import json
 import inspect
 import colorama
 import time
+import datetime
 from typing import *
 from dotenv import load_dotenv as __load_dotenv
 """Import layer 1"""
@@ -78,6 +79,7 @@ class FSCPlain():
         self.mfocus_conn = mfocus_conn
 
 class ReUtils():
+    IS = re.I | re.S
     re_sub_password_spoiler = re.compile(r'"password"\s*:\s*"(.*?)"')
     re_search_sfe_fs = re.compile(r"first_session.*?datetime\(([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\)", re.I)
     re_search_sfe_ts = re.compile(r"total_sessions.*?([0-9]*)\s?,", re.I)
@@ -85,10 +87,22 @@ class ReUtils():
     re_search_sfe_le = re.compile(r"last_session_end.*?datetime\(([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\)", re.I)
     re_search_sfe_cs = re.compile(r"current_session_start.*?datetime\(([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\)", re.I)
     re_search_sfe_unicode = re.compile(r"u'(.*)'")
-    re_search_post_think = re.compile(r'</think>[\s\n]*(.*)')
+    re_search_post_think = re.compile(r'</think>[\s\n]*(.*)$', re.S)
     re_search_answer_none = re.compile(r'[\s\n:]*none[\s\n.]*$', re.I)
     re_search_answer_json = re.compile(r'^.*?([{\[].*[}\]])', re.S)
     re_sub_player_name = re.compile(r'\[player\]')
+    re_match_time_acquire = re.compile(r'.*time.*acquire', IS)
+    re_match_date_acquire = re.compile(r'.*date.*acquire', IS)
+    re_match_weather_acquire = re.compile(r'.*weather.*acquire', IS)
+    re_match_event_acquire = re.compile(r'.*event.*acquire', IS)
+    re_match_persistent_acquire = re.compile(r'.*persistent.*acquire', IS)
+    re_match_search_internet = re.compile(r'.*search.*internet', IS)
+    re_match_react_trigger = re.compile(r'.*react.*trigger', IS)
+    re_match_conclude_information = re.compile(r'.*conclude.*information', IS)
+    re_match_none = re.compile(r'.*none', IS)
+    re_findall_quoted = re.compile(r'"(.*?)"') # Normally we request JSON so we consider double quotes only
+    re_search_location_prompt = re.compile(r'(地区|周边|附近|周围|nearby|local)', re.I)
+    re_search_location_related = re.compile(r'(天气|温度|路况|降雨|weather|traffic|temperature|rain)', re.I)
 
 def default(exp, default, default_list: list=[None]) -> any:
     """If exp is in default list(normally None), use default."""
@@ -104,6 +118,19 @@ def wrap_ws_formatter(code, status, content, type, deformation=False, **kwargs) 
     }
     output.update(kwargs)
     return json.dumps(output, ensure_ascii=deformation)
+
+def fuzzy_match(pattern: str, text):
+    """Mostly used in agent things."""
+    if pattern == text:
+        return True
+    
+    # So they only compile once. Better than nothing
+    compiled_expression: Optional[Pattern] = getattr(ReUtils, f're_match_{pattern}')
+    if compiled_expression:
+        return compiled_expression.match(text)
+    else:
+        expression = pattern.replace('_', r'.*')
+        return re.match(expression, text, re.I | re.S)
 
 async def messenger(websocket=None, status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaError]=None, prefix='', type='', color='', add_time=True, no_print=False) -> None:
     """It could handle most log printing, websocket sending and exception raising jobs pretty automatically."""
@@ -195,17 +222,65 @@ async def get_json(url) -> json:
                 client = httpx.AsyncClient(proxy=load_env("PROXY_ADDR"))
                 res = (await client.get(url, headers=headers)).json()
                 break
-            except Exception:
+            except Exception as e:
                 if tries < 2:
                     print('HTTP temporary failure')
                     await asyncio.sleep(0.5)
                 else:
-                    raise Exception('Http connection failure')
-    except Exception:
-        raise Exception('Http connection failure')
+                    raise MaicaInternetWarning(f'HTTP connection failure: {str(e)}', '408')
+    except Exception as e:
+        raise e
     finally:
         await client.aclose()
     return res
+
+def vali_date(y, m, d) -> tuple[int, int, int]:
+    """What a pun!"""
+    try:
+        datetime.date(int(y), int(m), int(d))
+        return int(y), int(m), int(d)
+    except ValueError:
+        default_date = datetime.datetime.now()
+        return default_date.year, default_date.month, default_date.day
+    
+def is_today(date: datetime.datetime) -> bool:
+    """You mean my homework dues today?"""
+    return date.date() == datetime.datetime.now().date()
+
+def strip_date(date: datetime.datetime) -> str:
+    """Constructs a date query our API accepts."""
+    return f'{str(date.year)}-{str(date.month).zfill(2)}-{str(date.day).zfill(2)}'
+
+def refill_date(text: str) -> datetime.datetime:
+    """Constructs a datetime object from API response."""
+    y, m, d = text.split('-')
+    return datetime.datetime(int(y), int(m), int(d))
+
+def add_seq_suffix(seq: int) -> str:
+    """For English seq."""
+    match int(seq) % 10:
+        case 1:
+            st = 'st'
+        case 2:
+            st = 'nd'
+        case 3:
+            st = 'rd'
+        case _:
+            st = 'th'
+    return f'{str(seq)} {st}'
+
+def clean_text(text: str) -> str:
+    """Clean a text phrase, mostly for internet search."""
+    text = text.strip()
+    text = text.replace('\n', ' ')
+    return text
+
+def try_load_json(j: str) -> dict:
+    """I'd basically trust the LLM here, they're far better than the earlier ones."""
+    try:
+        return json.loads(j)
+    except Exception:
+        return j
 
 async def hash_sha256(str) -> str:
     """Get SHA256 for a string."""

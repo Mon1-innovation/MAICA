@@ -5,320 +5,255 @@ import re
 import traceback
 from .enet_scraping import internet_search
 from .weather_scraping import weather_api_get
+from mfocus import SfBoundCoroutine
 from maica_utils import *
 
-def time_tz(tz="zh"):
-    if tz == 'zh':
-        tz = "Asia/Shanghai"
-    elif tz == 'en':
-        tz = "America/Indiana/Vincennes"
-    try:
-        time_now = datetime.datetime.now(tz=pytz.timezone(tz))
-    except Exception:
-        time_now = datetime.datetime.now()
-    return time_now
+class AgentTools():
+    """I didn't intend to make classes everywhere, but they're oh so convenient."""
+    def __init__(self, fsc: FullSocketsContainer, sf_inst: SfBoundCoroutine):
+        self.fsc, self.sf_inst = fsc, sf_inst
 
-async def time_acquire(params, target_lang='zh', tz=None):
-    success = True
-    exception = None
-    time = time_tz(tz or target_lang)
-    match time:
-        case time if time.hour < 4:
-            time_range = '半夜' if target_lang == 'zh' else 'at midnight'
-        case time if 4 <= time.hour < 6:
-            time_range = '凌晨' if target_lang == 'zh' else 'before dawn'
-        case time if 6 <= time.hour < 8:
-            time_range = '早上' if target_lang == 'zh' else 'at dawn'
-        case time if 8 <= time.hour < 11:
-            time_range = '上午' if target_lang == 'zh' else 'in morning'
-        case time if 11 <= time.hour < 13:
-            time_range = '中午' if target_lang == 'zh' else 'at noon'
-        case time if 13 <= time.hour < 18:
-            time_range = '下午' if target_lang == 'zh' else 'in afternoon'
-        case time if 18 <= time.hour < 23:
-            time_range = '晚上' if target_lang == 'zh' else 'at night'
-        case time if 23 <= time.hour:
-            time_range = '深夜' if target_lang == 'zh' else 'at midnight'
-    time_friendly = f"现在是{time_range}{time.hour}点{str(time.minute).zfill(2)}分" if target_lang == 'zh' else f"It's now {str(time.hour).zfill(2)}:{str(time.minute).zfill(2)} {time_range}"
-    content = f'{str(time.hour).zfill(2)}:{str(time.minute).zfill(2)}'
-    return success, exception, content, time_friendly
-async def date_acquire(params, sf_extraction, sf_inst, target_lang='zh', tz=None):
-    success = True
-    exception = None
-    date = time_tz(tz or target_lang)
-    weeklist = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"] if target_lang == 'zh' else ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    weekday = weeklist[date.weekday()]
-    if sf_extraction:
+    def _time_tz(tz="zh"):
+        if tz == 'zh':
+            tz = "Asia/Shanghai"
+        elif tz == 'en':
+            tz = "America/Indiana/Vincennes"
         try:
-            south_north = sf_inst.read_from_sf('_mas_pm_live_south_hemisphere')
-            if south_north[0]:
-                if south_north[2]:
-                    match date:
-                        case date if 3 <= date.month < 6:
-                            season = '秋季' if target_lang == 'zh' else 'autumn'
-                        case date if 6 <= date.month < 9:
-                            season = '冬季' if target_lang == 'zh' else 'winter'
-                        case date if 9 <= date.month < 12:
-                            season = '春季' if target_lang == 'zh' else 'spring'
-                        case date if 12 <= date.month or date.month < 3:
-                            season = '夏季' if target_lang == 'zh' else 'summer'
-                    date_friendly = f"今天是{date.year}年{season}{date.month}月{date.day}日{weekday}" if target_lang == 'zh' else f"Today is {date.year}.{date.month}.{date.day} {season}, {weekday}"
-                    content = f'{date.year}.{date.month}.{date.day}, {weekday}'
-                    return success, exception, content, date_friendly
-        except Exception as excepted:
-            exception = excepted
-            # continue on failure - hemisphere may not be specified
-    match date:
-        case date if 3 <= date.month < 6:
-            season = '春季' if target_lang == 'zh' else 'spring'
-        case date if 6 <= date.month < 9:
-            season = '夏季' if target_lang == 'zh' else 'summer'
-        case date if 9 <= date.month < 12:
-            season = '秋季' if target_lang == 'zh' else 'autumn'
-        case date if 12 <= date.month or date.month < 3:
-            season = '冬季' if target_lang == 'zh' else 'winter'
-    date_friendly = f"今天是{date.year}年{season}{date.month}月{date.day}日{weekday}" if target_lang == 'zh' else f"Today is {date.year}.{date.month}.{date.day} {season}, {weekday}"
-    content = f'{date.year}.{date.month}.{date.day}, {weekday}'
-    return success, exception, content, date_friendly
-async def weather_acquire(params, sf_extraction, sf_inst, target_lang='zh'):
-    success = True
-    exception = None
-    likely_query = None
-    if params:
-        for possible_key in {'location', 'query', 'search', 'common'}:
-            if possible_key in params:
-                likely_query = params[possible_key]
-                break
-    try:
-        if likely_query:
-            weather_location = likely_query
-        else:
-            if sf_extraction:
-                weather_location = sf_inst.read_from_sf('mas_geolocation')[2]
-            else:
-                content = weather_friendly = '天气未知' if target_lang == 'zh' else "Weather unknown"
-        if likely_query or sf_extraction:
-            got_weather = weather_api_get(weather_location)
-            content = json.dumps(got_weather[2], ensure_ascii=False)
-            weather_friendly = f"当前气温是{got_weather[2]['temperature']}度, 当前天气是{got_weather[2]['weather']}, 当前湿度是{got_weather[2]['humidity']}%" if target_lang == 'zh' else f"Current temperature is {got_weather[2]['temperature']} degrees celsius, current weather is {got_weather[2]['weather']}, current humidity is {got_weather[2]['humidity']} percent"
-    except Exception as excepted:
-        success = False
-        exception = excepted
-        content = weather_friendly = '天气未知' if target_lang == 'zh' else "Weather unknown"
-    return success, exception, content, weather_friendly
-async def event_acquire(params, sf_extraction, sf_inst, pred_length=-1, small_eves = False, target_lang='zh', tz=None):
-    success = True
-    exception = None
-    holiday_friendly = ''
-    content = ''
-    time_today = time_tz(tz or target_lang)
-    if not isinstance(params, dict):
-        # Why didnt I consider this before
-        # This is just a patch
-        params = {}
-    def param_limit(checkparam):
-        match checkparam:
-            case 'year':
-                return 1000, 9999
-            case 'month':
-                return 1, 12
-            case 'day':
-                return 1, 31
-            case _:
-                return 0, 999999
-    for checkparam in ['year', 'month', 'day']:
-        if (not checkparam in params) or (not str(params[checkparam]).isdigit()) or (not param_limit(checkparam)[0] <= int(params[checkparam]) <= param_limit(checkparam)[1]):
-            params[checkparam] = eval(f'time_today.{checkparam}')
-    if [int(params['year']), int(params['month']), int(params['day'])] == [time_today.year, time_today.month, time_today.day]:
-        is_today = True
-        if not pred_length >= 0:
-            pred_length = 2
-    else:
-        is_today = False
-        if not pred_length >= 0:
-            pred_length = 0
-    time_instance_0 = datetime.datetime(int(params['year']), int(params['month']), int(params['day']))
-    time_instance_list = []
-    time_defined_list = []
-    event_days_list = []
-    for nextdays in range(pred_length+1):
-        time_instance_list.append(time_instance_0 + datetime.timedelta(days=nextdays))
-    for time_instance in time_instance_list:
-        time_defined_list.append(f'{str(time_instance.year)}-{str(time_instance.month).zfill(2)}-{str(time_instance.day).zfill(2)}')
-    if sf_extraction:
-        try:
-            player_bday = sf_inst.read_from_sf('mas_player_bday')[2]
-            player_bday[0], player_bday[1], player_bday[2]
-            player_has_bday = True
+            time_now = datetime.datetime.now(tz=pytz.timezone(tz))
         except Exception:
-            player_has_bday = False
-    else:
-        player_has_bday = False
-    time_defined_combined = ','.join(time_defined_list)
-    json_res = await get_json(f"{load_env('MFOCUS_AGENT_TOOLS')}/event/api.php?date={time_defined_combined}")
-    thisday = 0
-    for evday in json_res:
-        event_day_list = []
-        thisday_instance = time_instance_0 + datetime.timedelta(days=thisday)
-        thisday_defined = evday['date']
-        if is_today:
-            match thisday:
-                case 0:
-                    today = "今天" if target_lang == 'zh' else "Today"
-                case 1:
-                    today = "明天" if target_lang == 'zh' else "Tomorrow"
-                case 2:
-                    today = "后天" if target_lang == 'zh' else "The day after tomorrow"
-                case _:
-                    today = f"{thisday}天后" if target_lang == 'zh' else f"{thisday} days later"
-        else:
-            match thisday:
-                case 0:
-                    today = "这一天" if target_lang == 'zh' else "This day"
-                case 1:
-                    today = f"这一天后{thisday}天" if target_lang == 'zh' else f"{thisday} day after this day"
-                case _:
-                    today = f"这一天后{thisday}天" if target_lang == 'zh' else f"{thisday} days after this day"
-        thisday += 1
+            time_now = datetime.datetime.now()
+        return time_now
 
-        # Check player bday
-        if player_has_bday:
-            player_age = thisday_instance.year - int(player_bday[0])
-            if int(thisday_instance.month) == int(player_bday[1]) and int(thisday_instance.day) == int(player_bday[2]):
-                match player_age % 10:
+
+    async def time_acquire(self, *args, **kwargs) -> tuple[str, str]:
+        """Gets current time. Requires fsc."""
+        target_lang = self.fsc.maica_settings.basic.target_lang
+        tz = self.fsc.maica_settings.extra.tz
+        time = self._time_tz(tz or target_lang)
+        match time:
+            case time if time.hour < 4:
+                time_range = '半夜' if target_lang == 'zh' else 'at midnight'
+            case time if 4 <= time.hour < 6:
+                time_range = '凌晨' if target_lang == 'zh' else 'before dawn'
+            case time if 6 <= time.hour < 8:
+                time_range = '早上' if target_lang == 'zh' else 'at dawn'
+            case time if 8 <= time.hour < 11:
+                time_range = '上午' if target_lang == 'zh' else 'in morning'
+            case time if 11 <= time.hour < 13:
+                time_range = '中午' if target_lang == 'zh' else 'at noon'
+            case time if 13 <= time.hour < 18:
+                time_range = '下午' if target_lang == 'zh' else 'in afternoon'
+            case time if 18 <= time.hour < 23:
+                time_range = '晚上' if target_lang == 'zh' else 'at night'
+            case time if 23 <= time.hour:
+                time_range = '深夜' if target_lang == 'zh' else 'at midnight'
+        time_friendly = f"现在是{time_range}{time.hour}点{str(time.minute).zfill(2)}分" if target_lang == 'zh' else f"It's now {str(time.hour).zfill(2)}:{str(time.minute).zfill(2)} {time_range}"
+        content = f'{str(time.hour).zfill(2)}:{str(time.minute).zfill(2)}'
+        return content, time_friendly
+
+    async def date_acquire(self, *args, **kwargs) -> tuple[str, str]:
+        """Gets current date. Requires fsc and sf_inst."""
+        target_lang = self.fsc.maica_settings.basic.target_lang
+        tz = self.fsc.maica_settings.extra.tz
+        date = self._time_tz(tz or target_lang)
+        weeklist = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"] if target_lang == 'zh' else ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        weekday = weeklist[date.weekday()]
+        south = self.sf_inst.read_from_sf('_mas_pm_live_south_hemisphere')
+        if south:
+            match date:
+                case date if 3 <= date.month < 6:
+                    season = '秋季' if target_lang == 'zh' else 'autumn'
+                case date if 6 <= date.month < 9:
+                    season = '冬季' if target_lang == 'zh' else 'winter'
+                case date if 9 <= date.month < 12:
+                    season = '春季' if target_lang == 'zh' else 'spring'
+                case date if 12 <= date.month or date.month < 3:
+                    season = '夏季' if target_lang == 'zh' else 'summer'
+        else:
+            match date:
+                case date if 3 <= date.month < 6:
+                    season = '春季' if target_lang == 'zh' else 'spring'
+                case date if 6 <= date.month < 9:
+                    season = '夏季' if target_lang == 'zh' else 'summer'
+                case date if 9 <= date.month < 12:
+                    season = '秋季' if target_lang == 'zh' else 'autumn'
+                case date if 12 <= date.month or date.month < 3:
+                    season = '冬季' if target_lang == 'zh' else 'winter'
+        date_friendly = f"今天是{date.year}年{season}{date.month}月{date.day}日{weekday}" if target_lang == 'zh' else f"Today is {date.year}.{date.month}.{date.day} {season}, {weekday}"
+        content = f'{date.year}.{date.month}.{date.day}, {weekday}'
+        return content, date_friendly
+
+    async def weather_acquire(self, *args: list[str], **kwargs: dict[str: str]) -> tuple[str, str]:
+        """Gets current weather. Requires fsc and (sf_inst or location)."""
+        location = args[0] if args else kwargs.get('location')
+        target_lang = self.fsc.maica_settings.basic.target_lang
+        weather = None
+
+        if not location:
+            location = self.sf_inst.read_from_sf('mas_geolocation')
+
+        if location:
+            try:
+                weather = await weather_api_get(location)
+                content = json.dumps(weather, ensure_ascii=False)
+                weather_friendly = f"当前气温是{weather['temperature']}度, 当前天气是{weather['weather']}, 当前湿度是{weather['humidity']}%" if target_lang == 'zh' else f"Current temperature is {weather['temperature']} degrees celsius, current weather is {weather['weather']}, current humidity is {weather['humidity']} percent"
+            except CommonMaicaException as ce:
+                await messenger(None, 'maica_mfocus_weather_failed', traceray_id=self.fsc.rsc.traceray_id, error=ce)
+
+        if not weather:
+            content = '天气未知' if target_lang == 'zh' else "Weather unknown"
+            weather_friendly = None
+        return content, weather_friendly
+
+    async def event_acquire(self, *args, **kwargs: dict[str: int]) -> tuple[str, str]:
+        """Gets meaningful events. Requires fsc and sf_inst, optional ymd and predict."""
+        target_lang = self.fsc.maica_settings.basic.target_lang
+        tz = self.fsc.maica_settings.extra.tz
+        time_today = self._time_tz(tz or target_lang)
+
+        date_in = []
+        for k in 'year', 'month', 'day':
+            date_in.append(kwargs[k] if kwargs.get(k) else getattr(time_today, k))
+
+        try:
+            player_bday = self.sf_inst.read_from_sf('mas_player_bday')
+            player_bday = datetime.datetime(*vali_date(*player_bday))
+        except Exception:
+            player_bday = None
+
+        d0_is_today = False
+        target_date = datetime.datetime(*vali_date(*date_in))
+        predict = kwargs.get('predict')
+        if is_today(target_date):
+            d0_is_today = True
+            if predict is None:
+                predict = 2
+        elif predict is None:
+            predict = 0
+
+        time_query_list = []
+        for next_days in range(predict + 1):
+            time_query_list.append(strip_date(target_date + datetime.timedelta(days=next_days)))
+        time_query = ','.join(time_query_list)
+
+        result = await get_json(f"{load_env('MFOCUS_AGENT_TOOLS')}/event/api.php?date={time_query}")
+        days_event_list = []
+
+        day_seq = 0
+        for day_result in result:
+            day_seq += 1
+            detailed_day = (day_seq == 1)
+            very_detailed_day = (detailed_day and d0_is_today)
+
+            if d0_is_today:
+                match day_seq:
                     case 1:
-                        st_nd_rd = 'st'
+                        today = "今天" if target_lang == 'zh' else "Today"
                     case 2:
-                        st_nd_rd = 'nd'
+                        today = "明天" if target_lang == 'zh' else "Tomorrow"
                     case 3:
-                        st_nd_rd = 'rd'
+                        today = "后天" if target_lang == 'zh' else "The day after tomorrow"
                     case _:
-                        st_nd_rd = 'th'
-                bday_sentence = f"[player]的{player_age}岁生日" if target_lang == 'zh' else f"[player]'s {player_age}{st_nd_rd} birthday"
-                event_day_list.append(bday_sentence)
-
-        # Check monika bday and extendables
-        match (thisday_instance.month, thisday_instance.day):
-            case (9,22):
-                mbday_sentence = f"莫妮卡的生日" if target_lang == 'zh' else f"Monika's birthday"
-                event_day_list.append(mbday_sentence)
-
-        # Check common events
-        for desc in evday['describe']:
-            if 'Start' in desc and (desc['IsNotWork'] or (thisday == 1 and small_eves)):
-                evname = desc['Name'] if target_lang == 'zh' else desc['EnglishName']
-                event_day_list.append(evname)
-
-        today_is_exp = f"{today}是" if target_lang == 'zh' else f"{today} is "
-        join_exp = ", 也是" if target_lang == 'zh' else ", and also "
-        event_day = today_is_exp + join_exp.join(event_day_list) if len(event_day_list) else ''
-        if event_day:
-            event_days_list.append(event_day)
-        elif thisday == 1:
-            today_non_spec = f"{today}不是特殊节日" if target_lang == 'zh' else f"{today} is not a special event or holiday"
-            event_days_list.append(today_non_spec)
-    
-    if event_days_list:
-        event_days = '; '.join(event_days_list)
-        return success, exception, event_days, event_days
-    else:
-        match [is_today, target_lang]:
-            case [p, t] if p and t == 'zh':
-                today_or_not = "今天"
-            case [p, t] if p and t == 'en':
-                today_or_not = "Today"
-            case [p, t] if not p and t == 'zh':
-                today_or_not = "这一天"
-            case [p, t] if not p and t == 'en':
-                today_or_not = "This day"
-        content = "[None]"
-        holiday_friendly = f"{today_or_not}不是特殊节日" if target_lang == 'zh' else f"{today_or_not} is not a special event or holiday"
-    return success, exception, content, holiday_friendly
-async def persistent_acquire(params, sf_extraction, session, chat_session, sf_inst, target_lang='zh'):
-    #print(params)
-    success = True
-    exception = None
-    likely_query = None
-    for possible_key in {'question', 'query', 'search', 'common'}:
-        if possible_key in params:
-            likely_query = params[possible_key]
-            break
-    if likely_query:
-        query = likely_query
-    if sf_extraction:
-        try:
-            user_id = session['user_id']
-            pers_response = await sf_inst.mfocus_find_info(query)
-            if pers_response[0]:
-                content = pers_response[2]
-                persistent_friendly = pers_response[3]
+                        today = f"{day_seq - 1}天后" if target_lang == 'zh' else f"{day_seq - 1} days later"
             else:
-                success = False
-                exception = pers_response[1]
-                content = '没有相关信息' if target_lang == 'zh' else "No related information found"
-                persistent_friendly = ''
-        except Exception as excepted:
-            success = False
-            exception = excepted
-            content = '没有相关信息' if target_lang == 'zh' else "No related information found"
-            persistent_friendly = ''
-    else:
-        content = '没有相关信息' if target_lang == 'zh' else "No related information found"
-        persistent_friendly = ''
-    return success, exception, content, persistent_friendly
-async def internet_acquire(params, sf_extraction, sf_inst, original_query, esc_aggressive, target_lang='zh'):
-    success = True
-    exception = None
-    likely_query = None
-    searched_friendly = ''
-    content = []
-    for possible_key in {'question', 'query', 'search', 'common'}:
-        if possible_key in params:
-            likely_query = params[possible_key]
-            break
-    if not likely_query:
-        success = False
-        exception = 'NOQUERY'
-        content = '未找到结果' if target_lang == 'zh' else "No result found"
-        searched_friendly = ''
-    if sf_extraction:
-        try:
-            loc_caught = False
-            geolocation = sf_inst.read_from_sf('mas_geolocation')
-            if geolocation[0]:
-                if geolocation[2]:
-                    location = geolocation[2]
-                    for location_prompt in {'地区', '周边', '附近', '周围'}:
-                        if re.search(location_prompt, likely_query, re.I):
-                            likely_query = re.sub(rf'{location_prompt}', rf'{location}{location_prompt}', likely_query)
-                            loc_caught = True
-                    if not loc_caught:
-                        for locrelated_prompt in {'天气', '温度', '路况', '降雨', '霾', '店'}:
-                            if re.search(locrelated_prompt, likely_query, re.I):
-                                likely_query = re.sub('^', rf'{location} ', likely_query)
-                                break
-        except Exception as excepted:
-            # We just try to proceed
-            pass
-    try:
-        print(f'Agent modules acquiring Internet search, query is:\n{likely_query}\nEnd of Internet search')
-        search_response = await internet_search(likely_query, original_query, esc_aggressive, target_lang)
-        if search_response[0]:
-            content = json.dumps(search_response[2], ensure_ascii=False)
-            searched_friendly = search_response[3]
+                match day_seq:
+                    case 1:
+                        today = "这一天" if target_lang == 'zh' else "This day"
+                    case 2:
+                        today = f"这一天后{day_seq - 1}天" if target_lang == 'zh' else f"{day_seq - 1} day after this day"
+                    case _:
+                        today = f"这一天后{day_seq - 1}天" if target_lang == 'zh' else f"{day_seq - 1} days after this day"
+
+            day = refill_date(result['date'])
+            day_event_list = []
+
+            if player_bday:
+                player_age = day.year - player_bday.year
+                if (day.month, day.day) == (player_bday.month, player_bday.day):
+                    # Happy birthday [player]!
+                    day_event_list.append(f"[player]的{player_age}岁生日" if target_lang == 'zh' else f"[player]'s {add_seq_suffix(player_age)} birthday")
+
+            if (day.month, day.day) == (9, 22):
+                # Happy birthday Monika!
+                day_event_list.append(f"莫妮卡的生日" if target_lang == 'zh' else f"Monika's birthday")
+
+            for event in day_result['describe']:
+                if (
+                    event.get('IsNotWork')
+                    or (event.get('Time') and detailed_day)
+                    or (event.get('Name') and very_detailed_day)
+                    ):
+                    if not event.get('EnglishName'):
+                        event['EnglishName'] = 'weekday' if event['Name'] is '工作日' else 'weekend'
+                    day_event_list.append(event['Name'] if target_lang == 'zh' else event['EnglishName'])
+
+            if day_event_list:
+                today_is = f"{today}是" if target_lang == 'zh' else f"{today} is "
+                joint = ", 也是" if target_lang == 'zh' else ", and also "
+                day_event = today_is + joint.join(day_event_list)
+
+                days_event_list.append(day_event)
+            elif detailed_day:
+                days_event_list.append(f"{today}不是特殊节日" if target_lang == 'zh' else f"{today} is not a special event or holiday")
+
+        if days_event_list:
+            content = days_event = '; '.join(days_event_list)
         else:
-            raise Exception('search failed')
-    except Exception as excepted:
-        success = False
-        exception = excepted
-        return success, exception
-    #content = "EMPTY"
-    return success, exception, content, searched_friendly
+            match [d0_is_today, target_lang]:
+                case [p, t] if p and t == 'zh':
+                    d0_this_day = "今天"
+                case [p, t] if p and t == 'en':
+                    d0_this_day = "Today"
+                case [p, t] if not p and t == 'zh':
+                    d0_this_day = "这一天"
+                case [p, t] if not p and t == 'en':
+                    d0_this_day = "This day"
+            content = days_event = f"{d0_is_today}不是特殊节日" if target_lang == 'zh' else f"{d0_is_today} is not a special event or holiday"
+
+        return content, days_event
+
+    async def persistent_acquire(self, *args: list[str], **kwargs: dict[str: str]) -> tuple[str, str]:
+        """Gets value from persistent. Requires fsc and sf_inst and query."""
+        query = args[0] if args else kwargs.get('query')
+        target_lang = self.fsc.maica_settings.basic.target_lang
+        response = await self.sf_inst.mfocus_find_info(query)
+        if response:
+            content = response
+            try:
+                persistent_friendly = json.loads(content)
+            except Exception:
+                persistent_friendly = content
+        else:
+            content = '没有相关信息' if target_lang == 'zh' else "No related information found"
+            persistent_friendly = None
+        return content, persistent_friendly
+
+    async def search_internet(self, *args: list[str], **kwargs: dict[str: str]) -> tuple[str, str]:
+        """Searches result from internet. Requires fsc and location_req and query and original_query, optional sf_inst."""
+        query = args[0] if args else kwargs.get('query')
+        location_req = args[1] if args else kwargs.get('location_req')
+        original_query = args[2] if args else kwargs.get('original_query')
+        target_lang = self.fsc.maica_settings.basic.target_lang
+
+        if location_req:
+            try:
+                geolocation = self.sf_inst.read_from_sf('mas_geolocation')
+            except Exception:
+                geolocation = None
+        if geolocation:
+            query = geolocation + query
+            original_query = geolocation + original_query
+
+        try:
+            result = await internet_search(self.fsc, query, original_query)
+        except CommonMaicaException as ce:
+            await messenger(None, 'maica_mfocus_search_failed', traceray_id=self.fsc.rsc.traceray_id, error=ce)
+        return result
 
 if __name__ == "__main__":
     import asyncio
     #print(asyncio.run(time_acquire(None)))
-    print(date_acquire(None, True, [0, 0, 23], 1))
+    # print(date_acquire(None, True, [0, 0, 23], 1))
     #print(asyncio.run(event_acquire(None, True, ["0", "0", "28028"], -1, True, 'zh')))
     #print(internet_acquire({"question": "番茄炒蛋怎么做"}))
     #print(weather_acquire({}, True, [0, 0, 23], 1, 'zh'))

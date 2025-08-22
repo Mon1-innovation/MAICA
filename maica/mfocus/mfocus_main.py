@@ -11,6 +11,7 @@ from openai import *
 from typing import *
 from .mfocus_sfe import SfBoundCoroutine
 from mtrigger import MtBoundCoroutine
+from mtools import *
 from maica_utils import *
 
 class MFocusCoroutine():
@@ -20,6 +21,8 @@ class MFocusCoroutine():
         self.mcore_conn, self.mfocus_conn = fsc.mcore_conn, fsc.mfocus_conn
         self.sf_inst, self.mt_inst = sf_inst, mt_inst
         self.maica_pool = fsc.maica_pool
+        
+        self.agent_tools = AgentTools(fsc, sf_inst)
         asyncio.run(self.reset())
 
     async def reset(self):
@@ -78,6 +81,7 @@ class MFocusCoroutine():
                     "required": [
                     ],
                     "optional": [
+                        "location",
                     ]
                 }
             },
@@ -101,31 +105,31 @@ class MFocusCoroutine():
                             "type": "int",
                             "description": "需要查询日期的日数. 如果日期在本日, 则留空." if self.settings.basic.target_lang == 'zh' else "The day of the given date, leave empty for the day today.",
                             "example_value": "26"
-                        }
+                        },
                     },
                     "required": [
                     ],
                     "optional": [
                         "year",
                         "month",
-                        "day"
+                        "day",
                     ]
                 }
             },
             {
                 "name": "persistent_acquire",
-                "description": "调用该工具以查询你(莫妮卡)或用户的记忆, 例如你或用户的喜好, 兴趣, 经历, 体验, 关系或个人信息. 只要你被问及你作为AI不具有的记忆, 经历, 个性, 喜好或其它事物, 就使用此工具查找记忆. " if self.settings.basic.target_lang == 'zh' else "Call this tool to get any additional information from your(Monika's) memory or user's memory, such as your or user's preferences, hobbies, experiences, appearence, relationship or personal information. Always use this tool if the conversation mentions memories, personality, preferences, hobbies, experience or any other thing you don't have as an AI.",
+                "description": "调用该工具以查询你的角色(莫妮卡)或用户的记忆, 例如你或用户的喜好, 兴趣, 经历, 体验, 关系或个人信息. 只要你被问及你作为AI不具有的记忆, 经历, 个性, 喜好或其它事物, 就使用此工具查找记忆. " if self.settings.basic.target_lang == 'zh' else "Call this tool to get any additional information from your character (Monika)'s memory or user's memory, such as your or user's preferences, hobbies, experiences, appearence, relationship or personal information. Always use this tool if the conversation mentions memories, personality, preferences, hobbies, experience or any other thing you don't have as an AI.",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "question": {
+                        "query": {
                             "type": "string",
                             "description": "需要从你或用户的记忆中搜索的信息, 以尽可能直接回答问题. 以第三人称方式提出问题, 不要提及'我'或'我们'." if self.settings.basic.target_lang == 'zh' else "The question you want to search from your memory or user's memory, to answer the question as directly as possible. Ask in third person perspective, do not use appellation 'I', 'me' or 'us'.",
                             "example_value": "莫妮卡喜欢吃什么?" if self.settings.basic.target_lang == 'zh' else "What does Monika like to eat?"
-                        }
+                        },
                     },
                     "required": [
-                        "question"
+                        "query",
                     ],
                     "optional": [
                     ]
@@ -141,12 +145,18 @@ class MFocusCoroutine():
                             "type": "string",
                             "description": "需要在搜索引擎中搜索的问题, 应当是一个简洁的句子." if self.settings.basic.target_lang == 'zh' else "The question needs to be searched on Google, which should be a simple sentence.",
                             "example_value": "附近的餐馆" if self.settings.basic.target_lang == 'zh' else "Nearby restaurants"
+                        },
+                        "location_req": {
+                            "type": "bool",
+                            "description": "该问题是否与用户的地理位置有关, 若有关则工具会自动补充." if self.settings.basic.target_lang == 'zh' else "The question is related with user's location or not, the tool will implement automatically if true given.",
+                            "example_value": "true"
                         }
                     },
                     "required": [
-                        "question"
+                        "question",
                     ],
                     "optional": [
+                        "location_req",
                     ]
                 }
             },
@@ -161,24 +171,32 @@ class MFocusCoroutine():
                     case 'common_switch_template':
                         cst_temp_list = []
                         for i in trigger['exprop']['item_list']:
-                            choice_checklist.append(i)
                             j = f'选择{i}' if self.settings.basic.target_lang == 'zh' else f'switch to {i}'
+                            choice_checklist.append(j)
                             cst_temp_list.append(j)
+
                         if trigger['exprop'].get('suggestion'):
                             j = f"选择未列出的{trigger['exprop']['item_name']['zh']}" if self.settings.basic.target_lang == 'zh' else f"Choose an unlisted {trigger['exprop']['item_name']['en']}"
+                            choice_checklist.append(j)
                             cst_temp_list.append(j)
+
                         cst_explaination = f"更换{trigger['exprop']['item_name']['zh']}" if self.settings.basic.target_lang == 'zh' else f"Change {trigger['exprop']['item_name']['en']}"
                         choice_list.append({cst_explaination: cst_temp_list})
+
                     case 'common_meter_template':
-                        cmt_iname = trigger['exprop']['item_name']['zh'] if self.settings.basic.target_lang == 'zh' else trigger['exprop']['item_name']['en']
+                        cmt_iname = f'调整{trigger['exprop']['item_name']['zh']}' if self.settings.basic.target_lang == 'zh' else f'Adjust {trigger['exprop']['item_name']['en']}'
                         choice_checklist.append(cmt_iname)
                         j = f"调整{cmt_iname}, 范围是{trigger['exprop']['value_limits'][0]}到{trigger['exprop']['value_limits'][1]}" if self.settings.basic.target_lang == 'zh' else f"Adjust {cmt_iname} within range {trigger['exprop']['value_limits'][0]} to {trigger['exprop']['value_limits'][1]}"
                         choice_list.append(j)
+
                     case _:
                         cc_iname = trigger['usage']['zh'] if self.settings.basic.target_lang == 'zh' else trigger['usage']['en']
-                        choice_checklist.append(cc_iname)
                         j = f"触发{cc_iname}" if self.settings.basic.target_lang == 'zh' else f"Trigger {cc_iname}"
+                        choice_checklist.append(j)
                         choice_list.append(j)
+
+            self.choice_checklist = choice_checklist
+
             if choice_list:
                 self.tools.append(
                     {
@@ -194,7 +212,7 @@ class MFocusCoroutine():
                                 }
                             },
                             "required": [
-                                "ability"
+                                "prediction",
                             ],
                             "optional": [
                             ]
@@ -270,249 +288,165 @@ class MFocusCoroutine():
 
         resp = await self.mfocus_conn.make_completion(**completion_args)
         content, tool_calls = resp.choices[0].message.content, resp.choices[0].message.tool_calls
+        content_no_think = ReUtils.re_search_post_think.search(content)[1]
+        if content_no_think:
+            self.serial_messages.append({"role": "assistant", "content": content_no_think})
         return content, tool_calls
     
     async def agenting(self, query):
+        # Just all the tools
+        instructed_answer = {
+            "time_acquire": '',
+            "date_acquire": '',
+            "weather_acquire": '',
+            "event_acquire": '',
+            "persistent_acquire": '',
+            "search_internet": '',
+            "react_trigger": '',
+        }
+        conclusion_answer = None
+
+        def _instructed_add(tool_real_name: str, humane: Union[str, list], edit=True):
+            nonlocal instructed_answer
+
+            # We merge lists and overwrite strings by default
+            if not instructed_answer.get(tool_real_name):
+                instructed_answer[tool_real_name] = humane
+            elif edit:
+                if isinstance(instructed_answer[tool_real_name], list):
+                    if isinstance(humane, list):
+                        instructed_answer[tool_real_name].extend(humane)
+                    else:
+                        # Likely less valuable so we discard
+                        pass
+                else:
+                    # Overwrite it anyway
+                    instructed_answer[tool_real_name] = humane
+            # The logic is not that considerate, but trust me it's enough
 
         # First thing first we prepare the first query
         self._construct_tools()
         await self._construct_query(user_input=query)
-        cycle = 0
-        while cycle <= 7:
+        cycle = 0; ending = False
+        while cycle <= 7 and not ending:
+
+            # Sanity check
             cycle += 1
+            tool_real_name = None
+
             resp_content, resp_tools = await self._send_query()
+            await messenger(self.websocket, 'maica_mfocus_toolchain', f'MFocus toolchain {cycle} round responded, response is:\n{resp_content}\nAnalyzing response...')
+            tool_seq = 0
             for resp_tool in resp_tools:
-                pass
 
+                # Tool parallel support
+                tool_seq += 1
+                tool_id, tool_type, tool_func_name, tool_func_args = resp_tool.id, resp_tool.type, resp_tool.function.name, resp_tool.function.arguments
+                await messenger(None, 'maica_mfocus_tool_acquire', f'Calling parallel tool {tool_seq}/{len(resp_tools)}:\n{resp_tool}\nGathering information...')
 
-
-
-
-
-        
-
-async def agenting(fsc: FullSocketsContainer, sf_inst: SfBoundCoroutine, mt_inst: MtBoundCoroutine, input):
-
-
-    final_first_answer = ''
-    instructed_final_answer = {}
-    return_instruction = ''
-    inst_wea = inst_time = inst_date = inst_event = inst_pst = inst_search = inst_rct = inst_conc = False
-    message_adder = False
-    if int(tnd_aggressive) >= 1:
-        instructed_final_answer['time'] = f"[{(await mtools.time_acquire(None, target_lang, tz))[3]}]"
-        instructed_final_answer['event'] = f"[{(await mtools.event_acquire(None, sf_extraction, sf_inst, -1, False, target_lang, tz))[3]}]"
-    if int(tnd_aggressive) >= 2:
-        instructed_final_answer['date'] = f"[{(await mtools.date_acquire(None, sf_extraction, sf_inst, target_lang, tz))[3]}]"
-        if sf_inst.read_from_sf('mas_geolocation')[2]:
-            instructed_final_answer['weather'] = f"[{(await mtools.weather_acquire(None, sf_extraction, sf_inst, target_lang))[3]}]"
-    instructed_first_answer = instructed_final_answer
-    # to be extended
-    cycle = 0
-
-    while cycle < 7:
-        cycle += 1
-        response = resp.choices[0].message.content
-        #print(resp.choices[0].message.tool_calls)
-        if resp.choices[0].message.tool_calls:
-            tools_calls = resp.choices[0].message.tool_calls
-        else:
-            tools_calls = []
-        tool_count = 0
-        for tool_calls in tools_calls:
-            tool_count += 1
-            if tool_calls and tool_calls.function.name != 'none':
-                response_str1 = f'MFocus main {cycle} round finished, response is:\n{response}\nEnd of MFocus main {cycle} round.'
-                response_str2 = f'Acquiring tool call from MFocus main {cycle} round, response is:\n{tool_calls}\nEnd of tool call acquiration.'
-                if websocket:
-                    if tool_count == 1:
-                        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug', deformation))
-                    await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'info', deformation))
-                if tool_count == 1:
-                    print(response_str1)
-                print(response_str2)
-                exception_return = ''
-                # to be added
                 try:
-                    predict_action_function = tool_calls.function.name
-                    try:
-                        real_parameters_dict = json.loads(re.search(r'(\{.*\})', re.sub(r"(?!=\\)'", '"', tool_calls.function.arguments))[1])
-                    except Exception:
-                        real_parameters_dict = {"common": tool_calls.function.arguments}
-                    if re.search((r'time.*acquire'), predict_action_function, re.I):
-                        time_acquired = await mtools.time_acquire(real_parameters_dict, target_lang, tz)
-                        if time_acquired[0]:
-                            return_instruction = f"[{{'time': '{time_acquired[2]}'}}]"
-                            if time_acquired[3]:
-                                instructed_final_answer['time'] = f"[{time_acquired[3]}]"
-                                inst_time = True
-                        else:
-                            raise Exception(time_acquired[1])
-                    elif re.search((r'date.*acquire'), predict_action_function, re.I):
-                        date_acquired = await mtools.date_acquire(real_parameters_dict, sf_extraction, sf_inst, target_lang, tz)
-                        if date_acquired[0]:
-                            return_instruction = f"[{{'date': '{date_acquired[2]}'}}]"
-                            if date_acquired[3]:
-                                instructed_final_answer['date'] = f"[{date_acquired[3]}]"
-                                inst_date = True
-                        else:
-                            raise Exception(date_acquired[1])
-                    elif re.search((r'weather.*acquire'), predict_action_function, re.I):
-                        weather_acquired = await mtools.weather_acquire(real_parameters_dict, sf_extraction, sf_inst, target_lang)
-                        if weather_acquired[0]:
-                            return_instruction = f"[{{'weather': '{weather_acquired[2]}'}}]"
-                            if weather_acquired[3]:
-                                instructed_final_answer['weather'] = f"[{weather_acquired[3]}]"
-                                inst_wea = True
-                        else:
-                            raise Exception(weather_acquired[1])
-                    elif re.search((r'event.*acquire'), predict_action_function, re.I):
-                        event_acquired = await mtools.event_acquire(real_parameters_dict, sf_extraction, sf_inst, -1, True, target_lang, tz)
-                        if event_acquired[0]:
-                            return_instruction = f"[{{'event': '{event_acquired[2]}'}}]"
-                            if event_acquired[3]:
-                                instructed_final_answer['event'] = f"[{event_acquired[3]}]"
-                                inst_event = True
-                        else:
-                            raise Exception(event_acquired[1])
-                    elif re.search((r'persistent.*acquire'), predict_action_function, re.I):
-                        persistent_acquired = await mtools.persistent_acquire(real_parameters_dict, sf_extraction, session, chat_session, sf_inst, target_lang)
-                        if persistent_acquired[0]:
-                            return_instruction = f"[{{'known_info': {persistent_acquired[2]}}}]"
-                            if persistent_acquired[3]:
-                                if 'persistent' in instructed_final_answer:
-                                    persis_old_list = json.loads(re.sub("'",'"',instructed_final_answer['persistent']))
-                                    persis_new_list = json.loads(re.sub("'",'"',persistent_acquired[3]))
-                                    for item_plus in persis_new_list:
-                                        if not item_plus in persis_old_list:
-                                            persis_old_list.append(item_plus)
-                                    instructed_final_answer['persistent'] = re.sub('"',"'",json.dumps(persis_old_list, ensure_ascii=False))
+                    machine = humane = None
+                    match tool_func_name:
+                        case name if fuzzy_match('time_acquire', name):
+                            tool_real_name = 'time_acquire'
+                        case name if fuzzy_match('date_acquire', name):
+                            tool_real_name = 'date_acquire'
+                        case name if fuzzy_match('weather_acquire', name):
+                            tool_real_name = 'weather_acquire'
+                        case name if fuzzy_match('event_acquire', name):
+                            tool_real_name = 'event_acquire'
+                        case name if fuzzy_match('persistent_acquire', name):
+                            tool_real_name = 'persistent_acquire'
+                        case name if fuzzy_match('search_internet', name):
+                            tool_real_name = 'search_internet'
+                        case name if fuzzy_match('react_trigger', name):
+                            tool_real_name = 'react_trigger'
+                        case name if fuzzy_match('conclude_information', name):
+                            tool_real_name = 'conclude_information'
+                        case name if fuzzy_match('none', name):
+                            tool_real_name = 'none'
+
+                    args = []
+                    kwargs = try_load_json(tool_func_args)
+                    function_route = getattr(self.agent_tools, tool_real_name)
+                    if function_route:
+                        machine, humane = await function_route(*args, **kwargs)
+                    else:
+                        match tool_real_name:
+                            case 'react_trigger':
+                                if not kwargs.get('prediction') or kwargs.get('prediction').lower() in ['false', 'none']:
+                                    humane = '[player]的请求当前无法被满足. 请表示你做不到, 并建议[player]自行解决或寻找其它方法.' if self.settings.basic.target_lang == 'zh' else '[player]\'s current request cannot be satisfied. please indicate that you can\'t do it, and suggest [player] doing it themselves or find another way.'
                                 else:
-                                    instructed_final_answer['persistent'] = f'{persistent_acquired[3]}'
-                                inst_pst = True
-                        else:
-                            raise Exception(persistent_acquired[1])
-                    elif re.search((r'search.*internet'), predict_action_function, re.I):
-                        internet_acquired = await mtools.internet_acquire(real_parameters_dict, sf_extraction, sf_inst, input, esc_aggressive, target_lang)
-                        if internet_acquired[0]:
-                            return_instruction = f"[{{'search_result': '{internet_acquired[2]}'}}]"
-                            if internet_acquired[3]:
-                                instructed_final_answer['internet'] = f'"{internet_acquired[3]}"'
-                                inst_search= True
-                        else:
-                            raise Exception(internet_acquired[1])
-                    elif re.search((r'react.*trigger'), predict_action_function, re.I):
-                        trigger_ability = real_parameters_dict[list(real_parameters_dict.keys())[0]]
-                        return_instruction = f"[{{'reaction_correct': True}}]"
-                        if not trigger_ability or (isinstance(trigger_ability, str) and trigger_ability.lower() == "false"):
-                            instructed_final_answer['trigger'] = '"[player]的请求当前无法被满足. 请表示你做不到, 并建议[player]自行解决或寻找其它方法."' if target_lang == 'zh' else '"[player]\'s current request cannot be satisfied. please indicate that you can\'t do it, and suggest [player] doing it themselves or find another way."'
-                        else:
-                            if str(trigger_ability).lower() in str(choice_checklist).lower():
-                                choice_conclusion.append(str(trigger_ability))
-                                instructed_final_answer['trigger'] = f'"[player]的请求是你所了解的, 且会被系统完成, 请作出关于{', '.join(choice_conclusion)}的正面答复."' if target_lang == 'zh' else f'"[player]\'s request is understood and will be done by system, please make positive answer about {', '.join(choice_conclusion)}."'
-                                inst_rct = True
-                            elif not inst_rct:
-                                instructed_final_answer['trigger'] = '"[player]的请求是你所了解的, 且会被系统完成, 请作出正面答复."' if target_lang == 'zh' else '"[player]\'s request is understood and will be done by system, please make positive answer."'
-                        #print(real_parameters_dict)
-                        inst_rct = True
-                    elif re.search((r'conclude.*information'), predict_action_function, re.I):
-                        #print(real_parameters_dict)
-                        conc_final_answer = f"\"{real_parameters_dict[list(real_parameters_dict.keys())[0]]}\""
-                        inst_conc = True
-                        raise Exception('Final conclusion provided, making early break')
-                    else:
-                        raise Exception('No function matched, making early break')
-                except Exception as excepted:
-                    exception_return = excepted
-                    #traceback.print_exc()
-                    print(f'MFocus main early broke: {exception_return}')
-                if not exception_return:
-                    print(f"MFocus acquired instruction: {return_instruction}")
-                    if tool_count == 1:
-                        messages.append({'role': 'assistant', 'content': response})
-                    messages.append({'role': 'tool', 'content': return_instruction})
-                    message_adder = True
-            else:
-                response_str1 = f'MFocus main {cycle} round finished, response is:\n{response}\nEnding due to returning none or corruption.'
-                response_str2 = f'No tool called by MFocus.'
-                if websocket:
-                    if tool_count == 1:
-                        await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_injecting', response_str1, 'debug', deformation))
-                    await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_toolcall', response_str2, 'info', deformation))
-                if tool_count == 1:
-                    print(response_str1)
-                print(response_str2)
-        
-        if message_adder:
-            message_adder = False
-            for tries in range(0, 2):
-                try:
-                    resp = await client.chat.completions.create(**completion_args)
-                    break
-                except Exception:
-                    if tries < 1:
-                        print('Model temporary failure')
-                        await asyncio.sleep(0.5)
-                    else:
-                        raise Exception('Model connection failure')
+                                    if kwargs.get('prediction') in self.choice_checklist:
+                                        humane = f'[player]的请求是你所了解的, 且会被系统完成, 请作出关于<{kwargs.get('prediction')}>的正面答复.' if self.settings.basic.target_lang == 'zh' else f'[player]\'s request is understood and will be done by system, please make positive answer about <{kwargs.get('prediction')}>.'
+                                    else:
+                                        humane = '[player]的请求是你所了解的, 且会被系统完成, 请作出正面答复.' if self.settings.basic.target_lang == 'zh' else '[player]\'s request is understood and will be done by system, please make positive answer.'
+                                machine = '已收到你的判断, 请继续调用其它工具或正常结束作答.' if self.settings.basic.target_lang == 'zh' else 'Your judgement recieved, please continue using other tools or end as normal.'
+                            case 'conclude_information':
+                                conclusion_answer = kwargs.get('conclusion')
+                                await messenger(None, 'maica_mfocus_conclusion', f'MFocus conclusion recieved:\n{conclusion_answer}\nEnding toolchain...')
+                                ending = True
+                                break
+                            case 'none':
+                                await messenger(None, 'maica_mfocus_empty', f'MFocus null recieved, Ending toolchain...')
+                                ending = True
+                                break
+                    if machine:
+                        await self._construct_query(tool_input=machine)
 
-            if resp.choices[0].message.tool_calls:
-                for tool_calls_temp in resp.choices[0].message.tool_calls:
-                    if tool_calls_temp.function == tool_calls.function:
-                        print('Total repetition detected, aborting')
+                    if humane:
+                        _instructed_add(tool_real_name, humane)
+            
+                except CommonMaicaException as ce:
+                    if ce.is_critical():
+                        return 2
+                    elif ce.is_breaking():
+                        return 1
+                    else:
                         break
-        else:
-            break
+                    
+                except Exception as e:
+                    raise CommonMaicaError('An unexpected situation happened in MFocus toolchain', '500')
+                
+            await messenger(None, 'maica_mfocus_round_finish', f'MFocus toolchain {cycle} round finished, ending is {str(ending)}.')
+                
+        # Now we're out of the loop
+        if self.settings.extra.mf_aggressive:
+            
+            # So we use last response instead if no conclusion offered
+            if not conclusion_answer:
+                try:
+                    conclusion_answer = ReUtils.re_search_post_think.search(resp_content)[1]
+                except Exception:
+                    pass
 
-    #print(instructed_final_answer)
-    if 'persistent' in instructed_final_answer:
-        instructed_final_answer['persistent'] = f"\"{str(instructed_final_answer['persistent']).strip('[').strip(']')}\""
-    instructed_final_answer_joined = ''.join(str(x) for x in instructed_final_answer.values())
-    if inst_time and 'time' in instructed_first_answer:
-        instructed_first_answer.pop('time')
-    if inst_event and 'event' in instructed_first_answer:
-        instructed_first_answer.pop('event')
-    if inst_date and 'date' in instructed_first_answer:
-        instructed_first_answer.pop('date')
-    if inst_wea and 'weather' in instructed_first_answer:
-        instructed_first_answer.pop('weather')
-    for key in instructed_first_answer.keys():
-        final_first_answer += instructed_first_answer[key]
-    if inst_conc:
-        fin_final_answer = '"' + conc_final_answer + '"'
-    else:
-        try:
-            conc_final_answer = re.search((r'</think>[\s\n]*(.*)'), response, re.I|re.S)[1]
-            conc_final_answer = re.sub(r'Final Answer:\s*', '', conc_final_answer)
-            fin_final_answer = '"' + conc_final_answer + '"'
-        except Exception:
-            fin_final_answer = ''
-    if mf_aggressive and instructed_final_answer_joined:
-        response_str3 = f"MFocus callback achieved, response is:\n{fin_final_answer}\nInfo acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."
-        if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'info', deformation))
-        print(response_str3)
-        return fin_final_answer, instructed_final_answer_joined
-    elif instructed_final_answer_joined:
-        response_str3 = f"MFocus falling back, Info acquired are:\n{instructed_final_answer_joined}\nEnd of MFocus callback."
-        if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'info', deformation))
-        print(response_str3)
-        return 'EMPTY', instructed_final_answer_joined
-    else:
-        response_str3 = f"MFocus failed or missed, Ending MFocus callback."
-        if websocket: await websocket.send(maica_ws.wrap_ws_formatter('200', 'mfocus_done', response_str3, 'info', deformation))
-        print(response_str3)
-        return 'FAIL', ''
+            # If there is information and answer
+            if cycle >= 2 and conclusion_answer:
+                await messenger(self.websocket, 'maica_mfocus_using_conclusion', 'MFocus got conclusion and used', '200')
+                return conclusion_answer
+            
+            await messenger(self.websocket, 'maica_mfocus_no_conclusion', 'MFocus got no conclusion, falling back to instruction', '404', traceray_id=self.traceray_id)
+            
+        # Then if mfa not enabled or ignored
+        if self.settings.extra.tnd_aggressive >= 1:
+            # Add time and events
+            if not instructed_answer.get('time_acquire'):
+                _instructed_add('time_acquire', (await self.agent_tools.time_acquire())[1], False)
+            if not instructed_answer.get('event_acquire'):
+                _instructed_add('event_acquire', (await self.agent_tools.event_acquire())[1], False)
+        if self.settings.extra.tnd_aggressive >= 2:
+            # Add date and weather
+            if not instructed_answer.get('date_acquire'):
+                _instructed_add('date_acquire', (await self.agent_tools.date_acquire())[1], False)
+            if not instructed_answer.get('weather_acquire'):
+                _instructed_add('weather_acquire', (await self.agent_tools.weather_acquire())[1], False)
 
-if __name__ == "__main__":
-    import time
-    start_time = time.time()
-    agented = asyncio.run(agenting(None, '现在几点了? 天气怎么样?', 1))
-    print(agented[0])
-    print(agented[1])
-    end_time = time.time()
-    print(f"AbstractGpuConsume: {end_time-start_time}")
+        instructed_answer_list = []
+        if instructed_answer:
+            for k, v in instructed_answer.items():
+                # v can be only list or str
+                instructed_answer_list.extend(v) if isinstance(v, list) else instructed_answer_list.append(v)
 
-
-"""
-{'role': 'system', 'content': system_init}
-"""
+        instructed_answer_str = ', '.join(instructed_answer_list)
+        return instructed_answer_str
+        

@@ -16,6 +16,8 @@ import post_proc
 #import maica_http
 from typing import *
 from Crypto.Random import random as CRANDOM
+from mfocus import MFocusCoroutine, SfBoundCoroutine
+# mtrigger...
 from maica_utils import *
 
 class NoWsCoroutine():
@@ -239,15 +241,13 @@ class NoWsCoroutine():
         self._check_essentials()
         player_name = '[player]'
 
-        if self.settings.extra.sfe_aggressive and (self.settings.basic.sf_extraction or self.settings.temp.sf_extraction_once):
-            try:
-                player_name_get = self.sf_inst.read_from_sf('mas_playername')
-                if player_name_get:
-                    player_name = player_name_get[2]
-                    if known_info:
-                        known_info = ReUtils.re_sub_player_name.sub(player_name, known_info)
-            except Exception:
-                pass
+        if self.settings.extra.sfe_aggressive:
+            player_name_get = self.sf_inst.read_from_sf('mas_playername')
+            if player_name_get:
+                player_name = player_name_get
+                if known_info:
+                    known_info = ReUtils.re_sub_player_name.sub(player_name, known_info)
+
         if not strict_conv:
             strict_conv = self.settings.temp.strict_conv
         new_system = _basic_gen_system(player_name, self.settings.basic.target_lang, strict_conv)
@@ -256,6 +256,11 @@ class NoWsCoroutine():
         if known_info:
             new_system += f" 以下是一些相关信息, 你可以参考其中有价值的部分, 并用你自己的语言方式作答: {known_info}" if self.settings.basic.target_lang == 'zh' else f" Here are some information you can refer to, then make your answer in your own way: {known_info}"
         return new_system
+    
+    async def populate_auxiliary_inst(self):
+        self.sf_inst = SfBoundCoroutine(self.fsc)
+        self.mfocus_coro = MFocusCoroutine(self.fsc, self.mf_p, )
+
 
 
 class WsCoroutine(NoWsCoroutine):
@@ -286,7 +291,6 @@ class WsCoroutine(NoWsCoroutine):
             try:
 
                 # Initiation
-
                 self.flush_traceray()
                 self.settings.identity.reset()
                 self.settings.verification.reset()
@@ -294,7 +298,6 @@ class WsCoroutine(NoWsCoroutine):
                 await messenger(info=f'Recieved an input on stage1.', color=colorama.Fore.CYAN)
 
                 # Context security check first
-
                 if len(recv_text) > 4096:
                     error = MaicaInputWarning('Input length exceeded', '413')
                     await messenger(websocket, "input_length_exceeded", traceray_id=self.traceray_id, error=error)
@@ -310,12 +313,10 @@ class WsCoroutine(NoWsCoroutine):
                     await messenger(websocket, "request_body_no_token", traceray_id=self.traceray_id, error=error)
 
                 # Initiate account check
-
                 verification_result = await self.hasher.hashing_verify(access_token=recv_token)
                 if verification_result[0]:
 
                     # Account security check
-
                     checked_status = await self.check_user_status(key='banned')
                     if not checked_status[0]:
                         error = MaicaDbError('Account service failed', '502')
@@ -630,20 +631,21 @@ class WsCoroutine(NoWsCoroutine):
 
             if not query_in:
                 query_in = recv_loaded_json['query']
-            if self.settings.basic.sf_extraction and not self.settings.temp.bypass_mf:
-                await self.sf_inst.reset()
-                if 'savefile' in recv_loaded_json:
+            
+            await asyncio.gather(self.sf_inst.reset(), self.mt_inst.reset())
+
+            if 'savefile' in recv_loaded_json:
+                if self.settings.basic.sf_extraction:
                     self.sf_inst.add_extra(**recv_loaded_json['savefile'])
-            elif 'savefile' in recv_loaded_json:
-                self.settings.temp.update(self.fsc.rsc, sf_extraction_once=True)
-                self.sf_inst.use_only(**recv_loaded_json['savefile'])
-            if self.settings.basic.mt_extraction and not self.settings.temp.bypass_mt:
-                await self.mt_inst.reset()
-                if 'trigger' in recv_loaded_json:
+                else:
+                    self.settings.temp.update(self.fsc.rsc, sf_extraction_once=True)
+                    self.sf_inst.use_only(**recv_loaded_json['savefile'])
+            if 'trigger' in recv_loaded_json:
+                if self.settings.basic.mt_extraction:
                     self.mt_inst.add_extra(**recv_loaded_json['trigger'])
-            elif 'trigger' in recv_loaded_json:
-                self.settings.temp.update(self.fsc.rsc, mt_extraction_once=True)
-                self.mt_inst.use_only(recv_loaded_json['trigger'])
+                else:
+                    self.settings.temp.update(self.fsc.rsc, mt_extraction_once=True)
+                    self.mt_inst.use_only(recv_loaded_json['trigger'])
 
             # Deprecated: The easter egg thing
 
