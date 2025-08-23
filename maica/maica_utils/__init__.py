@@ -13,6 +13,7 @@ from .maica_utils import (
     MaicaConnectionWarning,
     MaicaInternetWarning,
     FSCPlain,
+    LoginResult,
     ReUtils,
     default,
     wrap_ws_formatter,
@@ -33,7 +34,7 @@ from .maica_utils import (
 )
 from .connection_utils import DbPoolCoroutine, ConnUtils, AiConnCoroutine, validate_input
 from .setting_utils import MaicaSettings
-from .account_utils import AccountCursor
+from .account_utils import AccountCursor, encrypt_token, sign_message, verify_message, sort_message
 from .container_utils import FullSocketsContainer
 from .sb_utils import SideBoundCoroutine
 
@@ -51,6 +52,7 @@ __all__ = [
     'MaicaConnectionWarning',
     'MaicaInternetWarning',
     'FSCPlain',
+    'LoginResult',
     'FullSocketsContainer',
     'ReUtils',
     'default',
@@ -76,4 +78,8 @@ __all__ = [
     'SideBoundCoroutine',
     'MaicaSettings',
     'AccountCursor',
+    'encrypt_token',
+    'sign_message',
+    'verify_message',
+    'sort_message',
 ]

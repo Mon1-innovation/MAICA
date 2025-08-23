@@ -13,7 +13,7 @@ import mtools
 import mfocus
 import mtrigger
 import post_proc
-#import maica_http
+
 from typing import *
 from Crypto.Random import random as CRANDOM
 from mfocus import MFocusCoroutine, SfBoundCoroutine
@@ -34,8 +34,8 @@ class NoWsCoroutine():
 
     # Initialization
 
-    def __init__(self, auth_pool: DbPoolCoroutine, maica_pool: DbPoolCoroutine, websocket=None):
-        self.auth_pool, self.maica_pool, self.websocket = auth_pool, maica_pool, websocket
+    def __init__(self, auth_pool: DbPoolCoroutine, maica_pool: DbPoolCoroutine, websocket=None, online_dict = {}):
+        self.auth_pool, self.maica_pool, self.websocket, self.online_dict = auth_pool, maica_pool, websocket, online_dict
         self.traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
         self.settings = MaicaSettings()
         self.fsc = FullSocketsContainer(self.websocket, self.traceray_id, self.settings, self.auth_pool, self.maica_pool)
@@ -63,7 +63,7 @@ class NoWsCoroutine():
             error = MaicaDbError(f'Chat session not JSON: {str(e)}', '500')
             await messenger(self.websocket, 'maica_db_corruption', traceray_id=self.traceray_id, error=error)
 
-    def _flattern_chat_session(content_json: list) -> str:
+    def _flattern_chat_session(self, content_json: list) -> str:
         if content_json:
             return json.dumps(content_json, ensure_ascii=False).strip('[').strip(']')
         else:
@@ -117,16 +117,19 @@ class NoWsCoroutine():
             cut_status = 0
         return cut_status, content
     
-    async def rw_chat_session(self, irwa='r', content_append: list=None, system_prompt: str=None) -> tuple[int, int | list]:
+    async def rw_chat_session(self, irwa='r', content_append: list=None, system_prompt: str=None, chat_session_num=None) -> tuple[int, int | list]:
         """A common way to operate chat sessions."""
         self._check_essentials()
 
+        if not chat_session_num:
+            chat_session_num = self.settings.temp.chat_session
+
         sql_expression_1 = "SELECT chat_session_id, content FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
-        result = await self.maica_pool.query_get(expression=sql_expression_1, values=(self.settings.verification.user_id, self.settings.temp.chat_session))
+        result = await self.maica_pool.query_get(expression=sql_expression_1, values=(self.settings.verification.user_id, chat_session_num))
         if result:
             chat_session_id, content_original = result
         else:
-            chat_session_id = None, content_original = ''
+            chat_session_id = None; content_original = ''
 
         content_append = self._flattern_chat_session(content_append)
         if not content_append:
@@ -151,7 +154,7 @@ class NoWsCoroutine():
                 content_json = [{"role": "system", "content": system_prompt}]
             content_finale = self._flattern_chat_session(content_json)
             if not chat_session_id:
-                chat_session_id = await self._create_session(content=content_finale)
+                chat_session_id = await self._create_session(content=content_finale, chat_session_num=chat_session_num)
             else:
                 sql_expression_2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
                 await self.maica_pool.query_modify(expression=sql_expression_2, values=(content_finale, chat_session_id))
@@ -159,12 +162,12 @@ class NoWsCoroutine():
 
         elif irwa == 'r':
             if not chat_session_id:
-                chat_session_id = await self._create_session()
+                chat_session_id = await self._create_session(chat_session_num=chat_session_num)
             return chat_session_id, await self._jsonify_chat_session(content_finale)
         
         elif irwa == 'w':
             if not chat_session_id:
-                chat_session_id = await self._create_session(content=content_append)
+                chat_session_id = await self._create_session(content=content_append, chat_session_num=chat_session_num)
             else:
                 sql_expression_2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
                 await self.maica_pool.query_modify(expression=sql_expression_2, values=(content_append, chat_session_id))
@@ -173,7 +176,7 @@ class NoWsCoroutine():
         elif irwa == 'a':
             cut_status, content_finale = await self._chop_session(chat_session_id, content_finale)
             if not chat_session_id:
-                chat_session_id = await self._create_session(content=content_finale)
+                chat_session_id = await self._create_session(content=content_finale, chat_session_num=chat_session_num)
             else:
                 sql_expression_2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
                 await self.maica_pool.query_modify(expression=sql_expression_2, values=(content_finale, chat_session_id))
@@ -207,7 +210,7 @@ class NoWsCoroutine():
         if not isinstance(content_restore, str):
             content_restore = self._flattern_chat_session(content_restore)
 
-        return await self.reset_chat_session(content_new=content_restore)
+        return await self.reset_chat_session(chat_session_num=chat_session_num, content_new=content_restore)
 
     async def find_ms_cache(self, hash_identity) -> Optional[str]:
         """Find ms cache with corresponding prompt hash."""
@@ -268,15 +271,69 @@ class NoWsCoroutine():
         self.mfocus_coro = MFocusCoroutine(self.fsc, self.sf_inst, self.mt_inst)
         self.mtrigger_coro = MTriggerCoroutine(self.fsc, self.mt_inst, self.sf_inst)
 
+    async def hash_and_login(self, access_token: str=None, logged_in_already: bool=False, check_online: bool=False) -> bool:
+        """Use this to login a NoWs instance."""
+        if not logged_in_already:
+            verification_result = await self.hasher.hashing_verify(access_token)
+        else:
+            verification_result = [True, None]
+        if verification_result[0]:
+
+            # Account security check
+            checked_status = await self.hasher.check_user_status(False, 'banned')
+            if checked_status[0]:
+                error = MaicaPermissionError('Account banned by MAICA', '403')
+                await messenger(self.websocket, "maica_account_banned", traceray_id=self.traceray_id, error=error)
+
+                # Cridential correct and not banned
+                if check_online and not logged_in_already:
+                    if self.settings.verification.user_id in self.online_dict:
+                        if load_env("KICK_STALE_CONNS") == "0":
+                            self.settings.verification.reset()
+                            error = MaicaConnectionWarning('A connection was established already and kicking not enabled', '406')
+                            await messenger(self.websocket, 'maica_connection_reuse_denied', traceray_id=self.traceray_id, error=error)
+                        else:
+                            await messenger(self.websocket, "maica_connection_reuse_attempt", "A connection was established already", "300", self.traceray_id)
+                            stale_conn, stale_lock = self.online_dict[self.settings.verification.user_id]
+                            try:
+                                await messenger(stale_conn, 'maica_connection_reuse_stale', 'A new connection has been established', '300', self.traceray_id)
+                                await stale_conn.close(1000, 'Displaced as stale')
+                            except Exception:
+                                await messenger(None, 'maica_connection_stale_dead', 'The stale connection has died already', '204')
+                            try:
+                                self.online_dict.pop(self.settings.verification.user_id)
+                            except Exception:
+                                pass
+                            async with stale_lock:
+                                await messenger(None, 'maica_connection_stale_kicked', 'The stale connection is kicked', '204')
+            return True
+
+        else:
+            if isinstance(verification_result[1], dict):
+                if 'f2b' in verification_result[1]:
+                    error = MaicaPermissionError(f'Account locked by Fail2Ban, {verification_result[1]['f2b']} seconds remaining', '429')
+                    await messenger(self.websocket, 'maica_login_denied_fail2ban', traceray_id=self.traceray_id, error=error)
+                elif 'necf' in verification_result[1]:
+                    error = MaicaPermissionError(f'Account Email not verified, check inbox and retry', '401')
+                    await messenger(self.websocket, 'maica_login_denied_email', traceray_id=self.traceray_id, error=error)
+                elif 'pwdw' in verification_result[1]:
+                    error = MaicaPermissionWarning(f'Password hashing failed {verification_result[1]['pwdw']} times, check password and retry', '403')
+                    await messenger(self.websocket, 'maica_login_denied_password', traceray_id=self.traceray_id, error=error)
+            else:
+                error = MaicaPermissionError(verification_result[1], '400')
+                await messenger(self.websocket, 'maica_login_denied_rsa', traceray_id=self.traceray_id, error=error)
+        return False
+
 class WsCoroutine(NoWsCoroutine):
     """
     Force ws existence.
     Also has AI sockets.
     """
 
-    def __init__(self, websocket, auth_pool: DbPoolCoroutine, maica_pool: DbPoolCoroutine, mcore_conn: AiConnCoroutine, mfocus_conn: AiConnCoroutine):
+    def __init__(self, websocket, auth_pool: DbPoolCoroutine, maica_pool: DbPoolCoroutine, mcore_conn: AiConnCoroutine, mfocus_conn: AiConnCoroutine, online_dict: dict):
         super().__init__(auth_pool=auth_pool, maica_pool=maica_pool, websocket=websocket)
-        
+        self.online_dict = online_dict
+
         self.fsc.rsc.websocket = websocket
         mcore_conn.init_rsc(self.fsc.rsc); mfocus_conn.init_rsc(self.fsc.rsc)
         self.mcore_conn, self.mfocus_conn = mcore_conn, mfocus_conn
@@ -302,68 +359,24 @@ class WsCoroutine(NoWsCoroutine):
 
                 recv_text = await websocket.recv()
                 await messenger(info=f'Recieved an input on stage1.', color=colorama.Fore.CYAN)
+                recv_loaded_json = validate_input(recv_text, 4096, self.fsc.rsc, must=['token'])
 
-                recv_loaded_json = validate_input(recv_text, 4096, self.fsc.rsc, ['token'])
+                login_success = await self.hash_and_login(recv_loaded_json['token'], check_online=True)
+                if login_success:
 
-                # Initiate account check
-                verification_result = await self.hasher.hashing_verify(access_token=recv_loaded_json['token'])
-                if verification_result[0]:
+                    # From here we can assume the user has logged in successfully
+                    self.cookie = cookie = str(uuid.uuid4())
+                    self.enforce_cookie = False
 
-                    # Account security check
-                    checked_status = await self.hasher.check_user_status(key='banned')
-                    if checked_status[0]:
-                        error = MaicaPermissionError('Account banned by MAICA', '403')
-                        await messenger(websocket, "maica_account_banned", traceray_id=self.traceray_id, error=error)
-                    else:
+                    await self.populate_auxiliary_inst()
 
-                        # Cridential correct and not banned
-                        if self.settings.verification.user_id in online_dict:
-                            if load_env("KICK_STALE_CONNS") == "0":
-                                self.settings.verification.reset()
-                                error = MaicaConnectionWarning('A connection was established already and kicking not enabled', '406')
-                                await messenger(websocket, 'maica_connection_reuse_denied', traceray_id=self.traceray_id, error=error)
-                            else:
-                                await messenger(websocket, "maica_connection_reuse_attempt", "A connection was established already", "300", self.traceray_id)
-                                stale_conn, stale_lock = online_dict[self.settings.verification.user_id]
-                                try:
-                                    await messenger(stale_conn, 'maica_connection_reuse_stale', 'A new connection has been established', '300', self.traceray_id)
-                                    await stale_conn.close(1000, 'Displaced as stale')
-                                except Exception:
-                                    await messenger(None, 'maica_connection_stale_dead', 'The stale connection has died already', '204')
-                                try:
-                                    online_dict.pop(self.settings.verification.user_id)
-                                except Exception:
-                                    pass
-                                async with stale_lock:
-                                    await messenger(None, 'maica_connection_stale_kicked', 'The stale connection is kicked', '204')
+                    await messenger(websocket, 'maica_login_succeeded', 'Authentication passed', '201', type='info', color=colorama.Fore.LIGHTCYAN_EX)
+                    await messenger(websocket, 'maica_login_id', f"{self.settings.verification.user_id}", '200')
+                    await messenger(websocket, 'maica_login_user', f"{self.settings.verification.username}", '200')
+                    await messenger(websocket, 'maica_login_nickname', f"{self.settings.verification.nickname}", '200', no_print=True)
+                    await messenger(websocket, 'maica_connection_security_cookie', cookie, '200', no_print=True)
 
-                        # From here we can assume the user has logged in successfully
-                        self.cookie = cookie = str(uuid.uuid4())
-                        self.enforce_cookie = False
-
-                        await self.populate_auxiliary_inst()
-
-                        await messenger(websocket, 'maica_login_succeeded', 'Authentication passed', '201', type='info', color=colorama.Fore.LIGHTCYAN_EX)
-                        await messenger(websocket, 'maica_login_id', f"{self.settings.verification.user_id}", '200')
-                        await messenger(websocket, 'maica_login_user', f"{self.settings.verification.username}", '200')
-                        await messenger(websocket, 'maica_login_nickname', f"{self.settings.verification.nickname}", '200', no_print=True)
-                        await messenger(websocket, 'maica_connection_security_cookie', cookie, '200', no_print=True)
-
-                        return {'id': self.settings.verification.user_id, 'username': self.settings.verification.username}
-                else:
-                    if isinstance(verification_result[1], dict):
-                        if 'f2b' in verification_result[1]:
-                            error = MaicaPermissionError(f'Account locked by Fail2Ban, {verification_result[1]['f2b']} seconds remaining', '429')
-                            await messenger(websocket, 'maica_login_denied_fail2ban', traceray_id=self.traceray_id, error=error)
-                        elif 'necf' in verification_result[1]:
-                            error = MaicaPermissionError(f'Account Email not verified, check inbox and retry', '401')
-                            await messenger(websocket, 'maica_login_denied_email', traceray_id=self.traceray_id, error=error)
-                        elif 'pwdw' in verification_result[1]:
-                            error = MaicaPermissionWarning(f'Password hashing failed {verification_result[1]['pwdw']} times, check password and retry', '403')
-                            await messenger(websocket, 'maica_login_denied_password', traceray_id=self.traceray_id, error=error)
-                    else:
-                        error = MaicaPermissionError(verification_result[1], '400')
-                        await messenger(websocket, 'maica_login_denied_rsa', traceray_id=self.traceray_id, error=error)
+                    return {'id': self.settings.verification.user_id, 'username': self.settings.verification.username}
 
             # Handle expected exceptions
             except CommonMaicaException as ce:
@@ -412,16 +425,13 @@ class WsCoroutine(NoWsCoroutine):
                 asyncio.gather(*sb_list)
 
                 # Context security check first
-                checked_status = await self.hasher.check_user_status(key='banned')
-                if checked_status[0]:
-                    error = MaicaPermissionError('Account banned by MAICA', '403')
-                    await messenger(websocket, "maica_account_banned", traceray_id=self.traceray_id, error=error)
+                await self.hash_and_login(logged_in_already=True)
 
                 # Then we examine the input
                 recv_text = await websocket.recv()
                 await messenger(info=f'Recieved an input on stage2: {recv_text}', color=colorama.Fore.CYAN)
-
                 recv_loaded_json = await validate_input(recv_text, 4096, self.fsc.rsc, warn=['type'])
+
                 recv_type = recv_loaded_json.get('type', 'unknown')
 
                 # Handle this cookie thing
@@ -677,7 +687,6 @@ class WsCoroutine(NoWsCoroutine):
             if not self.settings.temp.bypass_gen or not replace_generation: # They should present together
 
                 # Generation here
-
                 resp = await self.mcore_conn.make_completion(**completion_args)
 
                 if completion_args['stream']:
@@ -699,7 +708,6 @@ class WsCoroutine(NoWsCoroutine):
             else:
 
                 # We just pretend it was generated
-
                 reply_appended = replace_generation
                 if completion_args['stream']:
                     await messenger(websocket, 'maica_core_streaming_continue', reply_appended, '100'); await messenger(info='\n', type='plain')
@@ -709,7 +717,6 @@ class WsCoroutine(NoWsCoroutine):
                     await messenger(None, 'maica_core_nostream_done', f'Reply sent with cache for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
 
             # Can be post-processed here
-
             reply_appended = await wrap_run_in_exc(None, post_proc.filter_format, reply_appended, self.settings.basic.target_lang)
             reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
 
@@ -741,35 +748,28 @@ class WsCoroutine(NoWsCoroutine):
                 await messenger(websocket, 'maica_chat_loop_finished', f'Finished non-recording chat loop from {self.settings.verification.username}', '200', traceray_id=self.traceray_id)
 
         # Handle expected exceptions
-
         except CommonMaicaException as ce:
             raise ce # Will be handled by stage2 loop
 
         # Handle unexpected exceptions
-
         except Exception as e:
             traceback.print_exc()
             return 3
 
-
-
-#异步标记程序, 不是必要的. 万一要用呢?
-
+# Reserved for whatever
 def callback_func_switch(future):
     pass
-
 def callback_check_permit(future):
     pass
     
-#主要线程驱动器
+# Main app driver
 
-async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn):
+async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn, online_dict):
     unique_lock = asyncio.Lock()
     async with unique_lock:
         try:
-            global online_dict
             loop = asyncio.get_event_loop()
-            thread_instance = WsCoroutine(websocket, auth_pool=auth_pool, maica_pool=maica_pool, mcore_conn=mcore_conn, mfocus_conn=mfocus_conn)
+            thread_instance = WsCoroutine(websocket, auth_pool=auth_pool, maica_pool=maica_pool, mcore_conn=mcore_conn, mfocus_conn=mfocus_conn, online_dict=online_dict)
 
             permit = await thread_instance.check_permit()
             assert isinstance(permit, dict) and permit[0], "Recieved a return state"
@@ -803,8 +803,6 @@ async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn):
             await websocket.wait_closed()
             await messenger(info=f"Closing connection gracefully")
 
-
-
 async def prepare_thread(**kwargs):
     auth_pool = default(kwargs.get('auth_pool'), ConnUtils.auth_pool())
     maica_pool = default(kwargs.get('maica_pool'), ConnUtils.maica_pool())
@@ -820,18 +818,16 @@ async def prepare_thread(**kwargs):
     await server.wait_closed()
 
 def run_ws(**kwargs):
-    global online_dict
     online_dict = {}
 
     asyncio.run(messenger(info='Starting WS server!' if load_env('DEV_STATUS') == 'serving' else 'Starting WS server in development mode!', color=colorama.Fore.LIGHTMAGENTA_EX))
-    asyncio.run(prepare_thread(**kwargs))
+    asyncio.run(prepare_thread(**kwargs, online_dict=online_dict))
 
     asyncio.run(messenger(info='Stopping WS server!', color=colorama.Fore.MAGENTA))
 
 if __name__ == '__main__':
 
     # Pool wrappings init here
-
     auth_pool, maica_pool, mcore_conn, mfocus_conn = ConnUtils.auth_pool(), ConnUtils.maica_pool(), ConnUtils.mcore_conn(), ConnUtils.mfocus_conn()
 
     run_ws(auth_pool=auth_pool, maica_pool=maica_pool, mcore_conn=mcore_conn, mfocus_conn=mfocus_conn)

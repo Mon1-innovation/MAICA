@@ -21,7 +21,7 @@ class DbPoolCoroutine():
         asyncio.run(self._ainit())
 
     async def _ainit(self):
-        self.pool: aiomysql.Pool = await aiomysql.create_pool(host=self.host, user=self.user, password=self.password, db=self.db, autocommit=True)
+        self.pool: aiomysql.Pool = await aiomysql.create_pool(host=self.host, user=self.user, password=self.password, db=self.db)
 
     async def keep_alive(self):
         try:
@@ -184,20 +184,28 @@ class ConnUtils():
             name='mfocus_cli'
         )
 
-async def validate_input(input: str, limit: int=4096, rsc: Optional[FSCPlain.RealtimeSocketsContainer]=None, must: list=[], warn: list=[]) -> Union[dict, list]:
+async def validate_input(input: Union[str, dict, list], limit: int=4096, rsc: Optional[FSCPlain.RealtimeSocketsContainer]=None, must: list=[], warn: list=[]) -> Union[dict, list]:
     """
     Mostly for ws.
     """
     try:
         if not input:
             raise MaicaInputWarning('Input is empty', '410')
-        assert isinstance(input, str), 'Input must be str'
-        if len(input) > limit:
-            raise MaicaInputWarning('Input length exceeded', '413')
-        try:
-            input_json = json.loads(input)
-        except:
-            raise MaicaInputWarning('Request body not JSON', '400')
+        
+        if isinstance(input, str):
+            if len(input) > limit:
+                raise MaicaInputWarning('Input length exceeded', '413')
+            try:
+                input_json = json.loads(input)
+            except:
+                raise MaicaInputWarning('Request body not JSON', '400')
+        elif isinstance(input, dict | list):
+            if len(str(input)) > limit:
+                raise MaicaInputWarning('Input length exceeded', '413')
+            input_json = input
+        else:
+            raise MaicaInputError('Input must be string or JSON-like', '400')
+
         if must:
             for mustkey in must:
                 if not input_json.get(mustkey):

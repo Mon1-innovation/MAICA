@@ -9,7 +9,7 @@ import maica_ws
 import mtools
 from openai import *
 from typing import *
-from mfocus import SfBoundCoroutine
+from mfocus.mfocus_sfe import SfBoundCoroutine
 from .mtrigger_sfe import MtBoundCoroutine
 from mtools import *
 from maica_utils import *

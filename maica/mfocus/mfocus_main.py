@@ -10,7 +10,7 @@ import mtools
 from openai import *
 from typing import *
 from .mfocus_sfe import SfBoundCoroutine
-from mtrigger import MtBoundCoroutine
+from mtrigger.mtrigger_sfe import MtBoundCoroutine
 from mtools import *
 from maica_utils import *
 

@@ -82,6 +82,31 @@ class FSCPlain():
         self.mcore_conn = mcore_conn
         self.mfocus_conn = mfocus_conn
 
+class LoginResult():
+    """
+    A packed login result.
+    This does not contain ban status. Check independently.
+    """
+    user_id = None
+    username = None
+    nickname = None
+    email = None
+    is_verified = None
+    message = None
+    def __init__(self, **kwargs):
+        for priokey in ['user_id', 'username', 'nickname', 'email']:
+            setattr(self, priokey, kwargs.get(priokey))
+        if kwargs.get('is_verified'):
+            assert self.user_id and self.username and self.email, "Verification essentials incomplete"
+        for key in ['is_verified', 'message']:
+            setattr(self, key, kwargs.get(key))
+
+    def __call__(self):
+        d = {}
+        for key in ['user_id', 'username', 'nickname', 'email', 'is_verified', 'message']:
+            d[key] = getattr(self, key)
+        return d
+
 class ReUtils():
     IS = re.I | re.S
     re_sub_password_spoiler = re.compile(r'"password"\s*:\s*"(.*?)"')

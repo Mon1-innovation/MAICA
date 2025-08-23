@@ -22,7 +22,7 @@ authdb = load_env('AUTH_DB')
 maicadb = load_env('MAICA_DB')
 
 def _get_keys() -> tuple[PKCS1_OAEP.PKCS1OAEP_Cipher, PKCS1_OAEP.PKCS1OAEP_Cipher, PSS_SigScheme, PSS_SigScheme]:
-    key_path = (os.path.dirname(os.path.abspath(__file__)))
+    key_path = os.path.dirname(os.path.abspath(__file__))
     with open(os.path.join(key_path, "../../key/prv.key"), "r") as privkey_file:
         privkey = privkey_file.read()
     with open(os.path.join(key_path, "../../key/pub.key"), "r") as pubkey_file:
@@ -39,6 +39,7 @@ encryptor, decryptor, verifier, signer = _get_keys()
 
 class AccountCursor():
     def __init__(self, fsc:FullSocketsContainer, auth_pool=None, maica_pool=None):
+        self.fsc = fsc
         self.settings = fsc.maica_settings
         self.websocket, self.traceray_id = fsc.rsc.websocket, fsc.rsc.traceray_id
         asyncio.run(self._ainit(auth_pool, maica_pool))
@@ -61,10 +62,11 @@ class AccountCursor():
             )
         self.auth_pool = auth_pool; self.maica_pool = maica_pool
 
-    async def check_user_status(self, *args) -> Union[list, dict]:
+    async def check_user_status(self, pref=False, *args) -> Union[list, dict]:
+        status = "status" if not pref else "preferences"
         l = []
         user_id = self.settings.identity.user_id
-        sql_expression = "SELECT status FROM account_status WHERE user_id = %s"
+        sql_expression = f"SELECT {status} FROM account_status WHERE user_id = %s"
         try:
             result = await self.maica_pool.query_modify(expression=sql_expression, values=(user_id))
             stats_json = json.loads(result[0]) if result else {}
@@ -78,63 +80,64 @@ class AccountCursor():
 
         except Exception as e:
             error = MaicaDbError(e, '502')
-            await messenger(self.websocket, 'user_status_read_failure', traceray_id=self.traceray_id, error=error)
+            await messenger(self.websocket, f'user_{status}_read_failure', traceray_id=self.traceray_id, error=error)
 
-    async def write_user_status(self, enforce=False, **kwargs) -> None:
+    async def write_user_status(self, enforce=False, pref=False, **kwargs) -> None:
+        status = "status" if not pref else "preferences"
         user_id = self.settings.identity.user_id
         try:
-            if enforce:
-                result = await self.check_user_status()
+            if not enforce:
+                result = await self.check_user_status(pref=pref)
                 stats_json = result
                 stats_json.update(kwargs)
             else:
                 stats_json = kwargs
-                stats_str = json.dumps(stats_json, ensure_ascii=False)
-                sql_expression = "INSERT INTO account_status (user_id, status) VALUES (%s, %s) ON DUPLICATE KEY UPDATE status = %s"
-                sql_args = (user_id, stats_str, stats_str)
+
+            stats_str = json.dumps(stats_json, ensure_ascii=False)
+            sql_expression = f"INSERT INTO account_status (user_id, {status}) VALUES (%s, %s) ON DUPLICATE KEY UPDATE status = %s"
+            sql_args = (user_id, stats_str, stats_str)
 
             await self.maica_pool.query_modify(expression=sql_expression, values=sql_args)
 
         except Exception as e:
             error = MaicaDbError(e, '502')
-            await messenger(self.websocket, 'user_status_write_failure', traceray_id=self.traceray_id, error=error)
+            await messenger(self.websocket, f'user_{status}_write_failure', traceray_id=self.traceray_id, error=error)
 
     async def run_hash_dcc(self, identity, is_email, password) -> tuple[bool, Union[str, dict, None]]:
         sql_expression = 'SELECT * FROM users WHERE email = %s' if is_email else 'SELECT * FROM users WHERE username = %s'
         try:
             result = await self.auth_pool.query_get(expression=sql_expression, values=(identity))
             assert isinstance(result[0], int), "User does not exist"
-            dbres_id, dbres_username, dbres_nickname, dbres_email, dbres_ecf, dbres_pwd_bcrypt, *_ = result
-            input_pwd, target_pwd = password.encode(), dbres_pwd_bcrypt.encode()
 
+            dbres_id, dbres_username, dbres_nickname, dbres_email, dbres_ecf, dbres_pwd_bcrypt, *_ = result
+            self.settings.identity.update(self.fsc.rsc, user_id=dbres_id, username=dbres_username, nickname=dbres_nickname, email=dbres_email)
+
+            input_pwd, target_pwd = password.encode(), dbres_pwd_bcrypt.encode()
             vf_result = await wrap_run_in_exc(None, bcrypt.checkpw, input_pwd, target_pwd)
             await messenger(info=f'Hashing for {identity} finished: {vf_result}')
-            self.settings.identity.update(self.fsc.rsc, user_id=dbres_id, username=dbres_username, email=dbres_email)
 
-            f2b_count, f2b_stamp = await asyncio.run(self.check_user_status('f2b_count', 'f2b_stamp'))
+            f2b_count, f2b_stamp = await self.check_user_status(False, 'f2b_count', 'f2b_stamp')
 
             if f2b_stamp:
                 # If there's possibility that the account is under F2B
                 if time.time() - f2b_stamp < float(load_env('F2B_TIME')):
                     # Waiting for F2B timeout
-                    verification = False
                     e = {'f2b': int(float(load_env('F2B_TIME'))+f2b_stamp-time.time())}
-                    return verification, e
+                    return False, e
                 else:
                     # Reset f2b_stamp since it has expired
                     await self.write_user_status(f2b_stamp=0)
-            if verification:
+            if vf_result:
                 # Password is correct
                 if not dbres_ecf:
                     # Email not verified
-                    verification = False
                     e = {'necf': True}
-                    return verification, e
+                    return False, e
                 else:
                     # We're all good
                     await self.write_user_status(f2b_count=0)
                     self.settings.verification.update(self.fsc.rsc, user_id=dbres_id, username=dbres_username, nickname=dbres_nickname, email=dbres_email)
-                    return verification, None
+                    return True, None
             else:
                 # Password is wrong
                 if not f2b_count:
@@ -144,15 +147,14 @@ class AccountCursor():
                 e = {'pwdw': f2b_count}
                 if f2b_count >= int(load_env('F2B_COUNT')):
                     # Trigger F2B
-                    await self.write_user_status({'f2b_stamp': time.time()})
+                    await self.write_user_status(f2b_stamp=time.time())
                     f2b_count = 0
                 # And write f2b_count always
-                await self.write_user_status({'f2b_count': f2b_count})
-                return verification, e
+                await self.write_user_status(f2b_count=f2b_count)
+                return False, e
         except Exception as e:
             # This function will always return information not exception, since situations can be complex
-            verification = False
-            return verification, e
+            return False, e
 
     async def hashing_verify(self, access_token) -> tuple[bool, Union[str, dict, None]]:
         try:
@@ -181,3 +183,39 @@ class AccountCursor():
         except Exception:
             raise Exception('No password provided')
         return await self.run_hash_dcc(login_identity, login_is_email, login_password)
+    
+def encrypt_token(cridential: str) -> str:
+    """Generates an encrypted token. It does not care validity."""
+    encrypted_token = encryptor.encrypt(cridential)
+    encoded_token = base64.b64encode(cridential)
+    encrypted_token = encoded_token.decode('utf-8')
+    return encrypted_token
+
+def sign_message(message):
+    global signer
+    message = message.encode("utf-8")
+    h = SHA256.new()
+    h.update(message)
+    signature = signer.sign(h)
+    sigb64 = base64.b64encode(signature).decode("utf-8")
+    return sigb64
+
+def verify_message(message, sigb64):
+    global verifier
+    message = message.encode("utf-8")
+    signature = base64.b64decode(sigb64.encode("utf-8"))
+    h = SHA256.new()
+    h.update(message)
+    if verifier.verify(h, signature):
+        return True
+    else:
+        return False
+
+def sort_message(message):
+    message = list(message)
+    message_new = []
+    for line in message:
+        line = dict(line)
+        line_new = {"role": line['role'], "content": line['content']}
+        message_new.append(line_new)
+    return message_new
