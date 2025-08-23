@@ -46,6 +46,9 @@ class CriticalMaicaError(CommonMaicaError):
 class MaicaPermissionError(CommonMaicaError):
     """This suggests the user is accessing without correct permissions."""
 
+class MaicaInputError(CommonMaicaError):
+    """This suggests the input appears to be an impossible value, which is a more severe case than warning."""
+
 class MaicaResponseError(CommonMaicaError):
     """This suggests the output is somewhat unexpected, we should terminate the connection and possibly the entire process."""
 

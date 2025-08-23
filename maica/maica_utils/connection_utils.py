@@ -183,3 +183,42 @@ class ConnUtils():
             base_url=MFOCUS_ADDR,
             name='mfocus_cli'
         )
+
+async def validate_input(input: str, limit: int=4096, rsc: Optional[FSCPlain.RealtimeSocketsContainer]=None, must: list=[], warn: list=[]) -> Union[dict, list]:
+    """
+    Mostly for ws.
+    """
+    try:
+        if not input:
+            raise MaicaInputWarning('Input is empty', '410')
+        assert isinstance(input, str), 'Input must be str'
+        if len(input) > limit:
+            raise MaicaInputWarning('Input length exceeded', '413')
+        try:
+            input_json = json.loads(input)
+        except:
+            raise MaicaInputWarning('Request body not JSON', '400')
+        if must:
+            for mustkey in must:
+                if not input_json.get(mustkey):
+                    raise MaicaInputWarning(f'Request contains no necessary {mustkey}', '405')
+        if warn:
+            for warnkey in warn:
+                if not warnkey in input_json:
+                    if rsc:
+                        await messenger(rsc.websocket, 'maica_future_warning', f'Requests containing no {warnkey} will likely be deprecated in the future', '302')
+        
+        return input_json
+    
+    except CommonMaicaException as ce:
+        if rsc:
+            await messenger(rsc.websocket, 'input_validation_denied', traceray_id=rsc.traceray_id, error=ce)
+        else:
+            raise ce
+        
+    except Exception as e:
+        if rsc:
+            error = MaicaInputError(str(e), '400')
+            await messenger(rsc.websocket, 'input_validation_error', traceray_id=rsc.traceray_id, error=error)
+        else:
+            raise e

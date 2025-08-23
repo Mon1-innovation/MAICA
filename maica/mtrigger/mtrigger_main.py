@@ -24,7 +24,7 @@ class MTriggerCoroutine():
         
         asyncio.run(self.reset())
 
-    def reset(self):
+    async def reset(self):
         """Caution: we should reset sf_inst and mt_inst here, but these are done more manually to prevent duplication."""
         self.tools = []
         self.serial_messages = []
@@ -35,7 +35,7 @@ class MTriggerCoroutine():
         if self.sf_inst:
             reset_list.append(self.sf_inst.reset())
         await asyncio.gather(*reset_list)
-        self.reset()
+        await self.reset()
 
     def _construct_tools(self):
         self.tools = []

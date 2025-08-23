@@ -17,7 +17,7 @@ import post_proc
 from typing import *
 from Crypto.Random import random as CRANDOM
 from mfocus import MFocusCoroutine, SfBoundCoroutine
-# mtrigger...
+from mtrigger import MTriggerCoroutine, MtBoundCoroutine
 from maica_utils import *
 
 class NoWsCoroutine():
@@ -25,6 +25,12 @@ class NoWsCoroutine():
     Not actually no-ws, but ws can be None.
     Also no AI socket.
     """
+
+    # To be populated or not
+    sf_inst = None
+    mt_inst = None
+    mfocus_coro = None
+    mtrigger_coro = None
 
     # Initialization
 
@@ -258,10 +264,9 @@ class NoWsCoroutine():
         return new_system
     
     async def populate_auxiliary_inst(self):
-        self.sf_inst = SfBoundCoroutine(self.fsc)
-        self.mfocus_coro = MFocusCoroutine(self.fsc, self.mf_p, )
-
-
+        self.sf_inst, self.mt_inst = SfBoundCoroutine(self.fsc), MtBoundCoroutine(self.fsc)
+        self.mfocus_coro = MFocusCoroutine(self.fsc, self.sf_inst, self.mt_inst)
+        self.mtrigger_coro = MTriggerCoroutine(self.fsc, self.mt_inst, self.sf_inst)
 
 class WsCoroutine(NoWsCoroutine):
     """
@@ -294,41 +299,24 @@ class WsCoroutine(NoWsCoroutine):
                 self.flush_traceray()
                 self.settings.identity.reset()
                 self.settings.verification.reset()
+
                 recv_text = await websocket.recv()
                 await messenger(info=f'Recieved an input on stage1.', color=colorama.Fore.CYAN)
 
-                # Context security check first
-                if len(recv_text) > 4096:
-                    error = MaicaInputWarning('Input length exceeded', '413')
-                    await messenger(websocket, "input_length_exceeded", traceray_id=self.traceray_id, error=error)
-                try:
-                    recv_loaded_json = json.loads(recv_text)
-                except Exception:
-                    error = MaicaInputWarning('Request body not JSON', '400')
-                    await messenger(websocket, "request_body_not_json", traceray_id=self.traceray_id, error=error)
-                try:
-                    recv_token = recv_loaded_json['token']
-                except Exception:
-                    error = MaicaInputWarning('Request contains no token', '405')
-                    await messenger(websocket, "request_body_no_token", traceray_id=self.traceray_id, error=error)
+                recv_loaded_json = validate_input(recv_text, 4096, self.fsc.rsc, ['token'])
 
                 # Initiate account check
-                verification_result = await self.hasher.hashing_verify(access_token=recv_token)
+                verification_result = await self.hasher.hashing_verify(access_token=recv_loaded_json['token'])
                 if verification_result[0]:
 
                     # Account security check
-                    checked_status = await self.check_user_status(key='banned')
-                    if not checked_status[0]:
-                        error = MaicaDbError('Account service failed', '502')
-                        try:
-                            error.message += f": {str(checked_status[1])}"
-                        except Exception:
-                            error.message += ", no reason provided"
-                        await messenger(websocket, "auth_db_failure", traceray_id=self.traceray_id, error=error)
-                    elif checked_status[3]:
+                    checked_status = await self.hasher.check_user_status(key='banned')
+                    if checked_status[0]:
                         error = MaicaPermissionError('Account banned by MAICA', '403')
                         await messenger(websocket, "maica_account_banned", traceray_id=self.traceray_id, error=error)
                     else:
+
+                        # Cridential correct and not banned
                         if self.settings.verification.user_id in online_dict:
                             if load_env("KICK_STALE_CONNS") == "0":
                                 self.settings.verification.reset()
@@ -348,8 +336,13 @@ class WsCoroutine(NoWsCoroutine):
                                     pass
                                 async with stale_lock:
                                     await messenger(None, 'maica_connection_stale_kicked', 'The stale connection is kicked', '204')
+
+                        # From here we can assume the user has logged in successfully
                         self.cookie = cookie = str(uuid.uuid4())
                         self.enforce_cookie = False
+
+                        await self.populate_auxiliary_inst()
+
                         await messenger(websocket, 'maica_login_succeeded', 'Authentication passed', '201', type='info', color=colorama.Fore.LIGHTCYAN_EX)
                         await messenger(websocket, 'maica_login_id', f"{self.settings.verification.user_id}", '200')
                         await messenger(websocket, 'maica_login_user', f"{self.settings.verification.username}", '200')
@@ -373,7 +366,6 @@ class WsCoroutine(NoWsCoroutine):
                         await messenger(websocket, 'maica_login_denied_rsa', traceray_id=self.traceray_id, error=error)
 
             # Handle expected exceptions
-
             except CommonMaicaException as ce:
                 if ce.is_critical():
                     return 2
@@ -387,7 +379,6 @@ class WsCoroutine(NoWsCoroutine):
                 return 0
 
             # Handle unexpected exceptions
-
             except Exception as e:
                 traceback.print_exc()
                 return 3
@@ -398,59 +389,42 @@ class WsCoroutine(NoWsCoroutine):
     async def function_switch(self):
 
         # Initiation
-
         websocket, mcore_conn = self.websocket, self.mcore_conn
 
         await messenger(websocket, "maica_connection_established", "MAICA connection established", "201", type='info', no_print=True)
         await messenger(websocket, "maica_provider_anno", f"Current service provider is {load_env('DEV_IDENTITY')}", "200", type='info', no_print=True)
 
         # Starting loop from here
-
         while True:
             try:
 
                 # Initiation
-
                 self.flush_traceray()
                 return_status = 0
 
-                # Context security check first
+                # Resets
+                self.settings.temp.reset()
+                sb_list = []
+                for sb_name in ['sf_inst', 'mt_inst', 'mfocus_coro', 'mtrigger_coro']:
+                    sb = getattr(self, sb_name)
+                    if sb:
+                        sb_list.append(self.sb.reset())
+                asyncio.gather(*sb_list)
 
-                checked_status = await self.check_user_status(key='banned')
-                if not checked_status[0]:
-                    error = MaicaDbError('Account service failed', '502')
-                    try:
-                        error.message += f": {str(checked_status[1])}"
-                    except Exception:
-                        error.message += ", no reason provided"
-                    await messenger(websocket, "auth_db_failure", traceray_id=self.traceray_id, error=error)
-                elif checked_status[3]:
+                # Context security check first
+                checked_status = await self.hasher.check_user_status(key='banned')
+                if checked_status[0]:
                     error = MaicaPermissionError('Account banned by MAICA', '403')
                     await messenger(websocket, "maica_account_banned", traceray_id=self.traceray_id, error=error)
 
                 # Then we examine the input
-
                 recv_text = await websocket.recv()
                 await messenger(info=f'Recieved an input on stage2: {recv_text}', color=colorama.Fore.CYAN)
 
-                # Then context validation
-
-                if len(recv_text) > 4096:
-                    error = MaicaInputWarning('Input length exceeded', '413')
-                    await messenger(websocket, "input_length_exceeded", traceray_id=self.traceray_id, error=error)
-                try:
-                    recv_loaded_json: dict = json.loads(recv_text)
-                except Exception:
-                    error = MaicaInputWarning('Request body not JSON', '400')
-                    await messenger(websocket, "request_body_not_json", traceray_id=self.traceray_id, error=error)
-                try:
-                    recv_type = recv_loaded_json['type']
-                except Exception:
-                    recv_type = 'unknown'
-                    await messenger(websocket, "future_warning", "Requests with no type declaration will be deprecated in the future", "426")
+                recv_loaded_json = await validate_input(recv_text, 4096, self.fsc.rsc, warn=['type'])
+                recv_type = recv_loaded_json.get('type', 'unknown')
 
                 # Handle this cookie thing
-
                 if recv_loaded_json.get('cookie'):
                     if str(recv_loaded_json['cookie']) == self.cookie:
                         if not self.enforce_cookie:
@@ -466,7 +440,6 @@ class WsCoroutine(NoWsCoroutine):
                     await messenger(websocket, 'security_cookie_missing', traceray_id=self.traceray_id, error=error)
 
                 # Route request
-
                 match recv_type.lower():
                     case 'ping':
                         await messenger(websocket, "pong", f"Ping recieved from {self.settings.verification.username} and responded", "200")
@@ -487,7 +460,6 @@ class WsCoroutine(NoWsCoroutine):
                     await messenger(websocket, 'maica_frame_critical', traceray_id=self.traceray_id, error=error)
 
             # Handle expected exceptions
-
             except CommonMaicaException as ce:
                 if ce.is_critical():
                     return 2
@@ -501,17 +473,14 @@ class WsCoroutine(NoWsCoroutine):
                 return 0
 
             # Handle unexpected exceptions
-
             except Exception as e:
                 traceback.print_exc()
                 return 3
 
     # Param setting section
-
     async def def_model(self, recv_loaded_json: dict):
 
         # Initiations
-
         websocket = self.websocket
         try:
             chat_params: dict = recv_loaded_json['chat_params']
@@ -521,7 +490,6 @@ class WsCoroutine(NoWsCoroutine):
             return 0
         
         # Handle input errors here
-
         except Exception as e:
             error = MaicaInputWarning(str(e), '405')
             await messenger(websocket, 'maica_params_denied', traceray_id=self.traceray_id, error=error)
@@ -531,16 +499,14 @@ class WsCoroutine(NoWsCoroutine):
     async def do_communicate(self, recv_loaded_json: dict):
 
         # Initiations
-
         websocket = self.websocket
         query_in = ''
+        replace_generation = ''
+        ms_cache_identity = ''
 
-        replace_generation = ''; ms_cache_identity = ''
-        self.settings.temp.reset()
         try:
 
             # Param assertions here
-
             try:
                 chat_session = int(default(recv_loaded_json.get('chat_session'), 0))
                 assert -1 <= chat_session < 10, "Wrong chat_session range"
@@ -561,7 +527,7 @@ class WsCoroutine(NoWsCoroutine):
                             error.message += ", no reason provided"
                         await messenger(websocket, "maica_db_failure", traceray_id=self.traceray_id, error=error)
                     elif purge_result[2]:
-                        await messenger(websocket, "maica_session_nout_found", "Determined chat_session doesn't exist", "302", self.traceray_id)
+                        await messenger(websocket, "maica_session_not_found", "Determined chat_session doesn't exist", "302", self.traceray_id)
                         return 0
                     else:
                         await messenger(websocket, "maica_session_reset", "Determined chat_session reset", "204", self.traceray_id)
@@ -657,8 +623,8 @@ class WsCoroutine(NoWsCoroutine):
 
             match int(self.settings.temp.chat_session):
                 case -1:
-                    # chat_session == -1 means query contains an entire chat history(sequence mode)
 
+                    # chat_session == -1 means query contains an entire chat history(sequence mode)
                     session_type = -1
                     try:
                         messages = json.loads(query_in)
@@ -671,45 +637,17 @@ class WsCoroutine(NoWsCoroutine):
                         await messenger(websocket, 'maica_sequence_not_json', traceray_id=self.traceray_id, error=error)
 
                 case i if 0 <= i < 10:
-                    # chat_session == 0 means single round, else normal
 
+                    # chat_session == 0 means single round, else normal
                     session_type = 0 if i == 0 else 1
                     messages0 = {'role': 'user', 'content': query_in}
+
                     if self.settings.basic.enable_mf and not self.settings.temp.bypass_mf:
-                        message_agent_wrapped = await mfocus.agenting(self.fsc, query_in)
-
-                        if message_agent_wrapped[0] == 'EMPTY':
-                            if len(message_agent_wrapped[1]) > 5:
-                                await messenger(websocket, 'maica_agent_using_inst', 'MFocus got instruction and used', '200')
-                                agent_info = message_agent_wrapped[1]
-                            else:
-                                await messenger(websocket, 'maica_agent_no_inst', 'MFocus got no instruction, falling back and proceeding', '404', traceray_id=self.traceray_id)
-                                agent_info = ''
-
-                        elif message_agent_wrapped[0] == 'FAIL':
-                            await messenger(websocket, 'maica_agent_no_tool', 'MFocus called no tool', '204')
-                            agent_info = ''
-
-                        else:
-                            # We are defaulting instructed guidance because its more clear pattern
-                            # But if pointer entered this section, user must used mf_aggressive or something went wrong
-                            if len(message_agent_wrapped[1]) > 5 and len(message_agent_wrapped[0]) > 5:
-                                await messenger(websocket, 'maica_agent_using_conc', 'MFocus got conclusion and used', '200')
-                                agent_info = message_agent_wrapped[0]
-                            elif len(message_agent_wrapped[1]) > 5:
-                                # Conclusion likely failed, but at least there is instruction
-                                await messenger(websocket, 'maica_agent_no_conc', 'MFocus got no conclusion, likely failed', '404', traceray_id=self.traceray_id)
-                                agent_info = ''
-                            else:
-                                await messenger(websocket, 'maica_agent_no_inst', 'MFocus got no instruction, falling back and proceeding', '404', traceray_id=self.traceray_id)
-                                agent_info = ''
-                        # Everything should be grabbed by now
-
+                        message_agent_wrapped = await self.mfocus_coro.agenting(query_in)
                     else:
-                        self.settings.temp.update(self.fsc.rsc, bypass_mf=False)
-                        agent_info=''
+                        message_agent_wrapped = None
                     
-                    prompt = await self.gen_system_prompt
+                    prompt = await self.gen_system_prompt(message_agent_wrapped, self.settings.temp.strict_conv)
                     if session_type == 1:
                         messages = (await self.rw_chat_session('i', messages0, prompt))[1]
                     elif session_type == 0:
@@ -775,29 +713,16 @@ class WsCoroutine(NoWsCoroutine):
             reply_appended = await wrap_run_in_exc(None, post_proc.filter_format, reply_appended, self.settings.basic.target_lang)
             reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
 
+            # Trigger process
             if self.settings.basic.enable_mt and not self.settings.temp.bypass_mt:
-                task_trigger_resp = asyncio.create_task(mtrigger.wrap_triggering(self, query_in, reply_appended, self.settings.temp.chat_session))
-                await task_trigger_resp
-                trigger_resp = task_trigger_resp.result()
+                await self.mtrigger_coro.triggering(query_in, reply_appended)
             else:
                 self.settings.temp.update(self.fsc.rsc, bypass_mt=False)
-                trigger_resp = (False, None)
 
             if self.settings.temp.ms_cache and not self.settings.temp.bypass_gen and not replace_generation:
                 await self.store_ms_cache(ms_cache_identity, reply_appended)
 
-            trigger_succ, trigger_sce = trigger_resp
-            if trigger_succ:
-                await messenger(websocket, 'maica_trigger_done', trigger_sce, '1010')
-            else:
-                if trigger_sce:
-                    error = MaicaResponseError('MTrigger failed to response', '502')
-                    await messenger(websocket, 'maica_trigger_failed', traceray_id=self.traceray_id, error=error)
-                else:
-                    await messenger(None, 'maica_trigger_empty', 'No trigger passed in', '200')
-
             # Store history here
-
             if session_type == 1:
                 stored = await self.rw_chat_session(self.settings.temp.chat_session, 'a', f'{messages0},{reply_appended_insertion}')
                 if stored[0]:

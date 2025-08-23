@@ -5,6 +5,7 @@ from .maica_utils import (
     CommonMaicaWarning,
     CriticalMaicaError,
     MaicaPermissionError,
+    MaicaInputError,
     MaicaResponseError,
     MaicaDbError,
     MaicaPermissionWarning,
@@ -30,7 +31,7 @@ from .maica_utils import (
     try_load_json,
     hash_sha256,
 )
-from .connection_utils import DbPoolCoroutine, ConnUtils, AiConnCoroutine
+from .connection_utils import DbPoolCoroutine, ConnUtils, AiConnCoroutine, validate_input
 from .setting_utils import MaicaSettings
 from .account_utils import AccountCursor
 from .container_utils import FullSocketsContainer
@@ -42,6 +43,7 @@ __all__ = [
     'CommonMaicaWarning',
     'CriticalMaicaError',
     'MaicaPermissionError',
+    'MaicaInputError',
     'MaicaResponseError',
     'MaicaDbError',
     'MaicaPermissionWarning',
@@ -55,6 +57,7 @@ __all__ = [
     'wrap_ws_formatter',
     'fuzzy_match',
     'messenger',
+    'validate_input',
     'load_env',
     'wrap_run_in_exc',
     'limit_length',

@@ -13,7 +13,7 @@ from .connection_utils import *
 from .maica_utils import *
 from .setting_utils import *
 from .container_utils import *
-"""Import layer 5"""
+"""Import layer 6"""
 
 db_host = load_env('DB_ADDR')
 db_user = load_env('DB_USER')
@@ -181,5 +181,3 @@ class AccountCursor():
         except Exception:
             raise Exception('No password provided')
         return await self.run_hash_dcc(login_identity, login_is_email, login_password)
-
-

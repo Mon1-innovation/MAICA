@@ -23,9 +23,9 @@ class MFocusCoroutine():
         self.maica_pool = fsc.maica_pool
         
         self.agent_tools = AgentTools(fsc, sf_inst)
-        self.reset()
+        asyncio.run(self.reset())
 
-    def reset(self):
+    async def reset(self):
         """Caution: we should reset sf_inst and mt_inst here, but these are done more manually to prevent duplication."""
         self.tnd_aggressive = self.settings.extra.tnd_aggressive
         if self.settings.temp.ic_prep:
@@ -39,7 +39,7 @@ class MFocusCoroutine():
         if self.mt_inst:
             reset_list.append(self.mt_inst.reset())
         await asyncio.gather(*reset_list)
-        self.reset()
+        await self.reset()
 
     def _construct_tools(self):
         self.tools = []
@@ -339,7 +339,7 @@ class MFocusCoroutine():
         # First thing first we prepare the first query
         self._construct_tools()
         await self._construct_query(user_input=query)
-        
+
         cycle = 0; ending = False
         while cycle <= 7 and not ending:
 
@@ -459,6 +459,9 @@ class MFocusCoroutine():
             for k, v in instructed_answer.items():
                 # v can be only list or str
                 instructed_answer_list.extend(v) if isinstance(v, list) else instructed_answer_list.append(v)
+        else:
+            # If there's really no instruction
+            return None
 
         instructed_answer_str = ', '.join(instructed_answer_list)
         return instructed_answer_str
