@@ -1,4 +1,5 @@
 import aiomysql
+import aiosqlite
 import asyncio
 import traceback
 from openai import AsyncOpenAI
@@ -21,7 +22,13 @@ class DbPoolCoroutine():
         asyncio.run(self._ainit())
 
     async def _ainit(self):
-        self.pool: aiomysql.Pool = await aiomysql.create_pool(host=self.host, user=self.user, password=self.password, db=self.db)
+        if vali_url(self.host):
+            # We assume it's MySQL
+            self.pool: aiomysql.Pool = await aiomysql.create_pool(host=self.host, user=self.user, password=self.password, db=self.db)
+        else:
+            # We assume it's SQLite
+            # If you're connecting to MySQL through a socket, redesign it yourself
+            pass
 
     async def keep_alive(self):
         try:

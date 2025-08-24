@@ -68,7 +68,7 @@ class AccountCursor():
         user_id = self.settings.identity.user_id
         sql_expression = f"SELECT {status} FROM account_status WHERE user_id = %s"
         try:
-            result = await self.maica_pool.query_modify(expression=sql_expression, values=(user_id))
+            result = await self.maica_pool.query_get(expression=sql_expression, values=(user_id))
             stats_json = json.loads(result[0]) if result else {}
 
             if not args:
@@ -94,7 +94,7 @@ class AccountCursor():
                 stats_json = kwargs
 
             stats_str = json.dumps(stats_json, ensure_ascii=False)
-            sql_expression = f"INSERT INTO account_status (user_id, {status}) VALUES (%s, %s) ON DUPLICATE KEY UPDATE status = %s"
+            sql_expression = f"INSERT INTO account_status (user_id, {status}) VALUES (%s, %s) ON DUPLICATE KEY UPDATE {status} = %s"
             sql_args = (user_id, stats_str, stats_str)
 
             await self.maica_pool.query_modify(expression=sql_expression, values=sql_args)

@@ -12,6 +12,7 @@ import datetime
 import random
 from typing import *
 from dotenv import load_dotenv as __load_dotenv
+from urllib.parse import urlparse
 """Import layer 1"""
 
 colorama.init(autoreset=True)
@@ -265,6 +266,14 @@ async def get_json(url) -> json:
     finally:
         await client.aclose()
     return res
+
+def vali_url(url: str) -> bool:
+    """If this is a valid url."""
+    try:
+        urlparse(url)
+        return True
+    except Exception:
+        return False
 
 def vali_date(y, m, d) -> tuple[int, int, int]:
     """What a pun!"""
