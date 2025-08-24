@@ -4,10 +4,10 @@ from .mspire import make_inspire
 from .wiki_scraping import get_page
 from .weather_scraping import weather_api_get
 from .enet_scraping import internet_search
-from .agent_modules import AgentTools
 
 __all__ = [
     'make_postmail',
     'make_inspire',
-    'AgentTools',
+    'weather_api_get',
+    'internet_search',
     ]

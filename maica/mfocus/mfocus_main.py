@@ -6,12 +6,12 @@ import traceback
 import asyncio
 import nest_asyncio
 import maica_ws
-import mtools
+
 from openai import *
 from typing import *
 from .mfocus_sfe import SfBoundCoroutine
 from mtrigger.mtrigger_sfe import MtBoundCoroutine
-from mtools import *
+from .agent_modules import AgentTools
 from maica_utils import *
 
 class MFocusCoroutine():
