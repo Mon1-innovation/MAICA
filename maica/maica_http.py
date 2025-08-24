@@ -1,7 +1,7 @@
 if __name__ == '__main__':
     from gevent import monkey
     monkey.patch_all()
-from quart import Quart, request, jsonify
+from quart import Quart, request, jsonify, Response
 from quart.views import View
 import os
 import asyncio
@@ -57,7 +57,7 @@ class ShortConnHandler(View):
             self.stem_inst = None
             self.settings = None
 
-    def dispatch_request(self):
+    def dispatch_request(self, **kwargs):
         try:
             endpoint = request.endpoint
             function_routed = getattr(self, endpoint)
@@ -65,9 +65,10 @@ class ShortConnHandler(View):
                 asyncio.run(messenger(info=f'Recieved request on API endpoint {endpoint}', color=colorama.Fore.MAGENTA))
                 result = asyncio.run(function_routed())
 
-                result_json = asyncio.run(result.get_json())
-                d = {"success": result_json.get('success'), "exception": result_json.get('exception'), "content": result_json.get('content')}
-                asyncio.run(messenger(info=f'Return value: {str(d)}', color=colorama.Fore.LIGHTMAGENTA_EX))
+                if isinstance(result, Response):
+                    result_json = asyncio.run(result.get_json())
+                    d = {"success": result_json.get('success'), "exception": result_json.get('exception'), "content": result_json.get('content')}
+                    asyncio.run(messenger(info=f'Return value: {str(d)}', color=colorama.Fore.LIGHTMAGENTA_EX))
 
                 return result
             
@@ -220,7 +221,6 @@ class ShortConnHandler(View):
 
         await self.stem_inst.hasher.write_user_status(enforce=True, pref=True)
         return jsonify({"success": True, "exception": None})
-    
         
     # async def control_preferences(self):
     #     """read->GET, write->PATCH, delete->DELETE, reset->POST"""
@@ -318,37 +318,43 @@ class ShortConnHandler(View):
                 workload_cache['content'] = content
 
         return jsonify({"success": True, "exception": None, "content": content})
+    
+    async def any_unknown(self):
+        """Handles any unknown endpoint"""
+        await messenger(info=f"An unknown access to {request.full_path} handled", type='warn')
+        return jsonify({"success": False, "exception": 'Unknown request endpoint or method'}), 404
 
 if load_env('FULL_RESTFUL') == '1':
     app.add_url_rule("/savefile", methods=['POST'], view_func=ShortConnHandler.as_view("upload_savefile"))
-    app.add_url_rule("/trigger", methods=['POST'],  view_func=ShortConnHandler.as_view("upload_trigger"))
-    app.add_url_rule("/history", methods=['GET'],  view_func=ShortConnHandler.as_view("download_history"))
-    app.add_url_rule("/history", methods=['PUT'],  view_func=ShortConnHandler.as_view("restore_history"))
-    app.add_url_rule("/preferences", methods=['GET'],  view_func=ShortConnHandler.as_view("download_preferences"))
-    app.add_url_rule("/preferences", methods=['PATCH'],  view_func=ShortConnHandler.as_view("edit_preferences"))
-    app.add_url_rule("/preferences", methods=['DELETE'],  view_func=ShortConnHandler.as_view("delete_preferences"))
-    app.add_url_rule("/preferences", methods=['POST'],  view_func=ShortConnHandler.as_view("reset_preferences"))
-    app.add_url_rule("/register", methods=['GET'],  view_func=ShortConnHandler.as_view("download_token", False))
-    app.add_url_rule("/legality", methods=['GET'],  view_func=ShortConnHandler.as_view("check_legality"))
-    app.add_url_rule("/servers", methods=['GET'],  view_func=ShortConnHandler.as_view("get_servers", False))
-    app.add_url_rule("/accessibility", methods=['GET'],  view_func=ShortConnHandler.as_view("get_accessibility", False))
-    app.add_url_rule("/version", methods=['GET'],  view_func=ShortConnHandler.as_view("get_version", False))
-    app.add_url_rule("/workload", methods=['GET'],  view_func=ShortConnHandler.as_view("get_workload", False))
+    app.add_url_rule("/trigger", methods=['POST'], view_func=ShortConnHandler.as_view("upload_trigger"))
+    app.add_url_rule("/history", methods=['GET'], view_func=ShortConnHandler.as_view("download_history"))
+    app.add_url_rule("/history", methods=['PUT'], view_func=ShortConnHandler.as_view("restore_history"))
+    app.add_url_rule("/preferences", methods=['GET'], view_func=ShortConnHandler.as_view("download_preferences"))
+    app.add_url_rule("/preferences", methods=['PATCH'], view_func=ShortConnHandler.as_view("edit_preferences"))
+    app.add_url_rule("/preferences", methods=['DELETE'], view_func=ShortConnHandler.as_view("delete_preferences"))
+    app.add_url_rule("/preferences", methods=['POST'], view_func=ShortConnHandler.as_view("reset_preferences"))
+    app.add_url_rule("/register", methods=['GET'], view_func=ShortConnHandler.as_view("download_token", val=False))
+    app.add_url_rule("/legality", methods=['GET'], view_func=ShortConnHandler.as_view("check_legality"))
+    app.add_url_rule("/servers", methods=['GET'], view_func=ShortConnHandler.as_view("get_servers", val=False))
+    app.add_url_rule("/accessibility", methods=['GET'], view_func=ShortConnHandler.as_view("get_accessibility", val=False))
+    app.add_url_rule("/version", methods=['GET'], view_func=ShortConnHandler.as_view("get_version", val=False))
+    app.add_url_rule("/workload", methods=['GET'], view_func=ShortConnHandler.as_view("get_workload", val=False))
 else:
     app.add_url_rule("/savefile", methods=['POST'], view_func=ShortConnHandler.as_view("upload_savefile"))
-    app.add_url_rule("/trigger", methods=['POST'],  view_func=ShortConnHandler.as_view("upload_trigger"))
-    app.add_url_rule("/history", methods=['GET'],  view_func=ShortConnHandler.as_view("download_history"))
-    app.add_url_rule("/history", methods=['POST'],  view_func=ShortConnHandler.as_view("restore_history"))
-    app.add_url_rule("/preferences", methods=['GET'],  view_func=ShortConnHandler.as_view("download_preferences"))
-    app.add_url_rule("/preferences/edit", methods=['POST'],  view_func=ShortConnHandler.as_view("edit_preferences"))
-    app.add_url_rule("/preferences/delete", methods=['POST'],  view_func=ShortConnHandler.as_view("delete_preferences"))
-    app.add_url_rule("/preferences/reset", methods=['POST'],  view_func=ShortConnHandler.as_view("reset_preferences"))
-    app.add_url_rule("/register", methods=['GET'],  view_func=ShortConnHandler.as_view("download_token", False))
-    app.add_url_rule("/legality", methods=['GET'],  view_func=ShortConnHandler.as_view("check_legality"))
-    app.add_url_rule("/servers", methods=['GET'],  view_func=ShortConnHandler.as_view("get_servers", False))
-    app.add_url_rule("/accessibility", methods=['GET'],  view_func=ShortConnHandler.as_view("get_accessibility", False))
-    app.add_url_rule("/version", methods=['GET'],  view_func=ShortConnHandler.as_view("get_version", False))
-    app.add_url_rule("/workload", methods=['GET'],  view_func=ShortConnHandler.as_view("get_workload", False))
+    app.add_url_rule("/trigger", methods=['POST'], view_func=ShortConnHandler.as_view("upload_trigger"))
+    app.add_url_rule("/history", methods=['GET'], view_func=ShortConnHandler.as_view("download_history"))
+    app.add_url_rule("/history", methods=['POST'], view_func=ShortConnHandler.as_view("restore_history"))
+    app.add_url_rule("/preferences", methods=['GET'], view_func=ShortConnHandler.as_view("download_preferences"))
+    app.add_url_rule("/preferences/edit", methods=['POST'], view_func=ShortConnHandler.as_view("edit_preferences"))
+    app.add_url_rule("/preferences/delete", methods=['POST'], view_func=ShortConnHandler.as_view("delete_preferences"))
+    app.add_url_rule("/preferences/reset", methods=['POST'], view_func=ShortConnHandler.as_view("reset_preferences"))
+    app.add_url_rule("/register", methods=['GET'], view_func=ShortConnHandler.as_view("download_token", val=False))
+    app.add_url_rule("/legality", methods=['GET'], view_func=ShortConnHandler.as_view("check_legality"))
+    app.add_url_rule("/servers", methods=['GET'], view_func=ShortConnHandler.as_view("get_servers", val=False))
+    app.add_url_rule("/accessibility", methods=['GET'], view_func=ShortConnHandler.as_view("get_accessibility", val=False))
+    app.add_url_rule("/version", methods=['GET'], view_func=ShortConnHandler.as_view("get_version", val=False))
+    app.add_url_rule("/workload", methods=['GET'], view_func=ShortConnHandler.as_view("get_workload", val=False))
+app.add_url_rule("/<path>", methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], view_func=ShortConnHandler.as_view("any_unknown", val=False))
 
 def run_http(**kwargs):
 
