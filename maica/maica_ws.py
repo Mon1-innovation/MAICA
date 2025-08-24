@@ -333,17 +333,17 @@ class WsCoroutine(NoWsCoroutine):
         self.online_dict = online_dict
 
         self.fsc.rsc.websocket = websocket
-        mcore_conn.init_rsc(self.fsc.rsc); mfocus_conn.init_rsc(self.fsc.rsc)
+        if mcore_conn and mfocus_conn:
+            mcore_conn.init_rsc(self.fsc.rsc); mfocus_conn.init_rsc(self.fsc.rsc)
         self.mcore_conn, self.mfocus_conn = mcore_conn, mfocus_conn
         self.fsc.mcore_conn, self.fsc.mfocus_conn = mcore_conn, mfocus_conn
 
     # Stage 1 permission check
 
     async def check_permit(self):
-        global online_dict
         websocket = self.websocket
         await messenger(info='An anonymous connection initiated', color=colorama.Fore.LIGHTBLUE_EX)
-        await messenger(info=f'Current online users: {list(online_dict.keys())}', color=colorama.Fore.LIGHTBLUE_EX)
+        await messenger(info=f'Current online users: {list(self.online_dict.keys())}', color=colorama.Fore.LIGHTBLUE_EX)
 
         # Starting loop from here
 
@@ -780,8 +780,8 @@ async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn, 
             if return_status:
                 raise Exception(return_status)
 
-        except Exception as excepted:
-            match str(excepted):
+        except Exception as e:
+            match str(e):
                 case '0':
                     await messenger(info=f'Function quitted. Likely connection loss.', color=colorama.Fore.LIGHTBLUE_EX)
                 case '1':
@@ -790,6 +790,8 @@ async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn, 
                     await messenger(info=f'Function broke by a critical', type='error')
                 case '3':
                     await messenger(info=f'Function broke by an unknown exception', type='error')
+                case _:
+                    await messenger(info=f'Function broke by an unknown exception: {str(e)}', type='error')
 
         finally:
             try:
@@ -804,15 +806,18 @@ async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn, 
 async def prepare_thread(**kwargs):
     auth_pool = default(kwargs.get('auth_pool'), ConnUtils.auth_pool())
     maica_pool = default(kwargs.get('maica_pool'), ConnUtils.maica_pool())
-    mcore_conn: AiConnCoroutine = default(kwargs.get('mcore_conn'), ConnUtils.mcore_conn())
-    mfocus_conn: AiConnCoroutine = default(kwargs.get('mfocus_conn'), ConnUtils.mfocus_conn())
+    try:
+        mcore_conn: AiConnCoroutine = default(kwargs.get('mcore_conn'), ConnUtils.mcore_conn())
+        mfocus_conn: AiConnCoroutine = default(kwargs.get('mfocus_conn'), ConnUtils.mfocus_conn())
+    except Exception:
+        mcore_conn = mfocus_conn = None
 
     try:
         await messenger(info=f"Main model is {mcore_conn.model_actual}, MFocus model is {mfocus_conn.model_actual}", color=colorama.Fore.MAGENTA)
     except Exception:
         await messenger(info=f"Model deployment cannot be reached -- running in minimal testing mode", color=colorama.Fore.MAGENTA)
     
-    server = await websockets.serve(functools.partial(main_logic, **kwargs), '0.0.0.0', 5000)
+    server = await websockets.serve(functools.partial(main_logic, auth_pool=auth_pool, maica_pool=maica_pool, mcore_conn=mcore_conn, mfocus_conn=mfocus_conn, online_dict=kwargs.get('online_dict')), '0.0.0.0', 5000)
     await server.wait_closed()
 
 def run_ws(**kwargs):
@@ -825,7 +830,4 @@ def run_ws(**kwargs):
 
 if __name__ == '__main__':
 
-    # Pool wrappings init here
-    auth_pool, maica_pool, mcore_conn, mfocus_conn = ConnUtils.auth_pool(), ConnUtils.maica_pool(), ConnUtils.mcore_conn(), ConnUtils.mfocus_conn()
-
-    run_ws(auth_pool=auth_pool, maica_pool=maica_pool, mcore_conn=mcore_conn, mfocus_conn=mfocus_conn)
+    run_ws()
