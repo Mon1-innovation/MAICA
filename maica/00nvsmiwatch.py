@@ -9,20 +9,20 @@ import paramiko
 import signal
 from maica_utils import *
 
-def signal_handler(sig, frame):
-    print(f'{__file__.split("/")[-1].split(".")[0]}: SIGINT recieved')
-    exit(0)
+def query_nvsmi(ssh_client: paramiko.SSHClient, keys=[]):
+    command = f"nvidia-smi --query-gpu={','.join(keys)} --format=csv"
+    stdin, stdout, stderr = ssh_client.exec_command(command)
+    std_out, std_err = stdout.read().decode(), stderr.read().decode()
 
-signal.signal(signal.SIGINT, signal_handler)
 
-def nvbasis(ssh_client, db_client, table_name):
+def nvbasis(ssh_client):
     stdin, stdout, stderr = ssh_client.exec_command("nvidia-smi --query-gpu=name,memory.total --format=csv")
-    std_out = stdout.read()
-    std_err = stderr.read()
+    std_out = stdout.read().decode()
+    std_err = stderr.read().decode()
     if not std_out:
         raise Exception(f'Empty stdout: {std_err}')
-    # print(std_out.decode())
-    csv_capt = csv.DictReader(std_out.decode().split('\n'))
+    csv_capt = csv.DictReader(std_out.split('\n'))
+
     gpu_basis = []
     for line in csv_capt:
         gpu_basis.append(line)

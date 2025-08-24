@@ -10,8 +10,6 @@ import re
 import traceback
 import colorama
 import mtools
-import mfocus
-import mtrigger
 import post_proc
 
 from typing import *
