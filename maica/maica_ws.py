@@ -339,14 +339,12 @@ class WsCoroutine(NoWsCoroutine):
         self.fsc.mcore_conn, self.fsc.mfocus_conn = mcore_conn, mfocus_conn
 
     # Stage 1 permission check
-
     async def check_permit(self):
         websocket = self.websocket
         await messenger(info='An anonymous connection initiated', color=colorama.Fore.LIGHTBLUE_EX)
         await messenger(info=f'Current online users: {list(self.online_dict.keys())}', color=colorama.Fore.LIGHTBLUE_EX)
 
         # Starting loop from here
-
         while True:
             try:
 
@@ -396,7 +394,6 @@ class WsCoroutine(NoWsCoroutine):
 
     
     # Stage 2 function router
-
     async def function_switch(self):
 
         # Initiation

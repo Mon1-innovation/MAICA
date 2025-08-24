@@ -350,10 +350,10 @@ else:
     app.add_url_rule("/version", methods=['GET'],  view_func=ShortConnHandler.as_view("get_version", False))
     app.add_url_rule("/workload", methods=['GET'],  view_func=ShortConnHandler.as_view("get_workload", False))
 
-def run_http(auth_pool, maica_pool):
+def run_http(**kwargs):
 
-    ShortConnHandler.auth_pool = default(auth_pool, ConnUtils.auth_pool())
-    ShortConnHandler.maica_pool = default(maica_pool, ConnUtils.maica_pool())
+    ShortConnHandler.auth_pool = default(kwargs.get('auth_pool'), ConnUtils.auth_pool())
+    ShortConnHandler.maica_pool = default(kwargs.get('maica_pool'), ConnUtils.maica_pool())
 
     config = Config()
     config.bind = ['0.0.0.0:6000']
@@ -365,7 +365,4 @@ def run_http(auth_pool, maica_pool):
 
 if __name__ == '__main__':
 
-    # Pool wrappings init here
-    auth_pool, maica_pool = ConnUtils.auth_pool(), ConnUtils.maica_pool()
-    
-    run_http(auth_pool, maica_pool)
+    run_http()
