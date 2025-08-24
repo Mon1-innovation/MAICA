@@ -174,17 +174,15 @@ class ConnUtils():
             db=MAICA_DB,
         )
 
-    def mcore_conn(rsc):
+    def mcore_conn():
         return AiConnCoroutine(
-            rsc=rsc,
             api_key='EMPTY',
             base_url=MCORE_ADDR,
             name='mcore_cli'
         )
 
-    def mfocus_conn(rsc):
+    def mfocus_conn():
         return AsyncOpenAI(
-            rsc=rsc,
             api_key='EMPTY',
             base_url=MFOCUS_ADDR,
             name='mfocus_cli'
