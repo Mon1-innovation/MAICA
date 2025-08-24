@@ -352,7 +352,8 @@ else:
 
 def run_http(auth_pool, maica_pool):
 
-    ShortConnHandler.auth_pool, ShortConnHandler.maica_pool = auth_pool, maica_pool
+    ShortConnHandler.auth_pool = default(auth_pool, ConnUtils.auth_pool())
+    ShortConnHandler.maica_pool = default(maica_pool, ConnUtils.maica_pool())
 
     config = Config()
     config.bind = ['0.0.0.0:6000']

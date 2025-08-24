@@ -35,7 +35,6 @@ class DbPoolCoroutine():
             async with self.pool.acquire():
                 pass
         except Exception:
-            # traceback.print_exc()
             await messenger(None, f'{self.db}_reconn', f"Recreating {self.db} pool since cannot acquire", '301', type='warn')
             try:
                 self.pool.close()

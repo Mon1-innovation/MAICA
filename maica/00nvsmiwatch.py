@@ -102,7 +102,7 @@ def nvwatchd(hosts, users, pwds, tables):
         print(f'Quiting nvwatchd!')
 
 if __name__ == '__main__':
-    if load_env("ENABLE_NVW") == '1':
+    try:
         host_filter = re.compile(r"^https?://(.*?)(:|/|$).*", re.I)
         mcore_addr = host_filter.match(load_env('MCORE_ADDR'))[1]
         mfocus_addr = host_filter.match(load_env('MFOCUS_ADDR'))[1]
@@ -115,3 +115,5 @@ if __name__ == '__main__':
                 nvwatchd(hosts, users, pwds, tables)
             except Exception:
                 time.sleep(10)
+    except Exception:
+        pass
