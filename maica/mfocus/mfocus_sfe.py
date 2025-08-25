@@ -1,5 +1,3 @@
-import nest_asyncio
-nest_asyncio.apply()
 import re
 import json
 import asyncio

@@ -1,6 +1,3 @@
-if __name__ == '__main__':
-    from gevent import monkey
-    monkey.patch_all()
 from quart import Quart, request, jsonify, Response
 from quart.views import View
 import os
@@ -26,6 +23,7 @@ from Crypto.Hash import SHA256
 from typing import *
 from maica_ws import NoWsCoroutine
 from maica_utils import *
+from nv_watcher import NvWatcher
 
 app = Quart(import_name=__name__)
 app.config['JSON_AS_ASCII'] = False
@@ -46,6 +44,8 @@ class ShortConnHandler(View):
     """Don't forget to implement at first!"""
     maica_pool: DbPoolCoroutine = None
     """Don't forget to implement at first!"""
+    mcore_watcher: NvWatcher = None
+    mfocus_watcher: NvWatcher = None
 
     def __init__(self, val=True):
         if val:
@@ -62,13 +62,13 @@ class ShortConnHandler(View):
             endpoint = request.endpoint
             function_routed = getattr(self, endpoint)
             if function_routed:
-                asyncio.run(messenger(info=f'Recieved request on API endpoint {endpoint}', color=colorama.Fore.MAGENTA))
+                asyncio.run(messenger(info=f'Recieved request on API endpoint {endpoint}', type='recv'))
                 result = asyncio.run(function_routed())
 
                 if isinstance(result, Response):
                     result_json = asyncio.run(result.get_json())
-                    d = {"success": result_json.get('success'), "exception": result_json.get('exception'), "content": result_json.get('content')}
-                    asyncio.run(messenger(info=f'Return value: {str(d)}', color=colorama.Fore.LIGHTMAGENTA_EX))
+                    d = {"success": result_json.get('success'), "exception": result_json.get('exception'), "content": ellipsis_str(result_json.get('content'))}
+                    asyncio.run(messenger(info=f'Return value: {str(d)}', type='sys'))
 
                 return result
             
@@ -294,32 +294,8 @@ class ShortConnHandler(View):
 
     async def get_workload(self):
         """GET, val=False"""
-        global server_path, workload_cache
 
-        if time.time() - workload_cache.get('timestamp', 0) < 10:
-            content =  workload_cache.get('content', {})
-        else:
-            content = {}
-            async with aiosqlite.connect(os.path.join(server_path, '.nvsw.db')) as sqlite_client:
-                for table_name in [load_env('MCORE_NODE'), load_env('MFOCUS_NODE')]:
-                    node_info = {}
-                    async with sqlite_client.execute(f'SELECT * FROM `{table_name}`;') as result:
-                        # id, name, memory, tflops, dynamic
-                        node_status = await result.fetchall()
-                                            
-                    for gpu_status in node_status:
-                        gpuid, name, memory, tflops, dynamic = list(gpu_status)
-                        u = 0; m = 0; p = 0
-                        dynamic = json.loads(dynamic)
-                        for line in dynamic:
-                            u += float(line['u']); m += float(line['m']); p += float(line['p'])
-                        u /= len(dynamic); m /= len(dynamic); p /= len(dynamic)
-                        node_info[gpuid] = {'name': name, 'vram': memory, 'tflops': tflops, 'mean_utilization': int(u), 'mean_memory': int(m), 'mean_consumption': int(p)}
-
-                    content[table_name] = node_info
-
-                workload_cache['timestamp'] = time.time()
-                workload_cache['content'] = content
+        content = [self.mcore_watcher.get_statics_inside(), self.mfocus_watcher.get_statics_inside()]
 
         return jsonify({"success": True, "exception": None, "content": content})
     
@@ -360,18 +336,35 @@ else:
     app.add_url_rule("/workload", methods=['GET'], view_func=ShortConnHandler.as_view("get_workload", val=False))
 app.add_url_rule("/<path>", methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], view_func=ShortConnHandler.as_view("any_unknown", val=False))
 
-def run_http(**kwargs):
-
+async def prepare_thread(**kwargs):
     ShortConnHandler.auth_pool = default(kwargs.get('auth_pool'), ConnUtils.auth_pool())
     ShortConnHandler.maica_pool = default(kwargs.get('maica_pool'), ConnUtils.maica_pool())
 
+    ShortConnHandler.mcore_watcher = await NvWatcher.async_create('mcore')
+    ShortConnHandler.mfocus_watcher = await NvWatcher.async_create('mfocus')
+
     config = Config()
     config.bind = ['0.0.0.0:6000']
-    print('HTTP server started!')
-    try:
-        asyncio.run(serve(app, config))
-    except KeyboardInterrupt:
-        print("HTTP Server stopped!")
+
+    main_task = asyncio.create_task(serve(app, config))
+    mcore_task = asyncio.create_task(ShortConnHandler.mcore_watcher.main_watcher())
+    mfocus_task = asyncio.create_task(ShortConnHandler.mfocus_watcher.main_watcher())
+    # test_task = asyncio.create_task(asyncio.sleep(1000))
+
+    await messenger(info='MAICA HTTP server started!', type='prim_sys')
+
+    await asyncio.wait([
+        main_task,
+        mcore_task,
+        mfocus_task,
+        # test_task,
+    ], return_when=asyncio.FIRST_COMPLETED)
+    await messenger(info='\n', type='plain')
+    await messenger(info='MAICA HTTP server stopped!', type='prim_sys')
+
+def run_http(**kwargs):
+
+    asyncio.run(prepare_thread(**kwargs))
 
 if __name__ == '__main__':
 

@@ -1,5 +1,3 @@
-import nest_asyncio
-nest_asyncio.apply()
 import asyncio
 import websockets
 import time
