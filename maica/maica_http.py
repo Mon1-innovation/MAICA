@@ -73,6 +73,8 @@ class ShortConnHandler(View):
                 return result
             
         except Exception as e:
+            asyncio.run(messenger(info=f'Handler hit an exception: {str(e)}', type='warn'))
+            traceback.print_exc()
             return jsonify({"success": False, "exception": str(e)})
 
     async def _validate_http(self, raw_data: Union[str, dict], must: list=[]) -> dict:
@@ -294,26 +296,28 @@ class ShortConnHandler(View):
         """GET, val=False"""
         global server_path, workload_cache
 
-        if time.time() - workload_cache.get('timestamp', 0) > 10:
-            content =  workload_cache.get('content')
+        if time.time() - workload_cache.get('timestamp', 0) < 10:
+            content =  workload_cache.get('content', {})
+        else:
+            content = {}
+            async with aiosqlite.connect(os.path.join(server_path, '.nvsw.db')) as sqlite_client:
+                for table_name in [load_env('MCORE_NODE'), load_env('MFOCUS_NODE')]:
+                    node_info = {}
+                    async with sqlite_client.execute(f'SELECT * FROM `{table_name}`;') as result:
+                        # id, name, memory, tflops, dynamic
+                        node_status = await result.fetchall()
+                                            
+                    for gpu_status in node_status:
+                        gpuid, name, memory, tflops, dynamic = list(gpu_status)
+                        u = 0; m = 0; p = 0
+                        dynamic = json.loads(dynamic)
+                        for line in dynamic:
+                            u += float(line['u']); m += float(line['m']); p += float(line['p'])
+                        u /= len(dynamic); m /= len(dynamic); p /= len(dynamic)
+                        node_info[gpuid] = {'name': name, 'vram': memory, 'tflops': tflops, 'mean_utilization': int(u), 'mean_memory': int(m), 'mean_consumption': int(p)}
 
-        async with aiosqlite.connect(os.path.join(server_path, '.nvsw.db')) as sqlite_client:
-            for table_name in [load_env('MCORE_NODE'), load_env('MFOCUS_NODE')]:
-                node_info = {}
-                async with sqlite_client.execute(f'SELECT * FROM `{table_name}`;') as result:
-                    # id, name, memory, history
-                    node_status = await result.fetchall()
-                    
-                for gpu_status in node_status:
-                    gpuid, name, memory, history = list(gpu_status)
-                    u = 0; m = 0; p = 0
-                    history = json.loads(history)
-                    for line in history:
-                        u += float(line['u']); m += float(line['m']); p += float(line['p'])
-                    u /= len(history); m /= len(history); p /= len(history)
-                    node_info[gpuid] = {'name': name, 'vram': memory, 'mean_utilization': int(u), 'mean_memory': int(m), 'mean_consumption': int(p)}
+                    content[table_name] = node_info
 
-                content[table_name] = node_info
                 workload_cache['timestamp'] = time.time()
                 workload_cache['content'] = content
 

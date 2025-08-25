@@ -182,7 +182,7 @@ class ConnUtils():
         )
 
     def mfocus_conn():
-        return AsyncOpenAI(
+        return AiConnCoroutine(
             api_key='EMPTY',
             base_url=MFOCUS_ADDR,
             name='mfocus_cli'

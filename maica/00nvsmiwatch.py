@@ -1,119 +1,103 @@
+import asyncio
 import os
 import re
 import json
 import time
 import csv
-import sqlite3
+import aiosqlite
 import traceback
-import paramiko
+import asyncssh
 import signal
 from maica_utils import *
 
-def query_nvsmi(ssh_client: paramiko.SSHClient, keys=[]):
-    command = f"nvidia-smi --query-gpu={','.join(keys)} --format=csv"
-    stdin, stdout, stderr = ssh_client.exec_command(command)
-    std_out, std_err = stdout.read().decode(), stderr.read().decode()
+class NvWatcher():
+    def __init__(self):
+        self.nodes = ['mcore', 'mfocus']
 
+    async def _ainit(self):
+        """Must run in the action loop."""
+        await self.connect_remotes()
+        await self.initiate_db()
 
-def nvbasis(ssh_client):
-    stdin, stdout, stderr = ssh_client.exec_command("nvidia-smi --query-gpu=name,memory.total --format=csv")
-    std_out = stdout.read().decode()
-    std_err = stderr.read().decode()
-    if not std_out:
-        raise Exception(f'Empty stdout: {std_err}')
-    csv_capt = csv.DictReader(std_out.split('\n'))
+    def _g(self, k):
+        return getattr(self, k)
 
-    gpu_basis = []
-    for line in csv_capt:
-        gpu_basis.append(line)
-    print(gpu_basis)
-    return gpu_basis
+    def _s(self, k, v):
+        setattr(self, k, v)
 
-def nvwatch(ssh_client, db_client, table_name):
-    stdin, stdout, stderr = ssh_client.exec_command("nvidia-smi --query-gpu=utilization.gpu,memory.used,power.draw --format=csv")
-    std_out = stdout.read()
-    std_err = stderr.read()
-    if not std_out:
-        raise Exception(f'Empty stdout: {std_err}')
-    # print(std_out.decode())
-    csv_capt = csv.DictReader(std_out.decode().split('\n'))
-    # gpu id, [[0%, 0%, 50w], [100%, 100%, 500w]]
-    gpu_curr_stat = []
-    for line in csv_capt:
-        gpu_curr_stat.append(line)
-    #print(gpu_curr_stat)
-    gpu_count = len(gpu_curr_stat)
-    for gpu in [x for x in range(gpu_count)]:
-        try:
-            res1 = db_client.execute(f'SELECT history FROM `{table_name}` WHERE id = {gpu};')
-            if not res1:
-                raise Exception('No data')
-            else:
-                history = json.loads(res1.fetchall()[0][0])
-        except Exception:
-            traceback.print_exc()
-            history = []
-        this_gpu_curr_stat = {"u":gpu_curr_stat[gpu]["utilization.gpu [%]"].strip('%').strip(' '),"m":gpu_curr_stat[gpu][" memory.used [MiB]"].strip('BiM').strip(' '),"p":gpu_curr_stat[gpu][" power.draw [W]"].strip('W').strip(' ')}
-        history.insert(0, this_gpu_curr_stat)
-        #print(history)
-        if len(history) > 36:
+    async def query_nvsmi(self, ssh_client: asyncssh.connection.SSHClientConnection, keys=[]):
+        command = f"nvidia-smi --query-gpu={','.join(keys)} --format=csv"
+        result = await ssh_client.run(command, check=True)
+        csv_capt = csv.DictReader(result.stdout.split('\n'))
+        return list(csv_capt)
+
+    async def connect_remotes(self):
+        for node in self.nodes:
+            self._s(f'{node}_name', load_env(f'{node.upper()}_NODE'))
+            self._s(f'{node}_user', load_env(f'{node.upper()}_USER'))
+            self._s(f'{node}_pwd', load_env(f'{node.upper()}_PWD'))
+            self._s(f'{node}_addr', ReUtils.re_search_host_addr.search(load_env(f'{node.upper()}_ADDR'))[1])
+            # print(self._g(f'{node}_addr'), self._g(f'{node}_user'), self._g(f'{node}_pwd'))
+            self._s(f'{node}_ssh', (await asyncssh.connect(host=self._g(f'{node}_addr'), username=self._g(f'{node}_user'), password=self._g(f'{node}_pwd'), known_hosts=None)))
+
+    async def initiate_db(self):
+        self.self_path = os.path.dirname(os.path.abspath(__file__))
+        self.db_client = await aiosqlite.connect(os.path.join(self.self_path, ".nvsw.db"), autocommit=True)
+
+        basis = {}; basis_keys = ['name', 'memory.total']
+        for node in self.nodes:
+            basis[node] = await self.query_nvsmi(self._g(f'{node}_ssh'), basis_keys)
+            await self.db_client.execute(f'CREATE TABLE IF NOT EXISTS `{self._g(f'{node}_name')}` (id INT PRIMARY KEY, name TEXT, memory TEXT, tflops TEXT, dynamic TEXT);')
+            for i, gpu in enumerate(basis[node]):
+                await self.db_client.execute(f'INSERT OR REPLACE INTO `{self._g(f'{node}_name')}` (id, name, memory, tflops, dynamic) VALUES ({i}, "{gpu["name"]}", "{gpu[" memory.total [MiB]"]}", "400", "[]");')
+
+    async def append_dynamic(self, history: list, gpu: dict):
+        gpu_values = list(gpu.values())
+        gpu_stats = {"u": gpu_values[0].strip('%').strip(), "m": gpu_values[1].strip('BiM').strip(), "p": gpu_values[2].strip('W').strip()}
+        if len(history) >= 36:
             history.pop()
-        db_client.execute(f'UPDATE `{table_name}` SET history = \'{json.dumps(history, ensure_ascii=False)}\' WHERE id = {gpu}')
+        history.insert(0, gpu_stats)
+        return history
 
-def nvwatchd(hosts, users, pwds, tables):
-    excepted = ''
-    client_list = []
-    try:
-        self_path = os.path.dirname(os.path.abspath(__file__))
-        i=0
-        for host in hosts:
-            ssh_client = paramiko.SSHClient()
-            ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy)
-            ssh_client.connect(hostname=host, port=22, username=users[i], password=pwds[i])
-            client_list.append(ssh_client)
-            i+=1
-        db_client = sqlite3.connect(os.path.join(self_path, ".nvsw.db"), autocommit=True)
-        db_client.execute(f'CREATE TABLE IF NOT EXISTS `{load_env('MCORE_NODE')}` (id INT PRIMARY KEY, name TEXT, memory TEXT, history TEXT);')
-        db_client.execute(f'CREATE TABLE IF NOT EXISTS `{load_env('MFOCUS_NODE')}` (id INT PRIMARY KEY, name TEXT, memory TEXT, history TEXT);')
-        i=0
-        for client in client_list:
-            basis = nvbasis(client, db_client, tables[i])
-            j=0
-            for gpu_info in basis:
-                db_client.execute(f'INSERT OR REPLACE INTO `{tables[i]}` (id, name, memory, history) VALUES ({j}, "{gpu_info["name"]}", "{gpu_info[" memory.total [MiB]"]}", "[]");')
-                j+=1
-            i+=1
+    async def main_watcher(self):
+        await self._ainit()
+        dynamics_curr = {}
         while True:
-            i=0
-            for client in client_list:
-                nvwatch(client, db_client, tables[i])
-                i+=1
-            time.sleep(5)
-    except Exception as excepted:
-        #traceback.print_exc()
-        pass
-    finally:
-        for client in client_list:
-            client.close()
+            dynamics_new = {}; dynamic_keys = ['utilization.gpu', 'memory.used', 'power.draw']
+            for node in self.nodes:
+                if not dynamics_curr.get(node):
+                    dynamics_curr[node] = []
+                dynamics_new[node] = await self.query_nvsmi(self._g(f'{node}_ssh'), dynamic_keys)
+                for i, gpu in enumerate(dynamics_new[node]):
+                    try:
+                        gpu_curr = dynamics_curr[node].pop(i)
+                    except Exception:
+                        gpu_curr = []
+                    gpu_curr = await self.append_dynamic(gpu_curr, gpu)
+                    dynamics_curr[node].insert(i, gpu_curr)
+                    await self.db_client.execute(f'UPDATE `{self._g(f'{node}_name')}` SET dynamic = \'{json.dumps(gpu_curr, ensure_ascii=False)}\' WHERE id = {i}')
+            
+            await asyncio.sleep(10)
+            print(1)
+
+    def __del__(self):
         try:
-            os.remove(os.path.join(self_path, ".nvsw.db"))
+            os.remove(os.path.join(self.self_path, ".nvsw.db"))
+            for node in self.nodes:
+                self._g(f'{node}_ssh').close()
+                asyncio.run(self._g(f'{node}_ssh').wait_closed())
+            asyncio.run(self.db_client.close())
         except Exception:
             pass
-        print(f'Quiting nvwatchd!')
+
+def start_watching():
+    watcher = NvWatcher()
+    try:
+        asyncio.run(watcher.main_watcher())
+    except Exception as e:
+        traceback.print_exc()
+        asyncio.run(messenger(info=str(e), type='error'))
 
 if __name__ == '__main__':
-    try:
-        host_filter = re.compile(r"^https?://(.*?)(:|/|$).*", re.I)
-        mcore_addr = host_filter.match(load_env('MCORE_ADDR'))[1]
-        mfocus_addr = host_filter.match(load_env('MFOCUS_ADDR'))[1]
-        hosts = [mcore_addr, mfocus_addr]
-        users = [load_env('MCORE_USER'), load_env('MFOCUS_USER')]
-        pwds = [load_env('MCORE_PWD'), load_env('MFOCUS_PWD')]
-        tables = [load_env('MCORE_NODE'), load_env('MFOCUS_NODE')]
-        while True:
-            try:
-                nvwatchd(hosts, users, pwds, tables)
-            except Exception:
-                time.sleep(10)
-    except Exception:
-        pass
+
+    start_watching()

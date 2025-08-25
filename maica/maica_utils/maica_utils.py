@@ -133,6 +133,7 @@ class ReUtils():
     re_findall_quoted = re.compile(r'"(.*?)"') # Normally we request JSON so we consider double quotes only
     re_search_location_prompt = re.compile(r'(地区|周边|附近|周围|nearby|local)', re.I)
     re_search_location_related = re.compile(r'(天气|温度|路况|降雨|weather|traffic|temperature|rain)', re.I)
+    re_search_host_addr = re.compile(r"^https?://(.*?)(:|/|$).*", re.I)
 
 def default(exp, default, default_list: list=[None]) -> any:
     """If exp is in default list(normally None), use default."""
