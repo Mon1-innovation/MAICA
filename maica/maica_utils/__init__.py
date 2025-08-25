@@ -1,5 +1,6 @@
 
 from .maica_utils import (
+    MsgType,
     CommonMaicaException,
     CommonMaicaError,
     CommonMaicaWarning,
@@ -21,6 +22,7 @@ from .maica_utils import (
     ellipsis_str,
     fuzzy_match,
     words_upper,
+    sleep_forever,
     messenger,
     load_env,
     wrap_run_in_exc,
@@ -43,6 +45,7 @@ from .container_utils import FullSocketsContainer
 from .sb_utils import SideBoundCoroutine
 
 __all__ = [
+    'MsgType',
     'CommonMaicaException',
     'CommonMaicaError',
     'CommonMaicaWarning',
@@ -65,6 +68,7 @@ __all__ = [
     'ellipsis_str',
     'fuzzy_match',
     'words_upper',
+    'sleep_forever',
     'messenger',
     'validate_input',
     'load_env',

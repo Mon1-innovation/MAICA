@@ -341,8 +341,8 @@ class WsCoroutine(NoWsCoroutine):
     # Stage 1 permission check
     async def check_permit(self):
         websocket = self.websocket
-        await messenger(info='An anonymous connection initiated', type='prim_log')
-        await messenger(info=f'Current online users: {list(self.online_dict.keys())}', type='log')
+        await messenger(info='An anonymous connection initiated', type=MsgType.PRIM_LOG)
+        await messenger(info=f'Current online users: {list(self.online_dict.keys())}', type=MsgType.LOG)
 
         # Starting loop from here
         while True:
@@ -354,7 +354,7 @@ class WsCoroutine(NoWsCoroutine):
                 self.settings.verification.reset()
 
                 recv_text = await websocket.recv()
-                await messenger(info=f'Recieved an input on stage1', type='recv')
+                await messenger(info=f'Recieved an input on stage1', type=MsgType.RECV)
                 recv_loaded_json = validate_input(recv_text, 4096, self.fsc.rsc, must=['token'])
 
                 login_success = await self.hash_and_login(recv_loaded_json['token'], check_online=True)
@@ -366,9 +366,9 @@ class WsCoroutine(NoWsCoroutine):
 
                     await self.populate_auxiliary_inst()
 
-                    await messenger(websocket, 'maica_login_succeeded', 'Authentication passed', '201', type='info', color=colorama.Fore.LIGHTCYAN_EX)
-                    await messenger(websocket, 'maica_login_id', f"{self.settings.verification.user_id}", '200')
-                    await messenger(websocket, 'maica_login_user', f"{self.settings.verification.username}", '200')
+                    await messenger(websocket, 'maica_login_succeeded', f'Authentication passed: {self.settings.verification.username}({self.settings.verification.user_id})', '201')
+                    await messenger(websocket, 'maica_login_id', f"{self.settings.verification.user_id}", '200', no_print=True)
+                    await messenger(websocket, 'maica_login_user', f"{self.settings.verification.username}", '200', no_print=True)
                     await messenger(websocket, 'maica_login_nickname', f"{self.settings.verification.nickname}", '200', no_print=True)
                     await messenger(websocket, 'maica_connection_security_cookie', cookie, '200', no_print=True)
 
@@ -399,8 +399,8 @@ class WsCoroutine(NoWsCoroutine):
         # Initiation
         websocket, mcore_conn = self.websocket, self.mcore_conn
 
-        await messenger(websocket, "maica_connection_established", "MAICA connection established", "201", type='info', no_print=True)
-        await messenger(websocket, "maica_provider_anno", f"Current service provider is {load_env('DEV_IDENTITY')}", "200", type='info', no_print=True)
+        await messenger(websocket, "maica_connection_established", "MAICA connection established", "201", type=MsgType.INFO, no_print=True)
+        await messenger(websocket, "maica_provider_anno", f"Current service provider is {load_env('DEV_IDENTITY')}", "200", type=MsgType.INFO, no_print=True)
 
         # Starting loop from here
         while True:
@@ -424,7 +424,7 @@ class WsCoroutine(NoWsCoroutine):
 
                 # Then we examine the input
                 recv_text = await websocket.recv()
-                await messenger(info=f'Recieved an input on stage2: {recv_text}', type='recv')
+                await messenger(info=f'Recieved an input on stage2: {recv_text}', type=MsgType.RECV)
                 recv_loaded_json = await validate_input(recv_text, 4096, self.fsc.rsc, warn=['type'])
 
                 recv_type = recv_loaded_json.get('type', 'unknown')
@@ -550,13 +550,13 @@ class WsCoroutine(NoWsCoroutine):
                     if not query_insp[0]:
                         if str(query_insp[1]) == 'mspire_insanity_limit_reached':
                             error = MaicaInternetWarning('MSpire scraping failed', '404')
-                            await messenger(websocket, "mspire_scraping_failed", traceray_id=self.traceray_id, error=error, type="error")
+                            await messenger(websocket, "mspire_scraping_failed", traceray_id=self.traceray_id, error=error, type=MsgType.ERROR)
                         elif str(query_insp[1]) == 'mspire_title_insane':
                             error = MaicaInputWarning('MSpire prompt not found on wikipedia', '410')
                             await messenger(websocket, "mspire_prompt_bad", traceray_id=self.traceray_id, error=error)
                         else:
                             error = MaicaInternetWarning('MSpire failed connecting wikipedia', '408')
-                            await messenger(websocket, "mspire_conn_failed", traceray_id=self.traceray_id, error=error, type="error")
+                            await messenger(websocket, "mspire_conn_failed", traceray_id=self.traceray_id, error=error, type=MsgType.ERROR)
                     if self.settings.temp.ms_cache:
                         self.settings.temp.update(self.fsc.rsc, bypass_sup=True)
                         ms_cache_identity = query_insp[3]
@@ -677,7 +677,7 @@ class WsCoroutine(NoWsCoroutine):
                 self.settings.temp.update(self.fsc.rsc, bypass_stream=False)
             if self.settings.temp.ic_prep:
                 completion_args['presence_penalty'] = 1.0-(1.0-completion_args['presence_penalty'])*(2/3)
-            await messenger(info=f'Query constrcted and ready to go, last input is:\n{query_in}\nSending query...', type='prim_recv')
+            await messenger(info=f'Query constrcted and ready to go, last input is:\n{query_in}\nSending query...', type=MsgType.PRIM_RECV)
 
             if not self.settings.temp.bypass_gen or not replace_generation: # They should present together
 
@@ -693,11 +693,11 @@ class WsCoroutine(NoWsCoroutine):
                             await asyncio.sleep(0)
                             await messenger(websocket, 'maica_core_streaming_continue', token, '100')
                             reply_appended += token
-                    await messenger(info='\n', type='plain')
+                    await messenger(info='\n', type=MsgType.PLAIN)
                     await messenger(websocket, 'maica_core_streaming_done', f'Streaming finished with seed {completion_args['seed']} for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
                 else:
                     reply_appended = resp.choices[0].message.content
-                    await messenger(websocket, 'maica_core_nostream_reply', reply_appended, '200', type='carriage')
+                    await messenger(websocket, 'maica_core_nostream_reply', reply_appended, '200', type=MsgType.CARRIAGE)
                     await messenger(None, 'maica_core_nostream_done', f'Reply sent with seed {completion_args['seed']} for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
 
             else:
@@ -705,10 +705,10 @@ class WsCoroutine(NoWsCoroutine):
                 # We just pretend it was generated
                 reply_appended = replace_generation
                 if completion_args['stream']:
-                    await messenger(websocket, 'maica_core_streaming_continue', reply_appended, '100'); await messenger(info='\n', type='plain')
+                    await messenger(websocket, 'maica_core_streaming_continue', reply_appended, '100'); await messenger(info='\n', type=MsgType.PLAIN)
                     await messenger(websocket, 'maica_core_streaming_done', f'Streaming finished with cache for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
                 else:
-                    await messenger(websocket, 'maica_core_nostream_reply', reply_appended, '200', type='carriage')
+                    await messenger(websocket, 'maica_core_nostream_reply', reply_appended, '200', type=MsgType.CARRIAGE)
                     await messenger(None, 'maica_core_nostream_done', f'Reply sent with cache for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
 
             # Can be post-processed here
@@ -779,15 +779,15 @@ async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn, 
         except Exception as e:
             match str(e):
                 case '0':
-                    await messenger(info=f'Coroutine quitted. Likely connection loss.', type='prim_log')
+                    await messenger(info=f'Coroutine quitted. Likely connection loss.', type=MsgType.PRIM_LOG)
                 case '1':
-                    await messenger(info=f'Coroutine broke by a warning.', type='warn')
+                    await messenger(info=f'Coroutine broke by a warning.', type=MsgType.WARN)
                 case '2':
-                    await messenger(info=f'Coroutine broke by a critical', type='error')
+                    await messenger(info=f'Coroutine broke by a critical', type=MsgType.ERROR)
                 case '3':
-                    await messenger(info=f'Coroutine broke by an unknown exception', type='error')
+                    await messenger(info=f'Coroutine broke by an unknown exception', type=MsgType.ERROR)
                 case _:
-                    await messenger(info=f'Coroutine broke by an unknown exception: {str(e)}', type='error')
+                    await messenger(info=f'Coroutine broke by an unknown exception: {str(e)}', type=MsgType.ERROR)
 
         finally:
             try:
@@ -800,6 +800,7 @@ async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn, 
             await messenger(info=f"Closing connection gracefully")
 
 async def prepare_thread(**kwargs):
+    online_dict = {}
     auth_pool = default(kwargs.get('auth_pool'), await ConnUtils.auth_pool())
     maica_pool = default(kwargs.get('maica_pool'), await ConnUtils.maica_pool())
     try:
@@ -808,26 +809,29 @@ async def prepare_thread(**kwargs):
     except Exception:
         mcore_conn = mfocus_conn = None
 
-    await messenger(info='MAICA WS server started!' if load_env('DEV_STATUS') == 'serving' else 'MAICA WS server started in development mode!', type='prim_sys')
+    await messenger(info='MAICA WS server started!' if load_env('DEV_STATUS') == 'serving' else 'MAICA WS server started in development mode!', type=MsgType.PRIM_SYS)
 
     try:
-        await messenger(info=f"Main model is {mcore_conn.model_actual}, MFocus model is {mfocus_conn.model_actual}", type='sys')
+        await messenger(info=f"Main model is {mcore_conn.model_actual}, MFocus model is {mfocus_conn.model_actual}", type=MsgType.SYS)
     except Exception:
-        await messenger(info=f"Model deployment cannot be reached -- running in minimal testing mode", type='sys')
+        await messenger(info=f"Model deployment cannot be reached -- running in minimal testing mode", type=MsgType.SYS)
     
     try:
-        server = await websockets.serve(functools.partial(main_logic, auth_pool=auth_pool, maica_pool=maica_pool, mcore_conn=mcore_conn, mfocus_conn=mfocus_conn, online_dict=kwargs.get('online_dict')), '0.0.0.0', 5000)
+        server = await websockets.serve(functools.partial(main_logic, auth_pool=auth_pool, maica_pool=maica_pool, mcore_conn=mcore_conn, mfocus_conn=mfocus_conn, online_dict=online_dict), '0.0.0.0', 5000)
         await server.wait_closed()
     except BaseException:
         pass
     finally:
-        await messenger(info='\n', type='plain')
-        await messenger(info='MAICA WS server stopped!', type='prim_sys')
-        asyncio.gather(auth_pool.close(), maica_pool.close())
+        try:
+            asyncio.gather(auth_pool.close(), maica_pool.close())
+        except Exception:
+            pass
+        await messenger(info='\n', type=MsgType.PLAIN)
+        await messenger(info='MAICA WS server stopped!', type=MsgType.PRIM_SYS)
 
 def run_ws(**kwargs):
-    online_dict = {}
-    asyncio.run(prepare_thread(**kwargs, online_dict=online_dict))
+    
+    asyncio.run(prepare_thread(**kwargs))
 
 if __name__ == '__main__':
 

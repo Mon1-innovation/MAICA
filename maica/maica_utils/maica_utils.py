@@ -17,6 +17,21 @@ from urllib.parse import urlparse
 
 colorama.init(autoreset=True)
 
+class MsgType():
+    """For convenience."""
+    PLAIN = 'plain'
+    CARRIAGE = 'carriage'
+    DEBUG = 'debug'
+    INFO = 'info'
+    LOG = 'log'
+    PRIM_LOG = 'prim_log'
+    SYS = 'sys'
+    PRIM_SYS = 'prim_sys'
+    RECV = 'recv'
+    PRIM_RECV = 'prim_recv'
+    WARN = 'warn'
+    ERROR = 'error'
+
 class CommonMaicaException(Exception):
     """This is a common MAICA exception."""
     def __init__(self, message=None, error_code=None):
@@ -146,6 +161,8 @@ class ReUtils():
     re_search_location_related = re.compile(r'(天气|温度|路况|降雨|weather|traffic|temperature|rain)', re.I)
     re_search_host_addr = re.compile(r"^https?://(.*?)(:|/|$).*", re.I)
     re_sub_capt_status = re.compile(r"(_|^)([A-Za-z])")
+    re_findall_square_marks = re.compile(r'\[(?:(?:[A-Za-z ]{1,15}?)|(?:[一-龥 ]{1,4}?))\]')
+    re_findall_square_brackets = re.compile(r'\[(.*?)\]')
 
 def default(exp, default, default_list: list=[None]) -> any:
     """If exp is in default list(normally None), use default."""
@@ -188,44 +205,55 @@ def words_upper(text: str) -> str:
         return f'{c[1]}{c[2].upper()}'
     return ReUtils.re_sub_capt_status.sub(u_upper, text)
 
+async def sleep_forever() -> None:
+    """Make a coroutine sleep to the end of the world."""
+    future = asyncio.Future()
+    await future
+
 async def messenger(websocket=None, status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaError]=None, prefix='', type='', color='', add_time=True, no_print=False) -> None:
     """It could handle most log printing, websocket sending and exception raising jobs pretty automatically."""
     if error:
         info = error.message if not info else info; code = error.error_code if code == "0" else code
+
+    if not type:
+        match int(code):
+            case 0:
+                type = "log"
+            case x if 100 <= x < 200:
+                type = "carriage"
+            case x if 200 <= x < 300:
+                type = "debug"
+            case x if 300 <= x < 400 or 1000 <= x:
+                type = "info"
+            case x if 400 <= x < 500:
+                type = "warn"
+            case x if 500 <= x < 1000:
+                type = "error"
+
     if type and not prefix and not 100 <= int(code) < 200:
         prefix = words_upper(type)
 
-    match int(code):
-        case 0:
-            prefix_t = "Log"; type_t = "log"
-        case x if 100 <= x < 200:
-            prefix_t = ""; type_t = "carriage"
-        case x if 200 <= x < 300:
-            prefix_t = "Debug"; type_t = "debug"
-        case x if 300 <= x < 400 or 1000 <= x:
-            prefix_t = "Info"; type_t = "info"
-        case x if 400 <= x < 500:
-            prefix_t = "Warn"; type_t = "warn"
-        case x if 500 <= x < 1000:
-            prefix_t = "Error"; type_t = "error"
-
-    prefix = prefix_t if not prefix else prefix; type = type_t if not type else type
-    if type and not prefix and not 100 <= int(code) < 200:
-        prefix = type.capitalize()
     # This is especially for streaming output
     if not prefix and type == "carriage":
         msg_print = msg_send = info
+
     elif type == "plain":
         msg_print = msg_send = info
+
     else:
         msg_print = f"<WS_{prefix}>"; msg_print += f"-[{time.strftime('%Y-%m-%d %H:%M:%S')}]" if add_time else ''; msg_print += f"-[{str(code)}]" if code else ''; msg_print += f": {str(info)}"; msg_print += f"; traceray ID {traceray_id}" if traceray_id else ''
         msg_send = f"{str(info)}"; msg_send += f" -- your traceray ID is {traceray_id}" if traceray_id else ''
+
     if websocket:
         await websocket.send(wrap_ws_formatter(code=code, status=status, content=msg_send, type=type))
-    frametrack_list = ["error"]; frametrack_list.append("warn")
+
+    frametrack_list = ["error"]
+    if load_env("PRINT_VERBOSE") == "1":
+        frametrack_list.append("warn")
     if type in frametrack_list:
         stack = inspect.stack()
         stack.pop(0)
+
     if not no_print:
         match type:
             case "plain":

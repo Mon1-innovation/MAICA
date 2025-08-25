@@ -1,3 +1,7 @@
+# cp ./env_example ./.env
+# vim .env
+
+
 # Model endpoint settings
 
 # MAICA core model endpoint
@@ -12,7 +16,7 @@ MVISTA_ADDR = ''
 
 # Proxy used to access Internet - Not applied to inner connections
 PROXY_ADDR = 'socks5://192.168.1.1:7890'
-# MFocus online tools endpoint
+# MFocus online tools endpoint. You don't have to change it normally
 MFOCUS_AGENT_TOOLS = 'https://mfocusdev.edgemonix.top:28991'
 # MySQL database endpoint / "sqlite"
 DB_ADDR = '172.17.0.3'
@@ -63,13 +67,13 @@ SESSION_MAX_TOKEN = '28672'
 # NVWatcher settings
 
 # Name of MAICA core deployment device
-MCORE_NODE = 'GTX690 nuclear edition'
+MCORE_NODE = 'HGX690 nuclear edition'
 # Username to access nvidia-smi through SSH
 MCORE_USER = 'root'
 # Password for SSH login
 MCORE_PWD = '123456'
 # Name of MFocus deployment device
-MFOCUS_NODE = 'GT610 biohazard edition'
+MFOCUS_NODE = 'HGX610 biohazard edition'
 # Username to access nvidia-smi through SSH
 MFOCUS_USER = 'root'
 # Password for SSH login

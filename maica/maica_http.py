@@ -62,18 +62,18 @@ class ShortConnHandler(View):
             endpoint = request.endpoint
             function_routed = getattr(self, endpoint)
             if function_routed:
-                asyncio.run(messenger(info=f'Recieved request on API endpoint {endpoint}', type='recv'))
+                asyncio.run(messenger(info=f'Recieved request on API endpoint {endpoint}', type=MsgType.RECV))
                 result = asyncio.run(function_routed())
 
                 if isinstance(result, Response):
                     result_json = asyncio.run(result.get_json())
                     d = {"success": result_json.get('success'), "exception": result_json.get('exception'), "content": ellipsis_str(result_json.get('content'))}
-                    asyncio.run(messenger(info=f'Return value: {str(d)}', type='sys'))
+                    asyncio.run(messenger(info=f'Return value: {str(d)}', type=MsgType.SYS))
 
                 return result
             
         except Exception as e:
-            asyncio.run(messenger(info=f'Handler hit an exception: {str(e)}', type='warn'))
+            asyncio.run(messenger(info=f'Handler hit an exception: {str(e)}', type=MsgType.WARN))
             traceback.print_exc()
             return jsonify({"success": False, "exception": str(e)})
 
@@ -301,7 +301,7 @@ class ShortConnHandler(View):
     
     async def any_unknown(self):
         """Handles any unknown endpoint"""
-        await messenger(info=f"An unknown access to {request.full_path} handled", type='warn')
+        await messenger(info=f"An unknown access to {request.full_path} handled", type=MsgType.WARN)
         return jsonify({"success": False, "exception": 'Unknown request endpoint or method'}), 404
 
 if load_env('FULL_RESTFUL') == '1':
@@ -351,16 +351,24 @@ async def prepare_thread(**kwargs):
     mfocus_task = asyncio.create_task(ShortConnHandler.mfocus_watcher.main_watcher())
     # test_task = asyncio.create_task(asyncio.sleep(1000))
 
-    await messenger(info='MAICA HTTP server started!', type='prim_sys')
+    await messenger(info='MAICA HTTP server started!', type=MsgType.PRIM_SYS)
 
-    await asyncio.wait([
-        main_task,
-        mcore_task,
-        mfocus_task,
-        # test_task,
-    ], return_when=asyncio.FIRST_COMPLETED)
-    await messenger(info='\n', type='plain')
-    await messenger(info='MAICA HTTP server stopped!', type='prim_sys')
+    try:
+        await asyncio.wait([
+            main_task,
+            mcore_task,
+            mfocus_task,
+            # test_task,
+        ], return_when=asyncio.FIRST_COMPLETED)
+    except BaseException:
+        pass
+    finally:
+        try:
+            asyncio.gather(ShortConnHandler.auth_pool.close(), ShortConnHandler.maica_pool.close())
+        except Exception:
+            pass
+        await messenger(info='\n', type=MsgType.PLAIN)
+        await messenger(info='MAICA HTTP server stopped!', type=MsgType.PRIM_SYS)
 
 def run_http(**kwargs):
 

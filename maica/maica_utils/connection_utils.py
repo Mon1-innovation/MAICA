@@ -28,13 +28,13 @@ class DbPoolCoroutine(AsyncCreator):
             async with self.pool.acquire():
                 pass
         except Exception:
-            await messenger(None, f'{self.db}_reconn', f"Recreating {self.db} pool since cannot acquire", '301', type='warn')
+            await messenger(None, f'{self.db}_reconn', f"Recreating {self.db} pool since cannot acquire", '301', type=MsgType.WARN)
             try:
                 self.pool.close()
                 await self._ainit()
             except Exception:
                 error = MaicaDbError(f'Failure when trying reconnecting to {self.db}', '502')
-                await messenger(None, f'{self.db}_reconn_failure', traceray_id='db_handling', type='error')
+                await messenger(None, f'{self.db}_reconn_failure', traceray_id='db_handling', type=MsgType.ERROR)
 
     async def query_get(self, expression, values=None, fetchall=False) -> list:
         results = None
@@ -113,7 +113,7 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
         try:
             await self.pool.execute("SELECT 1")
         except Exception:
-            await messenger(None, f'{self.db_path}_reconn', f"Recreating {self.db_path} connection", '301', type='warn')
+            await messenger(None, f'{self.db_path}_reconn', f"Recreating {self.db_path} connection", '301', type=MsgType.WARN)
             try:
                 if self.pool:
                     await self.pool.close()
@@ -205,13 +205,13 @@ class AiConnCoroutine(AsyncCreator):
             else:
                 self.model_actual = self.model
         except Exception:
-            await messenger(None, f'{self.name}_reconn', f"Recreating {self.name} client since cannot conn", '301', type='warn')
+            await messenger(None, f'{self.name}_reconn', f"Recreating {self.name} client since cannot conn", '301', type=MsgType.WARN)
             try:
                 await self.socket.close()
                 await self._ainit()
             except Exception:
                 error = MaicaResponseError(f'Failure when trying reconnecting to {self.name}', '502')
-                await messenger(None, f'{self.name}_reconn_failure', traceray_id='ai_handling', type='error')
+                await messenger(None, f'{self.name}_reconn_failure', traceray_id='ai_handling', type=MsgType.ERROR)
             
     async def make_completion(self, **kwargs):
         for tries in range(0, 3):

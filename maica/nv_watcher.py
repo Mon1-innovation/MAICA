@@ -58,7 +58,8 @@ class NvWatcher(AsyncCreator):
 
     async def main_watcher(self):
         if not self.node_name or not self.node_user or not self.node_pwd or not self.node_addr:
-            return
+            await messenger(info=f"Necessary info not complete for watching {self.node}, freezing watcher", type=MsgType.PRIM_SYS)
+            await sleep_forever()
 
         self.dynamics_curr = []
         dynamic_keys = ['utilization.gpu', 'memory.used', 'power.draw']
@@ -104,7 +105,7 @@ async def prepare_watcher():
         await asyncio.gather(watcher_mcore.main_watcher(), watcher_mfocus.main_watcher())
     except Exception as e:
         traceback.print_exc()
-        await messenger(info=str(e), type='error')
+        await messenger(info=str(e), type=MsgType.ERROR)
 
 def start_watching():
     asyncio.run(prepare_watcher())

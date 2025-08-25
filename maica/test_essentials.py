@@ -2,7 +2,7 @@ import asyncio
 import platform
 import colorama
 
-from maica_utils import messenger, load_env
+from maica_utils import messenger, load_env, MsgType
 
 
 def basic_chk():
@@ -10,7 +10,7 @@ def basic_chk():
     assert sysstruct in ['Windows', 'Linux'], 'Your system is not supported!'
 
     curr_version, legc_version = load_env('VERSION_CONTROL').split(';', 1)
-    asyncio.run(messenger(info=f"Running MAICA Illuminator V{curr_version} on {sysstruct}", type='prim_sys'))
+    asyncio.run(messenger(info=f"Running MAICA Illuminator V{curr_version} on {sysstruct}", type=MsgType.PRIM_SYS))
 
     try:
         proxyaddr = load_env('PROXY_ADDR')

@@ -20,9 +20,11 @@ async def rotate_cache(maica_pool: DbPoolCoroutine=None):
 def wrap_rotate_cache(maica_pool=None):
     asyncio.run(rotate_cache(maica_pool))
 
-async def schedule_rotate_cache(*args, **kwargs):
+async def schedule_rotate_cache(**kwargs):
+    await messenger(info="MAICA scheduler started!", type=MsgType.PRIM_SYS)
     if load_env('ROTATE_MSCACHE') != '0':
-        schedule.every().day.at("04:00").do(wrap_rotate_cache, *args, **kwargs)
+        await messenger()
+        schedule.every().day.at("04:00").do(wrap_rotate_cache, **kwargs)
     while True:
         schedule.run_pending()
-        asyncio.sleep(60)
+        await asyncio.sleep(60)

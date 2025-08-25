@@ -167,7 +167,7 @@ class AccountCursor(AsyncCreator):
         login_cridential = json.loads(decrypted_token)
         login_cridential_print = ReUtils.re_sub_password_spoiler.sub(rf'"password": "{colorama.Fore.BLACK}\1{colorama.Fore.CYAN}"', decrypted_token)
 
-        await messenger(info=f'Login cridential acquired: {login_cridential_print}', color=colorama.Fore.CYAN)
+        await messenger(info=f'Login cridential acquired: {login_cridential_print}', type=MsgType.PRIM_RECV)
 
         if login_cridential.get('username'):
             login_identity = login_cridential['username']
