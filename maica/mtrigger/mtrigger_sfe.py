@@ -10,7 +10,7 @@ class MtBoundCoroutine(SideBoundCoroutine):
     DB_NAME = 'triggers'
     PRIM_KEY = 'trigger_id'
     FUNC_NAME = 'mtrigger'
-    DATA_TYPE = list
+    EMPTY = []
 
     def get_valid_triggers(self):
         if not self.settings.basic.mt_extraction and not self.settings.temp.mt_extraction_once:
@@ -41,3 +41,14 @@ class MtBoundCoroutine(SideBoundCoroutine):
         customized_trigger_list = limit_length(customized_trigger_list, 20)
 
         return aff_trigger_list + switch_trigger_list + meter_trigger_list + customized_trigger_list
+    
+    def add_extra(self, **kwargs) -> None:
+        self.sf_forming_buffer.update(kwargs)
+
+    def use_only(self, **kwargs) -> None:
+        self.sf_forming_buffer = kwargs
+
+    def read_from_sf(self, key) -> any:
+        if not self.settings.basic.sf_extraction and not self.settings.temp.sf_extraction_once:
+            return None
+        return self.sf_forming_buffer.get(key)

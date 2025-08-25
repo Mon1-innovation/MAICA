@@ -10,7 +10,7 @@ from mtrigger.mtrigger_sfe import MtBoundCoroutine
 from .agent_modules import AgentTools
 from maica_utils import *
 
-class MFocusCoroutine():
+class MFocusCoroutine(AsyncCreator):
     def __init__(self, fsc: FullSocketsContainer, sf_inst: SfBoundCoroutine, mt_inst: Optional[MtBoundCoroutine]=None):
         self.settings = fsc.maica_settings
         self.websocket, self.traceray_id = fsc.rsc.websocket, fsc.rsc.traceray_id
@@ -19,7 +19,9 @@ class MFocusCoroutine():
         self.maica_pool = fsc.maica_pool
         
         self.agent_tools = AgentTools(fsc, sf_inst)
-        asyncio.run(self.reset())
+
+    async def _ainit(self):
+        await self.reset()
 
     async def reset(self):
         """Caution: we should reset sf_inst and mt_inst here, but these are done more manually to prevent duplication."""

@@ -12,7 +12,7 @@ class SfBoundCoroutine(SideBoundCoroutine):
     DB_NAME = 'persistents'
     PRIM_KEY = 'persistent_id'
     FUNC_NAME = 'mfocus'
-    DATA_TYPE = dict
+    EMPTY = {}
 
     def _conclude_basic_sf(self):
         result = []
@@ -793,6 +793,13 @@ Begin!"""
             answer_fin = None
         return answer_fin
 
+    def add_extra(self, *args) -> None:
+        self.sf_forming_buffer.extend(args)
 
-if __name__ == "__main__":
-    pass
+    def use_only(self, *args) -> None:
+        self.sf_forming_buffer = args
+
+    def read_from_sf(self, seq) -> any:
+        if not self.settings.basic.mt_extraction and not self.settings.temp.mt_extraction_once:
+            return None
+        return self.sf_forming_buffer[seq]

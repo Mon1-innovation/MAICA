@@ -265,9 +265,16 @@ class NoWsCoroutine(AsyncCreator):
         return new_system
     
     async def populate_auxiliary_inst(self):
-        self.sf_inst, self.mt_inst = SfBoundCoroutine(self.fsc), MtBoundCoroutine(self.fsc)
-        self.mfocus_coro = MFocusCoroutine(self.fsc, self.sf_inst, self.mt_inst)
-        self.mtrigger_coro = MTriggerCoroutine(self.fsc, self.mt_inst, self.sf_inst)
+        self.sf_inst, self.mt_inst = await asyncio.gather(SfBoundCoroutine.async_create(self.fsc), MtBoundCoroutine.async_create(self.fsc))
+        self.mfocus_coro, self.mtrigger_coro = await asyncio.gather(MFocusCoroutine.async_create(self.fsc, self.sf_inst, self.mt_inst), MTriggerCoroutine.async_create(self.fsc, self.mt_inst, self.sf_inst))
+
+    async def reset_auxiliary_inst(self):
+        sb_list = []
+        for sb_name in ['sf_inst', 'mt_inst', 'mfocus_coro', 'mtrigger_coro']:
+            sb = getattr(self, sb_name)
+            if sb:
+                sb_list.append(sb.reset())
+        await asyncio.gather(*sb_list)
 
     async def hash_and_login(self, access_token: str=None, logged_in_already: bool=False, check_online: bool=False) -> bool:
         """Use this to login a NoWs instance."""
@@ -283,27 +290,27 @@ class NoWsCoroutine(AsyncCreator):
                 error = MaicaPermissionError('Account banned by MAICA', '403')
                 await messenger(self.websocket, "maica_account_banned", traceray_id=self.traceray_id, error=error)
 
-                # Cridential correct and not banned
-                if check_online and not logged_in_already:
-                    if self.settings.verification.user_id in self.online_dict:
-                        if load_env("KICK_STALE_CONNS") == "0":
-                            self.settings.verification.reset()
-                            error = MaicaConnectionWarning('A connection was established already and kicking not enabled', '406')
-                            await messenger(self.websocket, 'maica_connection_reuse_denied', traceray_id=self.traceray_id, error=error)
-                        else:
-                            await messenger(self.websocket, "maica_connection_reuse_attempt", "A connection was established already", "300", self.traceray_id)
-                            stale_conn, stale_lock = self.online_dict[self.settings.verification.user_id]
-                            try:
-                                await messenger(stale_conn, 'maica_connection_reuse_stale', 'A new connection has been established', '300', self.traceray_id)
-                                await stale_conn.close(1000, 'Displaced as stale')
-                            except Exception:
-                                await messenger(None, 'maica_connection_stale_dead', 'The stale connection has died already', '204')
-                            try:
-                                self.online_dict.pop(self.settings.verification.user_id)
-                            except Exception:
-                                pass
-                            async with stale_lock:
-                                await messenger(None, 'maica_connection_stale_kicked', 'The stale connection is kicked', '204')
+            # Cridential correct and not banned
+            if check_online and not logged_in_already:
+                if self.settings.verification.user_id in self.online_dict:
+                    if load_env("KICK_STALE_CONNS") == "0":
+                        self.settings.verification.reset()
+                        error = MaicaConnectionWarning('A connection was established already and kicking not enabled', '406')
+                        await messenger(self.websocket, 'maica_connection_reuse_denied', traceray_id=self.traceray_id, error=error)
+                    else:
+                        await messenger(self.websocket, "maica_connection_reuse_attempt", "A connection was established already", "300", self.traceray_id)
+                        stale_fsc, stale_lock = self.online_dict[self.settings.verification.user_id]
+                        try:
+                            await messenger(stale_fsc.rsc.websocket, 'maica_connection_reuse_stale', 'A new connection has been established', '300', stale_fsc.rsc.traceray_id)
+                            await stale_fsc.rsc.websocket.close(1000, 'Displaced as stale')
+                        except Exception:
+                            await messenger(None, 'maica_connection_stale_dead', 'The stale connection has died already', '204')
+                        try:
+                            self.online_dict.pop(self.settings.verification.user_id)
+                        except Exception:
+                            pass
+                        async with stale_lock:
+                            await messenger(None, 'maica_connection_stale_kicked', 'The stale connection is kicked', '204')
             return True
 
         else:
@@ -342,7 +349,7 @@ class WsCoroutine(NoWsCoroutine):
     async def check_permit(self):
         websocket = self.websocket
         await messenger(info='An anonymous connection initiated', type=MsgType.PRIM_LOG)
-        await messenger(info=f'Current online users: {list(self.online_dict.keys())}', type=MsgType.LOG)
+        await messenger(info=f'Current online users: {list(self.online_dict.keys())}', type=MsgType.DEBUG)
 
         # Starting loop from here
         while True:
@@ -355,7 +362,7 @@ class WsCoroutine(NoWsCoroutine):
 
                 recv_text = await websocket.recv()
                 await messenger(info=f'Recieved an input on stage1', type=MsgType.RECV)
-                recv_loaded_json = validate_input(recv_text, 4096, self.fsc.rsc, must=['token'])
+                recv_loaded_json = await validate_input(recv_text, 4096, self.fsc.rsc, must=['token'])
 
                 login_success = await self.hash_and_login(recv_loaded_json['token'], check_online=True)
                 if login_success:
@@ -366,7 +373,7 @@ class WsCoroutine(NoWsCoroutine):
 
                     await self.populate_auxiliary_inst()
 
-                    await messenger(websocket, 'maica_login_succeeded', f'Authentication passed: {self.settings.verification.username}({self.settings.verification.user_id})', '201')
+                    await messenger(info=f'Authentication passed: {self.settings.verification.username}({self.settings.verification.user_id})', type=MsgType.PRIM_RECV)
                     await messenger(websocket, 'maica_login_id', f"{self.settings.verification.user_id}", '200', no_print=True)
                     await messenger(websocket, 'maica_login_user', f"{self.settings.verification.username}", '200', no_print=True)
                     await messenger(websocket, 'maica_login_nickname', f"{self.settings.verification.nickname}", '200', no_print=True)
@@ -383,8 +390,12 @@ class WsCoroutine(NoWsCoroutine):
                 else:
                     continue
 
-            except websockets.exceptions.WebSocketException:
-                await messenger(None, 'maica_connection_terminated', 'Connection passively terminated', '204')
+            except websockets.exceptions.WebSocketException as we:
+                try:
+                    we_code, we_reason = we.code, we.reason
+                    await messenger(info=f'Connection closed with {we_code}: {we_reason}', type=MsgType.PRIM_LOG)
+                except Exception:
+                    await messenger(info=f'Connection establishment failed: {str(we)}', type=MsgType.PRIM_LOG)
                 return 0
 
             # Handle unexpected exceptions
@@ -412,12 +423,6 @@ class WsCoroutine(NoWsCoroutine):
 
                 # Resets
                 self.settings.temp.reset()
-                sb_list = []
-                for sb_name in ['sf_inst', 'mt_inst', 'mfocus_coro', 'mtrigger_coro']:
-                    sb = getattr(self, sb_name)
-                    if sb:
-                        sb_list.append(self.sb.reset())
-                asyncio.gather(*sb_list)
 
                 # Context security check first
                 await self.hash_and_login(logged_in_already=True)
@@ -452,10 +457,12 @@ class WsCoroutine(NoWsCoroutine):
                         return_status = await self.def_model(recv_loaded_json)
                     case 'query':
                         return_status = await self.do_communicate(recv_loaded_json)
+                        await self.reset_auxiliary_inst()
                     case placeholder if "chat_params" in recv_loaded_json:
                         return_status = await self.def_model(recv_loaded_json)
                     case placeholder if "chat_session" in recv_loaded_json:
                         return_status = await self.do_communicate(recv_loaded_json)
+                        await self.reset_auxiliary_inst()
                     case _:
                         error = MaicaInputWarning('Type cannot be determined', '422')
                         await messenger(websocket, 'request_type_not_determined', traceray_id=self.traceray_id, error=error)
@@ -473,8 +480,12 @@ class WsCoroutine(NoWsCoroutine):
                 else:
                     continue
 
-            except websockets.exceptions.WebSocketException:
-                await messenger(None, 'maica_connection_terminated', 'Connection passively terminated', '204')
+            except websockets.exceptions.WebSocketException as we:
+                try:
+                    we_code, we_reason = we.code, we.reason
+                    await messenger(info=f'Connection closed with {we_code}: {we_reason}', type=MsgType.PRIM_LOG)
+                except Exception:
+                    await messenger(info=f'Connection establishment failed: {str(we)}', type=MsgType.PRIM_LOG)
                 return 0
 
             # Handle unexpected exceptions
@@ -766,20 +777,19 @@ async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn, 
             thread_instance = await WsCoroutine.async_create(websocket, auth_pool=auth_pool, maica_pool=maica_pool, mcore_conn=mcore_conn, mfocus_conn=mfocus_conn, online_dict=online_dict)
 
             permit = await thread_instance.check_permit()
-            assert isinstance(permit, dict) and permit[0], permit
+            assert isinstance(permit, dict) and permit['id'], permit
 
-            online_dict[permit['id']] = [websocket, unique_lock]
-            await messenger(info=f"Locking session for {permit['id']} named {permit['username']}")
+            online_dict[permit['id']] = [thread_instance.fsc, unique_lock]
+            await messenger(info=f"Locking session for {permit['id']} named {permit['username']}", type=MsgType.LOG)
 
             return_status = await thread_instance.function_switch()
-            # If function switch returned, something must have went wrong
-            if return_status:
-                raise Exception(return_status)
+            # We let the exception router to handle that
+            raise Exception(return_status)
 
         except Exception as e:
             match str(e):
                 case '0':
-                    await messenger(info=f'Coroutine quitted. Likely connection loss.', type=MsgType.PRIM_LOG)
+                    await messenger(info=f'Coroutine quitted. Likely connection loss.', type=MsgType.DEBUG)
                 case '1':
                     await messenger(info=f'Coroutine broke by a warning.', type=MsgType.WARN)
                 case '2':
@@ -791,13 +801,13 @@ async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn, 
 
         finally:
             try:
-                online_dict.pop(permit[2])
-                await messenger(info=f"Lock released for {permit[2]} as {permit[3]}")
+                online_dict.pop(permit['id'])
+                await messenger(info=f"Lock released for {permit['username']}({permit['id']})", type=MsgType.LOG)
             except Exception:
-                await messenger(info=f"No lock for this connection")
+                await messenger(info=f"No lock for this connection", type=MsgType.DEBUG)
             await websocket.close()
             await websocket.wait_closed()
-            await messenger(info=f"Closing connection gracefully")
+            await messenger(info=f"Closing connection gracefully", type=MsgType.DEBUG)
 
 async def prepare_thread(**kwargs):
     online_dict = {}
