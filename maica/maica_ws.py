@@ -16,7 +16,7 @@ from mfocus import MFocusCoroutine, SfBoundCoroutine
 from mtrigger import MTriggerCoroutine, MtBoundCoroutine
 from maica_utils import *
 
-class NoWsCoroutine():
+class NoWsCoroutine(AsyncCreator):
     """
     Not actually no-ws, but ws can be None.
     Also no AI socket.
@@ -35,7 +35,9 @@ class NoWsCoroutine():
         self.traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
         self.settings = MaicaSettings()
         self.fsc = FullSocketsContainer(self.websocket, self.traceray_id, self.settings, self.auth_pool, self.maica_pool)
-        self.hasher = AccountCursor.async_create(self.fsc, self.auth_pool, self.maica_pool)
+
+    async def _ainit(self):
+        self.hasher = await AccountCursor.async_create(self.fsc, self.auth_pool, self.maica_pool)
 
     def _check_essentials(self) -> None:
         if not self.settings.verification.user_id:
@@ -339,8 +341,8 @@ class WsCoroutine(NoWsCoroutine):
     # Stage 1 permission check
     async def check_permit(self):
         websocket = self.websocket
-        await messenger(info='An anonymous connection initiated', color=colorama.Fore.LIGHTBLUE_EX)
-        await messenger(info=f'Current online users: {list(self.online_dict.keys())}', color=colorama.Fore.LIGHTBLUE_EX)
+        await messenger(info='An anonymous connection initiated', type='prim_log')
+        await messenger(info=f'Current online users: {list(self.online_dict.keys())}', type='log')
 
         # Starting loop from here
         while True:
@@ -352,7 +354,7 @@ class WsCoroutine(NoWsCoroutine):
                 self.settings.verification.reset()
 
                 recv_text = await websocket.recv()
-                await messenger(info=f'Recieved an input on stage1.', color=colorama.Fore.CYAN)
+                await messenger(info=f'Recieved an input on stage1', type='recv')
                 recv_loaded_json = validate_input(recv_text, 4096, self.fsc.rsc, must=['token'])
 
                 login_success = await self.hash_and_login(recv_loaded_json['token'], check_online=True)
@@ -422,7 +424,7 @@ class WsCoroutine(NoWsCoroutine):
 
                 # Then we examine the input
                 recv_text = await websocket.recv()
-                await messenger(info=f'Recieved an input on stage2: {recv_text}', color=colorama.Fore.CYAN)
+                await messenger(info=f'Recieved an input on stage2: {recv_text}', type='recv')
                 recv_loaded_json = await validate_input(recv_text, 4096, self.fsc.rsc, warn=['type'])
 
                 recv_type = recv_loaded_json.get('type', 'unknown')
@@ -675,7 +677,7 @@ class WsCoroutine(NoWsCoroutine):
                 self.settings.temp.update(self.fsc.rsc, bypass_stream=False)
             if self.settings.temp.ic_prep:
                 completion_args['presence_penalty'] = 1.0-(1.0-completion_args['presence_penalty'])*(2/3)
-            await messenger(None, 'maica_chat_query_ready', f'Query constrcted and ready to go, last input is:\n{query_in}\nSending query...', '206', color=colorama.Fore.LIGHTCYAN_EX)
+            await messenger(info=f'Query constrcted and ready to go, last input is:\n{query_in}\nSending query...', type='prim_recv')
 
             if not self.settings.temp.bypass_gen or not replace_generation: # They should present together
 
@@ -761,11 +763,10 @@ async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn, 
     unique_lock = asyncio.Lock()
     async with unique_lock:
         try:
-            loop = asyncio.get_event_loop()
-            thread_instance = WsCoroutine(websocket, auth_pool=auth_pool, maica_pool=maica_pool, mcore_conn=mcore_conn, mfocus_conn=mfocus_conn, online_dict=online_dict)
+            thread_instance = await WsCoroutine.async_create(websocket, auth_pool=auth_pool, maica_pool=maica_pool, mcore_conn=mcore_conn, mfocus_conn=mfocus_conn, online_dict=online_dict)
 
             permit = await thread_instance.check_permit()
-            assert isinstance(permit, dict) and permit[0], "Recieved a return state"
+            assert isinstance(permit, dict) and permit[0], permit
 
             online_dict[permit['id']] = [websocket, unique_lock]
             await messenger(info=f"Locking session for {permit['id']} named {permit['username']}")
@@ -778,15 +779,15 @@ async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn, 
         except Exception as e:
             match str(e):
                 case '0':
-                    await messenger(info=f'Function quitted. Likely connection loss.', color=colorama.Fore.LIGHTBLUE_EX)
+                    await messenger(info=f'Coroutine quitted. Likely connection loss.', type='prim_log')
                 case '1':
-                    await messenger(info=f'Function broke by a warning.', type='warn')
+                    await messenger(info=f'Coroutine broke by a warning.', type='warn')
                 case '2':
-                    await messenger(info=f'Function broke by a critical', type='error')
+                    await messenger(info=f'Coroutine broke by a critical', type='error')
                 case '3':
-                    await messenger(info=f'Function broke by an unknown exception', type='error')
+                    await messenger(info=f'Coroutine broke by an unknown exception', type='error')
                 case _:
-                    await messenger(info=f'Function broke by an unknown exception: {str(e)}', type='error')
+                    await messenger(info=f'Coroutine broke by an unknown exception: {str(e)}', type='error')
 
         finally:
             try:
@@ -799,29 +800,34 @@ async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn, 
             await messenger(info=f"Closing connection gracefully")
 
 async def prepare_thread(**kwargs):
-    auth_pool = default(kwargs.get('auth_pool'), ConnUtils.auth_pool())
-    maica_pool = default(kwargs.get('maica_pool'), ConnUtils.maica_pool())
+    auth_pool = default(kwargs.get('auth_pool'), await ConnUtils.auth_pool())
+    maica_pool = default(kwargs.get('maica_pool'), await ConnUtils.maica_pool())
     try:
-        mcore_conn: AiConnCoroutine = default(kwargs.get('mcore_conn'), ConnUtils.mcore_conn())
-        mfocus_conn: AiConnCoroutine = default(kwargs.get('mfocus_conn'), ConnUtils.mfocus_conn())
+        mcore_conn: AiConnCoroutine = default(kwargs.get('mcore_conn'), await ConnUtils.mcore_conn())
+        mfocus_conn: AiConnCoroutine = default(kwargs.get('mfocus_conn'), await ConnUtils.mfocus_conn())
     except Exception:
         mcore_conn = mfocus_conn = None
 
+    await messenger(info='MAICA WS server started!' if load_env('DEV_STATUS') == 'serving' else 'MAICA WS server started in development mode!', type='prim_sys')
+
     try:
-        await messenger(info=f"Main model is {mcore_conn.model_actual}, MFocus model is {mfocus_conn.model_actual}", color=colorama.Fore.MAGENTA)
+        await messenger(info=f"Main model is {mcore_conn.model_actual}, MFocus model is {mfocus_conn.model_actual}", type='sys')
     except Exception:
-        await messenger(info=f"Model deployment cannot be reached -- running in minimal testing mode", color=colorama.Fore.MAGENTA)
+        await messenger(info=f"Model deployment cannot be reached -- running in minimal testing mode", type='sys')
     
-    server = await websockets.serve(functools.partial(main_logic, auth_pool=auth_pool, maica_pool=maica_pool, mcore_conn=mcore_conn, mfocus_conn=mfocus_conn, online_dict=kwargs.get('online_dict')), '0.0.0.0', 5000)
-    await server.wait_closed()
+    try:
+        server = await websockets.serve(functools.partial(main_logic, auth_pool=auth_pool, maica_pool=maica_pool, mcore_conn=mcore_conn, mfocus_conn=mfocus_conn, online_dict=kwargs.get('online_dict')), '0.0.0.0', 5000)
+        await server.wait_closed()
+    except BaseException:
+        pass
+    finally:
+        await messenger(info='\n', type='plain')
+        await messenger(info='MAICA WS server stopped!', type='prim_sys')
+        asyncio.gather(auth_pool.close(), maica_pool.close())
 
 def run_ws(**kwargs):
     online_dict = {}
-
-    asyncio.run(messenger(info='Starting WS server!' if load_env('DEV_STATUS') == 'serving' else 'Starting WS server in development mode!', color=colorama.Fore.LIGHTMAGENTA_EX))
     asyncio.run(prepare_thread(**kwargs, online_dict=online_dict))
-
-    asyncio.run(messenger(info='Stopping WS server!', color=colorama.Fore.MAGENTA))
 
 if __name__ == '__main__':
 

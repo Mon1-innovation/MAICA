@@ -337,8 +337,8 @@ else:
 app.add_url_rule("/<path>", methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], view_func=ShortConnHandler.as_view("any_unknown", val=False))
 
 async def prepare_thread(**kwargs):
-    ShortConnHandler.auth_pool = default(kwargs.get('auth_pool'), ConnUtils.auth_pool())
-    ShortConnHandler.maica_pool = default(kwargs.get('maica_pool'), ConnUtils.maica_pool())
+    ShortConnHandler.auth_pool = default(kwargs.get('auth_pool'), await ConnUtils.auth_pool())
+    ShortConnHandler.maica_pool = default(kwargs.get('maica_pool'), await ConnUtils.maica_pool())
 
     ShortConnHandler.mcore_watcher = await NvWatcher.async_create('mcore')
     ShortConnHandler.mfocus_watcher = await NvWatcher.async_create('mfocus')
