@@ -69,7 +69,7 @@ class MaicaInternetWarning(CommonMaicaWarning):
     """This suggests the backend request action is not behaving normal."""
 
 class FSCPlain():
-    """Loop importing prevention"""
+    """Loop importing prevention."""
     class RealtimeSocketsContainer():
         """For no-setting usage."""
         def __init__(self, websocket, traceray_id):
@@ -82,6 +82,17 @@ class FSCPlain():
         self.maica_pool = maica_pool
         self.mcore_conn = mcore_conn
         self.mfocus_conn = mfocus_conn
+
+class AsyncCreator():
+    """Inherit this for async init."""
+    async def _ainit(self):
+        pass
+
+    @classmethod
+    async def async_create(cls, *args, **kwargs):
+        instance = cls(*args, **kwargs)
+        await instance._ainit()
+        return instance
 
 class LoginResult():
     """

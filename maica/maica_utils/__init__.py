@@ -13,6 +13,7 @@ from .maica_utils import (
     MaicaConnectionWarning,
     MaicaInternetWarning,
     FSCPlain,
+    AsyncCreator,
     LoginResult,
     ReUtils,
     default,
@@ -33,7 +34,7 @@ from .maica_utils import (
     try_load_json,
     hash_sha256,
 )
-from .connection_utils import DbPoolCoroutine, ConnUtils, AiConnCoroutine, validate_input
+from .connection_utils import DbPoolCoroutine, SqliteDbPoolCoroutine, ConnUtils, AiConnCoroutine, validate_input
 from .setting_utils import MaicaSettings
 from .account_utils import AccountCursor, encrypt_token, sign_message, verify_message, sort_message
 from .container_utils import FullSocketsContainer
@@ -53,6 +54,7 @@ __all__ = [
     'MaicaConnectionWarning',
     'MaicaInternetWarning',
     'FSCPlain',
+    'AsyncCreator',
     'LoginResult',
     'FullSocketsContainer',
     'ReUtils',
@@ -75,6 +77,7 @@ __all__ = [
     'try_load_json',
     'hash_sha256',
     'DbPoolCoroutine',
+    'SqliteDbPoolCoroutine',
     'ConnUtils',
     'AiConnCoroutine',
     'SideBoundCoroutine',

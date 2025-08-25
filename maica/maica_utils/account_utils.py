@@ -37,30 +37,29 @@ def _get_keys() -> tuple[PKCS1_OAEP.PKCS1OAEP_Cipher, PKCS1_OAEP.PKCS1OAEP_Ciphe
 
 encryptor, decryptor, verifier, signer = _get_keys()
 
-class AccountCursor():
+class AccountCursor(AsyncCreator):
     def __init__(self, fsc:FullSocketsContainer, auth_pool=None, maica_pool=None):
         self.fsc = fsc
         self.settings = fsc.maica_settings
+        self.auth_pool, self.maica_pool = auth_pool, maica_pool
         self.websocket, self.traceray_id = fsc.rsc.websocket, fsc.rsc.traceray_id
-        asyncio.run(self._ainit(auth_pool, maica_pool))
         
-    async def _ainit(self, auth_pool, maica_pool):
-        if not auth_pool:
-            auth_pool = DbPoolCoroutine(
+    async def _ainit(self):
+        if not self.auth_pool:
+            self.auth_pool = DbPoolCoroutine(
                 host=db_host,
                 user=db_user,
                 password=db_password,
                 db=authdb,
                 ro=True,
             )
-        if not maica_pool:
-            maica_pool = DbPoolCoroutine(
+        if not self.maica_pool:
+            self.maica_pool = DbPoolCoroutine(
                 host=db_host,
                 user=db_user,
                 password=db_password,
                 db=maicadb,
             )
-        self.auth_pool = auth_pool; self.maica_pool = maica_pool
 
     async def check_user_status(self, pref=False, *args) -> Union[list, dict]:
         status = "status" if not pref else "preferences"

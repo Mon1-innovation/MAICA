@@ -37,7 +37,7 @@ class NoWsCoroutine():
         self.traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
         self.settings = MaicaSettings()
         self.fsc = FullSocketsContainer(self.websocket, self.traceray_id, self.settings, self.auth_pool, self.maica_pool)
-        self.hasher = AccountCursor(self.fsc, self.auth_pool, self.maica_pool)
+        self.hasher = AccountCursor.async_create(self.fsc, self.auth_pool, self.maica_pool)
 
     def _check_essentials(self) -> None:
         if not self.settings.verification.user_id:
