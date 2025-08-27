@@ -87,7 +87,7 @@ class FSCPlain():
     """Loop importing prevention."""
     class RealtimeSocketsContainer():
         """For no-setting usage."""
-        def __init__(self, websocket, traceray_id):
+        def __init__(self, websocket=None, traceray_id=''):
             self.websocket, self.traceray_id = websocket, traceray_id
     
     def __init__(self, websocket=None, traceray_id='', maica_settings=None, auth_pool=None, maica_pool=None, mcore_conn=None, mfocus_conn=None):

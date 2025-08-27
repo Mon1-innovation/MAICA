@@ -12,7 +12,7 @@ class AgentTools():
     def __init__(self, fsc: FullSocketsContainer, sf_inst: SfBoundCoroutine):
         self.fsc, self.sf_inst = fsc, sf_inst
 
-    def _time_tz(tz="zh"):
+    def _time_tz(self, tz="zh"):
         if tz == 'zh':
             tz = "Asia/Shanghai"
         elif tz == 'en':
@@ -22,7 +22,6 @@ class AgentTools():
         except Exception:
             time_now = datetime.datetime.now()
         return time_now
-
 
     async def time_acquire(self, *args, **kwargs) -> tuple[str, str]:
         """Gets current time. Requires fsc."""
@@ -105,10 +104,11 @@ class AgentTools():
         return content, weather_friendly
 
     async def event_acquire(self, *args, **kwargs: dict[str: int]) -> tuple[str, str]:
-        """Gets meaningful events. Requires fsc and sf_inst, optional ymd and predict."""
+        """Gets meaningful events. Requires fsc and sf_inst, optional ymd and predict and importance."""
         target_lang = self.fsc.maica_settings.basic.target_lang
         tz = self.fsc.maica_settings.extra.tz
         time_today = self._time_tz(tz or target_lang)
+        date_cursor = EventsCollection()
 
         date_in = []
         for k in 'year', 'month', 'day':
@@ -120,31 +120,52 @@ class AgentTools():
         except Exception:
             player_bday = None
 
-        d0_is_today = False
+        major_day_is_today = False
         target_date = datetime.datetime(*vali_date(*date_in))
+
         predict = kwargs.get('predict')
         if is_today(target_date):
-            d0_is_today = True
+            major_day_is_today = True
             if predict is None:
                 predict = 2
         elif predict is None:
             predict = 0
 
-        time_query_list = []
-        for next_days in range(predict + 1):
-            time_query_list.append(strip_date(target_date + datetime.timedelta(days=next_days)))
-        time_query = ','.join(time_query_list)
+        # The importance mechanism:
 
-        result = await get_json(f"{load_env('MFOCUS_AGENT_TOOLS')}/event/api.php?date={time_query}")
-        days_event_list = []
+        # When major day is today, we want to search a wider range of days, 
+        # but ignore the unimportant events since they aren't cared in daily
+        # lives.
+
+        # But when major day is not today, we assume that user is asking a
+        # question about a percise date, so we'll dig deeper on that. The
+        # following days are usually not cared about.
+
+        # Specifically, when tnd_aggressive is set to >= 3, we enable all
+        # importance levels to be represented on major day. This is not
+        # recommended.
+
+        global_importance = kwargs.get('importance', 1)
+        if not major_day_is_today:
+            global_importance -= 1
+        if self.fsc.maica_settings.extra.tnd_aggressive >= 3:
+            global_importance -= 1
+        assert isinstance(global_importance, int), "Importance input not valid"
+
+        days_regs_list: list[list[RegEvent]] = []
+        days_events_list = []
+        for next_days in range(predict + 1):
+
+            target_next_day = target_date + datetime.timedelta(days=next_days)
+            days_regs_list.append(date_cursor.find(target_next_day.year, target_next_day.month, target_next_day.day))
 
         day_seq = 0
-        for day_result in result:
+        for day_regs_list in days_regs_list:
             day_seq += 1
-            detailed_day = (day_seq == 1)
-            very_detailed_day = (detailed_day and d0_is_today)
+            is_major_day = day_seq == 1
+            local_importance = global_importance if is_major_day else global_importance + 1
 
-            if d0_is_today:
+            if major_day_is_today:
                 match day_seq:
                     case 1:
                         today = "今天" if target_lang == 'zh' else "Today"
@@ -163,42 +184,48 @@ class AgentTools():
                     case _:
                         today = f"这一天后{day_seq - 1}天" if target_lang == 'zh' else f"{day_seq - 1} days after this day"
 
-            day = refill_date(result['date'])
-            day_event_list = []
+            day = target_date + datetime.timedelta(days = day_seq - 1)
+            day_events_list = []
 
+            # Here we determine player's bday
             if player_bday:
                 player_age = day.year - player_bday.year
                 if (day.month, day.day) == (player_bday.month, player_bday.day):
                     # Happy birthday [player]!
-                    day_event_list.append(f"[player]的{player_age}岁生日" if target_lang == 'zh' else f"[player]'s {add_seq_suffix(player_age)} birthday")
+                    day_events_list.append(f"[player]的{player_age}岁生日" if target_lang == 'zh' else f"[player]'s {add_seq_suffix(player_age)} birthday")
 
+            # Here we determine Monika's bday
             if (day.month, day.day) == (9, 22):
                 # Happy birthday Monika!
-                day_event_list.append(f"莫妮卡的生日" if target_lang == 'zh' else f"Monika's birthday")
+                day_events_list.append(f"莫妮卡的生日" if target_lang == 'zh' else f"Monika's birthday")
 
-            for event in day_result['describe']:
-                if (
-                    event.get('IsNotWork')
-                    or (event.get('Time') and detailed_day)
-                    or (event.get('Name') and very_detailed_day)
-                    ):
-                    if not event.get('EnglishName'):
-                        event['EnglishName'] = 'weekday' if event['Name'] is '工作日' else 'weekend'
-                    day_event_list.append(event['Name'] if target_lang == 'zh' else event['EnglishName'])
+            # Here we handle every reg for today
+            for reg in day_regs_list:
 
-            if day_event_list:
+                # We ignore the unimportant regs
+                if reg.importance >= local_importance:
+                    if target_lang == 'zh':
+                        day_events_list.append(reg.name)
+                    else:
+
+                        # Most Chinese traditional festivals are not registered with ename
+                        # We don't add them since English users likely don't care
+                        if reg.ename:
+                            day_events_list.append(reg.ename)
+
+            if day_events_list:
                 today_is = f"{today}是" if target_lang == 'zh' else f"{today} is "
                 joint = ", 也是" if target_lang == 'zh' else ", and also "
-                day_event = today_is + joint.join(day_event_list)
+                day_event = today_is + joint.join(day_events_list)
 
-                days_event_list.append(day_event)
-            elif detailed_day:
-                days_event_list.append(f"{today}不是特殊节日" if target_lang == 'zh' else f"{today} is not a special event or holiday")
+                days_events_list.append(day_event)
+            elif is_major_day:
+                days_events_list.append(f"{today}不是特殊节日" if target_lang == 'zh' else f"{today} is not a special event or holiday")
 
-        if days_event_list:
-            content = days_event = '; '.join(days_event_list)
+        if days_events_list:
+            content = days_event = '; '.join(days_events_list)
         else:
-            match [d0_is_today, target_lang]:
+            match [major_day_is_today, target_lang]:
                 case [p, t] if p and t == 'zh':
                     d0_this_day = "今天"
                 case [p, t] if p and t == 'en':
@@ -207,7 +234,7 @@ class AgentTools():
                     d0_this_day = "这一天"
                 case [p, t] if not p and t == 'en':
                     d0_this_day = "This day"
-            content = days_event = f"{d0_is_today}不是特殊节日" if target_lang == 'zh' else f"{d0_is_today} is not a special event or holiday"
+            content = days_event = f"{major_day_is_today}不是特殊节日" if target_lang == 'zh' else f"{major_day_is_today} is not a special event or holiday"
 
         return content, days_event
 
@@ -251,9 +278,9 @@ class AgentTools():
 
 if __name__ == "__main__":
     import asyncio
-    #print(asyncio.run(time_acquire(None)))
-    # print(date_acquire(None, True, [0, 0, 23], 1))
-    #print(asyncio.run(event_acquire(None, True, ["0", "0", "28028"], -1, True, 'zh')))
-    #print(internet_acquire({"question": "番茄炒蛋怎么做"}))
-    #print(weather_acquire({}, True, [0, 0, 23], 1, 'zh'))
-    #print(asyncio.run(persistent_acquire({}, True, {'user_id': 23}, 1, '你是谁')))
+    fsc = FullSocketsContainer(maica_settings=MaicaSettings())
+    fsc.maica_settings.verification.update(user_id=23, username="edge")
+    sf_inst = SfBoundCoroutine(fsc)
+    at = AgentTools(fsc, sf_inst)
+    res = asyncio.run(at.event_acquire(year=2025, month=10, day=1))
+    print(res)
