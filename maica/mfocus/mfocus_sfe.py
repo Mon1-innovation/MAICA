@@ -796,13 +796,13 @@ Begin!"""
             answer_fin = None
         return answer_fin
 
-    def add_extra(self, *args) -> None:
-        self.sf_forming_buffer.extend(args)
+    def add_extra(self, **kwargs) -> None:
+        self.sf_forming_buffer.update(kwargs)
 
-    def use_only(self, *args) -> None:
-        self.sf_forming_buffer = args
+    def use_only(self, **kwargs) -> None:
+        self.sf_forming_buffer = kwargs
 
-    def read_from_sf(self, seq) -> any:
-        if not self.settings.basic.mt_extraction and not self.settings.temp.mt_extraction_once:
+    def read_from_sf(self, key) -> any:
+        if not self.settings.basic.sf_extraction and not self.settings.temp.sf_extraction_once:
             return None
-        return self.sf_forming_buffer[seq]
+        return self.sf_forming_buffer.get(key)

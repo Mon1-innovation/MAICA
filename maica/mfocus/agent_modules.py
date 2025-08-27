@@ -282,5 +282,6 @@ if __name__ == "__main__":
     fsc.maica_settings.verification.update(user_id=23, username="edge")
     sf_inst = SfBoundCoroutine(fsc)
     at = AgentTools(fsc, sf_inst)
-    res = asyncio.run(at.event_acquire(year=2025, month=10, day=1))
-    print(res)
+    res_d = asyncio.run(at.date_acquire())
+    res_e = asyncio.run(at.event_acquire(year=2025, month=10, day=1))
+    print(res_d)

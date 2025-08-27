@@ -310,7 +310,7 @@ EventsCollection._add_all(events_list)
 if __name__ == '__main__':
 
     e = EventsCollection()
-    print(e._find_qing_ming(2028))
+    print(e._find_qing_ming(2026))
     # print(e._get_last_weekday(2025, 11, 4))
     # print(e._get_last_ld(2025, 12))
     # days = e.find(2025, 1, 31)

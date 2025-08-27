@@ -42,13 +42,14 @@ class MtBoundCoroutine(SideBoundCoroutine):
 
         return aff_trigger_list + switch_trigger_list + meter_trigger_list + customized_trigger_list
     
-    def add_extra(self, **kwargs) -> None:
-        self.sf_forming_buffer.update(kwargs)
+    def add_extra(self, *args) -> None:
+        self.sf_forming_buffer.extend(args)
 
-    def use_only(self, **kwargs) -> None:
-        self.sf_forming_buffer = kwargs
+    def use_only(self, *args) -> None:
+        self.sf_forming_buffer = args
 
-    def read_from_sf(self, key) -> any:
-        if not self.settings.basic.sf_extraction and not self.settings.temp.sf_extraction_once:
+    def read_from_sf(self, seq) -> any:
+        if not self.settings.basic.mt_extraction and not self.settings.temp.mt_extraction_once:
             return None
-        return self.sf_forming_buffer.get(key)
+        return self.sf_forming_buffer[seq]
+    
