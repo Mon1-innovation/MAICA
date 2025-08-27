@@ -241,7 +241,11 @@ async def messenger(websocket=None, status='', info='', code='0', traceray_id=''
         msg_print = msg_send = info
 
     else:
-        msg_print = f"<WS_{prefix}>"; msg_print += f"-[{time.strftime('%Y-%m-%d %H:%M:%S')}]" if add_time else ''; msg_print += f"-[{str(code)}]" if code else ''; msg_print += f": {str(info)}"; msg_print += f"; traceray ID {traceray_id}" if traceray_id else ''
+        msg_print = f"<{prefix}>"
+        msg_print = msg_print.ljust(10)
+        msg_print += f"[{time.strftime('%Y-%m-%d %H:%M:%S')}]" if add_time else ''; msg_print += f"-[{str(code)}]" if code else ''
+        msg_print = msg_print.ljust(40)
+        msg_print += f": {str(info)}"; msg_print += f"; traceray ID {traceray_id}" if traceray_id else ''
         msg_send = f"{str(info)}"; msg_send += f" -- your traceray ID is {traceray_id}" if traceray_id else ''
 
     if websocket:
@@ -282,11 +286,11 @@ async def messenger(websocket=None, status='', info='', code='0', traceray_id=''
                 print((color or colorama.Fore.LIGHTCYAN_EX) + msg_print)
             case "warn":
                 if load_env("PRINT_VERBOSE") == "1" and prefix.lower() in frametrack_list:
-                    print(color or colorama.Fore.YELLOW + f"WARN happened when executing {stack[0].function} at {stack[0].filename}#{stack[0].lineno}:")
+                    print(color or colorama.Fore.YELLOW + f"• WARN happened when executing {stack[0].function} at {stack[0].filename}#{stack[0].lineno}:")
                 print((color or colorama.Fore.LIGHTYELLOW_EX) + msg_print)
             case "error":
                 if load_env("PRINT_VERBOSE") == "1" and prefix.lower() in frametrack_list:
-                    print((color or colorama.Fore.RED) + f"ERROR happened when executing {stack[0].function} at {stack[0].filename}#{stack[0].lineno}:")
+                    print((color or colorama.Fore.RED) + f"! ERROR happened when executing {stack[0].function} at {stack[0].filename}#{stack[0].lineno}:")
                 print((color or colorama.Fore.LIGHTRED_EX) + msg_print)
     if error:
         raise error

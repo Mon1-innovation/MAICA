@@ -72,6 +72,9 @@ class SfBoundCoroutine(SideBoundCoroutine):
         data1 = _rf('mas_player_bday')
         if data1:
             _ap(f'[player]的生日是{data1[0]}年{data1[1]}月{data1[2]}日.', f"[player]'s birthday is {serialize_date(data1[0], data1[1], data1[2])}.")
+            y = datetime.datetime.now().year
+            o = y - int(data1[0])
+            _ap(f'[player]今年{o}岁.', f"[player] is {o} years old.")
 
         data1 = _rf('mas_affection')
         if data1:

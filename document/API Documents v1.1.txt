@@ -1,0 +1,13 @@
+I'm sorry for not offering an English ver of this document but it's just too much work for me.
+If you want to read in English, use a translator.
+
+此文档是MAICA后端API接口的使用文档.
+
+    * 应当注意, 在规范v1.1之后, API接口的行为有大面积变化. 请以新版文档为准.
+
+MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中长连接一般用于生成任务, 短连接一般用于状态和文件.
+
+    长连接的地址是 wss://maicadev.monika.love/websocket (官方服务), 自行部署则是 ws://localhost:5000 .
+    短连接的地址是 https://maicadev.monika.love/api (官方服务), 自行部署则是 http://localhost:6000 .
+    * 应当注意, 另有一组工具一般与后端进行网络通信, 地址是 https://mfocusdev.monika.love (官方服务). 要自行部署可以参考以下仓库:
+        * https://github.com/edgeinfinity1/MFocus_eventApi

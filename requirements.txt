@@ -11,6 +11,7 @@ annotated-types==0.7.0
 anyio==4.3.0
 asgiref==3.8.1
 asyncio==3.4.3
+asyncssh==2.21.0
 attrs==24.2.0
 bcrypt==3.2.2
 beautifulsoup4==4.12.3
@@ -48,6 +49,7 @@ hyperframe==6.1.0
 idna==3.7
 itsdangerous==2.2.0
 Jinja2==3.1.4
+lunar_python==1.4.4
 Markdown==3.6
 MarkupSafe==2.1.5
 multidict==6.1.0
