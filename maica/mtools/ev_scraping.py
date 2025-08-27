@@ -158,7 +158,7 @@ class EventsCollection():
         """
         c = 4.81 if y >= 2001 else 5.59
         ymod = y % 100
-        day = math.floor(ymod * 0.2422 + c) - math.floor(ymod / 4 - ymod / 100 + ymod / 400)
+        day = math.floor(ymod * 0.2422 + c) - math.floor(ymod / 4)
         day = max(4, min(6, day))
         return day
     
@@ -310,10 +310,10 @@ EventsCollection._add_all(events_list)
 if __name__ == '__main__':
 
     e = EventsCollection()
-    # print(e._find_qing_ming(2026))
+    print(e._find_qing_ming(2028))
     # print(e._get_last_weekday(2025, 11, 4))
     # print(e._get_last_ld(2025, 12))
-    days = e.find(2025, 1, 31)
-    print(days)
-    for day in days:
-        print(str(day))
+    # days = e.find(2025, 1, 31)
+    # print(days)
+    # for day in days:
+    #     print(str(day))
