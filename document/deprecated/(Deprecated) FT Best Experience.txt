@@ -1,0 +1,105 @@
+I'm sorry for not offering an English ver of this document but it's just too much work for me.
+If you want to read in English, use a translator.
+
+此文档介绍基于MAICA开源基本数据集, 微调自己的MAICA核心模型最佳实践.
+请注意此流程在不同设备, 不同模型情况下可能需要调整. 示例环境为RTX4090x8 CUDA12.4 ms-swift2.2.0 Ubuntu24.04lts.
+
+必要准备:
+    安装配置设备环境--不再赘述.
+    安装ms-swift: https://github.com/modelscope/swift/. 你可以选择通过其它方式微调, 但我们使用ms-swift示范.
+    安装flash-attention: https://github.com/Dao-AILab/flash-attention. 若使用早于Ampire架构的设备请停用此工具.
+    下载MAICA开源基本数据集: https://huggingface.co/datasets/edgeinfinity/MAICA_ds_basis.
+
+#以下为训练脚本示例:
+echo 'nproc nums?'
+read npn
+echo 'which basis to use? 1: q2-72b-i 2: q2-7b-i'
+read cho
+echo 'is this a test?'
+read tes
+echo 'resume from path, leave empty for using model directly:'
+read rfc
+echo 'training epoches, leave empty for 1:'
+read nte
+ds1='dataset/moni_dataset.jsonl'
+ds2='dataset/moni_dataset_en.jsonl'
+ds3='dataset/covid_new.jsonl'
+ds4='dataset/ds_new.jsonl dataset/ds_new.jsonl'
+ds5='AI-ModelScope/deepctrl-sft-data:default#1600 AI-ModelScope/deepctrl-sft-data:en#1100 AI-ModelScope/ruozhiba#250'
+ctdp=$ds1' '$ds2' '$ds3' '$ds4' '$ds5
+if [ ! -n "$cho" ]
+then
+    cho='qwen2-72b-instruct'
+elif [ "$cho" == 1 ]
+then
+    cho='qwen2-72b-instruct'
+elif [ "$cho" == 2 ]
+then
+    cho='qwen2-7b-instruct'
+fi
+if [ ! -n "$tes" ]
+then
+    tes='False' 
+else
+    tes='True'
+fi
+if [ ! -n "$rfc" ]
+then
+    rfc=''
+else
+    rfc="--resume_from_checkpoint $rfc"
+fi
+if [ ! -n "$nte" ]
+then
+    nte=1
+fi
+nproc_per_node=$npn
+export HTTPS_PROXY=192.168.3.254:7890
+#PYTHONPATH=/root/swift \
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+torchrun \
+    --nproc_per_node=$nproc_per_node \
+    --master_port 29500 \
+    /root/swift/examples/pytorch/llm/llm_sft.py \
+    --model_type $cho \
+    --model_revision master \
+    --sft_type lora \
+    --freeze_parameters 0 \
+    --tuner_backend peft \
+    --template_type AUTO \
+    --dtype AUTO \
+    --output_dir output \
+    --ddp_backend nccl \
+    --dataset $ctdp \
+    --val_dataset 'dataset/moni_dataset.jsonl#50' \
+    --system None \
+    --lora_rank 8 \
+    --lora_alpha 32 \
+    --lora_dropout_p 0.05 \
+    --batch_size 1 \
+    --train_dataset_sample -1 \
+    --num_train_epochs $nte \
+    --max_length 1344 \
+    --truncation_strategy delete \
+    --check_dataset_strategy warning \
+    --lora_target_modules 'ALL' \
+    --gradient_checkpointing true \
+    --weight_decay 0.1 \
+    --learning_rate 1e-4 \
+    --gradient_accumulation_steps 16 \
+    --max_grad_norm 1 \
+    --warmup_ratio 0.03 \
+    --eval_batch_size 1 \
+    --eval_steps 50 \
+    --save_steps 50 \
+    --save_total_limit -1 \
+    --logging_steps 5 \
+    --use_flash_attn true \
+    --custom_dataset_info /root/swift/dataset/ds_info.json \
+    --test_oom_error $tes \
+    $rfc \
+#请自行调整相对路径, 设备数量等参数.
+
+以上脚本是MAICAv0-LIA-72b的最佳实践流程. 在10ep训练结束后, 模型评估loss应为0.35左右.
+LLM的训练与微调在原理和技巧上都过于复杂, 此处对具体细节不多赘述, 用户可以自行尝试调整以获取最佳效果.
+请注意不要使用Windows, WSL, WSL2作为训练环境, 这会导致效率低下或其它问题.
