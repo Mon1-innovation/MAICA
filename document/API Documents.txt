@@ -2,7 +2,7 @@ I'm sorry for not offering an English ver of this document but it's just too muc
 If you want to read in English, use a translator.
 
 
-此文档是MAICA后端API接口的使用文档.
+此文档是MAICA后端API接口的使用文档, 编纂版本为v1.1.
 
     * 应当注意, 在v1.1更新之后, API接口的行为有大面积变化. 请以新版文档为准.
 

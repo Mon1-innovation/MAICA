@@ -1,0 +1,64 @@
+I'm sorry for not offering an English ver of this document but it's just too much work for me.
+If you want to read in English, use a translator.
+
+- 弃用了model_type参数
+
++ 添加了enable_mf, enable_mt参数
+
+- 弃用了deformation参数, 且不再强制输出ascii.
+
+= 修改了大部分status代码, 以源码或实际表现为准.
+
+- 弃用了流式输出的seq
+
+= 现在长连接令牌也以json形式提交, 键是access_token.
+
+= 现在修改设置时, 值为null的键会恢复默认值.
+
+= max_token基础参数改为max_length
+
+= 设置传递中不再划分三类参数, 统合为chat_params.
+
+- 弃用环境变量LOGIN_VERIFICATION
+
+- 弃用环境变量LOG_PERSISTENT
+
+= 自定义trigger由customize改为customized
+
+= 自定义trigger的usage统一为exprop.item_name
+
+= MTrigger的输出code改为101, 结束改为1001
+
+= 短连接现在使用RESTful规范
+
+= 短连接中的载荷键统一为content
+
+= 弃用/restore端点, 改为PUT /history
+
++ 添加环境变量FULL_RESTFUL
+
+- 弃用环境变量MFOCUS_TOOLS
+
+- 弃用环境变量ENABLE_NVW
+
+- 弃用环境变量FORCE_WSGC
+
++ 现在workload接口会汇报每个设备的tflops算力.
+
+- 弃用环境变量SESSION_WARN_TOKEN
+
+- 弃用环境变量PROXY_EXCLUDE
+
++ 现在GET /defaults端点可以获取默认设置
+
+= MTrigger的输出不再是json string
+
+= time_ms键改为timestamp
+
++ GET /legality接口现在会返回用户名
+
++ /savefile, /trigger现在有DELETE方法可以删除.
+
+= /servers通告中, deviceName改为description.
+
++ 现在affection模板的trigger可以设置名字
