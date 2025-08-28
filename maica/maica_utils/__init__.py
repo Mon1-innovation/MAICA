@@ -43,6 +43,7 @@ from .setting_utils import MaicaSettings
 from .account_utils import AccountCursor, encrypt_token, sign_message, verify_message, sort_message
 from .container_utils import FullSocketsContainer
 from .sb_utils import SideBoundCoroutine
+from .get_a_sentence import SentenceOfTheDay
 
 __all__ = [
     'MsgType',
@@ -95,4 +96,5 @@ __all__ = [
     'sign_message',
     'verify_message',
     'sort_message',
+    'SentenceOfTheDay',
 ]
