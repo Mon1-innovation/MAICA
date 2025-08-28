@@ -96,6 +96,13 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
                 * 一般而言, content属于人类可读内容. 在接收和处理中应优先匹配status而非content.
                 * 除时间戳为float外, 其余键的值均为str.
 
+    建立连接:
+
+        使用任何websocket库或调试工具, 连接到长连接端点.
+        连接建立时, 你会收到一条通告, 其status为maica_connection_initiated.
+
+            * 连接建立通告的content有10%概率会变为特殊句子, 有效地防止了项目显得过于严肃.
+
     登录:
 
         在长连接建立后, 你应该先发送令牌:
