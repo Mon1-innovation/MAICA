@@ -1,143 +1,36 @@
 I'm sorry for not offering an English ver of this document but it's just too much work for me.
 If you want to read in English, use a translator.
 
-此文档是MAICA接口后端"幻象引擎"的部署文档. 请注意"幻象引擎"是协调通信程序, 模型接口需要另行部署.
-由于开发变动频繁, "幻象引擎"不提供release. 在示例中, 部署环境是windows powershell. 部分命令的linux版本在注释中.
+此文档是MAICA接口后端"幻象引擎"的部署文档, 编纂版本为v1.1.
+请注意"幻象引擎"是协调通信程序, 模型需要另行部署. 由于开发变动频繁, "幻象引擎"不提供release.
 
-#首先确认你拥有Python3与对应版本的pip:
-    python -V
-    pip --version
-    #建议的Python3版本为3.11或更高.
-    #若为linux环境, 使用以下命令检测:
-        #python3 -V
-        #pip --version
-#克隆仓库到本地:
-    git clone https://github.com/Mon1-innovation/MAICA.git
-    cd ./MAICA
-#创建虚拟环境以便安装依赖:
-    python -m venv maica
-#激活虚拟环境:
-    .\maica\Scripts\activate.bat
-    #若为linux环境, 使用以下命令激活:
-        #source ./maica/Scripts/activate
-#安装依赖:
-    git clone https://github.com/edgeinfinity1/googlesearch.git && cd googlesearch && pip install .
-    cd .. && pip install -r requirements.txt
-    #如果速度慢可以自行配置镜像或代理.
-    #一些软件包在部分发行版系统上可能需要额外的依赖, 请自行搜索解决.
-#创建设置文件:
-    touch .env
-#至此基本安装已经完成.
+该文档仅为有一定技术基础的用户讲解, 不会提供过于细致的指导.
 
-接下来你需要配置"幻象引擎"的设置与通信对象. 你需要在.env中填入以下内容:
-MCORE_ADDR = 'http://127.0.0.1:8000/v1'
-    #此处应填入你为MAICA准备的核心模型接口地址.
-    #此接口必须为标准openai接口, 推荐使用ms-swift部署.
-    #若该部署位于不同设备上, 请预先确保可访问性.
-MFOCUS_ADDR = 'http://127.0.0.1:8001/v1'
-    #此处应填入你为MFocus准备的Agent模型接口地址.
-    #若你使用低显存部署方案且没有独立MFocus模型, 你可以填入上一条相同地址.
-    #此接口必须为标准openai接口, 且必须支持Agent react格式, 推荐使用ms-swift部署.
-    #若该部署位于不同设备上, 请预先确保可访问性.
-MVISTA_ADDR = 'http://127.0.0.1:8002/v1'
-    #此处应填入你为MVista准备的多模态模型接口地址.
-    #注意事项基本同上.
-ENABLE_NVW = '1'
-    #设为1以启用NVIDIA性能监控接口.
-    #仅当设为1时以下四条生效.
-    #监控通过paramiko实现, 目标设备必须在22端口上开放ssh, 并通过密码认证.
-FORCE_WSGC = '1'
-    #设为1以在每天04:00重启websocket服务端
-    #我不知道为什么, 但这玩意就是会泄漏. 不如做个定时重启.
-ROTATE_MSCACHE = '0'
-    #设为正整数以自动清理MSpire缓存, 单位为小时
-MCORE_NODE = 'XP00-Hypnos'
-    #核心模型设备名, 想写什么写什么.
-    #这个名字会用在数据库表达式里, 不要用奇怪的符号.
-MCORE_USER = 'root'
-    #核心模型设备用户名
-MCORE_PWD = 'password'
-    #核心模型设备密码
-MFOCUS_NODE = 'XP10-Mystra'
-    #Agent模型设备名, 想写什么写什么.
-    #这个名字会用在数据库表达式里, 不要用奇怪的符号.
-MFOCUS_USER = 'root'
-    #Agent模型设备用户名
-MFOCUS_PWD = 'password'
-    #Agent模型设备密码
-MFOCUS_AGENT_TOOLS = 'https://mfocusdev.monika.love'
-    #此处应填入MFocus工具组的api接口.
-    #该接口至少应该拥有以下结构:
-        #目录/event/
-            #部署项目https://github.com/edgeinfinity1/MFocus_eventApi
-    #如无特别需求可以保留默认值.
-AUTH_DB = 'flarum_db'
-    #此处应填入MAICA使用的认证数据库名.
-    #该数据库至少应该拥有以下结构:
-    #表"users"
-        #列"id"(int AUTO_INCREMENT PRIMARY KEY)
-        #列"username"(varchar NOT NULL unique)
-        #列"nickname"(varchar)
-        #列"email"(varchar NOT NULL unique)
-        #列"is_email_confirmed"(tinyint)
-            #必须为0或1.
-        #列"password"(varchar NOT NULL)
-            #必须使用bcrypt方式加密原文.
-    #此功能被设计用以直接与Flarum用户数据对接, 因此接受Flarum数据库表结构.
-    #"幻象引擎"不会向此数据库执行任何写入操作.
-MAICA_DB = 'maica'
-    #此处应填入MAICA使用的存储数据库名.
-    #接下来, 一个脚本将据此自动生成基本的数据库结构.
-LOGIN_VERIFICATION = "enabled"
-    #将其设为disabled会使MAICA放弃校验用户的合法性.
-    #如果你的实例可以从公开网络访问或需要与不信任的人共用, 一定不要关闭此校验.
-KICK_STALE_CONNS = 'enabled'
-    #将其设为disabled以禁止用户重复登陆, 设为enabled则自动踢出旧的连接.
-DB_ADDR = '127.0.0.1:3306'
-    #此处应填入Mysql数据库的地址
-    #前述的两个数据库均使用这一地址. 不建议分离, 如有需要请自行改代码.
-DB_USER = 'usr'
-    #此处应填入Mysql数据库的用户名.
-    #此用户应当对MAICA_DB有完全权限, 对AUTH_DB有读权限.
-    #前述的两个数据库均使用这一用户. 建议新建一个用户并赋予对应权限使用.
-DB_PASSWORD = '123456'
-    #此处应填入Mysql数据库的用户密码.
-F2B_COUNT = '20'
-    #Fail2ban容错次数.
-F2B_TIME= '600'
-    #Fail2ban等待秒数.
-DEV_IDENTITY = 'XP00-10"铸灾神械"'
-    #此处应填入服务集群的名称或代称.
-    #想写什么写什么, 但必须有.
-DEV_STATUS = 'serving'
-    #告知前端服务状态.
-    #若状态不为'serving', 任何规范开发的前端程序都会终止运行.
-#SESSION_MAX_TOKEN = '28672' (DEPRECATED)
-    #此处应填入session长度限制.
-    #此值必须低于你使用核心模型的max_model_length, 且建议留出一定余量.
-    #实际上限制的是大致的净字符数, token是我口胡了.
-#SESSION_WARN_TOKEN = '24576' (DEPRECATED)
-    #此处应填入session长度警告值.
-    #此值必须低于SESSION_MAX_TOKEN, 这同时是自动裁剪时的预期保留量.
-    #实际上限制的是大致的净字符数, token是我口胡了.
-PROXY_ADDR = 'http://127.0.0.1:7890'
-    #用于全局自动化工具的代理地址. 该地址应当至少能访问Bing, Wikipedia, 最好还能访问Google.
-PROXY_EXCLUDE = '1'
-    #设为1以直连MCORE_ADDR和MFOCUS_ADDR的主机名.
-    #适用于本地部署模型的情况.
-LOG_PERSISTENT = '0'
-    #设为1以将玩家存档内容解析并输出到本地.
-    #我想不到这个有什么用, 但毕竟之前也有, 留着好了.
-WEATHER_KEY = 'whateveryousay'
-    #此处应填入高德天气的API KEY.
-    #是免费的, 你可以自行注册. 此条目被用于MFOCUS.
++ 下载和安装:
 
-#接下来, 运行脚本以初始化数据库:
-    python 00initdb.py
+    拉取仓库:
 
-#如果上述配置全部顺利完成, 你可以启动"幻象引擎"了:
-    .\start_windows.ps1
-    #在启动前, 请确保与"幻象引擎"通信的一切结构能够正常工作.
-    #若"幻象引擎"无法与模型实例通信, 其将自动进入调试模式, 你仍然可以测试其大部分功能.
-    #若为linux环境, 使用以下命令启动:
-        #bash ./start_linux.sh
+        git clone https://github.com/Mon1-innovation/MAICA.git
+        cd MAICA
+
+    安装依赖:
+
+        pip install -r requirements.txt
+        cd maica
+
+    调整设置:
+
+        cp env_example .env
+        vim .env
+    
+    注册本地服务:
+
+        cp servers_example .servers
+
+    (若需要)初始化数据库:
+
+        python3.12 00initdb.py
+
+    启动实例:
+
+        python3.12 maica_starter.py
