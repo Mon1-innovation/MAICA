@@ -121,6 +121,8 @@ class NoWsCoroutine(AsyncCreator):
 
         if not chat_session_num:
             chat_session_num = self.settings.temp.chat_session
+        else:
+            await self.maica_assert(1 <= chat_session_num < 10, "chat_session")
 
         sql_expression_1 = "SELECT chat_session_id, content FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
         result = await self.maica_pool.query_get(expression=sql_expression_1, values=(self.settings.verification.user_id, chat_session_num))
@@ -186,6 +188,9 @@ class NoWsCoroutine(AsyncCreator):
 
         if not chat_session_num:
             chat_session_num = self.settings.temp.chat_session
+        else:
+            await self.maica_assert(1 <= chat_session_num < 10, "chat_session")
+
         sql_expression_1 = "SELECT chat_session_id, content FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
         result = await self.maica_pool.query_get(expression=sql_expression_1, values=(self.settings.verification.user_id, chat_session_num))
         if result:
@@ -205,6 +210,9 @@ class NoWsCoroutine(AsyncCreator):
 
         if not chat_session_num:
             chat_session_num = self.settings.temp.chat_session
+        else:
+            await self.maica_assert(1 <= chat_session_num < 10, "chat_session")
+
         if not isinstance(content_restore, str):
             content_restore = self._flattern_chat_session(content_restore)
 
@@ -328,6 +336,11 @@ class NoWsCoroutine(AsyncCreator):
                 error = MaicaPermissionError(verification_result[1], '400')
                 await messenger(self.websocket, 'maica_login_denied_rsa', traceray_id=self.traceray_id, error=error)
         return False
+    
+    async def maica_assert(self, condition, kwd):
+        if not condition:
+            error = MaicaInputError(f"Illegal input {kwd} detected", '405')
+            await messenger(self.websocket, 'maica_input_param_bad', traceray_id=self.traceray_id, error=error)
 
 class WsCoroutine(NoWsCoroutine):
     """
@@ -362,9 +375,9 @@ class WsCoroutine(NoWsCoroutine):
 
                 recv_text = await websocket.recv()
                 await messenger(info=f'Recieved an input on stage1', type=MsgType.RECV)
-                recv_loaded_json = await validate_input(recv_text, 4096, self.fsc.rsc, must=['token'])
+                recv_loaded_json = await validate_input(recv_text, 4096, self.fsc.rsc, must=['access_token'])
 
-                login_success = await self.hash_and_login(recv_loaded_json['token'], check_online=True)
+                login_success = await self.hash_and_login(recv_loaded_json['access_token'], check_online=True)
                 if login_success:
 
                     # From here we can assume the user has logged in successfully
@@ -523,34 +536,24 @@ class WsCoroutine(NoWsCoroutine):
         try:
 
             # Param assertions here
-            try:
-                chat_session = int(default(recv_loaded_json.get('chat_session'), 0))
-                assert -1 <= chat_session < 10, "Wrong chat_session range"
-                self.settings.temp.update(self.fsc.rsc, chat_session=chat_session)
-            except Exception as e:
-                error = MaicaInputWarning(str(e), '405')
-                await messenger(websocket, 'maica_query_denied', traceray_id=self.traceray_id, error=error)
+            chat_session = int(default(recv_loaded_json.get('chat_session'), 0))
+            await self.maica_assert(-1 <= chat_session < 10, "chat_session")
+            self.settings.temp.update(self.fsc.rsc, chat_session=chat_session)
+
 
             if 'reset' in recv_loaded_json:
                 if recv_loaded_json['reset']:
-                    user_id = self.settings.verification.user_id
+                    await self.maica_assert(1 <= chat_session < 10, "chat_session")
                     purge_result = await self.reset_chat_session(self.settings.temp.chat_session)
-                    if not purge_result[0]:
-                        error = MaicaDbError('Chat session resetting failed', '502')
-                        try:
-                            error.message += f": {str(purge_result[1])}"
-                        except Exception:
-                            error.message += ", no reason provided"
-                        await messenger(websocket, "maica_db_failure", traceray_id=self.traceray_id, error=error)
-                    elif purge_result[2]:
+                    if not purge_result:
                         await messenger(websocket, "maica_session_not_found", "Determined chat_session doesn't exist", "302", self.traceray_id)
-                        return 0
                     else:
                         await messenger(websocket, "maica_session_reset", "Determined chat_session reset", "204", self.traceray_id)
-                        return 0
+                    return 0
  
             if 'inspire' in recv_loaded_json and not query_in:
                 if recv_loaded_json['inspire']:
+                    await self.maica_assert(0 <= chat_session < 10, "chat_session")
                     if isinstance(recv_loaded_json['inspire'], dict):
                         query_insp = await mtools.make_inspire(title_in=recv_loaded_json['inspire'], target_lang=self.settings.basic.target_lang)
                     else:
@@ -580,12 +583,13 @@ class WsCoroutine(NoWsCoroutine):
 
             if 'postmail' in recv_loaded_json and not query_in:
                 if recv_loaded_json['postmail']:
+                    await self.maica_assert(0 <= chat_session < 10, "chat_session")
                     if isinstance(recv_loaded_json['postmail'], dict):
                         query_insp = await mtools.make_postmail(**recv_loaded_json['postmail'], target_lang=self.settings.basic.target_lang)
                         # We're using the old school way to avoid using eval()
                         if default(recv_loaded_json['postmail'].get('bypass_mf'), False):
                             self.settings.temp.update(self.fsc.rsc, bypass_mf=True)
-                        if default(recv_loaded_json['postmail'].get('bypass_mt'), False):
+                        if default(recv_loaded_json['postmail'].get('bypass_mt'), True):
                             self.settings.temp.update(self.fsc.rsc, bypass_mt=True)
                         if default(recv_loaded_json['postmail'].get('bypass_stream'), True):
                             self.settings.temp.update(self.fsc.rsc, bypass_stream=True)
@@ -597,8 +601,7 @@ class WsCoroutine(NoWsCoroutine):
                         query_insp = await mtools.make_postmail(content=recv_loaded_json['postmail'], target_lang=self.settings.basic.target_lang)
                         self.settings.temp.update(self.fsc.rsc, bypass_stream=True, ic_prep=True, strict_conv=False)
                     else:
-                        error = MaicaInputWarning('Wrong MPostal request format', '405')
-                        await messenger(websocket, 'mpostal_input_bad', traceray_id=self.traceray_id, error=error)
+                        await self.maica_assert(False, "postmail")
                     
                     query_in = query_insp[2]
 
@@ -624,7 +627,7 @@ class WsCoroutine(NoWsCoroutine):
                     self.sf_inst.use_only(**recv_loaded_json['savefile'])
             if 'trigger' in recv_loaded_json:
                 if self.settings.basic.mt_extraction:
-                    self.mt_inst.add_extra(**recv_loaded_json['trigger'])
+                    self.mt_inst.add_extra(*recv_loaded_json['trigger'])
                 else:
                     self.settings.temp.update(self.fsc.rsc, mt_extraction_once=True)
                     self.mt_inst.use_only(recv_loaded_json['trigger'])
@@ -686,8 +689,10 @@ class WsCoroutine(NoWsCoroutine):
             if self.settings.temp.bypass_stream:
                 completion_args['stream'] = False
                 self.settings.temp.update(self.fsc.rsc, bypass_stream=False)
+
             if self.settings.temp.ic_prep:
                 completion_args['presence_penalty'] = 1.0-(1.0-completion_args['presence_penalty'])*(2/3)
+
             await messenger(info=f'Query constrcted and ready to go, last input is:\n{query_in}\nSending query...', type=MsgType.PRIM_RECV)
 
             if not self.settings.temp.bypass_gen or not replace_generation: # They should present together
@@ -697,15 +702,16 @@ class WsCoroutine(NoWsCoroutine):
 
                 if completion_args['stream']:
                     reply_appended = ''
-
+                    seq = 0
                     async for chunk in resp:
                         token = chunk.choices[0].delta.content
                         if token:
                             await asyncio.sleep(0)
                             await messenger(websocket, 'maica_core_streaming_continue', token, '100')
                             reply_appended += token
+                            seq += 1
                     await messenger(info='\n', type=MsgType.PLAIN)
-                    await messenger(websocket, 'maica_core_streaming_done', f'Streaming finished with seed {completion_args['seed']} for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
+                    await messenger(websocket, 'maica_core_streaming_done', f'Streaming finished with seed {completion_args['seed']} for {self.settings.verification.username}, {seq} packets sent', '1000', traceray_id=self.traceray_id)
                 else:
                     reply_appended = resp.choices[0].message.content
                     await messenger(websocket, 'maica_core_nostream_reply', reply_appended, '200', type=MsgType.CARRIAGE)

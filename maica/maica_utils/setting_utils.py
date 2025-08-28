@@ -41,7 +41,7 @@ class MaicaSettings():
             }
         def update(self, rsc=None, **kwargs):
             if not rsc:
-                rsc = FSCPlain.RealtimeSocketsContainer()
+                rsc = FscPlain.RealtimeSocketsContainer()
             accepted_params = 0
             try:
                 if self._lock:
@@ -104,7 +104,7 @@ class MaicaSettings():
             }
         def update(self, rsc=None, **kwargs):
             if not rsc:
-                rsc = FSCPlain.RealtimeSocketsContainer()
+                rsc = FscPlain.RealtimeSocketsContainer()
             accepted_params = 0
             try:
                 if 'enable_mf' in kwargs:
@@ -185,7 +185,7 @@ class MaicaSettings():
             }
         def update(self, rsc=None, **kwargs):
             if not rsc:
-                rsc = FSCPlain.RealtimeSocketsContainer()
+                rsc = FscPlain.RealtimeSocketsContainer()
             accepted_params = 0
             try:
                 if 'sfe_aggressive' in kwargs:
@@ -257,7 +257,7 @@ class MaicaSettings():
             }
         def update(self, rsc=None, **kwargs):
             if not rsc:
-                rsc = FSCPlain.RealtimeSocketsContainer()
+                rsc = FscPlain.RealtimeSocketsContainer()
             accepted_params = 0
             try:
                 if 'max_tokens' in kwargs:
@@ -367,7 +367,7 @@ class MaicaSettings():
             }
         def update(self, rsc=None, **kwargs):
             if not rsc:
-                rsc = FSCPlain.RealtimeSocketsContainer()
+                rsc = FscPlain.RealtimeSocketsContainer()
             accepted_params = 0
             try:
                 if 'chat_session' in kwargs:

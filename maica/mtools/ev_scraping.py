@@ -1,3 +1,13 @@
+
+# Announcement:
+
+# The code here is relatively simple, and have a lot of limitations
+# I'm not devoting too much into this, since it's just a minor function of MAICA,
+# and dealing with all these festivals and events is a massive work
+
+# If you have corrections or improvements, I'd appreciate it a lot if you can PR
+# them to me. FRs on improving this will not be considered, unless they're critical
+
 import lunar_python
 import datetime
 import math
@@ -60,7 +70,7 @@ class RegEvent():
     type = None
     identity = None
 
-    def __init__(self, md: Optional[str]=None, lmd: Optional[str]=None, mwd: Optional[str]=None, name: str=None, ename: Optional[str]=None, importance=0, lasts=0):
+    def __init__(self, md: Optional[str]=None, lmd: Optional[str]=None, mwd: Optional[str]=None, name: Optional[str]=None, ename: Optional[str]=None, importance=0, lasts=0):
         """
         md = 10_1 (month & day)
         lmd = 12_29 (lunar month & day)
@@ -85,7 +95,7 @@ class RegEvent():
         self.name, self.ename, self.importance, self.lasts = name, ename, importance, lasts
 
     def __str__(self):
-        return self.name
+        return self.name or self.ename
     
     def get_ymd(self, y):
         """
@@ -121,6 +131,20 @@ class EventsCollection():
 
     def _add_vacations(self, y, m, d):
         """Note that this is ONLY valid for the target date!"""
+
+        # Caution: This function may produce wrong results under certain circumstances:
+        # - Target date in early January
+        # - A long lunar vacation starts from late December and ends next year
+        # - The vacation days registered early this solar year are actually from next year, 
+        # which differs from the correct dates specifically for lunar events
+
+        # Why we ignore this case:
+        # - It's technically impossible to happen, since Spring festival is the only lunar
+        # event with a long enough vacation, which never start before Solar 1.21
+        # - It will be complex to design a prevention
+
+        # If you want to customize this function, be aware of the mentioned possibility
+
         all_events_list = events_list + self.temp_events_list
         for event in all_events_list:
             if event.lasts and event.lasts > 1:
@@ -131,7 +155,9 @@ class EventsCollection():
                 for i in range(1, event.lasts):
                     new_date = event_date + datetime.timedelta(days=i)
                     new_date_str = f"{new_date.month}_{new_date.day}"
-                    new_event = RegEvent(md=new_date_str, name=f"{event.name}假期", ename=f"{event.ename} vacation" if event.ename else None, importance=1, lasts=1)
+
+                    # Up to now, there's actually no compatibility of vacations out of Chinese mainland, so we just disable their enames
+                    new_event = RegEvent(md=new_date_str, name=f"{event.name}假期", ename=f"{event.ename} vacation" if False else None, importance=1, lasts=1)
                     self._add(new_event, vac=True)
 
     def __init__(self):
@@ -292,7 +318,7 @@ events_list = [
     RegEvent(mwd="6_3_0", name="父亲节", ename="Father's Day", importance=1),
     RegEvent(mwd="9_3_2", name="国际和平日", ename="International Peace Day", importance=1),
     RegEvent(mwd="10_1_1", name="世界住房日", ename="World Habitat Day"),
-    RegEvent(mwd="10_2_1", name="加拿大感恩节", ename="Canadian Thanksgiving Day", importance=1),
+    RegEvent(mwd="10_2_1", ename="Canadian Thanksgiving Day", importance=1), # This is too religion specific so we don't represent it to Chinese users
     RegEvent(mwd="10_2_3", name="国际减轻自然灾害日", ename="International Day for Natural Disaster Reduction"),
     RegEvent(mwd="10_2_4", name="世界爱眼日", ename="World Sight Day", importance=1),
     RegEvent(lmd="1_1", name="春节", ename="Chinese Spring Festival", importance=1, lasts=7), # We give it importance 1 since it's just one day after importance 2

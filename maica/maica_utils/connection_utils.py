@@ -193,7 +193,7 @@ class AiConnCoroutine(AsyncCreator):
         else:
             self.socket = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
 
-    def init_rsc(self, rsc: FSCPlain.RealtimeSocketsContainer):
+    def init_rsc(self, rsc: FscPlain.RealtimeSocketsContainer):
         """AiConn can actually work without rsc, so we make it individual."""
         self.websocket, self.traceray_id = rsc.websocket, rsc.traceray_id
 
@@ -279,7 +279,7 @@ class ConnUtils():
             name='mfocus_cli'
         )
 
-async def validate_input(input: Union[str, dict, list], limit: int=4096, rsc: Optional[FSCPlain.RealtimeSocketsContainer]=None, must: list=[], warn: list=[]) -> Union[dict, list]:
+async def validate_input(input: Union[str, dict, list], limit: int=4096, rsc: Optional[FscPlain.RealtimeSocketsContainer]=None, must: list=[], warn: list=[]) -> Union[dict, list]:
     """
     Mostly for ws.
     """

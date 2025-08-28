@@ -83,7 +83,7 @@ class MaicaConnectionWarning(CommonMaicaWarning):
 class MaicaInternetWarning(CommonMaicaWarning):
     """This suggests the backend request action is not behaving normal."""
 
-class FSCPlain():
+class FscPlain():
     """Loop importing prevention."""
     class RealtimeSocketsContainer():
         """For no-setting usage."""
@@ -174,7 +174,7 @@ def wrap_ws_formatter(code, status, content, type, deformation=False, **kwargs) 
         "status" : status,
         "content" : content,
         "type" : type,
-        "time_ms" : int(round(time.time() * 1000))
+        "timestamp" : time.time()
     }
     output.update(kwargs)
     return json.dumps(output, ensure_ascii=deformation)
@@ -219,11 +219,11 @@ async def messenger(websocket=None, status='', info='', code='0', traceray_id=''
         match int(code):
             case 0:
                 type = "log"
-            case x if 100 <= x < 200:
+            case x if 100 <= x < 200 or 1000 <= x:
                 type = "carriage"
             case x if 200 <= x < 300:
                 type = "debug"
-            case x if 300 <= x < 400 or 1000 <= x:
+            case x if 300 <= x < 400:
                 type = "info"
             case x if 400 <= x < 500:
                 type = "warn"
@@ -263,7 +263,7 @@ async def messenger(websocket=None, status='', info='', code='0', traceray_id=''
             case "plain":
                 print((color or '') + msg_print, end='')
             case "carriage":
-                if not prefix:
+                if 100 <= code < 200:
                     print((color or colorama.Fore.LIGHTGREEN_EX) + msg_print, end='', flush=True)
                 else:
                     print((color or colorama.Fore.GREEN) + msg_print)
@@ -271,7 +271,7 @@ async def messenger(websocket=None, status='', info='', code='0', traceray_id=''
                 if load_env("PRINT_VERBOSE") == "1":
                     print((color or colorama.Fore.LIGHTBLACK_EX) + msg_print)
             case "info":
-                print((color or '') + msg_print)
+                print((color or colorama.Fore.LIGHTWHITE_EX) + msg_print)
             case "log":
                 print((color or colorama.Fore.BLUE) + msg_print)
             case "prim_log":

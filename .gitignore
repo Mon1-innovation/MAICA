@@ -166,7 +166,6 @@ cython_debug/
 .essentials_generated.ps1
 .servers
 key/
-*.key
 *.db
 bash/
 persistents/

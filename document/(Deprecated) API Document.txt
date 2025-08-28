@@ -182,7 +182,7 @@ maica_main和maica_core共用chat_session.
     其中键savefile的值应为一个dict, 每项固定索引内容写为其中的一对键与值. 可被检测的值如下列出:
         """
         mas_playername #str
-        mas_player_bday #["yyyy", "mm", "dd"]
+        mas_player_bday #tuple["yyyy", "mm", "dd"]
         mas_affection #int
         mas_geolocation #str
 

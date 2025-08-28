@@ -87,7 +87,7 @@ class ShortConnHandler(View):
 
         if 'chat_session' in must:
             data_json['chat_session'] = int(data_json['chat_session'])
-            assert 0 < data_json.get('chat_session') < 10, "chat_session out of bound"
+            assert 0 <= data_json.get('chat_session') < 10, "chat_session out of bound"
 
         return data_json
 
@@ -111,6 +111,18 @@ class ShortConnHandler(View):
             await self.maica_pool.query_modify(sql_expression_2, (self.settings.verification.user_id, chat_session, content_str))
 
         return jsonify({"success": True, "exception": None})
+    
+    async def delete_savefile(self):
+        """DELETE"""
+        json_data = await request.get_json()
+        valid_data = await self._validate_http(json_data, must=['access_token', 'chat_session', 'content'])
+
+        chat_session = valid_data.get('chat_session')
+
+        sql_expression_1 = "DELETE FROM persistents WHERE user_id = %s AND chat_session_num = %s"
+        result = await self.maica_pool.query_modify(sql_expression_1, (self.settings.verification.user_id, chat_session))
+
+        return jsonify({"success": True, "exception": None})
         
     async def upload_trigger(self):
         """POST"""
@@ -132,14 +144,27 @@ class ShortConnHandler(View):
             await self.maica_pool.query_modify(sql_expression_2, (self.settings.verification.user_id, chat_session, content_str))
 
         return jsonify({"success": True, "exception": None})
+    
+    async def delete_trigger(self):
+        """DELETE"""
+        json_data = await request.get_json()
+        valid_data = await self._validate_http(json_data, must=['access_token', 'chat_session', 'content'])
 
+        chat_session = valid_data.get('chat_session')
+
+        sql_expression_1 = "DELETE FROM triggers WHERE user_id = %s AND chat_session_num = %s"
+        result = await self.maica_pool.query_modify(sql_expression_1, (self.settings.verification.user_id, chat_session))
+
+        return jsonify({"success": True, "exception": None})
+   
     async def download_history(self):
         """GET"""
         json_data = request.args.to_dict(flat=True)
         valid_data = await self._validate_http(json_data, must=['access_token', 'chat_session'])
 
         chat_session = valid_data.get('chat_session')
-        rounds = int(valid_data.get('rounds', 0))
+        assert 1 <= chat_session < 10, "chat_session out of bound"
+        rounds = int(valid_data.get('content', 0))
 
         history_json = (await self.stem_inst.rw_chat_session('r', chat_session_num=chat_session))[1]
 
@@ -168,6 +193,7 @@ class ShortConnHandler(View):
         valid_data = await self._validate_http(json_data, must=['access_token', 'chat_session', 'content'])
 
         chat_session = valid_data.get('chat_session')
+        assert 1 <= chat_session < 10, "chat_session out of bound"
         content = valid_data.get('content')
 
         sigb64, history_json = content
@@ -275,11 +301,11 @@ class ShortConnHandler(View):
         """GET"""
         json_data = request.args.to_dict(flat=True)
         valid_data = await self._validate_http(json_data, must=['access_token'])
-        return jsonify({"success": True, "exception": None})
+        content = self.settings.verification.username
+        return jsonify({"success": True, "exception": None, "content": content})
 
     async def get_servers(self):
         """GET, val=False"""
-        global known_servers
         return jsonify({"success": True, "exception": None, "content": known_servers})
     
     async def get_accessibility(self):
@@ -299,6 +325,15 @@ class ShortConnHandler(View):
 
         return jsonify({"success": True, "exception": None, "content": content})
     
+    async def get_defaults(self):
+        """GET, val=False"""
+        settings = MaicaSettings()
+        content = {}
+        content.update(settings.basic.default())
+        content.update(settings.extra.default())
+        content.update(settings.super.default())
+        return jsonify({"success": True, "exception": None, "content": content})
+
     async def any_unknown(self):
         """Handles any unknown endpoint"""
         await messenger(info=f"An unknown access to {request.full_path} handled", type=MsgType.WARN)
@@ -306,7 +341,9 @@ class ShortConnHandler(View):
 
 if load_env('FULL_RESTFUL') == '1':
     app.add_url_rule("/savefile", methods=['POST'], view_func=ShortConnHandler.as_view("upload_savefile"))
+    app.add_url_rule("/savefile", methods=['DELETE'], view_func=ShortConnHandler.as_view("delete_savefile"))
     app.add_url_rule("/trigger", methods=['POST'], view_func=ShortConnHandler.as_view("upload_trigger"))
+    app.add_url_rule("/trigger", methods=['DELETE'], view_func=ShortConnHandler.as_view("delete_trigger"))
     app.add_url_rule("/history", methods=['GET'], view_func=ShortConnHandler.as_view("download_history"))
     app.add_url_rule("/history", methods=['PUT'], view_func=ShortConnHandler.as_view("restore_history"))
     app.add_url_rule("/preferences", methods=['GET'], view_func=ShortConnHandler.as_view("download_preferences"))
@@ -319,9 +356,12 @@ if load_env('FULL_RESTFUL') == '1':
     app.add_url_rule("/accessibility", methods=['GET'], view_func=ShortConnHandler.as_view("get_accessibility", val=False))
     app.add_url_rule("/version", methods=['GET'], view_func=ShortConnHandler.as_view("get_version", val=False))
     app.add_url_rule("/workload", methods=['GET'], view_func=ShortConnHandler.as_view("get_workload", val=False))
+    app.add_url_rule("/defaults", methods=['GET'], view_func=ShortConnHandler.as_view("get_defaults", val=False))
 else:
     app.add_url_rule("/savefile", methods=['POST'], view_func=ShortConnHandler.as_view("upload_savefile"))
+    app.add_url_rule("/savefile/delete", methods=['POST'], view_func=ShortConnHandler.as_view("delete_savefile"))
     app.add_url_rule("/trigger", methods=['POST'], view_func=ShortConnHandler.as_view("upload_trigger"))
+    app.add_url_rule("/trigger/delete", methods=['POST'], view_func=ShortConnHandler.as_view("delete_trigger"))
     app.add_url_rule("/history", methods=['GET'], view_func=ShortConnHandler.as_view("download_history"))
     app.add_url_rule("/history", methods=['POST'], view_func=ShortConnHandler.as_view("restore_history"))
     app.add_url_rule("/preferences", methods=['GET'], view_func=ShortConnHandler.as_view("download_preferences"))
@@ -334,6 +374,7 @@ else:
     app.add_url_rule("/accessibility", methods=['GET'], view_func=ShortConnHandler.as_view("get_accessibility", val=False))
     app.add_url_rule("/version", methods=['GET'], view_func=ShortConnHandler.as_view("get_version", val=False))
     app.add_url_rule("/workload", methods=['GET'], view_func=ShortConnHandler.as_view("get_workload", val=False))
+    app.add_url_rule("/defaults", methods=['GET'], view_func=ShortConnHandler.as_view("get_defaults", val=False))
 app.add_url_rule("/<path>", methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], view_func=ShortConnHandler.as_view("any_unknown", val=False))
 
 async def prepare_thread(**kwargs):

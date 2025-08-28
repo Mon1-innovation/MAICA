@@ -135,15 +135,15 @@ class AgentTools():
 
         # When major day is today, we want to search a wider range of days, 
         # but ignore the unimportant events since they aren't cared in daily
-        # lives.
+        # lives
 
         # But when major day is not today, we assume that user is asking a
         # question about a percise date, so we'll dig deeper on that. The
-        # following days are usually not cared about.
+        # following days are usually not cared about
 
         # Specifically, when tnd_aggressive is set to >= 3, we enable all
         # importance levels to be represented on major day. This is not
-        # recommended.
+        # recommended
 
         global_importance = kwargs.get('importance', 1)
         if not major_day_is_today:
@@ -205,7 +205,8 @@ class AgentTools():
                 # We ignore the unimportant regs
                 if reg.importance >= local_importance:
                     if target_lang == 'zh':
-                        day_events_list.append(reg.name)
+                        if reg.name:
+                            day_events_list.append(reg.name)
                     else:
 
                         # Most Chinese traditional festivals are not registered with ename

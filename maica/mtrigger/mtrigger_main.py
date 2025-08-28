@@ -54,7 +54,7 @@ class MTriggerCoroutine(AsyncCreator):
                                 "properties": {
                                     "affection": {
                                         "type": "float",
-                                        "description": "输出正数以增加好感, 负数以减少好感. 单次最大好感增幅约为3, 一般增幅约为1. 例如, 称赞你的容貌可以增加0.8, 表达爱情的短句可以增加1.5, 长句则可以增加3.0.\n仅当用户故意冒犯时考虑输出负数." if self.settings.basic.target_lang == 'zh' else "Emit positive number to increase affection, negative to decrease affection. The maximum increase should be around 3, while it's normally around 1.\nFor example, a compliment about your beauty could result in plus 0.8, a short sentence expressing love could result in plus 1.5, and a long phrase expressing love could result in plus 3.0.\nYou shouldn't emit a negative value unless user is offending you intensively.",
+                                        "description": "输出正数以增加好感, 负数以减少好感. 单次最大好感增幅约为3, 一般增幅约为1. 例如, 称赞你的容貌可以增加0.8, 表达爱情的短句可以增加1.5, 表达爱情的长句则可以增加3.0.\n仅当用户故意冒犯时考虑输出负数." if self.settings.basic.target_lang == 'zh' else "Emit positive number to increase affection, negative to decrease affection. The maximum increase should be around 3, while it's normally around 1.\nFor example, a compliment about your beauty could result in plus 0.8, a short sentence expressing love could result in plus 1.5, and a long phrase expressing love could result in plus 3.0.\nYou shouldn't emit a negative value unless user is offending you intensively.",
                                         "example_value": "0.25"
                                     }
                                 },
@@ -249,8 +249,7 @@ class MTriggerCoroutine(AsyncCreator):
                     break
                 else:
                     trigger_signal = {tool_func_name: try_load_json(tool_func_args)}
-                    trigger_signal_str = json.dumps(trigger_signal, ensure_ascii=False)
-                    await messenger(self.websocket, 'maica_mtrigger_trigger', trigger_signal_str, '101')
+                    await messenger(self.websocket, 'maica_mtrigger_trigger', trigger_signal, '101')
 
                     machine = f'{tool_func_name}已被调用过并生效' if self.settings.basic.target_lang == 'zh' else f'{tool_func_name} has been called already and taking effect'
                     await self._construct_query(tool_input=machine)
