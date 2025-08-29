@@ -50,31 +50,32 @@ class ShortConnHandler(View):
     def __init__(self, val=True):
         if val:
             self.val = True
-            self.stem_inst = NoWsCoroutine(self.auth_pool, self.maica_pool, None)
-            self.settings = self.stem_inst.settings
         else:
             self.val = False
-            self.stem_inst = None
-            self.settings = None
 
-    def dispatch_request(self, **kwargs):
+    async def dispatch_request(self, **kwargs):
         try:
+            if self.val:
+                self.stem_inst = await NoWsCoroutine.async_create(self.auth_pool, self.maica_pool, None)
+                self.settings = self.stem_inst.settings
+            else:
+                self.stem_inst = None
+                self.settings = None
             endpoint = request.endpoint
             function_routed = getattr(self, endpoint)
             if function_routed:
-                asyncio.run(messenger(info=f'Recieved request on API endpoint {endpoint}', type=MsgType.RECV))
-                result = asyncio.run(function_routed())
+                await messenger(info=f'Recieved request on API endpoint {endpoint}', type=MsgType.RECV)
+                result = await function_routed()
 
                 if isinstance(result, Response):
-                    result_json = asyncio.run(result.get_json())
+                    result_json = await result.get_json()
                     d = {"success": result_json.get('success'), "exception": result_json.get('exception'), "content": ellipsis_str(result_json.get('content'))}
-                    asyncio.run(messenger(info=f'Return value: {str(d)}', type=MsgType.SYS))
+                    await messenger(info=f'Return value: {str(d)}', type=MsgType.SYS)
 
                 return result
             
         except Exception as e:
-            asyncio.run(messenger(info=f'Handler hit an exception: {str(e)}', type=MsgType.WARN))
-            traceback.print_exc()
+            await messenger(info=f'Handler hit an exception: {str(e)}', type=MsgType.WARN)
             return jsonify({"success": False, "exception": str(e)})
 
     async def _validate_http(self, raw_data: Union[str, dict], must: list=[]) -> dict:

@@ -303,11 +303,11 @@ async def validate_input(input: Union[str, dict, list], limit: int=4096, rsc: Op
 
         if must:
             for mustkey in must:
-                if not input_json.get(mustkey):
+                if input_json.get(mustkey) is None:
                     raise MaicaInputWarning(f'Request contains no necessary {mustkey}', '405')
         if warn:
             for warnkey in warn:
-                if not warnkey in input_json:
+                if input_json.get(warnkey) is None:
                     if rsc:
                         await messenger(rsc.websocket, 'maica_future_warning', f'Requests containing no {warnkey} will likely be deprecated in the future', '302')
         
