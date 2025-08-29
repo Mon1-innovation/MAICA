@@ -5,17 +5,23 @@
 # Model endpoint settings
 
 # MAICA core model endpoint
-MCORE_ADDR = 'http://172.17.0.1:8011/v1'
+MCORE_ADDR = 'http://172.17.0.1:80/v1'
 # MAICA core model api key
 MCORE_KEY = 'EMPTY'
+# MAICA core model choice, leave empty for first
+MCORE_CHOICE = ''
 # MFocus model endpoint
-MFOCUS_ADDR = 'http://172.17.0.2:8021/v1'
+MFOCUS_ADDR = 'http://172.17.0.2:80/v1'
 # MFocus model api key
 MFOCUS_KEY = 'EMPTY'
+# MFocus model choice, leave empty for first
+MFOCUS_CHOICE = ''
 # MVista VL model endpoint
 MVISTA_ADDR = ''
 # MVista VL model key
 MVISTA_KEY = 'EMPTY'
+# MVista VL model choice, leave empty for first
+MVISTA_CHOICE = ''
 
 
 # Data exchanging endpoint settings

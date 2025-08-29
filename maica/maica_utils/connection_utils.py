@@ -14,8 +14,10 @@ AUTH_DB = load_env('AUTH_DB')
 MAICA_DB = load_env('MAICA_DB')
 MCORE_ADDR = load_env('MCORE_ADDR')
 MCORE_KEY = load_env('MCORE_KEY')
+MCORE_CHOICE = load_env('MCORE_CHOICE')
 MFOCUS_ADDR = load_env('MFOCUS_ADDR')
 MFOCUS_KEY = load_env('MFOCUS_KEY')
+MFOCUS_CHOICE = load_env('MFOCUS_CHOICE')
 
 class DbPoolCoroutine(AsyncCreator):
     """Maintain a database connection pool so you don't have to."""
@@ -288,14 +290,16 @@ class ConnUtils():
         return await AiConnCoroutine.async_create(
             api_key=MCORE_KEY,
             base_url=MCORE_ADDR,
-            name='mcore_cli'
+            name='mcore_cli',
+            model=MCORE_CHOICE if MCORE_CHOICE else 0,
         )
 
     async def mfocus_conn():
         return await AiConnCoroutine.async_create(
             api_key=MFOCUS_KEY,
             base_url=MFOCUS_ADDR,
-            name='mfocus_cli'
+            name='mfocus_cli',
+            model=MFOCUS_CHOICE if MFOCUS_CHOICE else 0,
         )
 
 async def validate_input(input: Union[str, dict, list], limit: int=4096, rsc: Optional[FscPlain.RealtimeSocketsContainer]=None, must: list=[], warn: list=[]) -> Union[dict, list]:
