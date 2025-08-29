@@ -820,8 +820,8 @@ async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn, 
 
 async def prepare_thread(**kwargs):
     online_dict = {}
-    auth_pool = default(kwargs.get('auth_pool'), await ConnUtils.auth_pool())
-    maica_pool = default(kwargs.get('maica_pool'), await ConnUtils.maica_pool())
+    auth_pool: DbPoolCoroutine = default(kwargs.get('auth_pool'), await ConnUtils.auth_pool())
+    maica_pool: DbPoolCoroutine = default(kwargs.get('maica_pool'), await ConnUtils.maica_pool())
     try:
         mcore_conn: AiConnCoroutine = default(kwargs.get('mcore_conn'), await ConnUtils.mcore_conn())
         mfocus_conn: AiConnCoroutine = default(kwargs.get('mfocus_conn'), await ConnUtils.mfocus_conn())

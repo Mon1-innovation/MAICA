@@ -3,6 +3,16 @@ import maica_ws
 import maica_http
 import common_schedule
 from maica_utils import *
+from initializer import *
+
+def check_init():
+    if not check_marking():
+        generate_rsa_keys()
+        asyncio.run(create_tables())
+        create_marking()
+        asyncio.run(messenger(info="MAICA Illuminator initiation finished", type=MsgType.PRIM_SYS))
+    else:
+        asyncio.run(messenger(info="Initiation marking detected, skipping initiation", type=MsgType.DEBUG))
 
 async def start_all():
     auth_pool, maica_pool = await asyncio.gather(ConnUtils.auth_pool(), ConnUtils.maica_pool())
@@ -18,4 +28,5 @@ async def start_all():
     ], return_when=asyncio.FIRST_COMPLETED)
 
 if __name__ == "__main__":
+    check_init()
     asyncio.run(start_all())

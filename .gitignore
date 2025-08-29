@@ -165,6 +165,7 @@ cython_debug/
 .essentials_generated.sh
 .essentials_generated.ps1
 .servers
+.initiated
 key/
 *.db
 *.db-journal

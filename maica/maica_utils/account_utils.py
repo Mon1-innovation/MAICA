@@ -22,11 +22,16 @@ authdb = load_env('AUTH_DB')
 maicadb = load_env('MAICA_DB')
 
 def _get_keys() -> tuple[PKCS1_OAEP.PKCS1OAEP_Cipher, PKCS1_OAEP.PKCS1OAEP_Cipher, PSS_SigScheme, PSS_SigScheme]:
-    key_path = os.path.dirname(os.path.abspath(__file__))
-    with open(os.path.join(key_path, "../../key/prv.key"), "r") as privkey_file:
+    self_path = os.path.dirname(os.path.abspath(__file__))
+    key_path = os.path.join(self_path, "../../key")
+    prv_path = os.path.join(key_path, "prv.key")
+    pub_path = os.path.join(key_path, "pub.key")
+    
+    with open(prv_path, "r") as privkey_file:
         privkey = privkey_file.read()
-    with open(os.path.join(key_path, "../../key/pub.key"), "r") as pubkey_file:
+    with open(pub_path, "r") as pubkey_file:
         pubkey = pubkey_file.read()
+
     pubkey_loaded = RSA.import_key(pubkey)
     privkey_loaded = RSA.import_key(privkey)
     encryptor = PKCS1_OAEP.new(pubkey_loaded)

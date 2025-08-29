@@ -239,33 +239,50 @@ class ConnUtils():
     """Just a wrapping for functions."""
     if vali_url(DB_ADDR):
         """We suppose we're using MySQL."""
-        async def auth_pool():
+        async def auth_pool(ro=True):
             return await DbPoolCoroutine.async_create(
                 host=DB_ADDR,
                 db=AUTH_DB,
                 user=DB_USER,
                 password=DB_PASSWORD,
-                ro=True,
+                ro=ro,
             )
 
-        async def maica_pool():
+        async def maica_pool(ro=False):
             return await DbPoolCoroutine.async_create(
                 host=DB_ADDR,
                 db=MAICA_DB,
                 user=DB_USER,
                 password=DB_PASSWORD,
+                ro=ro,
+            )
+        
+        async def basic_pool(ro=False):
+            return await DbPoolCoroutine.async_create(
+                host=DB_ADDR,
+                db=None,
+                user=DB_USER,
+                password=DB_PASSWORD,
+                ro=ro,
             )
     else:
         """We suppose we're using SQLite."""
-        async def auth_pool():
+        async def auth_pool(ro=True):
             return await SqliteDbPoolCoroutine.async_create(
                 db=AUTH_DB
             )
         
-        async def maica_pool():
+        async def maica_pool(ro=False):
             return await SqliteDbPoolCoroutine.async_create(
                 db=MAICA_DB
             )
+        
+        async def basic_pool(ro=False):
+            """
+            There's no host concept in SQLite, so no basic pool
+            We can use this to identify sql type, though
+            """
+            return None
 
     async def mcore_conn():
         return await AiConnCoroutine.async_create(
