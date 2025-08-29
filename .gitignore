@@ -167,6 +167,7 @@ cython_debug/
 .servers
 key/
 *.db
+*.db-journal
 bash/
 persistents/
 triggers/
