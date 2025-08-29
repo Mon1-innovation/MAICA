@@ -309,7 +309,7 @@ async def validate_input(input: Union[str, dict, list], limit: int=4096, rsc: Op
             for warnkey in warn:
                 if input_json.get(warnkey) is None:
                     if rsc:
-                        await messenger(rsc.websocket, 'maica_future_warning', f'Requests containing no {warnkey} will likely be deprecated in the future', '302')
+                        await messenger(rsc.websocket, 'maica_future_warning', f'Requests containing no {warnkey} will likely be deprecated in the future', '302', type=MsgType.WARN)
         
         return input_json
     
