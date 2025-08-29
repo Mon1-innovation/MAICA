@@ -391,7 +391,6 @@ async def prepare_thread(**kwargs):
     main_task = asyncio.create_task(serve(app, config))
     mcore_task = asyncio.create_task(ShortConnHandler.mcore_watcher.main_watcher())
     mfocus_task = asyncio.create_task(ShortConnHandler.mfocus_watcher.main_watcher())
-    # test_task = asyncio.create_task(asyncio.sleep(1000))
 
     await messenger(info='MAICA HTTP server started!', type=MsgType.PRIM_SYS)
 
@@ -400,7 +399,6 @@ async def prepare_thread(**kwargs):
             main_task,
             mcore_task,
             mfocus_task,
-            # test_task,
         ], return_when=asyncio.FIRST_COMPLETED)
     except BaseException:
         pass

@@ -237,8 +237,8 @@ class ConnUtils():
     """Just a wrapping for functions."""
     if vali_url(DB_ADDR):
         """We suppose we're using MySQL."""
-        def auth_pool():
-            return DbPoolCoroutine.async_create(
+        async def auth_pool():
+            return await DbPoolCoroutine.async_create(
                 host=DB_ADDR,
                 db=AUTH_DB,
                 user=DB_USER,
@@ -246,8 +246,8 @@ class ConnUtils():
                 ro=True,
             )
 
-        def maica_pool():
-            return DbPoolCoroutine.async_create(
+        async def maica_pool():
+            return await DbPoolCoroutine.async_create(
                 host=DB_ADDR,
                 db=MAICA_DB,
                 user=DB_USER,
@@ -255,25 +255,25 @@ class ConnUtils():
             )
     else:
         """We suppose we're using SQLite."""
-        def auth_pool():
-            return SqliteDbPoolCoroutine.async_create(
+        async def auth_pool():
+            return await SqliteDbPoolCoroutine.async_create(
                 db=AUTH_DB
             )
         
-        def maica_pool():
-            return SqliteDbPoolCoroutine.async_create(
+        async def maica_pool():
+            return await SqliteDbPoolCoroutine.async_create(
                 db=MAICA_DB
             )
 
-    def mcore_conn():
-        return AiConnCoroutine.async_create(
+    async def mcore_conn():
+        return await AiConnCoroutine.async_create(
             api_key='EMPTY',
             base_url=MCORE_ADDR,
             name='mcore_cli'
         )
 
-    def mfocus_conn():
-        return AiConnCoroutine.async_create(
+    async def mfocus_conn():
+        return await AiConnCoroutine.async_create(
             api_key='EMPTY',
             base_url=MFOCUS_ADDR,
             name='mfocus_cli'
