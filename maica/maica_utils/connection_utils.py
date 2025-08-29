@@ -13,7 +13,9 @@ DB_PASSWORD = load_env('DB_PASSWORD')
 AUTH_DB = load_env('AUTH_DB')
 MAICA_DB = load_env('MAICA_DB')
 MCORE_ADDR = load_env('MCORE_ADDR')
+MCORE_KEY = load_env('MCORE_KEY')
 MFOCUS_ADDR = load_env('MFOCUS_ADDR')
+MFOCUS_KEY = load_env('MFOCUS_KEY')
 
 class DbPoolCoroutine(AsyncCreator):
     """Maintain a database connection pool so you don't have to."""
@@ -267,14 +269,14 @@ class ConnUtils():
 
     async def mcore_conn():
         return await AiConnCoroutine.async_create(
-            api_key='EMPTY',
+            api_key=MCORE_KEY,
             base_url=MCORE_ADDR,
             name='mcore_cli'
         )
 
     async def mfocus_conn():
         return await AiConnCoroutine.async_create(
-            api_key='EMPTY',
+            api_key=MFOCUS_KEY,
             base_url=MFOCUS_ADDR,
             name='mfocus_cli'
         )
