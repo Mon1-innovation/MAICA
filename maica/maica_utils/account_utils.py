@@ -23,10 +23,10 @@ maicadb = load_env('MAICA_DB')
 
 def _get_keys() -> tuple[PKCS1_OAEP.PKCS1OAEP_Cipher, PKCS1_OAEP.PKCS1OAEP_Cipher, PSS_SigScheme, PSS_SigScheme]:
     self_path = os.path.dirname(os.path.abspath(__file__))
-    key_path = os.path.join(self_path, "../../key")
+    key_path = os.path.join(self_path, "../../keys")
     prv_path = os.path.join(key_path, "prv.key")
     pub_path = os.path.join(key_path, "pub.key")
-    
+
     with open(prv_path, "r") as privkey_file:
         privkey = privkey_file.read()
     with open(pub_path, "r") as pubkey_file:

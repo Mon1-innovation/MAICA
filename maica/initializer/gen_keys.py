@@ -5,7 +5,7 @@ def generate_rsa_keys():
 
     self_path = os.path.dirname(os.path.abspath(__file__))
     # Change this for packing up
-    key_path = os.path.join(self_path, "../../key")
+    key_path = os.path.join(self_path, "../../keys")
     prv_path = os.path.join(key_path, "prv.key")
     pub_path = os.path.join(key_path, "pub.key")
 

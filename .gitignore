@@ -167,6 +167,7 @@ cython_debug/
 .servers
 .initiated
 key/
+keys/
 *.db
 *.db-journal
 bash/
