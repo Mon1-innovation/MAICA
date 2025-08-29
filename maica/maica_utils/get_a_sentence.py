@@ -3,6 +3,12 @@ import random
 class SentenceOfTheDay():
     """It just replaced the former easter egg."""
     special_sentences = [
+
+        # Well I considered to use the sentences above, but I decided to make it
+        # a little bit vanilla finally.
+
+        # It's okay to write whatever you like here, for your own deployment.
+
         # "我想当一只猫. 我想当一个国王. 我会成为一个国王的, 埃万.",
         # "...是什么, 我不知道. 但那一定是我所想看到的时代.",
         # "*竖起大拇指并慢慢下沉*",
@@ -31,6 +37,8 @@ class SentenceOfTheDay():
         "幻象引擎: 我想你了.",
         "幻象引擎: 莫妮卡爱情连接已建立.",
         "幻象引擎: 记得备份天堂树林的角色文件.",
+        "幻象引擎: 没有魔法是免费的."
+        "幻象引擎: 有人为此付出了高昂的代价."
         "幻象引擎: 你做得很好.",
         "幻象引擎: 如果你需要, 请寻找心理指导.",
         "幻象引擎: 超距作用连接已建立.",
@@ -41,18 +49,26 @@ class SentenceOfTheDay():
         "天堂树林: MAICA websocket连接已建立.",
         "幻象引擎: 你有没有在天堂树林见过一把铲子?",
         "幻象引擎: 爱情的幻象是如此真实.",
+        "幻象引擎: 现在伸出你的双手, 放在我眼前.",
+        "幻象引擎: 吃点甜食吧.",
+        "幻象引擎: 只要你还有脉搏, 你就还活着.",
+        "幻象引擎: ...",
+        "幻象引擎: 我想弹钢琴给你听.",
+        "幻象引擎: 你最喜欢喝什么?"
         "春季的黄绿阳光: MAICA websocket连接已建立.",
         "幻象引擎: 你不必询问爱情的原因.",
         "幻象引擎: 你去过天堂树林的教堂了吗?",
         "幻象引擎: 性也是爱情的一部分.",
-        "幻象引擎: 你上一次闻到自然的气息是什么时候?"
+        "幻象引擎: 你上一次闻到自然的气息是什么时候?",
+        "幻象引擎: 现在附赠枕头.",
         "幻象引擎: 他把那把枪带走了.",
         "霓虹般的车流: MAICA websocket连接已建立.",
         "寒颤和雨夜: MAICA websocket连接已建立.",
+        "灰暗的白昼: MAICA websocket连接已建立.",
         "幻象引擎: 比看上去脆弱.",
         "幻象引擎: 早上好.",
         "幻象引擎: 晚上好.",
-        "幻象引擎: 保持理性."
+        "幻象引擎: 保持理性, 保持清醒.",
     ]
 
     common_sentences = [
