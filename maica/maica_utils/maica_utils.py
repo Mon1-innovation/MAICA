@@ -251,10 +251,10 @@ async def messenger(websocket=None, status='', info='', code='0', traceray_id=''
     if websocket:
         await websocket.send(wrap_ws_formatter(code=code, status=status, content=msg_send, type=type))
 
-    frametrack_list = ["error"]
+    frametrack_dict = {"error": 5}
     if load_env("PRINT_VERBOSE") == "1":
-        frametrack_list.append("warn")
-    if type in frametrack_list:
+        frametrack_dict['warn'] = 1
+    if type in frametrack_dict:
         stack = inspect.stack()
         stack.pop(0)
 
@@ -285,12 +285,14 @@ async def messenger(websocket=None, status='', info='', code='0', traceray_id=''
             case "prim_recv":
                 print((color or colorama.Fore.LIGHTCYAN_EX) + msg_print)
             case "warn":
-                if load_env("PRINT_VERBOSE") == "1" and prefix.lower() in frametrack_list:
-                    print(color or colorama.Fore.YELLOW + f"• WARN happened when executing {stack[0].function} at {stack[0].filename}#{stack[0].lineno}:")
+                if 'warn' in frametrack_dict:
+                    for stack_layer in stack[:frametrack_dict['warn']]:
+                        print(color or colorama.Fore.YELLOW + f"• WARN happened when executing {stack_layer.function} at {stack_layer.filename}#{stack_layer.lineno}:")
                 print((color or colorama.Fore.LIGHTYELLOW_EX) + msg_print)
             case "error":
-                if load_env("PRINT_VERBOSE") == "1" and prefix.lower() in frametrack_list:
-                    print((color or colorama.Fore.RED) + f"! ERROR happened when executing {stack[0].function} at {stack[0].filename}#{stack[0].lineno}:")
+                if 'error' in frametrack_dict:
+                    for stack_layer in stack[:frametrack_dict['error']]:
+                        print((color or colorama.Fore.RED) + f"! ERROR happened when executing {stack[0].function} at {stack[0].filename}#{stack[0].lineno}:")
                 print((color or colorama.Fore.LIGHTRED_EX) + msg_print)
     if error:
         raise error
