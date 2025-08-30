@@ -12,7 +12,7 @@ def check_init():
         create_marking()
         asyncio.run(messenger(info="MAICA Illuminator initiation finished", type=MsgType.PRIM_SYS))
     else:
-        asyncio.run(messenger(info="Initiation marking detected, skipping initiation", type=MsgType.DEBUG))
+        asyncio.run(messenger(info="Initiated marking detected, skipping initiation", type=MsgType.DEBUG))
 
 async def start_all():
     auth_pool, maica_pool = await asyncio.gather(ConnUtils.auth_pool(), ConnUtils.maica_pool())
@@ -26,6 +26,10 @@ async def start_all():
         task_http,
         task_schedule,
     ], return_when=asyncio.FIRST_COMPLETED)
+
+    await messenger(info="All quits collected, doing final cleanup...", type=MsgType.DEBUG)
+    await asyncio.gather(auth_pool.close(), maica_pool.close(), return_exceptions=True)
+    quit()
 
 if __name__ == "__main__":
     check_init()

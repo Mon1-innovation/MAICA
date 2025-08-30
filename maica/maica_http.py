@@ -382,8 +382,18 @@ else:
 app.add_url_rule("/<path>", methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], view_func=ShortConnHandler.as_view("any_unknown", val=False))
 
 async def prepare_thread(**kwargs):
-    ShortConnHandler.auth_pool = default(kwargs.get('auth_pool'), await ConnUtils.auth_pool())
-    ShortConnHandler.maica_pool = default(kwargs.get('maica_pool'), await ConnUtils.maica_pool())
+    auth_created = False; maica_created = False
+
+    if kwargs.get('auth_pool'):
+        ShortConnHandler.auth_pool = kwargs.get('auth_pool')
+    else:
+        ShortConnHandler.auth_pool = await ConnUtils.auth_pool()
+        auth_created = True
+    if kwargs.get('maica_pool'):
+        ShortConnHandler.maica_pool = kwargs.get('maica_pool')
+    else:
+        ShortConnHandler.maica_pool = await ConnUtils.maica_pool()
+        maica_created = True
 
     if get_host(MCORE_ADDR) != get_host(MFOCUS_ADDR):
 
@@ -414,8 +424,13 @@ async def prepare_thread(**kwargs):
     except BaseException:
         pass
     finally:
+        close_list = []
+        if auth_created:
+            close_list.append(ShortConnHandler.auth_pool.close())
+        if maica_created:
+            close_list.append(ShortConnHandler.maica_pool.close())
 
-        asyncio.gather(ShortConnHandler.auth_pool.close(), ShortConnHandler.maica_pool.close(), return_exceptions=True)
+        await asyncio.gather(*close_list, return_exceptions=True)
 
         await messenger(info='\n', type=MsgType.PLAIN)
         await messenger(info='MAICA HTTP server stopped!', type=MsgType.PRIM_SYS)

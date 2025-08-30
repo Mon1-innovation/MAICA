@@ -819,9 +819,19 @@ async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn, 
             await messenger(info=f"Closing connection gracefully", type=MsgType.DEBUG)
 
 async def prepare_thread(**kwargs):
-    online_dict = {}
-    auth_pool: DbPoolCoroutine = default(kwargs.get('auth_pool'), await ConnUtils.auth_pool())
-    maica_pool: DbPoolCoroutine = default(kwargs.get('maica_pool'), await ConnUtils.maica_pool())
+    online_dict = {}; auth_created = False; maica_created = False
+
+    if kwargs.get('auth_pool'):
+        auth_pool = kwargs.get('auth_pool')
+    else:
+        auth_pool = await ConnUtils.auth_pool()
+        auth_created = True
+    if kwargs.get('maica_pool'):
+        maica_pool = kwargs.get('maica_pool')
+    else:
+        maica_pool = await ConnUtils.maica_pool()
+        maica_created = True
+
     try:
         mcore_conn: AiConnCoroutine = default(kwargs.get('mcore_conn'), await ConnUtils.mcore_conn())
         mfocus_conn: AiConnCoroutine = default(kwargs.get('mfocus_conn'), await ConnUtils.mfocus_conn())
@@ -841,8 +851,13 @@ async def prepare_thread(**kwargs):
     except BaseException:
         pass
     finally:
+        close_list = []
+        if auth_created:
+            close_list.append(auth_pool.close())
+        if maica_created:
+            close_list.append(maica_pool.close())
 
-        await asyncio.gather(auth_pool.close(), maica_pool.close(), return_exceptions=True)
+        await asyncio.gather(*close_list, return_exceptions=True)
 
         await messenger(info='\n', type=MsgType.PLAIN)
         await messenger(info='MAICA WS server stopped!', type=MsgType.PRIM_SYS)
