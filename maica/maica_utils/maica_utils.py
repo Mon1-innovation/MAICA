@@ -333,6 +333,14 @@ async def get_json(url) -> json:
         await client.aclose()
     return res
 
+def get_host(url: str) -> bool:
+    """Try to get hostname from url."""
+    try:
+        url_parsed = urlparse(url)
+        return url_parsed.hostname
+    except Exception:
+        return False
+
 def vali_url(url: str) -> bool:
     """If this is a valid url."""
     try:
