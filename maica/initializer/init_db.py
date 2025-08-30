@@ -1,4 +1,5 @@
 import asyncio
+import os
 from maica_utils import DbPoolCoroutine, ConnUtils
 from typing import *
 from maica_utils import *
@@ -30,6 +31,8 @@ async def create_tables():
             await basic_pool.query_modify(f"CREATE DATABASE IF NOT EXISTS {MAICA_DB}")
         else:
             print(f"MAICA_DB {MAICA_DB} exists, skipping...")
+    elif not os.path.exists(AUTH_DB):
+        auth_created = True
 
     auth_pool = await ConnUtils.auth_pool(ro=False)
     maica_pool = await ConnUtils.maica_pool()
@@ -43,7 +46,19 @@ CREATE TABLE IF NOT EXISTS `users` (
 `email` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
 `is_email_confirmed` tinyint(1) NOT NULL DEFAULT '0',
 `password` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+PRIMARY KEY (`id`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+"""
+    ] if basic_pool else [
+"""
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
+    nickname TEXT DEFAULT NULL,
+    email TEXT NOT NULL,
+    is_email_confirmed INTEGER NOT NULL DEFAULT 0,
+    password TEXT NOT NULL
+);
 """
     ]
     maica_tables = [
@@ -53,7 +68,7 @@ CREATE TABLE IF NOT EXISTS `account_status` (
 `status` longtext DEFAULT NULL,
 `preferences` longtext DEFAULT NULL,
 PRIMARY KEY (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+)
 """,
 """
 CREATE TABLE IF NOT EXISTS `cchop_archived` (
@@ -62,7 +77,7 @@ CREATE TABLE IF NOT EXISTS `cchop_archived` (
 `content` longtext DEFAULT NULL,
 `archived` int(11) DEFAULT NULL,
 PRIMARY KEY (`archive_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+)
 """,
 """
 CREATE TABLE IF NOT EXISTS `chat_session` (
@@ -71,7 +86,7 @@ CREATE TABLE IF NOT EXISTS `chat_session` (
 `chat_session_num` int(11) NOT NULL,
 `content` longtext DEFAULT NULL,
 PRIMARY KEY (`chat_session_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+)
 """,
 """
 CREATE TABLE IF NOT EXISTS `csession_archived` (
@@ -79,7 +94,7 @@ CREATE TABLE IF NOT EXISTS `csession_archived` (
 `chat_session_id` int(11) NOT NULL,
 `content` longtext DEFAULT NULL,
 PRIMARY KEY (`archive_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+)
 """,
 """
 CREATE TABLE IF NOT EXISTS `persistents` (
@@ -89,7 +104,7 @@ CREATE TABLE IF NOT EXISTS `persistents` (
 `content` longtext DEFAULT NULL,
 `timestamp` datetime on update CURRENT_TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 PRIMARY KEY (`persistent_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+)
 """,
 """
 CREATE TABLE IF NOT EXISTS `triggers` (
@@ -99,7 +114,7 @@ CREATE TABLE IF NOT EXISTS `triggers` (
 `content` longtext DEFAULT NULL,
 `timestamp` datetime on update CURRENT_TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 PRIMARY KEY (`trigger_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+)
 """,
 """
 CREATE TABLE IF NOT EXISTS `ms_cache` (
@@ -108,9 +123,76 @@ CREATE TABLE IF NOT EXISTS `ms_cache` (
 `content` longtext DEFAULT NULL,
 `timestamp` datetime on update CURRENT_TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 PRIMARY KEY (`spire_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+)
+"""
+    ] if basic_pool else [
+"""
+CREATE TABLE IF NOT EXISTS account_status (
+    user_id INTEGER PRIMARY KEY NOT NULL,
+    status TEXT DEFAULT NULL,
+    preferences TEXT DEFAULT NULL
+)
+""",
+"""
+CREATE TABLE IF NOT EXISTS cchop_archived (
+    archive_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_session_id INTEGER NOT NULL,
+    content TEXT DEFAULT NULL,
+    archived INTEGER DEFAULT NULL
+)
+""",
+"""
+CREATE TABLE IF NOT EXISTS chat_session (
+    chat_session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    chat_session_num INTEGER NOT NULL,
+    content TEXT DEFAULT NULL
+)
+""",
+"""
+CREATE TABLE IF NOT EXISTS csession_archived (
+    archive_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_session_id INTEGER NOT NULL,
+    content TEXT DEFAULT NULL
+)
+""",
+"""
+CREATE TABLE IF NOT EXISTS persistents (
+    persistent_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    chat_session_num INTEGER NOT NULL,
+    content TEXT DEFAULT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+)
+""",
+"""
+CREATE TABLE IF NOT EXISTS triggers (
+    trigger_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    chat_session_num INTEGER NOT NULL,
+    content TEXT DEFAULT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+)
+""",
+"""
+CREATE TABLE IF NOT EXISTS ms_cache (
+    spire_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    hash TEXT NOT NULL,
+    content TEXT DEFAULT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+)
 """
     ]
+
+    # Caution: SQLite tables behave different with MySQL for timestamps, since there
+    # is no convenient way to make timestamp update on row update in SQLite.
+
+    # We're ignoring this because the timestamp update is not actually happening in the
+    # current codes. If you want to customize, consider adding a trigger.
+
+    if basic_pool:
+        for table in maica_tables:
+            table += " ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
 
     if auth_created:
         for table in auth_tables:

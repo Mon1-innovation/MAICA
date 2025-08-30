@@ -841,10 +841,9 @@ async def prepare_thread(**kwargs):
     except BaseException:
         pass
     finally:
-        try:
-            asyncio.gather(auth_pool.close(), maica_pool.close())
-        except Exception:
-            pass
+
+        await asyncio.gather(auth_pool.close(), maica_pool.close(), return_exceptions=True)
+
         await messenger(info='\n', type=MsgType.PLAIN)
         await messenger(info='MAICA WS server stopped!', type=MsgType.PRIM_SYS)
 

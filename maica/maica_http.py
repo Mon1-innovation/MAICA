@@ -410,14 +410,13 @@ async def prepare_thread(**kwargs):
 
     try:
         await asyncio.wait(task_list, return_when=asyncio.FIRST_COMPLETED)
-        
+
     except BaseException:
         pass
     finally:
-        try:
-            asyncio.gather(ShortConnHandler.auth_pool.close(), ShortConnHandler.maica_pool.close())
-        except Exception:
-            pass
+
+        asyncio.gather(ShortConnHandler.auth_pool.close(), ShortConnHandler.maica_pool.close(), return_exceptions=True)
+
         await messenger(info='\n', type=MsgType.PLAIN)
         await messenger(info='MAICA HTTP server stopped!', type=MsgType.PRIM_SYS)
 
