@@ -197,10 +197,10 @@ class AccountCursor(AsyncCreator):
 def encrypt_token(cridential: str) -> str:
     """Generates an encrypted token. It does not care validity."""
     _check_keys()
-    encrypted_token = encryptor.encrypt(cridential)
-    encoded_token = base64.b64encode(cridential)
-    encrypted_token = encoded_token.decode('utf-8')
-    return encrypted_token
+    encoded_token = cridential.encode('utf-8')
+    encrypted_token = encryptor.encrypt(encoded_token)
+    decoded_token = base64.b64encode(encrypted_token).decode('utf-8')
+    return decoded_token
 
 def sign_message(message):
     _check_keys()

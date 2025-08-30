@@ -78,6 +78,7 @@ class ShortConnHandler(View):
                 return result
             
         except Exception as e:
+            traceback.print_exc()
             await messenger(info=f'Handler hit an exception: {str(e)}', type=MsgType.WARN)
             return jsonify({"success": False, "exception": str(e)})
 
@@ -289,8 +290,7 @@ class ShortConnHandler(View):
         json_data = request.args.to_dict(flat=True)
         valid_data = await self._validate_http(json_data, must=['content'])
 
-        content = valid_data.get('content')
-        assert isinstance(content, dict), "Request content invalid"
+        content = json.loads(valid_data.get('content'))
 
         cridential_type = 'username' if content.get('username') else 'email'
         cridential = content.get(cridential_type)
