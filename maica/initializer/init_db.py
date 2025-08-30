@@ -9,11 +9,12 @@ async def create_tables():
     MAICA_DB = load_env('MAICA_DB')
 
     basic_pool: DbPoolCoroutine = await ConnUtils.basic_pool()
+    auth_created = False
 
     if basic_pool:
         # We have to create databases before tables
         result = await basic_pool.query_get("SHOW DATABASES", fetchall=True)
-        curr_dbs = []; auth_created = False
+        curr_dbs = []
         for curr_db in result:
             curr_dbs.append(curr_db[0])
 

@@ -342,15 +342,8 @@ def get_host(url: str) -> bool:
         return False
 
 def vali_url(url: str) -> bool:
-    """If this is a valid url."""
-    try:
-        url_parsed = urlparse(url)
-        if url_parsed.scheme:
-            return True
-        else:
-            return False
-    except Exception:
-        return False
+    """urllib is dumb. It doesn't recognize ip addr so we make it brutal."""
+    return '.' in url
 
 def vali_date(y, m, d) -> tuple[int, int, int]:
     """What a pun!"""

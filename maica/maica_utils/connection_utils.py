@@ -180,7 +180,6 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
         """Close SQLite connection."""
         if self.pool:
             self.pool.close()
-            await self.pool.wait_closed()
 
 class AiConnCoroutine(AsyncCreator):
     """Maintain an AI connection so you don't have to."""
