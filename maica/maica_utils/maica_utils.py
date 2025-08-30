@@ -163,6 +163,7 @@ class ReUtils():
     re_sub_capt_status = re.compile(r"(_|^)([A-Za-z])")
     re_findall_square_marks = re.compile(r'\[(?:(?:[A-Za-z ]{1,15}?)|(?:[一-龥 ]{1,4}?))\]')
     re_findall_square_brackets = re.compile(r'\[(.*?)\]')
+    re_sub_sqlite_escape = re.compile(r'%s')
 
 def default(exp, default, default_list: list=[None]) -> any:
     """If exp is in default list(normally None), use default."""

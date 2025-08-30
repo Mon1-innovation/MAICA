@@ -96,6 +96,13 @@ class DbPoolCoroutine(AsyncCreator):
 class SqliteDbPoolCoroutine(DbPoolCoroutine):
     """SQLite-specific database pool coroutine."""
     
+    @staticmethod
+    def escape_sqlite(func):
+        def wrapper(expression, *args, **kwargs):
+            expression_new = ReUtils.re_sub_sqlite_escape.sub('?', expression)
+            return func(expression=expression_new, *args, **kwargs)
+        return wrapper
+
     def __init__(self, db, host=None, user=None, password=None, ro=False):
         self.db_path = db
         self.ro = ro
@@ -126,6 +133,7 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
                 error = MaicaDbError(f'Failure when trying to reconnect to {self.db_path}', '502')
                 await messenger(None, f'{self.db_path}_reconn_failure', traceray_id='db_handling', error=error)
 
+    @escape_sqlite
     async def query_get(self, expression, values=None, fetchall=False) -> list:
         """Execute SELECT query on SQLite database."""
         results = None
@@ -148,6 +156,7 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
                     await messenger(None, 'sqlite_connection_failed', traceray_id='db_handling', error=error)
         return results
 
+    @escape_sqlite
     async def query_modify(self, expression, values=None, fetchall=False) -> int:
         """Execute INSERT/UPDATE/DELETE query on SQLite database."""
         if self.ro:
