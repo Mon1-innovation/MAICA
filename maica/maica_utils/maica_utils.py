@@ -336,8 +336,11 @@ async def get_json(url) -> json:
 def vali_url(url: str) -> bool:
     """If this is a valid url."""
     try:
-        urlparse(url)
-        return True
+        url_parsed = urlparse(url)
+        if url_parsed.scheme:
+            return True
+        else:
+            return False
     except Exception:
         return False
 
