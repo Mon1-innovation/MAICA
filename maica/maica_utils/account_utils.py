@@ -21,6 +21,8 @@ db_password = load_env('DB_PASSWORD')
 authdb = load_env('AUTH_DB')
 maicadb = load_env('MAICA_DB')
 
+encryptor = decryptor = verifier = signer = None
+
 def _get_keys() -> tuple[PKCS1_OAEP.PKCS1OAEP_Cipher, PKCS1_OAEP.PKCS1OAEP_Cipher, PSS_SigScheme, PSS_SigScheme]:
     self_path = os.path.dirname(os.path.abspath(__file__))
     key_path = os.path.join(self_path, "../../keys")
@@ -40,7 +42,10 @@ def _get_keys() -> tuple[PKCS1_OAEP.PKCS1OAEP_Cipher, PKCS1_OAEP.PKCS1OAEP_Ciphe
     signer = PKCS1_PSS.new(privkey_loaded)
     return encryptor, decryptor, verifier, signer
 
-encryptor, decryptor, verifier, signer = _get_keys()
+def _check_keys() -> bool:
+    global encryptor, decryptor, verifier, signer
+    if not (encryptor and decryptor and verifier and signer):
+        encryptor, decryptor, verifier, signer = _get_keys()
 
 class AccountCursor(AsyncCreator):
     def __init__(self, fsc:FullSocketsContainer, auth_pool=None, maica_pool=None):
@@ -48,6 +53,7 @@ class AccountCursor(AsyncCreator):
         self.settings = fsc.maica_settings
         self.auth_pool, self.maica_pool = auth_pool, maica_pool
         self.websocket, self.traceray_id = fsc.rsc.websocket, fsc.rsc.traceray_id
+        _check_keys()
         
     async def _ainit(self):
         if not self.auth_pool:
@@ -190,13 +196,14 @@ class AccountCursor(AsyncCreator):
     
 def encrypt_token(cridential: str) -> str:
     """Generates an encrypted token. It does not care validity."""
+    _check_keys()
     encrypted_token = encryptor.encrypt(cridential)
     encoded_token = base64.b64encode(cridential)
     encrypted_token = encoded_token.decode('utf-8')
     return encrypted_token
 
 def sign_message(message):
-    global signer
+    _check_keys()
     message = message.encode("utf-8")
     h = SHA256.new()
     h.update(message)
@@ -205,7 +212,7 @@ def sign_message(message):
     return sigb64
 
 def verify_message(message, sigb64):
-    global verifier
+    _check_keys()
     message = message.encode("utf-8")
     signature = base64.b64decode(sigb64.encode("utf-8"))
     h = SHA256.new()
@@ -216,6 +223,7 @@ def verify_message(message, sigb64):
         return False
 
 def sort_message(message):
+    _check_keys()
     message = list(message)
     message_new = []
     for line in message:
