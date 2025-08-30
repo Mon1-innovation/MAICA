@@ -293,7 +293,7 @@ async def messenger(websocket=None, status='', info='', code='0', traceray_id=''
             case "error":
                 if 'error' in frametrack_dict:
                     for stack_layer in stack[:frametrack_dict['error']]:
-                        print((color or colorama.Fore.RED) + f"! ERROR happened when executing {stack[0].function} at {stack[0].filename}#{stack[0].lineno}:")
+                        print((color or colorama.Fore.RED) + f"! ERROR happened when executing {stack_layer.function} at {stack_layer.filename}#{stack_layer.lineno}:")
                 print((color or colorama.Fore.LIGHTRED_EX) + msg_print)
     if error:
         raise error
