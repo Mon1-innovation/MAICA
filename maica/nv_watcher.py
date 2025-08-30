@@ -16,15 +16,24 @@ class NvWatcher(AsyncCreator):
         self.node_name = load_env(f'{node.upper()}_NODE')
         self.node_user = load_env(f'{node.upper()}_USER')
         self.node_pwd = load_env(f'{node.upper()}_PWD')
-        self.node_addr = ReUtils.re_search_host_addr.search(load_env(f'{node.upper()}_ADDR'))[1]
+        try:
+            self.node_addr = ReUtils.re_search_host_addr.search(load_env(f'{node.upper()}_ADDR'))[1]
+        except Exception:
+            self.node_addr = None
 
     async def _ainit(self):
         """Must run in the action loop."""
-        if not self.node_name or not self.node_user or not self.node_pwd or not self.node_addr:
+        if not self.is_active():
             return
 
         await self._connect_remotes()
         await self._initiate_db()
+
+    def is_active(self):
+        if not self.node_name or not self.node_user or not self.node_pwd or not self.node_addr:
+            return False
+        else:
+            return True
 
     async def _query_nvsmi(self, ssh_client: asyncssh.connection.SSHClientConnection, keys=[]):
         command = f"nvidia-smi --query-gpu={','.join(keys)} --format=csv"
@@ -57,7 +66,7 @@ class NvWatcher(AsyncCreator):
         return history
 
     async def main_watcher(self):
-        if not self.node_name or not self.node_user or not self.node_pwd or not self.node_addr:
+        if not self.is_active():
             await messenger(info=f"Necessary info not complete for watching {self.node}, freezing watcher", type=MsgType.PRIM_SYS)
             await sleep_forever()
 
@@ -80,6 +89,9 @@ class NvWatcher(AsyncCreator):
             await asyncio.sleep(10)
     
     def get_statics_inside(self):
+        if not self.is_active():
+            return {}
+        
         node_info = {}
         for gpu_status in self.gpu_overall:
             gpuid, name, memory, tflops, dynamic = gpu_status
