@@ -203,8 +203,15 @@ class AiConnCoroutine(AsyncCreator):
             self.test = True
             return
         else:
-            self.socket = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
-            await self.keep_alive()
+            try:
+                self._open_socket()
+                await self.keep_alive()
+            except Exception:
+                self.test = True
+                return
+
+    def _open_socket(self):
+        self.socket = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
 
     def init_rsc(self, rsc: FscPlain.RealtimeSocketsContainer):
         """AiConn can actually work without rsc, so we make it individual."""
@@ -220,8 +227,11 @@ class AiConnCoroutine(AsyncCreator):
         except Exception:
             await messenger(None, f'{self.name}_reconn', f"Recreating {self.name} client since cannot conn", '301', type=MsgType.WARN)
             try:
-                await self.socket.close()
-                await self._ainit()
+                try:
+                    await self.socket.close()
+                except Exception:
+                    pass
+                self._open_socket()
             except Exception:
                 error = MaicaResponseError(f'Failure when trying reconnecting to {self.name}', '502')
                 await messenger(None, f'{self.name}_reconn_failure', traceray_id='ai_handling', type=MsgType.ERROR)
