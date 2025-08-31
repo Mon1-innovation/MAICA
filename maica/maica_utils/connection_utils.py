@@ -204,6 +204,7 @@ class AiConnCoroutine(AsyncCreator):
             return
         else:
             self.socket = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+            await self.keep_alive()
 
     def init_rsc(self, rsc: FscPlain.RealtimeSocketsContainer):
         """AiConn can actually work without rsc, so we make it individual."""
