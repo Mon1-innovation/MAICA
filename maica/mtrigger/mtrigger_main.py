@@ -176,6 +176,9 @@ class MTriggerCoroutine(AsyncCreator):
             }
         )
 
+        for tool in self.tools:
+            tool['type'] = 'function'
+
     async def _construct_query(self, user_input=None, tool_input=None):
         if not self.serial_messages and self.settings.extra.post_additive and 1 <= self.settings.temp.chat_session <= 9:
             sql_expression = 'SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
