@@ -15,11 +15,11 @@ from .setting_utils import *
 from .container_utils import *
 """Import layer 6"""
 
-db_host = load_env('DB_ADDR')
-db_user = load_env('DB_USER')
-db_password = load_env('DB_PASSWORD')
-authdb = load_env('AUTH_DB')
-maicadb = load_env('MAICA_DB')
+DB_ADDR = load_env('DB_ADDR')
+DB_USER = load_env('DB_USER')
+DB_PASSWORD = load_env('DB_PASSWORD')
+AUTH_DB = load_env('AUTH_DB')
+MAICA_DB = load_env('MAICA_DB')
 
 encryptor = decryptor = verifier = signer = None
 
@@ -57,20 +57,9 @@ class AccountCursor(AsyncCreator):
         
     async def _ainit(self):
         if not self.auth_pool:
-            self.auth_pool = DbPoolCoroutine(
-                host=db_host,
-                user=db_user,
-                password=db_password,
-                db=authdb,
-                ro=True,
-            )
+            self.auth_pool = await ConnUtils.auth_pool()
         if not self.maica_pool:
-            self.maica_pool = DbPoolCoroutine(
-                host=db_host,
-                user=db_user,
-                password=db_password,
-                db=maicadb,
-            )
+            self.maica_pool = await ConnUtils.maica_pool()
 
     async def check_user_status(self, pref=False, *args) -> Union[list, dict]:
         status = "status" if not pref else "preferences"
@@ -104,7 +93,10 @@ class AccountCursor(AsyncCreator):
                 stats_json = kwargs
 
             stats_str = json.dumps(stats_json, ensure_ascii=False)
-            sql_expression = f"INSERT INTO account_status (user_id, {status}) VALUES (%s, %s) ON DUPLICATE KEY UPDATE {status} = %s"
+            if DB_ADDR != "sqlite":
+                sql_expression = f"INSERT INTO account_status (user_id, {status}) VALUES (%s, %s) ON DUPLICATE KEY UPDATE {status} = %s"
+            else:
+                sql_expression = f"INSERT INTO account_status (user_id, {status}) VALUES (%s, %s) ON CONFLICT(user_id) DO UPDATE SET {status} = %s"
             sql_args = (user_id, stats_str, stats_str)
 
             await self.maica_pool.query_modify(expression=sql_expression, values=sql_args)
