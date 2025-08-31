@@ -78,7 +78,7 @@ class AccountCursor(AsyncCreator):
         user_id = self.settings.identity.user_id
         sql_expression = f"SELECT {status} FROM account_status WHERE user_id = %s"
         try:
-            result = await self.maica_pool.query_get(expression=sql_expression, values=(user_id))
+            result = await self.maica_pool.query_get(expression=sql_expression, values=(user_id, ))
             stats_json = json.loads(result[0]) if result else {}
 
             if not args:
@@ -116,7 +116,7 @@ class AccountCursor(AsyncCreator):
     async def run_hash_dcc(self, identity, is_email, password) -> tuple[bool, Union[str, dict, None]]:
         sql_expression = 'SELECT * FROM users WHERE email = %s' if is_email else 'SELECT * FROM users WHERE username = %s'
         try:
-            result = await self.auth_pool.query_get(expression=sql_expression, values=(identity))
+            result = await self.auth_pool.query_get(expression=sql_expression, values=(identity, ))
             assert isinstance(result[0], int), "User does not exist"
 
             dbres_id, dbres_username, dbres_nickname, dbres_email, dbres_ecf, dbres_pwd_bcrypt, *_ = result

@@ -85,7 +85,7 @@ class NoWsCoroutine(AsyncCreator):
 
             # First we check if there is a cchop avaliable
             sql_expression_1 = 'SELECT archive_id, content FROM cchop_archived WHERE chat_session_id = %s AND archived = 0'
-            result = await self.maica_pool.query_get(expression=sql_expression_1, values=(chat_session_id))
+            result = await self.maica_pool.query_get(expression=sql_expression_1, values=(chat_session_id, ))
             if result:
                 archive_id, archive_content = result
             else:
@@ -222,7 +222,7 @@ class NoWsCoroutine(AsyncCreator):
         """Find ms cache with corresponding prompt hash."""
 
         sql_expression_1 = "SELECT content FROM ms_cache WHERE hash = %s"
-        result = await self.maica_pool.query_get(expression=sql_expression_1, values=(hash_identity))
+        result = await self.maica_pool.query_get(expression=sql_expression_1, values=(hash_identity, ))
         if result:
             await messenger(None, 'maica_spire_cache_hit', 'Hit a stored cache for MSpire', '200')
             return result[0]

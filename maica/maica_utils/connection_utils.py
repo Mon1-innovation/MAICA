@@ -247,7 +247,7 @@ class AiConnCoroutine(AsyncCreator):
 
 class ConnUtils():
     """Just a wrapping for functions."""
-    if vali_url(DB_ADDR):
+    if DB_ADDR != "sqlite":
         """We suppose we're using MySQL."""
         async def auth_pool(ro=True):
             return await DbPoolCoroutine.async_create(

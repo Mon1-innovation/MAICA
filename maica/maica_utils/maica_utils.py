@@ -287,12 +287,12 @@ async def messenger(websocket=None, status='', info='', code='0', traceray_id=''
                 print((color or colorama.Fore.LIGHTCYAN_EX) + msg_print)
             case "warn":
                 if 'warn' in frametrack_dict:
-                    for stack_layer in stack[:frametrack_dict['warn']]:
+                    for stack_layer in stack[:frametrack_dict['warn']:-1]:
                         print(color or colorama.Fore.YELLOW + f"• WARN happened when executing {stack_layer.function} at {stack_layer.filename}#{stack_layer.lineno}:")
                 print((color or colorama.Fore.LIGHTYELLOW_EX) + msg_print)
             case "error":
                 if 'error' in frametrack_dict:
-                    for stack_layer in stack[:frametrack_dict['error']]:
+                    for stack_layer in stack[:frametrack_dict['error']:-1]:
                         print((color or colorama.Fore.RED) + f"! ERROR happened when executing {stack_layer.function} at {stack_layer.filename}#{stack_layer.lineno}:")
                 print((color or colorama.Fore.LIGHTRED_EX) + msg_print)
     if error:
