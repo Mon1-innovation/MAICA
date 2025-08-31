@@ -100,7 +100,7 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
     def escape_sqlite(func):
         def wrapper(expression, *args, **kwargs):
             expression_new = ReUtils.re_sub_sqlite_escape.sub('?', expression)
-            return func(expression=expression_new, *args, **kwargs)
+            return func(expression_new, *args, **kwargs)
         return wrapper
 
     def __init__(self, db, host=None, user=None, password=None, ro=False):

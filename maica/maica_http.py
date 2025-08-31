@@ -78,7 +78,6 @@ class ShortConnHandler(View):
                 return result
             
         except Exception as e:
-            traceback.print_exc()
             await messenger(info=f'Handler hit an exception: {str(e)}', type=MsgType.WARN)
             return jsonify({"success": False, "exception": str(e)})
 
