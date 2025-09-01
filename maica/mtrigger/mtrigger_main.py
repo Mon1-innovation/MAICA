@@ -192,7 +192,22 @@ class MTriggerCoroutine(AsyncCreator):
 
         if user_input:
             self.serial_messages.append({'role': 'user', 'content': user_input})
-        if tool_input:
+
+            # Having user input here suggests the last tool calls are over.
+            # So we have to cleanup the thinking part and toolcalls.
+            self.serial_messages = [msg for msg in self.serial_messages if msg.get('role') != 'tool']
+            assistant_last_msg_list = []
+            for msg in self.serial_messages[::-1]:
+                if msg.get('role') == 'assistant':
+                    assistant_last_msg_list.append(self.serial_messages.pop(-1))
+                else:
+                    break
+            assistant_last_msg = ''
+            for msg in assistant_last_msg_list:
+                assistant_last_msg = msg.get('content') + assistant_last_msg
+            self.serial_messages.append({'role': 'assistant', 'content': assistant_last_msg})
+
+        elif tool_input:
             self.serial_messages.append({'role': 'tool', 'content': tool_input})
 
     async def _send_query(self) -> tuple[str, list]:
@@ -209,12 +224,8 @@ class MTriggerCoroutine(AsyncCreator):
 
         resp = await self.mfocus_conn.make_completion(**completion_args)
         content, tool_calls = resp.choices[0].message.content, resp.choices[0].message.tool_calls
-        try:
-            content_no_think = ReUtils.re_search_post_think.search(content)[1]
-        except:
-            content_no_think = None
-        if content_no_think:
-            self.serial_messages.append({"role": "assistant", "content": content_no_think})
+
+        self.serial_messages.append({"role": "assistant", "content": content})
         return content, tool_calls
 
     async def triggering(self, input, output):
@@ -234,7 +245,6 @@ class MTriggerCoroutine(AsyncCreator):
 
             # Sanity check
             cycle += 1
-            tool_real_name = None
 
             resp_content, resp_tools = await self._send_query()
             await messenger(self.websocket, 'maica_mtrigger_toolchain', f'MTrigger toolchain {cycle} round responded, response is:\n{resp_content}\nAnalyzing response...')

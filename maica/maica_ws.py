@@ -342,6 +342,15 @@ class NoWsCoroutine(AsyncCreator):
             error = MaicaInputError(f"Illegal input {kwd} detected", '405')
             await messenger(self.websocket, 'maica_input_param_bad', traceray_id=self.traceray_id, error=error)
 
+    async def run_with_log(self, coro: Coroutine, name: str=''):
+        try:
+            return await coro
+        except Exception as e:
+            if not isinstance(e, CommonMaicaException):
+                e = CommonMaicaError(str(e), '500')
+            stat = f'maica_{name}_failure' if name else 'maica_failure'
+            await messenger(self.websocket, stat, traceray_id=self.traceray_id, error=e)
+
 class WsCoroutine(NoWsCoroutine):
     """
     Force ws existence.
@@ -662,7 +671,7 @@ class WsCoroutine(NoWsCoroutine):
                     messages0 = {'role': 'user', 'content': query_in}
 
                     if self.settings.basic.enable_mf and not self.settings.temp.bypass_mf:
-                        message_agent_wrapped = await self.mfocus_coro.agenting(query_in)
+                        message_agent_wrapped = await self.run_with_log(self.mfocus_coro.agenting(query_in), 'mfocus')
                     else:
                         message_agent_wrapped = None
                     
@@ -734,7 +743,7 @@ class WsCoroutine(NoWsCoroutine):
 
             # Trigger process
             if self.settings.basic.enable_mt and not self.settings.temp.bypass_mt:
-                await self.mtrigger_coro.triggering(query_in, reply_appended)
+                await self.run_with_log(self.mtrigger_coro.triggering(query_in, reply_appended), 'mtrigger')
             else:
                 self.settings.temp.update(self.fsc.rsc, bypass_mt=False)
 

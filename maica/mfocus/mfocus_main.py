@@ -280,7 +280,22 @@ class MFocusCoroutine(AsyncCreator):
 
         if user_input:
             self.serial_messages.append({'role': 'user', 'content': user_input})
-        if tool_input:
+
+            # Having user input here suggests the last tool calls are over.
+            # So we have to cleanup the thinking part and toolcalls.
+            self.serial_messages = [msg for msg in self.serial_messages if msg.get('role') != 'tool']
+            assistant_last_msg_list = []
+            for msg in self.serial_messages[::-1]:
+                if msg.get('role') == 'assistant':
+                    assistant_last_msg_list.append(self.serial_messages.pop(-1))
+                else:
+                    break
+            assistant_last_msg = ''
+            for msg in assistant_last_msg_list:
+                assistant_last_msg = msg.get('content') + assistant_last_msg
+            self.serial_messages.append({'role': 'assistant', 'content': assistant_last_msg})
+
+        elif tool_input:
             self.serial_messages.append({'role': 'tool', 'content': tool_input})
 
     async def _send_query(self) -> tuple[str, list]:
@@ -297,12 +312,8 @@ class MFocusCoroutine(AsyncCreator):
 
         resp = await self.mfocus_conn.make_completion(**completion_args)
         content, tool_calls = resp.choices[0].message.content, resp.choices[0].message.tool_calls
-        try:
-            content_no_think = ReUtils.re_search_post_think.search(content)[1]
-        except:
-            content_no_think = None
-        if content_no_think:
-            self.serial_messages.append({"role": "assistant", "content": content_no_think})
+
+        self.serial_messages.append({"role": "assistant", "content": content})
         return content, tool_calls
     
     async def agenting(self, query):
@@ -345,7 +356,6 @@ class MFocusCoroutine(AsyncCreator):
 
             # Sanity check
             cycle += 1
-            tool_real_name = None
 
             resp_content, resp_tools = await self._send_query()
             await messenger(self.websocket, 'maica_mfocus_toolchain', f'MFocus toolchain {cycle} round responded, response is:\n{resp_content}\nAnalyzing response...')
@@ -357,69 +367,38 @@ class MFocusCoroutine(AsyncCreator):
                 tool_id, tool_type, tool_func_name, tool_func_args = resp_tool.id, resp_tool.type, resp_tool.function.name, resp_tool.function.arguments
                 await messenger(None, 'maica_mfocus_tool_acquire', f'Calling parallel tool {tool_seq}/{len(resp_tools)}:\n{resp_tool}\nGathering information...')
 
-                try:
-                    machine = humane = None
+                machine = humane = None
+                args = []
+
+                kwargs = try_load_json(tool_func_args)
+                function_route = getattr(self.agent_tools, tool_func_name)
+                if function_route:
+                    machine, humane = await function_route(*args, **kwargs)
+                else:
                     match tool_func_name:
-                        case name if fuzzy_match('time_acquire', name):
-                            tool_real_name = 'time_acquire'
-                        case name if fuzzy_match('date_acquire', name):
-                            tool_real_name = 'date_acquire'
-                        case name if fuzzy_match('weather_acquire', name):
-                            tool_real_name = 'weather_acquire'
-                        case name if fuzzy_match('event_acquire', name):
-                            tool_real_name = 'event_acquire'
-                        case name if fuzzy_match('persistent_acquire', name):
-                            tool_real_name = 'persistent_acquire'
-                        case name if fuzzy_match('search_internet', name):
-                            tool_real_name = 'search_internet'
-                        case name if fuzzy_match('react_trigger', name):
-                            tool_real_name = 'react_trigger'
-                        case name if fuzzy_match('conclude_information', name):
-                            tool_real_name = 'conclude_information'
-                        case name if fuzzy_match('none', name):
-                            tool_real_name = 'none'
-
-                    args = []
-                    kwargs = try_load_json(tool_func_args)
-                    function_route = getattr(self.agent_tools, tool_real_name)
-                    if function_route:
-                        machine, humane = await function_route(*args, **kwargs)
-                    else:
-                        match tool_real_name:
-                            case 'react_trigger':
-                                if not kwargs.get('prediction') or kwargs.get('prediction').lower() in ['false', 'none']:
-                                    humane = '[player]的请求当前无法被满足. 请表示你做不到, 并建议[player]自行解决或寻找其它方法.' if self.settings.basic.target_lang == 'zh' else '[player]\'s current request cannot be satisfied. please indicate that you can\'t do it, and suggest [player] doing it themselves or find another way.'
+                        case 'react_trigger':
+                            if not kwargs.get('prediction') or kwargs.get('prediction').lower() in ['false', 'none']:
+                                humane = '[player]的请求当前无法被满足. 请表示你做不到, 并建议[player]自行解决或寻找其它方法.' if self.settings.basic.target_lang == 'zh' else '[player]\'s current request cannot be satisfied. please indicate that you can\'t do it, and suggest [player] doing it themselves or find another way.'
+                            else:
+                                if kwargs.get('prediction') in self.choice_checklist:
+                                    humane = f'[player]的请求是你所了解的, 且会被系统完成, 请作出关于<{kwargs.get('prediction')}>的正面答复.' if self.settings.basic.target_lang == 'zh' else f'[player]\'s request is understood and will be done by system, please make positive answer about <{kwargs.get('prediction')}>.'
                                 else:
-                                    if kwargs.get('prediction') in self.choice_checklist:
-                                        humane = f'[player]的请求是你所了解的, 且会被系统完成, 请作出关于<{kwargs.get('prediction')}>的正面答复.' if self.settings.basic.target_lang == 'zh' else f'[player]\'s request is understood and will be done by system, please make positive answer about <{kwargs.get('prediction')}>.'
-                                    else:
-                                        humane = '[player]的请求是你所了解的, 且会被系统完成, 请作出正面答复.' if self.settings.basic.target_lang == 'zh' else '[player]\'s request is understood and will be done by system, please make positive answer.'
-                                machine = '已收到你的判断, 请继续调用其它工具或正常结束作答.' if self.settings.basic.target_lang == 'zh' else 'Your judgement recieved, please continue using other tools or end as normal.'
-                            case 'conclude_information':
-                                conclusion_answer = kwargs.get('conclusion')
-                                await messenger(None, 'maica_mfocus_conclusion', f'MFocus conclusion recieved:\n{conclusion_answer}\nEnding toolchain...')
-                                ending = True
-                                break
-                            case 'none':
-                                await messenger(None, 'maica_mfocus_empty', f'MFocus null recieved, Ending toolchain...')
-                                ending = True
-                                break
-                    if machine:
-                        await self._construct_query(tool_input=machine)
+                                    humane = '[player]的请求是你所了解的, 且会被系统完成, 请作出正面答复.' if self.settings.basic.target_lang == 'zh' else '[player]\'s request is understood and will be done by system, please make positive answer.'
+                            machine = '已收到你的判断, 请继续调用其它工具或正常结束作答.' if self.settings.basic.target_lang == 'zh' else 'Your judgement recieved, please continue using other tools or end as normal.'
+                        case 'conclude_information':
+                            conclusion_answer = kwargs.get('conclusion')
+                            await messenger(None, 'maica_mfocus_conclusion', f'MFocus conclusion recieved:\n{conclusion_answer}\nEnding toolchain...')
+                            ending = True
+                            break
+                        case 'none':
+                            await messenger(None, 'maica_mfocus_empty', f'MFocus null recieved, Ending toolchain...')
+                            ending = True
+                            break
+                if machine:
+                    await self._construct_query(tool_input=machine)
 
-                    if humane:
-                        _instructed_add(tool_real_name, humane)
-            
-                except CommonMaicaException as ce:
-                    if ce.is_critical():
-                        return 2
-                    elif ce.is_breaking():
-                        return 1
-                    else:
-                        break
-                    
-                except Exception as e:
-                    raise CommonMaicaError('An unexpected situation happened in MFocus toolchain', '500')
+                if humane:
+                    _instructed_add(tool_func_name, humane)
                 
             await messenger(None, 'maica_mfocus_round_finish', f'MFocus toolchain {cycle} round finished, ending is {str(ending)}.')
                 
