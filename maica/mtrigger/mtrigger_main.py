@@ -53,7 +53,7 @@ class MTriggerCoroutine(AsyncCreator):
                                 "type": "object",
                                 "properties": {
                                     "affection": {
-                                        "type": "float",
+                                        "type": "number",
                                         "description": "输出正数以增加好感, 负数以减少好感. 单次最大好感增幅约为3, 一般增幅约为1. 例如, 称赞你的容貌可以增加0.8, 表达爱情的短句可以增加1.5, 表达爱情的长句则可以增加3.0.\n仅当用户故意冒犯时考虑输出负数." if self.settings.basic.target_lang == 'zh' else "Emit positive number to increase affection, negative to decrease affection. The maximum increase should be around 3, while it's normally around 1.\nFor example, a compliment about your beauty could result in plus 0.8, a short sentence expressing love could result in plus 1.5, and a long phrase expressing love could result in plus 3.0.\nYou shouldn't emit a negative value unless user is offending you intensively.",
                                         "example_value": "0.25"
                                     }
@@ -129,7 +129,7 @@ class MTriggerCoroutine(AsyncCreator):
                                 "type": "object",
                                 "properties": {
                                     "value": {
-                                        "type": "float",
+                                        "type": "number",
                                         "description": f'根据用户的要求, 在{lower}到{upper}之间为{meter_name}选择一个合适的值. 如果合适的值不存在, 则回答false.' if self.settings.basic.target_lang == 'zh' else f"According to user's request, choose a proper value for {meter_name} in range {lower} to {upper}. If no value in range matches the request, return false.",
                                         "example_value": "0.25"
                                     }

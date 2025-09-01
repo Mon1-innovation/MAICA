@@ -99,17 +99,17 @@ class MFocusCoroutine(AsyncCreator):
                     "type": "object",
                     "properties": {
                         "year": {
-                            "type": "int",
+                            "type": "number",
                             "description": "需要查询日期的年份. 如果日期在今年, 则留空." if self.settings.basic.target_lang == 'zh' else "The year of the given date, leave empty for this year.",
                             "example_value": "2003"
                         },
                         "month": {
-                            "type": "int",
+                            "type": "number",
                             "description": "需要查询日期的月份. 如果日期在本月, 则留空." if self.settings.basic.target_lang == 'zh' else "The month of the given date, leave empty for this month.",
                             "example_value": "6"
                         },
                         "day": {
-                            "type": "int",
+                            "type": "number",
                             "description": "需要查询日期的日数. 如果日期在本日, 则留空." if self.settings.basic.target_lang == 'zh' else "The day of the given date, leave empty for the day today.",
                             "example_value": "26"
                         },
@@ -154,7 +154,7 @@ class MFocusCoroutine(AsyncCreator):
                             "example_value": "附近的餐馆" if self.settings.basic.target_lang == 'zh' else "Nearby restaurants"
                         },
                         "location_req": {
-                            "type": "bool",
+                            "type": "boolean",
                             "description": "该问题是否与用户的地理位置有关, 若有关则工具会自动补充." if self.settings.basic.target_lang == 'zh' else "The question is related with user's location or not, the tool will implement automatically if true given.",
                             "example_value": "true"
                         }
