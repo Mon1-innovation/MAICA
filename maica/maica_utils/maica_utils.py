@@ -211,6 +211,18 @@ async def sleep_forever() -> None:
     future = asyncio.Future()
     await future
 
+def alt_tools(tools: list) -> list:
+    """If ALT_TOOLCALL"""
+    if load_env('ALT_TOOLCALL') == '1':
+        new_tools = []
+        for tool in tools:
+            new_tools.append({})
+            new_tools[-1]['function'] = tool
+            new_tools[-1]['type'] = 'function'
+        return new_tools
+    else:
+        return tools
+
 async def messenger(websocket=None, status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaError]=None, prefix='', type='', color='', add_time=True, no_print=False) -> None:
     """It could handle most log printing, websocket sending and exception raising jobs pretty automatically."""
     if error:

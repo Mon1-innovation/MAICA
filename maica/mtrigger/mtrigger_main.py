@@ -176,8 +176,7 @@ class MTriggerCoroutine(AsyncCreator):
             }
         )
 
-        for tool in self.tools:
-            tool['type'] = 'function'
+        self.tools = alt_tools(self.tools)
 
     async def _construct_query(self, user_input=None, tool_input=None):
         if not self.serial_messages and self.settings.extra.post_additive and 1 <= self.settings.temp.chat_session <= 9:
