@@ -338,18 +338,20 @@ class NoWsCoroutine(AsyncCreator):
         return False
     
     async def maica_assert(self, condition, kwd):
+        """Normally used for input checkings."""
         if not condition:
             error = MaicaInputError(f"Illegal input {kwd} detected", '405')
             await messenger(self.websocket, 'maica_input_param_bad', traceray_id=self.traceray_id, error=error)
 
-    async def run_with_log(self, coro: Coroutine, name: str=''):
+    async def run_with_log(self, coro: Coroutine, name: str='', sending=False):
+        """It just logs the exceptions and raises them again."""
         try:
             return await coro
         except Exception as e:
             if not isinstance(e, CommonMaicaException):
                 e = CommonMaicaError(str(e), '500')
             stat = f'maica_{name}_failure' if name else 'maica_failure'
-            await messenger(self.websocket, stat, traceray_id=self.traceray_id, error=e)
+            await messenger(self.websocket if sending else None, stat, traceray_id=self.traceray_id, error=e)
 
 class WsCoroutine(NoWsCoroutine):
     """

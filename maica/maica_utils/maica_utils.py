@@ -276,7 +276,7 @@ async def messenger(websocket=None, status='', info='', code='0', traceray_id=''
             case "plain":
                 print((color or '') + msg_print, end='')
             case "carriage":
-                if 100 <= code < 200:
+                if 100 <= int(code) < 200:
                     print((color or colorama.Fore.LIGHTGREEN_EX) + msg_print, end='', flush=True)
                 else:
                     print((color or colorama.Fore.GREEN) + msg_print)

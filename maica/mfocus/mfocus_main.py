@@ -394,6 +394,9 @@ class MFocusCoroutine(AsyncCreator):
                             await messenger(None, 'maica_mfocus_empty', f'MFocus null recieved, Ending toolchain...')
                             ending = True
                             break
+                        case _:
+                            # This tool call is unrecognizable
+                            raise MaicaInputError('Unrecognizable toolcall recieved', '405')
                 if machine:
                     await self._construct_query(tool_input=machine)
 
