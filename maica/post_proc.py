@@ -89,7 +89,7 @@ def filter_format(reply_appended, target_lang='zh'):
                 full_word = '[player]'
         else:
             sig_striped = signature.strip('[').strip(']')
-            curr_emoset, oppo_emoset = emotion_etz, emotion_zte if target_lang == 'zh' else emotion_zte, emotion_etz
+            curr_emoset, oppo_emoset = (emotion_etz, emotion_zte) if target_lang == 'zh' else (emotion_zte, emotion_etz)
             if ' ' in sig_striped:
                 sig_striped = sig_striped.replace(' ', '')
             if sig_striped in oppo_emoset.keys():
