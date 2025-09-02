@@ -249,23 +249,27 @@ class MTriggerCoroutine(AsyncCreator):
             resp_content, resp_tools = await self._send_query()
             await messenger(self.websocket, 'maica_mtrigger_toolchain', f'MTrigger toolchain {cycle} round responded, response is:\n{resp_content}\nAnalyzing response...')
             tool_seq = 0
-            for resp_tool in resp_tools:
+            if resp_tools:
+                for resp_tool in resp_tools:
 
-                # Tool parallel support
-                tool_seq += 1; all_tool_count += 1
-                tool_id, tool_type, tool_func_name, tool_func_args = resp_tool.id, resp_tool.type, resp_tool.function.name, resp_tool.function.arguments
-                await messenger(None, 'maica_mtrigger_tool_acquire', f'Calling parallel tool {tool_seq}/{len(resp_tools)}:\n{resp_tool}\nSending trigger...')
+                    # Tool parallel support
+                    tool_seq += 1; all_tool_count += 1
+                    tool_id, tool_type, tool_func_name, tool_func_args = resp_tool.id, resp_tool.type, resp_tool.function.name, resp_tool.function.arguments
+                    await messenger(None, 'maica_mtrigger_tool_acquire', f'Calling parallel tool {tool_seq}/{len(resp_tools)}:\n{resp_tool}\nSending trigger...')
 
-                if tool_func_name == 'agent_finished':
-                    ending = True
-                    break
-                else:
-                    trigger_signal = {tool_func_name: try_load_json(tool_func_args)}
-                    await messenger(self.websocket, 'maica_mtrigger_trigger', trigger_signal, '101')
+                    if tool_func_name == 'agent_finished':
+                        ending = True
+                        break
+                    else:
+                        trigger_signal = {tool_func_name: try_load_json(tool_func_args)}
+                        await messenger(self.websocket, 'maica_mtrigger_trigger', trigger_signal, '101')
 
-                    machine = f'{tool_func_name}已被调用过并生效' if self.settings.basic.target_lang == 'zh' else f'{tool_func_name} has been called already and taking effect'
-                    await self._construct_query(tool_input=machine)
-            
+                        machine = f'{tool_func_name}已被调用过并生效' if self.settings.basic.target_lang == 'zh' else f'{tool_func_name} has been called already and taking effect'
+                        await self._construct_query(tool_input=machine)
+
+            else:
+                ending = True
+                
             await messenger(None, 'maica_mtrigger_round_finish', f'MTrigger toolchain {cycle} round finished, ending is {str(ending)}.')
         
         await messenger(self.websocket, 'maica_mtrigger_done', f'MTrigger ended with {all_tool_count} triggers sent', '1001')

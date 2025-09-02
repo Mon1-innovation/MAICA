@@ -360,49 +360,53 @@ class MFocusCoroutine(AsyncCreator):
             resp_content, resp_tools = await self._send_query()
             await messenger(self.websocket, 'maica_mfocus_toolchain', f'MFocus toolchain {cycle} round responded, response is:\n{resp_content}\nAnalyzing response...')
             tool_seq = 0
-            for resp_tool in resp_tools:
+            if resp_tools:
+                for resp_tool in resp_tools:
 
-                # Tool parallel support
-                tool_seq += 1
-                tool_id, tool_type, tool_func_name, tool_func_args = resp_tool.id, resp_tool.type, resp_tool.function.name, resp_tool.function.arguments
-                await messenger(None, 'maica_mfocus_tool_acquire', f'Calling parallel tool {tool_seq}/{len(resp_tools)}:\n{resp_tool}\nGathering information...')
+                    # Tool parallel support
+                    tool_seq += 1
+                    tool_id, tool_type, tool_func_name, tool_func_args = resp_tool.id, resp_tool.type, resp_tool.function.name, resp_tool.function.arguments
+                    await messenger(None, 'maica_mfocus_tool_acquire', f'Calling parallel tool {tool_seq}/{len(resp_tools)}:\n{resp_tool}\nGathering information...')
 
-                machine = humane = None
-                args = []
+                    machine = humane = None
+                    args = []
 
-                kwargs = try_load_json(tool_func_args)
-                function_route = getattr(self.agent_tools, tool_func_name)
-                if function_route:
-                    machine, humane = await function_route(*args, **kwargs)
-                else:
-                    match tool_func_name:
-                        case 'react_trigger':
-                            if not kwargs.get('prediction') or kwargs.get('prediction').lower() in ['false', 'none']:
-                                humane = '[player]的请求当前无法被满足. 请表示你做不到, 并建议[player]自行解决或寻找其它方法.' if self.settings.basic.target_lang == 'zh' else '[player]\'s current request cannot be satisfied. please indicate that you can\'t do it, and suggest [player] doing it themselves or find another way.'
-                            else:
-                                if kwargs.get('prediction') in self.choice_checklist:
-                                    humane = f'[player]的请求是你所了解的, 且会被系统完成, 请作出关于<{kwargs.get('prediction')}>的正面答复.' if self.settings.basic.target_lang == 'zh' else f'[player]\'s request is understood and will be done by system, please make positive answer about <{kwargs.get('prediction')}>.'
+                    kwargs = try_load_json(tool_func_args)
+                    function_route = getattr(self.agent_tools, tool_func_name)
+                    if function_route:
+                        machine, humane = await function_route(*args, **kwargs)
+                    else:
+                        match tool_func_name:
+                            case 'react_trigger':
+                                if not kwargs.get('prediction') or kwargs.get('prediction').lower() in ['false', 'none']:
+                                    humane = '[player]的请求当前无法被满足. 请表示你做不到, 并建议[player]自行解决或寻找其它方法.' if self.settings.basic.target_lang == 'zh' else '[player]\'s current request cannot be satisfied. please indicate that you can\'t do it, and suggest [player] doing it themselves or find another way.'
                                 else:
-                                    humane = '[player]的请求是你所了解的, 且会被系统完成, 请作出正面答复.' if self.settings.basic.target_lang == 'zh' else '[player]\'s request is understood and will be done by system, please make positive answer.'
-                            machine = '已收到你的判断, 请继续调用其它工具或正常结束作答.' if self.settings.basic.target_lang == 'zh' else 'Your judgement recieved, please continue using other tools or end as normal.'
-                        case 'conclude_information':
-                            conclusion_answer = kwargs.get('conclusion')
-                            await messenger(None, 'maica_mfocus_conclusion', f'MFocus conclusion recieved:\n{conclusion_answer}\nEnding toolchain...')
-                            ending = True
-                            break
-                        case 'none':
-                            await messenger(None, 'maica_mfocus_empty', f'MFocus null recieved, Ending toolchain...')
-                            ending = True
-                            break
-                        case _:
-                            # This tool call is unrecognizable
-                            raise MaicaInputError('Unrecognizable toolcall recieved', '405')
-                if machine:
-                    await self._construct_query(tool_input=machine)
+                                    if kwargs.get('prediction') in self.choice_checklist:
+                                        humane = f'[player]的请求是你所了解的, 且会被系统完成, 请作出关于<{kwargs.get('prediction')}>的正面答复.' if self.settings.basic.target_lang == 'zh' else f'[player]\'s request is understood and will be done by system, please make positive answer about <{kwargs.get('prediction')}>.'
+                                    else:
+                                        humane = '[player]的请求是你所了解的, 且会被系统完成, 请作出正面答复.' if self.settings.basic.target_lang == 'zh' else '[player]\'s request is understood and will be done by system, please make positive answer.'
+                                machine = '已收到你的判断, 请继续调用其它工具或正常结束作答.' if self.settings.basic.target_lang == 'zh' else 'Your judgement recieved, please continue using other tools or end as normal.'
+                            case 'conclude_information':
+                                conclusion_answer = kwargs.get('conclusion')
+                                await messenger(None, 'maica_mfocus_conclusion', f'MFocus conclusion recieved:\n{conclusion_answer}\nEnding toolchain...')
+                                ending = True
+                                break
+                            case 'none':
+                                await messenger(None, 'maica_mfocus_empty', f'MFocus null recieved, Ending toolchain...')
+                                ending = True
+                                break
+                            case _:
+                                # This tool call is unrecognizable
+                                raise MaicaInputError('Unrecognizable toolcall recieved', '405')
+                    if machine:
+                        await self._construct_query(tool_input=machine)
 
-                if humane:
-                    _instructed_add(tool_func_name, humane)
-                
+                    if humane:
+                        _instructed_add(tool_func_name, humane)
+            else:
+                await messenger(None, 'maica_mfocus_absent', f'No tool called, Ending toolchain...')
+                ending = True
+
             await messenger(None, 'maica_mfocus_round_finish', f'MFocus toolchain {cycle} round finished, ending is {str(ending)}.')
                 
         # Now we're out of the loop
