@@ -191,7 +191,6 @@ class MTriggerCoroutine(AsyncCreator):
                     assert self.serial_messages[-1]['role'] == 'assistant', 'Additive got corrupted chat history'
 
         if user_input:
-            self.serial_messages.append({'role': 'user', 'content': user_input})
 
             # Having user input here suggests the last tool calls are over.
             # So we have to cleanup the thinking part and toolcalls.
@@ -209,7 +208,10 @@ class MTriggerCoroutine(AsyncCreator):
                 assistant_last_msg = ReUtils.re_search_post_think.search(assistant_last_msg)[1]
             except Exception:
                 pass
-            self.serial_messages.append({'role': 'assistant', 'content': assistant_last_msg})
+            if assistant_last_msg:
+                self.serial_messages.append({'role': 'assistant', 'content': assistant_last_msg})
+
+            self.serial_messages.append({'role': 'user', 'content': user_input})
 
         elif tool_input:
             self.serial_messages.append({'role': 'tool', 'content': tool_input})
