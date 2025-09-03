@@ -388,7 +388,7 @@ class MFocusCoroutine(AsyncCreator):
                                     humane = '[player]的请求当前无法被满足. 请表示你做不到, 并建议[player]自行解决或寻找其它方法.' if self.settings.basic.target_lang == 'zh' else '[player]\'s current request cannot be satisfied. please indicate that you can\'t do it, and suggest [player] doing it themselves or find another way.'
                                 else:
                                     if kwargs.get('prediction') in self.choice_checklist:
-                                        humane = f'[player]的请求是你所了解的, 且会被系统完成, 请作出关于<{kwargs.get('prediction')}>的正面答复.' if self.settings.basic.target_lang == 'zh' else f'[player]\'s request is understood and will be done by system, please make positive answer about <{kwargs.get('prediction')}>.'
+                                        humane = f'[player]的请求是你所了解的, 且会被系统完成, 请作出关于<{kwargs.get("prediction")}>的正面答复.' if self.settings.basic.target_lang == 'zh' else f'[player]\'s request is understood and will be done by system, please make positive answer about <{kwargs.get("prediction")}>.'
                                     else:
                                         humane = '[player]的请求是你所了解的, 且会被系统完成, 请作出正面答复.' if self.settings.basic.target_lang == 'zh' else '[player]\'s request is understood and will be done by system, please make positive answer.'
                                 machine = '已收到你的判断, 请继续调用其它工具或正常结束作答.' if self.settings.basic.target_lang == 'zh' else 'Your judgement recieved, please continue using other tools or end as normal.'
