@@ -646,7 +646,7 @@ class SfBoundCoroutine(SideBoundCoroutine):
         return result
 
     def _conclude_moni_sf(self, extra=0):
-        target_lang = self.target_lang
+        target_lang = self.settings.basic.target_lang
         if target_lang == 'zh':
             data_ex = [
                 '莫妮卡是[player]的女友.',
