@@ -178,7 +178,7 @@ class MTriggerCoroutine(AsyncCreator):
 
         self.tools = alt_tools(self.tools)
 
-    async def _construct_query(self, user_input=None, tool_input=None):
+    async def _construct_query(self, user_input=None, tool_input=None, tool_id=None):
         if not self.serial_messages and self.settings.extra.post_additive and 1 <= self.settings.temp.chat_session <= 9:
             sql_expression = 'SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
             result = await self.maica_pool.query_get(expression=sql_expression, values=(self.settings.verification.user_id, self.settings.temp.chat_session))
@@ -214,7 +214,7 @@ class MTriggerCoroutine(AsyncCreator):
             self.serial_messages.append({'role': 'user', 'content': user_input})
 
         elif tool_input:
-            self.serial_messages.append({'role': 'tool', 'content': tool_input})
+            self.serial_messages.append({'role': 'tool', 'tool_call_id': tool_id, 'content': tool_input})
 
     async def _send_query(self) -> tuple[str, list]:
         completion_args = {
@@ -271,7 +271,7 @@ class MTriggerCoroutine(AsyncCreator):
                         await messenger(self.websocket, 'maica_mtrigger_trigger', trigger_signal, '101')
 
                         machine = f'{tool_func_name}已被调用过并生效' if self.settings.basic.target_lang == 'zh' else f'{tool_func_name} has been called already and taking effect'
-                        await self._construct_query(tool_input=machine)
+                        await self._construct_query(tool_input=machine, tool_id=tool_id)
 
             else:
                 ending = True

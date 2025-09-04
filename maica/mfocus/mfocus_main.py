@@ -266,7 +266,7 @@ class MFocusCoroutine(AsyncCreator):
 
         self.tools = alt_tools(self.tools)
 
-    async def _construct_query(self, user_input=None, tool_input=None):
+    async def _construct_query(self, user_input=None, tool_input=None, tool_id=None):
         if not self.serial_messages and self.settings.extra.pre_additive and 1 <= self.settings.temp.chat_session <= 9:
             sql_expression = 'SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
             result = await self.maica_pool.query_get(expression=sql_expression, values=(self.settings.verification.user_id, self.settings.temp.chat_session))
@@ -302,7 +302,7 @@ class MFocusCoroutine(AsyncCreator):
             self.serial_messages.append({'role': 'user', 'content': user_input})
 
         elif tool_input:
-            self.serial_messages.append({'role': 'tool', 'content': tool_input})
+            self.serial_messages.append({'role': 'tool', 'tool_call_id': tool_id, 'content': tool_input})
 
     async def _send_query(self) -> tuple[str, list]:
         completion_args = {
@@ -405,7 +405,7 @@ class MFocusCoroutine(AsyncCreator):
                                 # This tool call is unrecognizable
                                 raise MaicaInputError('Unrecognizable toolcall recieved', '405')
                     if machine:
-                        await self._construct_query(tool_input=machine)
+                        await self._construct_query(tool_input=machine, tool_id=tool_id)
 
                     if humane:
                         _instructed_add(tool_func_name, humane)
