@@ -204,10 +204,10 @@ class MTriggerCoroutine(AsyncCreator):
             assistant_last_msg = ''
             for msg in assistant_last_msg_list:
                 assistant_last_msg = msg.get('content') + assistant_last_msg
-            try:
-                assistant_last_msg = ReUtils.re_search_post_think.search(assistant_last_msg)[1]
-            except Exception:
-                pass
+
+            # Then we peal off the thinking part
+            assistant_last_msg = proceed_agent_response(assistant_last_msg)
+
             if assistant_last_msg:
                 self.serial_messages.append({'role': 'assistant', 'content': assistant_last_msg})
 

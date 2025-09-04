@@ -39,6 +39,8 @@ async def internet_search(fsc: FullSocketsContainer, query, original_query):
         if rank <= 3:
             results_humane += f'信息{rank}\n标题:{title}\n内容:{text}\n'
 
+    await messenger(info=f'MFocus got {rank} information lines from search engine', type=MsgType.DEBUG)
+
     results_full_str = str(results_full).strip('[').strip(']')
     results_short_str = str(results_short).strip('[').strip(']')
     if not fsc.maica_settings.extra.esc_aggressive:
@@ -64,14 +66,9 @@ Begin!"""
     resp = await fsc.mfocus_conn.make_completion(**completion_args)
     response = resp.choices[0].message.content
             
-    await messenger(None, 'mfocus_internet_search', f"MFocus toolchain searching internet, response is:\n{response}\nEnd of MFocus toolchain searching internet", '201')
-    try:
-        answer_post_think = (ReUtils.re_search_post_think.search(response))[1]
-    except Exception:
-        if response and not response.lower() in ['false', 'null', 'none']:
-            answer_post_think = response
-        else:
-            answer_post_think = None
+    await messenger(fsc.rsc.websocket, 'mfocus_internet_search', f"MFocus toolchain searching internet, response is:\n{response}\nEnd of MFocus toolchain searching internet", '201')
+    
+    answer_post_think = proceed_agent_response(response)
     return answer_post_think, answer_post_think
 
 if __name__ == '__main__':

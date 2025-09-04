@@ -763,7 +763,7 @@ class SfBoundCoroutine(SideBoundCoroutine):
         self.formed_info = conclusion
         return self.formed_info
 
-    async def mfocus_find_info(self, query) -> Optional[str]:
+    async def mfocus_find_info(self, query) -> Optional[list]:
         if not self.settings.basic.sf_extraction and not self.settings.temp.sf_extraction_once:
             return None
         information = (await wrap_run_in_exc(None, self._mfocus_form_info))
@@ -789,18 +789,9 @@ Begin!"""
         response = resp.choices[0].message.content
                 
         await messenger(self.websocket, 'mfocus_sfe_search', f"MFocus sfe searching persistent, response is:\n{response}\nEnd of MFocus sfe searching persistent", '201')
-        try:
-            answer_post_think = (ReUtils.re_search_post_think.search(response))[1]
-        except Exception:
-            if response and not response.lower() in ['false', 'null', 'none']:
-                answer_post_think = response
-            else:
-                answer_post_think = None
-        if answer_post_think and not ReUtils.re_search_answer_none.search(answer_post_think):
-            answer_fin = (ReUtils.re_search_answer_json.search(answer_post_think))[1]
-        else:
-            answer_fin = None
-        return answer_fin
+        
+        answer_fin_json = proceed_agent_response(response, is_json=True)
+        return answer_fin_json
 
     def add_extra(self, **kwargs) -> None:
         self.sf_forming_buffer.update(kwargs)

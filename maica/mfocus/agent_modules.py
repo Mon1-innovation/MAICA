@@ -243,17 +243,12 @@ class AgentTools():
         """Gets value from persistent. Requires fsc and sf_inst and query."""
         query = args[0] if args else kwargs.get('query')
         target_lang = self.fsc.maica_settings.basic.target_lang
-        response = await self.sf_inst.mfocus_find_info(query)
-        if response:
-            content = response
-            try:
-                persistent_friendly = json.loads(content)
-            except Exception:
-                persistent_friendly = content
+        response_json = await self.sf_inst.mfocus_find_info(query)
+        if response_json:
+            content = json.dumps(response_json, ensure_ascii=False)
         else:
             content = '没有相关信息' if target_lang == 'zh' else "No related information found"
-            persistent_friendly = None
-        return content, persistent_friendly
+        return content, response_json
 
     async def search_internet(self, *args: list[str], **kwargs: dict[str: str]) -> tuple[str, str]:
         """Searches result from internet. Requires fsc and location_req and query and original_query, optional sf_inst."""
@@ -273,8 +268,7 @@ class AgentTools():
             query = geolocation + query
             original_query = geolocation + original_query
 
-        result = await internet_search(self.fsc, query, original_query)
-        return result
+        return await internet_search(self.fsc, query, original_query)
 
 if __name__ == "__main__":
     import asyncio

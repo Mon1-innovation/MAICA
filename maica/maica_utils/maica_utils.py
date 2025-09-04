@@ -223,6 +223,26 @@ def alt_tools(tools: list) -> list:
     else:
         return tools
 
+def proceed_agent_response(text: str, is_json=False) -> Union[str, list, dict]:
+    """Proceeds thinking/nothinking."""
+    try:
+        answer_post_think = (ReUtils.re_search_post_think.search(text))[1]
+    except Exception:
+        if text and not text.lower() in ['false', 'null', 'none']:
+            answer_post_think = text
+        else:
+            answer_post_think = None
+    if answer_post_think and not ReUtils.re_search_answer_none.search(answer_post_think) and is_json:
+        try:
+            answer_fin = (ReUtils.re_search_answer_json.search(answer_post_think))[1]
+            answer_fin_json = json.loads(answer_fin)
+            return answer_fin_json
+        except Exception:
+            answer_fin = None
+    else:
+        answer_fin = answer_post_think
+    return answer_fin
+
 async def messenger(websocket=None, status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaError]=None, prefix='', type='', color='', add_time=True, no_print=False) -> None:
     """It could handle most log printing, websocket sending and exception raising jobs pretty automatically."""
     if error:
