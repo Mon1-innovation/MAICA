@@ -119,7 +119,7 @@ class ShortConnHandler(View):
     async def delete_savefile(self):
         """DELETE"""
         json_data = await request.get_json()
-        valid_data = await self._validate_http(json_data, must=['access_token', 'chat_session', 'content'])
+        valid_data = await self._validate_http(json_data, must=['access_token', 'chat_session'])
 
         chat_session = valid_data.get('chat_session')
 
@@ -152,7 +152,7 @@ class ShortConnHandler(View):
     async def delete_trigger(self):
         """DELETE"""
         json_data = await request.get_json()
-        valid_data = await self._validate_http(json_data, must=['access_token', 'chat_session', 'content'])
+        valid_data = await self._validate_http(json_data, must=['access_token', 'chat_session'])
 
         chat_session = valid_data.get('chat_session')
 
