@@ -22,7 +22,7 @@ MVISTA_ADDR = ''
 MVISTA_KEY = 'EMPTY'
 # MVista VL model choice, leave empty for first
 MVISTA_CHOICE = ''
-# If the endpoints requires wrapping 'function' of tools
+# 0 = ms-swift, 1 = deepseek, 2 = openai
 ALT_TOOLCALL = '1'
 
 # Data exchanging endpoint settings

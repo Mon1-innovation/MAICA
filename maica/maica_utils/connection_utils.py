@@ -3,6 +3,7 @@ import aiosqlite
 import asyncio
 import traceback
 from openai import AsyncOpenAI
+from openai.types.chat import ChatCompletion
 from .maica_utils import *
 from .setting_utils import *
 """Import layer 3"""
@@ -236,7 +237,7 @@ class AiConnCoroutine(AsyncCreator):
                 error = MaicaResponseError(f'Failure when trying reconnecting to {self.name}', '502')
                 await messenger(None, f'{self.name}_reconn_failure', traceray_id='ai_handling', type=MsgType.ERROR)
             
-    async def make_completion(self, **kwargs):
+    async def make_completion(self, **kwargs) -> ChatCompletion:
         for tries in range(0, 3):
             try:
                 await self.keep_alive()

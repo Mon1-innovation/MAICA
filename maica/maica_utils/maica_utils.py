@@ -213,15 +213,20 @@ async def sleep_forever() -> None:
 
 def alt_tools(tools: list) -> list:
     """If ALT_TOOLCALL"""
-    if load_env('ALT_TOOLCALL') == '1':
-        new_tools = []
-        for tool in tools:
-            new_tools.append({})
-            new_tools[-1]['function'] = tool
-            new_tools[-1]['type'] = 'function'
-        return new_tools
-    else:
-        return tools
+    match load_env('ALT_TOOLCALL'):
+        case '0':
+            return tools
+        case '1':
+            new_tools = []
+            for tool in tools:
+                new_tools.append({})
+                new_tools[-1]['function'] = tool
+                new_tools[-1]['type'] = 'function'
+                return new_tools
+        case '2':
+            for tool in tools:
+                tool['type'] = 'function'
+                return tools
 
 def proceed_agent_response(text: str, is_json=False) -> Union[str, list, dict]:
     """Proceeds thinking/nothinking."""

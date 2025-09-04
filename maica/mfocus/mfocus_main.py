@@ -3,7 +3,7 @@ import random
 import traceback
 import asyncio
 
-from openai import *
+from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from typing import *
 from .mfocus_sfe import SfBoundCoroutine
 from mtrigger.mtrigger_sfe import MtBoundCoroutine
@@ -283,15 +283,16 @@ class MFocusCoroutine(AsyncCreator):
             # Having user input here suggests the last tool calls are over.
             # So we have to cleanup the thinking part and toolcalls.
             self.serial_messages = [msg for msg in self.serial_messages if msg.get('role') != 'tool']
-            assistant_last_msg_list = []
+            assistant_last_msg = ''
             for msg in self.serial_messages[::-1]:
-                if msg.get('role') == 'assistant':
-                    assistant_last_msg_list.append(self.serial_messages.pop(-1))
+                if isinstance(msg, ChatCompletionMessage):
+                    assistant_last_msg = msg.content + assistant_last_msg
+                    self.serial_messages.pop()
+                elif msg.get('role') == 'assistant':
+                    assistant_last_msg = msg.get('content') + assistant_last_msg
+                    self.serial_messages.pop()
                 else:
                     break
-            assistant_last_msg = ''
-            for msg in assistant_last_msg_list:
-                assistant_last_msg = msg.get('content') + assistant_last_msg
 
             # Then we peal off the thinking part
             assistant_last_msg = proceed_agent_response(assistant_last_msg)
@@ -319,7 +320,10 @@ class MFocusCoroutine(AsyncCreator):
         resp = await self.mfocus_conn.make_completion(**completion_args)
         content, tool_calls = resp.choices[0].message.content, resp.choices[0].message.tool_calls
 
-        self.serial_messages.append({"role": "assistant", "content": content})
+        if load_env('ALT_TOOLCALL') != '0':
+            self.serial_messages.append(resp.choices[0].message)
+        else:
+            self.serial_messages.append({"role": "assistant", "content": content})
         return content, tool_calls
     
     async def agenting(self, query):
