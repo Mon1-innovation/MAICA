@@ -148,7 +148,7 @@ class MFocusCoroutine(AsyncCreator):
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "question": {
+                        "query": {
                             "type": "string",
                             "description": "需要在搜索引擎中搜索的问题, 应当是一个简洁的句子." if self.settings.basic.target_lang == 'zh' else "The question needs to be searched on Google, which should be a simple sentence.",
                             "example_value": "附近的餐馆" if self.settings.basic.target_lang == 'zh' else "Nearby restaurants"
@@ -160,7 +160,7 @@ class MFocusCoroutine(AsyncCreator):
                         }
                     },
                     "required": [
-                        "question",
+                        "query",
                     ],
                     "optional": [
                         "location_req",

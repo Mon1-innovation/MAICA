@@ -273,18 +273,17 @@ class AgentTools():
             query = geolocation + query
             original_query = geolocation + original_query
 
-        try:
-            result = await internet_search(self.fsc, query, original_query)
-        except CommonMaicaException as ce:
-            await messenger(None, 'maica_mfocus_search_failed', traceray_id=self.fsc.rsc.traceray_id, error=ce)
+        result = await internet_search(self.fsc, query, original_query)
         return result
 
 if __name__ == "__main__":
     import asyncio
     fsc = FullSocketsContainer(maica_settings=MaicaSettings())
     fsc.maica_settings.verification.update(user_id=23, username="edge")
+    fsc.maica_settings.update(esc_aggressive=False)
     sf_inst = SfBoundCoroutine(fsc)
     at = AgentTools(fsc, sf_inst)
-    res_d = asyncio.run(at.date_acquire())
-    res_e = asyncio.run(at.event_acquire(year=2025, month=10, day=1))
-    print(res_d)
+    # res_d = asyncio.run(at.date_acquire())
+    # res_e = asyncio.run(at.event_acquire(year=2025, month=10, day=1))
+    res_i = asyncio.run(at.search_internet('24年奥运会', False, '24年奥运会在哪里'))
+    print(res_i)

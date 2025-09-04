@@ -12,9 +12,9 @@ async def internet_search(fsc: FullSocketsContainer, query, original_query):
     for tries in range(0, 3):
         try:
 
-        # Here goes the search module
-        # Highly unstable I would say
-        # Fuck google
+            # Here goes the search module
+            # Highly unstable I would say
+            # Fuck google
             results_async = asearch(query, advanced=True, proxy=load_env("PROXY_ADDR"))
             results_sync = []
             async for result_async in results_async:
