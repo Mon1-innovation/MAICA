@@ -378,7 +378,7 @@ class MFocusCoroutine(AsyncCreator):
                     args = []
 
                     kwargs = try_load_json(tool_func_args)
-                    function_route = getattr(self.agent_tools, tool_func_name)
+                    function_route = getattr(self.agent_tools, tool_func_name, None)
                     if function_route:
                         machine, humane = await function_route(*args, **kwargs)
                     else:
