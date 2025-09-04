@@ -45,9 +45,9 @@ async def internet_search(fsc: FullSocketsContainer, query, original_query):
         return results_short_str, results_humane
 
     system_init = """你是一个人工智能助手, 你接下来会收到一个问题和一些来自互联网的信息.
-以单行不换行的自然语言的形式, 回答用户的原始问题, 并整理提供相关的信息. 如果你最终认为提供的信息不足以作答, 仅回答None.
+以单行不换行的自然语言的形式, 回答用户的原始问题, 并整理提供相关的信息. 如果你最终认为提供的信息不足以作答, 返回false.
 Begin!""" if target_lang == 'zh' else """You are a helpful assistant, now you will recieve a question and some information from the Internet.
-Answer the question in a single line of natural sentence, and conclude and offer related information briefly. If you think the provided information is not enough finally, answer None.
+Answer the question in a single line of natural sentence, and conclude and offer related information briefly. If you think the provided information is not enough finally, return false.
 Begin!"""
 
     messages = [{'role': 'system', 'content': system_init}]
