@@ -47,6 +47,7 @@ class NoWsCoroutine(AsyncCreator):
     def flush_traceray(self) -> None:
         """Generates a new traceray_id for this instance."""
         self.traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
+        self.fsc.rsc.traceray_id = self.traceray_id
 
     async def _create_session(self, user_id=None, chat_session_num=None, content=None) -> int:
         user_id = self.settings.verification.user_id if not user_id else user_id
@@ -502,6 +503,7 @@ class WsCoroutine(NoWsCoroutine):
                 elif ce.is_breaking():
                     return 1
                 else:
+                    await messenger(websocket, 'maica_loop_warn_finished', 'Loop hit a user level exception, stopped and reset', '304')
                     continue
 
             except websockets.exceptions.WebSocketException as we:
