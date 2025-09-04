@@ -267,6 +267,8 @@ class AgentTools():
                 geolocation = self.sf_inst.read_from_sf('mas_geolocation')
             except Exception:
                 geolocation = None
+        else:
+            geolocation = None
         if geolocation:
             query = geolocation + query
             original_query = geolocation + original_query
