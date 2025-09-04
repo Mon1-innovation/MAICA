@@ -43,7 +43,7 @@ class SideBoundCoroutine(AsyncCreator):
     async def _check_expired_or_not(self) -> bool:
         if self.p_id and self.timestamp and self.sf_content:
             sql_expression_1 = f'SELECT timestamp FROM {self.DB_NAME} WHERE {self.PRIM_KEY} = %s'
-            result = await self.maica_pool.query_get(sql_expression_1, (self.p_id))
+            result = await self.maica_pool.query_get(sql_expression_1, (self.p_id, ))
             new_timestamp = result[0]
             if new_timestamp == self.timestamp:
                 return False
