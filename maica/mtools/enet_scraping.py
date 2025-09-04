@@ -65,7 +65,13 @@ Begin!"""
     response = resp.choices[0].message.content
             
     await messenger(None, 'mfocus_internet_search', f"MFocus toolchain searching internet, response is:\n{response}\nEnd of MFocus toolchain searching internet", '201')
-    answer_post_think = (ReUtils.re_search_post_think.search(response))[1]
+    try:
+        answer_post_think = (ReUtils.re_search_post_think.search(response))[1]
+    except Exception:
+        if response and not response.lower() in ['false', 'null', 'none']:
+            answer_post_think = response
+        else:
+            answer_post_think = None
     return answer_post_think, answer_post_think
 
 if __name__ == '__main__':

@@ -769,10 +769,10 @@ class SfBoundCoroutine(SideBoundCoroutine):
         information = (await wrap_run_in_exc(None, self._mfocus_form_info))
         system_init = """你是一个人工智能助手, 你接下来会收到一个问题和一系列信息.
 注意不要对信息作任何改动. 你可以认为[player]是用户的名字, 莫妮卡是你的名字.
-从信息中挑选1至5条最能用于回答的信息, 互不重复, 并以单行json列表的形式输出. 如果你最终认为没有信息符合条件, 回答None.
+从信息中挑选1至5条最能用于回答的信息, 互不重复, 并以单行json列表的形式输出. 如果你最终认为没有信息符合条件, 输出false.
 Begin!""" if self.settings.basic.target_lang == 'zh' else """You are a helpful assistant, now you will recieve a question and a list of information.
 Remember not to modify any item. Output them as what they were. You can consider [player] as user's name and Monika as yours.
-Pick 1 to 5 independent items from the information that helps answering the question the most, and return them in a json list. If you think no information provided is helpful at last, answer None.
+Pick 1 to 5 independent items from the information that helps answering the question the most, and return them in a json list. If you think no information provided is helpful at last, return false.
 Begin!"""
         messages = [{'role': 'system', 'content': system_init}]
         messages.append({'role': 'user', 'content': f'question: {query}; information: {information}'})
@@ -789,7 +789,13 @@ Begin!"""
         response = resp.choices[0].message.content
                 
         await messenger(self.websocket, 'mfocus_sfe_search', f"MFocus sfe searching persistent, response is:\n{response}\nEnd of MFocus sfe searching persistent", '201')
-        answer_post_think = (ReUtils.re_search_post_think.search(response))[1]
+        try:
+            answer_post_think = (ReUtils.re_search_post_think.search(response))[1]
+        except Exception:
+            if response and not response.lower() in ['false', 'null', 'none']:
+                answer_post_think = response
+            else:
+                answer_post_think = None
         if answer_post_think and not ReUtils.re_search_answer_none.search(answer_post_think):
             answer_fin = (ReUtils.re_search_answer_json.search(answer_post_think))[1]
         else:
