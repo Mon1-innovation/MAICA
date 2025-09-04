@@ -5,7 +5,7 @@ class SentenceOfTheDay():
     special_sentences = [
 
         # Well I considered to use the sentences above, but I decided to make it
-        # a little bit vanilla finally.
+        # a little bit more vanilla finally.
 
         # It's okay to write whatever you like here, for your own deployment.
 
