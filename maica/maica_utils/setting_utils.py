@@ -13,12 +13,6 @@ class MaicaSettings():
         def __init__(self):
             self._lock = False
 
-        def _try_lock(self):
-            pass
-
-        def force_lock(self):
-            self._lock = True
-
         def reset(self):
             self.__init__()
 
@@ -53,6 +47,12 @@ class MaicaSettings():
             self._nickname: Optional[str] = None
             self._email: str = None
 
+        def _try_lock(self):
+            pass
+
+        def force_lock(self):
+            self._lock = True
+            
         @property
         @Decos.report_reading_error
         def user_id(self):
