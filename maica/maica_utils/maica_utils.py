@@ -209,9 +209,10 @@ class Decos():
 
     def report_limit_error(func):
         """Raises when the input param coming from program is out of bound."""
-        def wrapper(*args, **kwargs):
+        def wrapper(self, *args, **kwargs):
             try:
-                return func(*args, **kwargs)
+                assert not getattr(self, '_lock', None)
+                return func(self, *args, **kwargs)
             except Exception as e:
                 if not str(e):
                     e = 'Assertion'
