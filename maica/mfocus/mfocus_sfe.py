@@ -788,7 +788,7 @@ Begin!"""
         resp = await self.mfocus_conn.make_completion(**completion_args)
         response = resp.choices[0].message.content
                 
-        await messenger(self.websocket, 'mfocus_sfe_search', f"MFocus sfe searching persistent, response is:\n{response}\nEnd of MFocus sfe searching persistent", '201')
+        await messenger(None, 'mfocus_sfe_search', f"\nMFocus sfe searching persistent, response is:\n{response}\nEnd of MFocus sfe searching persistent", '201')
         
         answer_fin_json = proceed_agent_response(response, is_json=True)
         return answer_fin_json

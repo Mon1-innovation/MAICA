@@ -66,7 +66,7 @@ Begin!"""
     resp = await fsc.mfocus_conn.make_completion(**completion_args)
     response = resp.choices[0].message.content
             
-    await messenger(fsc.rsc.websocket, 'mfocus_internet_search', f"MFocus toolchain searching internet, response is:\n{response}\nEnd of MFocus toolchain searching internet", '201')
+    await messenger(None, 'mfocus_internet_search', f"\nMFocus toolchain searching internet, response is:\n{response}\nEnd of MFocus toolchain searching internet", '201')
     
     answer_post_think = proceed_agent_response(response)
     return answer_post_think, answer_post_think

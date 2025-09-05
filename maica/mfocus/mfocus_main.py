@@ -368,7 +368,7 @@ class MFocusCoroutine(AsyncCreator):
             cycle += 1
 
             resp_content, resp_tools = await self._send_query()
-            await messenger(self.websocket, 'maica_mfocus_toolchain', f'MFocus toolchain {cycle} round responded, response is:\n{resp_content}\nAnalyzing response...')
+            await messenger(self.websocket, 'maica_mfocus_toolchain', f'\nMFocus toolchain {cycle} round responded, response is:\n{resp_content}\nAnalyzing response...')
             tool_seq = 0
             if resp_tools:
                 for resp_tool in resp_tools:
@@ -376,7 +376,7 @@ class MFocusCoroutine(AsyncCreator):
                     # Tool parallel support
                     tool_seq += 1
                     tool_id, tool_type, tool_func_name, tool_func_args = resp_tool.id, resp_tool.type, resp_tool.function.name, resp_tool.function.arguments
-                    await messenger(None, 'maica_mfocus_tool_acquire', f'Calling parallel tool {tool_seq}/{len(resp_tools)}:\n{resp_tool}\nGathering information...')
+                    await messenger(None, 'maica_mfocus_tool_acquire', f'\nCalling parallel tool {tool_seq}/{len(resp_tools)}:\n{resp_tool}\nGathering information...')
 
                     machine = humane = None
                     args = []
@@ -398,7 +398,7 @@ class MFocusCoroutine(AsyncCreator):
                                 machine = '已收到你的判断, 请继续调用其它工具或正常结束作答.' if self.settings.basic.target_lang == 'zh' else 'Your judgement recieved, please continue using other tools or end as normal.'
                             case 'conclude_information':
                                 conclusion_answer = kwargs.get('conclusion')
-                                await messenger(None, 'maica_mfocus_conclusion', f'MFocus conclusion recieved:\n{conclusion_answer}\nEnding toolchain...')
+                                await messenger(None, 'maica_mfocus_conclusion', f'\nMFocus conclusion recieved:\n{conclusion_answer}\nEnding toolchain...')
                                 ending = True
                                 break
                             case 'none':

@@ -254,7 +254,7 @@ class MTriggerCoroutine(AsyncCreator):
             cycle += 1
 
             resp_content, resp_tools = await self._send_query()
-            await messenger(self.websocket, 'maica_mtrigger_toolchain', f'MTrigger toolchain {cycle} round responded, response is:\n{resp_content}\nAnalyzing response...')
+            await messenger(self.websocket, 'maica_mtrigger_toolchain', f'\nMTrigger toolchain {cycle} round responded, response is:\n{resp_content}\nAnalyzing response...')
             tool_seq = 0
             if resp_tools:
                 for resp_tool in resp_tools:
@@ -262,7 +262,7 @@ class MTriggerCoroutine(AsyncCreator):
                     # Tool parallel support
                     tool_seq += 1; all_tool_count += 1
                     tool_id, tool_type, tool_func_name, tool_func_args = resp_tool.id, resp_tool.type, resp_tool.function.name, resp_tool.function.arguments
-                    await messenger(None, 'maica_mtrigger_tool_acquire', f'Calling parallel tool {tool_seq}/{len(resp_tools)}:\n{resp_tool}\nSending trigger...')
+                    await messenger(None, 'maica_mtrigger_tool_acquire', f'\nCalling parallel tool {tool_seq}/{len(resp_tools)}:\n{resp_tool}\nSending trigger...')
 
                     if tool_func_name == 'agent_finished':
                         ending = True

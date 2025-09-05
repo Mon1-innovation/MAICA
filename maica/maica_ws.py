@@ -398,7 +398,7 @@ class WsCoroutine(NoWsCoroutine):
 
                     await self.populate_auxiliary_inst()
 
-                    await messenger(info=f'Authentication passed: {self.settings.verification.username}({self.settings.verification.user_id})', type=MsgType.PRIM_RECV)
+                    await messenger(info=f'Authentication passed: {self.settings.verification.username}({self.settings.verification.user_id})', type=MsgType.LOG)
                     await messenger(websocket, 'maica_login_id', f"{self.settings.verification.user_id}", '200', no_print=True)
                     await messenger(websocket, 'maica_login_user', f"{self.settings.verification.username}", '200', no_print=True)
                     await messenger(websocket, 'maica_login_nickname', f"{self.settings.verification.nickname}", '200', no_print=True)
@@ -706,7 +706,7 @@ class WsCoroutine(NoWsCoroutine):
             if self.settings.temp.ic_prep:
                 completion_args['presence_penalty'] = 1.0-(1.0-completion_args['presence_penalty'])*(2/3)
 
-            await messenger(info=f'Query constrcted and ready to go, last input is:\n{query_in}\nSending query...', type=MsgType.PRIM_RECV)
+            await messenger(info=f'\nQuery constrcted and ready to go, last input is:\n{query_in}\nSending query...', type=MsgType.PRIM_RECV)
 
             if not self.settings.temp.bypass_gen or not replace_generation: # They should present together
 
