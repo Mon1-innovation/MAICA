@@ -43,14 +43,20 @@ class SideBoundCoroutine(AsyncCreator):
     async def _check_expired_or_not(self) -> bool:
         if self.p_id and self.timestamp and self.sf_content:
             sql_expression_1 = f'SELECT timestamp FROM {self.DB_NAME} WHERE {self.PRIM_KEY} = %s'
-            result = await self.maica_pool.query_get(sql_expression_1, (self.p_id, ))
-            new_timestamp = result[0]
-            if new_timestamp == self.timestamp:
-                return False
+            try:
+                result = await self.maica_pool.query_get(sql_expression_1, (self.p_id, ))
+                new_timestamp = result[0]
+                if new_timestamp == self.timestamp:
+                    return False
+            except Exception:
+                if self.sf_content is self.EMPTY:
+                    return False
+                else:
+                    return True
         return True
 
     async def reset(self, force=False) -> None:
-        if await self._check_expired_or_not() or force:
+        if  force or await self._check_expired_or_not():
             try:
                 sql_expression = f'SELECT {self.PRIM_KEY}, content, timestamp FROM {self.DB_NAME} WHERE user_id = %s AND chat_session_num = %s'
                 result = await self.maica_pool.query_get(sql_expression, (self.settings.verification.user_id, await self._find_session_or_default()))

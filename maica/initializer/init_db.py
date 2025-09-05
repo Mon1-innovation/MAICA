@@ -181,14 +181,41 @@ CREATE TABLE IF NOT EXISTS ms_cache (
     content TEXT DEFAULT NULL,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 )
+""",
 """
+CREATE TRIGGER IF NOT EXISTS update_timestamp_persistents
+AFTER UPDATE ON persistents
+FOR EACH ROW
+BEGIN
+    UPDATE persistents
+    SET timestamp = CURRENT_TIMESTAMP
+    WHERE id = OLD.id;
+END;
+""",
+"""
+CREATE TRIGGER IF NOT EXISTS update_timestamp_triggers
+AFTER UPDATE ON triggers
+FOR EACH ROW
+BEGIN
+    UPDATE triggers
+    SET timestamp = CURRENT_TIMESTAMP
+    WHERE id = OLD.id;
+END;
+""",
+"""
+CREATE TRIGGER IF NOT EXISTS update_timestamp_ms_cache
+AFTER UPDATE ON ms_cache
+FOR EACH ROW
+BEGIN
+    UPDATE ms_cache
+    SET timestamp = CURRENT_TIMESTAMP
+    WHERE id = OLD.id;
+END;
+""",
     ]
 
-    # Caution: SQLite tables behave different with MySQL for timestamps, since there
-    # is no convenient way to make timestamp update on row update in SQLite.
-
-    # We're ignoring this because the timestamp update is not actually happening in the
-    # current codes. If you want to customize, consider adding a trigger.
+    # Notice: These triggers act as 'on update CURRENT_TIMESTAMP', since
+    # there is no convenient way for this in SQLite.
 
     if basic_pool:
         for table in maica_tables:
