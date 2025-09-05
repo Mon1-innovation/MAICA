@@ -1,7 +1,7 @@
 from typing import *
 from maica_utils import *
 
-STRUCTURE_NOT_INTACT = MaicaInputWarning(f'Trigger structure not intact', '400')
+STRUCTURE_NOT_INTACT = MaicaInputWarning(f'Trigger structure not intact', '400', 'maica_mtrigger_item_bad')
 
 class CommonTrigger():
     template = None
@@ -78,4 +78,5 @@ class CustomizedTrigger(CommonTrigger):
         try:
             self.exprop = _exprop(**kwargs.get('exprop'))
         except:
+            print(self.name)
             raise STRUCTURE_NOT_INTACT
