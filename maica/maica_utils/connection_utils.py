@@ -33,13 +33,12 @@ class DbPoolCoroutine(AsyncCreator):
             async with self.pool.acquire():
                 pass
         except Exception:
-            await messenger(None, f'{self.db}_reconn', f"Recreating {self.db} pool since cannot acquire", '301', type=MsgType.WARN)
+            await messenger(info=f"Recreating {self.db} pool since cannot acquire", type=MsgType.WARN)
             try:
                 self.pool.close()
                 await self._ainit()
             except Exception:
-                error = MaicaDbError(f'Failure when trying reconnecting to {self.db}', '502')
-                await messenger(None, f'{self.db}_reconn_failure', traceray_id='db_handling', type=MsgType.ERROR)
+                raise MaicaDbError(f'Failure when trying reconnecting to {self.db}', '502', 'db_connection_failed')
 
     async def query_get(self, expression, values=None, fetchall=False) -> list:
         results = None
@@ -59,14 +58,12 @@ class DbPoolCoroutine(AsyncCreator):
                     await messenger(info=f'DB temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
-                    error = MaicaDbError(f'DB connection failure after {str(tries + 1)} times', '502')
-                    await messenger(None, 'db_connection_failed', traceray_id='db_handling', error=error)
+                    raise MaicaDbError(f'DB connection failure after {str(tries + 1)} times', '502', 'db_connection_failed')
         return results
 
     async def query_modify(self, expression, values=None, fetchall=False) -> int:
         if self.ro:
-            error = MaicaDbError(f'DB marked as ro, no modify permitted', '403')
-            await messenger(None, 'db_modification_denied', traceray_id='db_handling', error=error)
+            raise MaicaDbError(f'DB marked as ro, no modify permitted', '511', 'db_modification_denied')
         lrid = None
         for tries in range(0, 3):
             try:
@@ -85,8 +82,7 @@ class DbPoolCoroutine(AsyncCreator):
                     await messenger(info=f'DB temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
-                    error = MaicaDbError(f'DB connection failure after {str(tries + 1)} times', '502')
-                    await messenger(None, 'db_connection_failed', traceray_id='db_handling', error=error)
+                    raise MaicaDbError(f'DB connection failure after {str(tries + 1)} times', '502', 'db_connection_failed')
         return lrid
     
     async def close(self):
@@ -96,13 +92,6 @@ class DbPoolCoroutine(AsyncCreator):
 
 class SqliteDbPoolCoroutine(DbPoolCoroutine):
     """SQLite-specific database pool coroutine."""
-    
-    @staticmethod
-    def escape_sqlite(func):
-        def wrapper(self, expression, *args, **kwargs):
-            expression_new = ReUtils.re_sub_sqlite_escape.sub('?', expression)
-            return func(self, expression_new, *args, **kwargs)
-        return wrapper
 
     def __init__(self, db, host=None, user=None, password=None, ro=False):
         self.db_path = db
@@ -117,24 +106,22 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
             if self.ro:
                 await self.pool.execute("PRAGMA query_only = ON")
         except Exception as e:
-            error = MaicaDbError(f'Failed to initialize SQLite connection: {str(e)}', '502')
-            await messenger(None, 'sqlite_init_failure', traceray_id='db_handling', error=error)
+            raise MaicaDbError(f'Failed to initialize SQLite connection: {str(e)}', '502', 'sqlite_init_failed')
 
     async def keep_alive(self):
         """Check and maintain SQLite connection."""
         try:
             await self.pool.execute("SELECT 1")
         except Exception:
-            await messenger(None, f'{self.db_path}_reconn', f"Recreating {self.db_path} connection", '301', type=MsgType.WARN)
+            await messenger(info=f"Recreating {self.db} pool since cannot acquire", type=MsgType.WARN)
             try:
                 if self.pool:
                     await self.pool.close()
                 await self._ainit()
             except Exception:
-                error = MaicaDbError(f'Failure when trying to reconnect to {self.db_path}', '502')
-                await messenger(None, f'{self.db_path}_reconn_failure', traceray_id='db_handling', error=error)
+                raise MaicaDbError(f'Failure when trying reconnecting to {self.db}', '502', 'db_connection_failed')
 
-    @escape_sqlite
+    @Decos.escape_sqlite_expression
     async def query_get(self, expression, values=None, fetchall=False) -> list:
         """Execute SELECT query on SQLite database."""
         results = None
@@ -153,18 +140,14 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
                     await messenger(info=f'SQLite temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
-                    error = MaicaDbError(f'SQLite connection failure after {str(tries + 1)} times', '502')
-                    await messenger(None, 'sqlite_connection_failed', traceray_id='db_handling', error=error)
+                    raise MaicaDbError(f'SQLite connection failure after {str(tries + 1)} times', '502', 'sqlite_connection_failed')
         return results
 
-    @escape_sqlite
+    @Decos.escape_sqlite_expression
     async def query_modify(self, expression, values=None, fetchall=False) -> int:
         """Execute INSERT/UPDATE/DELETE query on SQLite database."""
         if self.ro:
-            error = MaicaDbError(f'DB marked as ro, no modify permitted', '403')
-            await messenger(None, 'sqlite_modification_denied', traceray_id='db_handling', error=error)
-            return None
-            
+            raise MaicaDbError(f'DB marked as ro, no modify permitted', '511', 'sqlite_modification_denied')
         lrid = None
         for tries in range(0, 3):
             try:
@@ -182,8 +165,7 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
                     await messenger(info=f'SQLite temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
-                    error = MaicaDbError(f'SQLite connection failure after {str(tries + 1)} times', '502')
-                    await messenger(None, 'sqlite_connection_failed', traceray_id='db_handling', error=error)
+                    raise MaicaDbError(f'SQLite connection failure after {str(tries + 1)} times', '502', 'sqlite_connection_failed')
         return lrid
 
     async def close(self):
@@ -234,18 +216,17 @@ class AiConnCoroutine(AsyncCreator):
                     pass
                 self._open_socket()
             except Exception:
-                error = MaicaResponseError(f'Failure when trying reconnecting to {self.name}', '502')
-                await messenger(None, f'{self.name}_reconn_failure', traceray_id='ai_handling', type=MsgType.ERROR)
+                raise MaicaResponseError(f'Failure when trying reconnecting to {self.name}', '502', f'{self.name}_connection_failed')
             
     async def make_completion(self, **kwargs) -> ChatCompletion:
+        kwargs.update(
+            {
+                "model": self.model_actual
+            }
+        )
         for tries in range(0, 3):
             try:
                 await self.keep_alive()
-                kwargs.update(
-                    {
-                        "model": self.model_actual
-                    }
-                )
                 task_stream_resp = asyncio.create_task(self.socket.chat.completions.create(**kwargs))
                 await task_stream_resp
                 return task_stream_resp.result()
@@ -254,8 +235,7 @@ class AiConnCoroutine(AsyncCreator):
                     await messenger(info=f'Model temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
-                    error = MaicaResponseError(f'Cannot reach model endpoint after {str(tries + 1)} times', '502')
-                    await messenger(self.websocket, 'maica_core_model_inaccessible', traceray_id=self.traceray_id, error=error)
+                    raise MaicaResponseError(f'Cannot reach model endpoint after {str(tries + 1)} times', '502', f'{self.name}_connection_failed')
 
 class ConnUtils():
     """Just a wrapping for functions."""
@@ -326,45 +306,31 @@ async def validate_input(input: Union[str, dict, list], limit: int=4096, rsc: Op
     """
     Mostly for ws.
     """
-    try:
-        if not input:
-            raise MaicaInputWarning('Input is empty', '410')
-        
-        if isinstance(input, str):
-            if len(input) > limit:
-                raise MaicaInputWarning('Input length exceeded', '413')
-            try:
-                input_json = json.loads(input)
-            except:
-                raise MaicaInputWarning('Request body not JSON', '400')
-        elif isinstance(input, dict | list):
-            if len(str(input)) > limit:
-                raise MaicaInputWarning('Input length exceeded', '413')
-            input_json = input
-        else:
-            raise MaicaInputError('Input must be string or JSON-like', '400')
-
-        if must:
-            for mustkey in must:
-                if input_json.get(mustkey) is None:
-                    raise MaicaInputWarning(f'Request contains no necessary {mustkey}', '405')
-        if warn:
-            for warnkey in warn:
-                if input_json.get(warnkey) is None:
-                    if rsc:
-                        await messenger(rsc.websocket, 'maica_future_warning', f'Requests containing no {warnkey} will likely be deprecated in the future', '302', type=MsgType.WARN)
-        
-        return input_json
+    if not input:
+        raise MaicaInputWarning('Input is empty', '410', 'maica_input_validation_denied')
     
-    except CommonMaicaException as ce:
-        if rsc:
-            await messenger(rsc.websocket, 'input_validation_denied', traceray_id=rsc.traceray_id, error=ce)
-        else:
-            raise ce
-        
-    except Exception as e:
-        if rsc:
-            error = MaicaInputError(str(e), '400')
-            await messenger(rsc.websocket, 'input_validation_error', traceray_id=rsc.traceray_id, error=error)
-        else:
-            raise e
+    if isinstance(input, str):
+        if len(input) > limit:
+            raise MaicaInputWarning('Input length exceeded', '413', 'maica_input_validation_denied')
+        try:
+            input_json = json.loads(input)
+        except:
+            raise MaicaInputWarning('Request body not JSON', '400', 'maica_input_validation_denied')
+    elif isinstance(input, dict | list):
+        if len(str(input)) > limit:
+            raise MaicaInputWarning('Input length exceeded', '413', 'maica_input_validation_denied')
+        input_json = input
+    else:
+        raise MaicaInputError('Input must be string or JSON-like', '400', 'maica_input_validation_denied')
+
+    if must:
+        for mustkey in must:
+            if input_json.get(mustkey) is None:
+                raise MaicaInputWarning(f'Request contains no necessary {mustkey}', '405', 'maica_input_validation_denied')
+    if warn:
+        for warnkey in warn:
+            if input_json.get(warnkey) is None:
+                if rsc:
+                    await messenger(rsc.websocket, 'maica_future_warning', f'Requests containing no {warnkey} will likely be deprecated in the future', '302', type=MsgType.WARN)
+    
+    return input_json

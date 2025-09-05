@@ -78,8 +78,7 @@ class AccountCursor(AsyncCreator):
                 return l
 
         except Exception as e:
-            error = MaicaDbError(e, '502')
-            await messenger(self.websocket, f'user_{status}_read_failure', traceray_id=self.traceray_id, error=error)
+            raise MaicaDbError(str(e), '502', f'user_{status}_read_failed')
 
     async def write_user_status(self, enforce=False, pref=False, **kwargs) -> None:
         status = "status" if not pref else "preferences"
@@ -102,8 +101,8 @@ class AccountCursor(AsyncCreator):
             await self.maica_pool.query_modify(expression=sql_expression, values=sql_args)
 
         except Exception as e:
-            error = MaicaDbError(e, '502')
-            await messenger(self.websocket, f'user_{status}_write_failure', traceray_id=self.traceray_id, error=error)
+            traceback.print_exc()
+            raise MaicaDbError(e, '502', f'user_{status}_write_failed')
 
     async def run_hash_dcc(self, identity, is_email, password) -> tuple[bool, Union[str, dict, None]]:
         sql_expression = 'SELECT * FROM users WHERE email = %s' if is_email else 'SELECT * FROM users WHERE username = %s'
@@ -112,7 +111,7 @@ class AccountCursor(AsyncCreator):
             assert isinstance(result[0], int), "User does not exist"
 
             dbres_id, dbres_username, dbres_nickname, dbres_email, dbres_ecf, dbres_pwd_bcrypt, *_ = result
-            self.settings.identity.update(self.fsc.rsc, user_id=dbres_id, username=dbres_username, nickname=dbres_nickname, email=dbres_email)
+            self.settings.identity.update(user_id=dbres_id, username=dbres_username, nickname=dbres_nickname, email=dbres_email)
 
             input_pwd, target_pwd = password.encode(), dbres_pwd_bcrypt.encode()
             vf_result = await wrap_run_in_exc(None, bcrypt.checkpw, input_pwd, target_pwd)
@@ -138,7 +137,7 @@ class AccountCursor(AsyncCreator):
                 else:
                     # We're all good
                     await self.write_user_status(f2b_count=0)
-                    self.settings.verification.update(self.fsc.rsc, user_id=dbres_id, username=dbres_username, nickname=dbres_nickname, email=dbres_email)
+                    self.settings.verification.update(user_id=dbres_id, username=dbres_username, nickname=dbres_nickname, email=dbres_email)
                     return True, None
             else:
                 # Password is wrong

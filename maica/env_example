@@ -25,6 +25,7 @@ MVISTA_CHOICE = ''
 # 0 = ms-swift, 1 = deepseek, 2 = openai
 ALT_TOOLCALL = '1'
 
+
 # Data exchanging endpoint settings
 
 # Proxy used to access Internet - Not applied to inner connections
@@ -61,6 +62,8 @@ FULL_RESTFUL = '1'
 ROTATE_MSCACHE = '0'
 # Print more details on console
 PRINT_VERBOSE = '1'
+# Do not send 5xx exceptions' real content
+NO_SEND_ERROR = '0'
 
 
 # Announcement settings

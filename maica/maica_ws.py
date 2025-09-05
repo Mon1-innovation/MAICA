@@ -41,8 +41,7 @@ class NoWsCoroutine(AsyncCreator):
 
     def _check_essentials(self) -> None:
         if not self.settings.verification.user_id:
-            error = MaicaPermissionError('Essentials not implemented', '403')
-            asyncio.run(messenger(self.websocket, 'common_essentials_missing', traceray_id=self.traceray_id, error=error))
+            raise MaicaPermissionError('Essentials not implemented', '403', 'common_essentials_missing')
 
     def flush_traceray(self) -> None:
         """Generates a new traceray_id for this instance."""
@@ -59,8 +58,7 @@ class NoWsCoroutine(AsyncCreator):
         try:
             return json.loads(f'[{text}]')
         except Exception as e:
-            error = MaicaDbError(f'Chat session not JSON: {str(e)}', '500')
-            await messenger(self.websocket, 'maica_db_corruption', traceray_id=self.traceray_id, error=error)
+            raise MaicaDbError(f'Chat session not JSON: {str(e)}', '500', 'maica_db_corruption')
 
     def _flattern_chat_session(self, content_json: list) -> str:
         if content_json:
@@ -296,16 +294,14 @@ class NoWsCoroutine(AsyncCreator):
             # Account security check
             checked_status = await self.hasher.check_user_status(False, 'banned')
             if checked_status[0]:
-                error = MaicaPermissionError('Account banned by MAICA', '403')
-                await messenger(self.websocket, "maica_account_banned", traceray_id=self.traceray_id, error=error)
+                raise MaicaPermissionError('Account banned by MAICA', '403', 'maica_account_banned')
 
             # Cridential correct and not banned
             if check_online and not logged_in_already:
                 if self.settings.verification.user_id in self.online_dict:
                     if load_env("KICK_STALE_CONNS") == "0":
                         self.settings.verification.reset()
-                        error = MaicaConnectionWarning('A connection was established already and kicking not enabled', '406')
-                        await messenger(self.websocket, 'maica_connection_reuse_denied', traceray_id=self.traceray_id, error=error)
+                        raise MaicaConnectionWarning('A connection was established already and kicking not enabled', '406', 'maica_connection_reuse_denied')
                     else:
                         await messenger(self.websocket, "maica_connection_reuse_attempt", "A connection was established already", "300", self.traceray_id)
                         stale_fsc, stale_lock = self.online_dict[self.settings.verification.user_id]
@@ -325,34 +321,21 @@ class NoWsCoroutine(AsyncCreator):
         else:
             if isinstance(verification_result[1], dict):
                 if 'f2b' in verification_result[1]:
-                    error = MaicaPermissionError(f'Account locked by Fail2Ban, {verification_result[1]['f2b']} seconds remaining', '429')
-                    await messenger(self.websocket, 'maica_login_denied_fail2ban', traceray_id=self.traceray_id, error=error)
+                    raise MaicaPermissionError(f'Account locked by Fail2Ban, {verification_result[1]['f2b']} seconds remaining', '429', 'maica_login_denied_fail2ban')
                 elif 'necf' in verification_result[1]:
-                    error = MaicaPermissionError(f'Account Email not verified, check inbox and retry', '401')
-                    await messenger(self.websocket, 'maica_login_denied_email', traceray_id=self.traceray_id, error=error)
+                    raise MaicaPermissionError(f'Account Email not verified, check inbox and retry', '401', 'maica_login_denied_email')
                 elif 'pwdw' in verification_result[1]:
-                    error = MaicaPermissionWarning(f'Password hashing failed {verification_result[1]['pwdw']} times, check password and retry', '403')
-                    await messenger(self.websocket, 'maica_login_denied_password', traceray_id=self.traceray_id, error=error)
+                    raise MaicaPermissionWarning(f'Password hashing failed {verification_result[1]['pwdw']} times, check password and retry', '403', 'maica_login_denied_password')
+            elif isinstance(verification_result[1], CommonMaicaException):
+                raise verification_result[1]
             else:
-                error = MaicaPermissionError(verification_result[1], '400')
-                await messenger(self.websocket, 'maica_login_denied_rsa', traceray_id=self.traceray_id, error=error)
+                raise MaicaPermissionError(verification_result[1], '400', 'maica_login_denied_rsa')
         return False
     
     async def maica_assert(self, condition, kwd):
         """Normally used for input checkings."""
         if not condition:
-            error = MaicaInputError(f"Illegal input {kwd} detected", '405')
-            await messenger(self.websocket, 'maica_input_param_bad', traceray_id=self.traceray_id, error=error)
-
-    async def run_with_log(self, coro: Coroutine, name: str='', sending=False):
-        """It just logs the exceptions and raises them again."""
-        try:
-            return await coro
-        except Exception as e:
-            if not isinstance(e, CommonMaicaException):
-                e = CommonMaicaError(str(e), '500')
-            stat = f'maica_{name}_failure' if name else 'maica_failure'
-            await messenger(self.websocket if sending else None, stat, traceray_id=self.traceray_id, error=e)
+            raise MaicaInputError(f"Illegal input {kwd} detected", '405', 'maica_input_param_bad')
 
 class WsCoroutine(NoWsCoroutine):
     """
@@ -408,26 +391,11 @@ class WsCoroutine(NoWsCoroutine):
 
             # Handle expected exceptions
             except CommonMaicaException as ce:
-                if ce.is_critical():
-                    return 2
-                elif ce.is_breaking():
-                    return 1
+                if ce.is_critical() or ce.is_breaking():
+                    raise ce
                 else:
+                    await messenger(websocket, error=ce, no_raise=True)
                     continue
-
-            except websockets.exceptions.WebSocketException as we:
-                try:
-                    we_code, we_reason = we.code, we.reason
-                    await messenger(info=f'Connection closed with {we_code}: {we_reason}', type=MsgType.PRIM_LOG)
-                except Exception:
-                    await messenger(info=f'Connection establishment failed: {str(we)}', type=MsgType.PRIM_LOG)
-                return 0
-
-            # Handle unexpected exceptions
-            except Exception as e:
-                traceback.print_exc()
-                return 3
-
     
     # Stage 2 function router
     async def function_switch(self):
@@ -468,11 +436,9 @@ class WsCoroutine(NoWsCoroutine):
                         else:
                             await messenger(websocket, "security_cookie_correct", "Cookie verification passed", "200", no_print=True)
                     else:
-                        error = MaicaPermissionError('Cookie provided but mismatch', '403')
-                        await messenger(websocket, 'security_cookie_mismatch', traceray_id=self.traceray_id, error=error)
+                        raise MaicaPermissionError('Cookie provided but mismatch', '403', 'maica_security_cookie_mismatch')
                 elif self.enforce_cookie:
-                    error = MaicaPermissionError('Cookie enforced but missing', '403')
-                    await messenger(websocket, 'security_cookie_missing', traceray_id=self.traceray_id, error=error)
+                    raise MaicaPermissionError('Cookie enforced but missing', '403', 'maica_security_cookie_missing')
 
                 # Route request
                 match recv_type.lower():
@@ -489,35 +455,16 @@ class WsCoroutine(NoWsCoroutine):
                         return_status = await self.do_communicate(recv_loaded_json)
                         await self.reset_auxiliary_inst()
                     case _:
-                        error = MaicaInputWarning('Type cannot be determined', '422')
-                        await messenger(websocket, 'request_type_not_determined', traceray_id=self.traceray_id, error=error)
-
-                if return_status and int(return_status) > 2:
-                    error = CriticalMaicaError('Unexpected exception happened in child of stage2', '500')
-                    await messenger(websocket, 'maica_frame_critical', traceray_id=self.traceray_id, error=error)
+                        raise MaicaInputWarning('Type cannot be determined', '422', 'maica_request_type_unknown')
 
             # Handle expected exceptions
             except CommonMaicaException as ce:
-                if ce.is_critical():
-                    return 2
-                elif ce.is_breaking():
-                    return 1
+                if ce.is_critical() or ce.is_breaking():
+                    raise ce
                 else:
+                    await messenger(websocket, error=ce, no_raise=True)
                     await messenger(websocket, 'maica_loop_warn_finished', 'Loop hit a user level exception, stopped and reset', '304')
                     continue
-
-            except websockets.exceptions.WebSocketException as we:
-                try:
-                    we_code, we_reason = we.code, we.reason
-                    await messenger(info=f'Connection closed with {we_code}: {we_reason}', type=MsgType.PRIM_LOG)
-                except Exception:
-                    await messenger(info=f'Connection establishment failed: {str(we)}', type=MsgType.PRIM_LOG)
-                return 0
-
-            # Handle unexpected exceptions
-            except Exception as e:
-                traceback.print_exc()
-                return 3
 
     # Param setting section
     async def def_model(self, recv_loaded_json: dict):
@@ -527,17 +474,17 @@ class WsCoroutine(NoWsCoroutine):
         try:
             chat_params: dict = recv_loaded_json['chat_params']
             in_params = len(chat_params)
-            accepted_params = self.settings.update(self.fsc.rsc, **chat_params)
+            accepted_params = self.settings.update(**chat_params)
             await messenger(websocket, 'maica_params_accepted', f"{accepted_params} out of {in_params} settings accepted", "200")
-            return 0
         
         # Handle input errors here
         except Exception as e:
-            error = MaicaInputWarning(str(e), '405')
-            await messenger(websocket, 'maica_params_denied', traceray_id=self.traceray_id, error=error)
+            if not isinstance(e, CommonMaicaException):
+                raise MaicaInputWarning(str(e), '405', 'maica_params_denied')
+            else:
+                raise e
 
     # Completion section
-
     async def do_communicate(self, recv_loaded_json: dict):
 
         # Initiations
@@ -546,240 +493,219 @@ class WsCoroutine(NoWsCoroutine):
         replace_generation = ''
         ms_cache_identity = ''
 
-        try:
-
-            # Param assertions here
-            chat_session = int(default(recv_loaded_json.get('chat_session'), 0))
-            await self.maica_assert(-1 <= chat_session < 10, "chat_session")
-            self.settings.temp.update(self.fsc.rsc, chat_session=chat_session)
+        # Param assertions here
+        chat_session = int(default(recv_loaded_json.get('chat_session'), 0))
+        await self.maica_assert(-1 <= chat_session < 10, "chat_session")
+        self.settings.temp.update(chat_session=chat_session)
 
 
-            if 'reset' in recv_loaded_json:
-                if recv_loaded_json['reset']:
-                    await self.maica_assert(1 <= chat_session < 10, "chat_session")
-                    purge_result = await self.reset_chat_session(self.settings.temp.chat_session)
-                    if not purge_result:
-                        await messenger(websocket, "maica_session_not_found", "Determined chat_session doesn't exist", "302", self.traceray_id)
+        if 'reset' in recv_loaded_json:
+            if recv_loaded_json['reset']:
+                await self.maica_assert(1 <= chat_session < 10, "chat_session")
+                purge_result = await self.reset_chat_session(self.settings.temp.chat_session)
+                if not purge_result:
+                    await messenger(websocket, "maica_session_not_found", "Determined chat_session doesn't exist", "302", self.traceray_id)
+                else:
+                    await messenger(websocket, "maica_session_reset", "Determined chat_session reset", "204", self.traceray_id)
+
+        if 'inspire' in recv_loaded_json and not query_in:
+            if recv_loaded_json['inspire']:
+                await self.maica_assert(0 <= chat_session < 10, "chat_session")
+                if isinstance(recv_loaded_json['inspire'], dict):
+                    query_insp = await mtools.make_inspire(title_in=recv_loaded_json['inspire'], target_lang=self.settings.basic.target_lang)
+                else:
+                    query_insp = await mtools.make_inspire(target_lang=self.settings.basic.target_lang)
+                if recv_loaded_json.get('use_cache') and self.settings.temp.chat_session == 0:
+                    self.settings.temp.update(ms_cache=True)
+                self.settings.temp.update(bypass_mf=True, bypass_mt=True)
+                if not query_insp[0]:
+                    if str(query_insp[1]) == 'mspire_insanity_limit_reached':
+                        raise MaicaInternetWarning('MSpire scraping failed', '404', 'maica_mspire_scraping_failed')
+                    elif str(query_insp[1]) == 'mspire_title_insane':
+                        raise MaicaInputWarning('MSpire prompt not found on wikipedia', '410', 'maica_mspire_prompt_bad')
                     else:
-                        await messenger(websocket, "maica_session_reset", "Determined chat_session reset", "204", self.traceray_id)
-                    return 0
- 
-            if 'inspire' in recv_loaded_json and not query_in:
-                if recv_loaded_json['inspire']:
-                    await self.maica_assert(0 <= chat_session < 10, "chat_session")
-                    if isinstance(recv_loaded_json['inspire'], dict):
-                        query_insp = await mtools.make_inspire(title_in=recv_loaded_json['inspire'], target_lang=self.settings.basic.target_lang)
-                    else:
-                        query_insp = await mtools.make_inspire(target_lang=self.settings.basic.target_lang)
-                    if recv_loaded_json.get('use_cache') and self.settings.temp.chat_session == 0:
-                        self.settings.temp.update(self.fsc.rsc, ms_cache=True)
-                    self.settings.temp.update(self.fsc.rsc, bypass_mf=True, bypass_mt=True)
-                    if not query_insp[0]:
-                        if str(query_insp[1]) == 'mspire_insanity_limit_reached':
-                            error = MaicaInternetWarning('MSpire scraping failed', '404')
-                            await messenger(websocket, "mspire_scraping_failed", traceray_id=self.traceray_id, error=error, type=MsgType.ERROR)
-                        elif str(query_insp[1]) == 'mspire_title_insane':
-                            error = MaicaInputWarning('MSpire prompt not found on wikipedia', '410')
-                            await messenger(websocket, "mspire_prompt_bad", traceray_id=self.traceray_id, error=error)
-                        else:
-                            error = MaicaInternetWarning('MSpire failed connecting wikipedia', '408')
-                            await messenger(websocket, "mspire_conn_failed", traceray_id=self.traceray_id, error=error, type=MsgType.ERROR)
-                    if self.settings.temp.ms_cache:
-                        self.settings.temp.update(self.fsc.rsc, bypass_sup=True)
-                        ms_cache_identity = query_insp[3]
-                        cache_insp = await self.find_ms_cache(ms_cache_identity)
-                        if cache_insp:
-                            self.settings.temp.update(self.fsc.rsc, bypass_gen=True)
-                            replace_generation = cache_insp
-                            
-                    query_in = query_insp[2]
+                        raise MaicaInternetWarning('MSpire failed connecting wikipedia', '408', 'maica_mspire_conn_failed')
+                if self.settings.temp.ms_cache:
+                    self.settings.temp.update(bypass_sup=True)
+                    ms_cache_identity = query_insp[3]
+                    cache_insp = await self.find_ms_cache(ms_cache_identity)
+                    if cache_insp:
+                        self.settings.temp.update(bypass_gen=True)
+                        replace_generation = cache_insp
+                        
+                query_in = query_insp[2]
 
-            if 'postmail' in recv_loaded_json and not query_in:
-                if recv_loaded_json['postmail']:
-                    await self.maica_assert(0 <= chat_session < 10, "chat_session")
-                    if isinstance(recv_loaded_json['postmail'], dict):
-                        query_insp = await mtools.make_postmail(**recv_loaded_json['postmail'], target_lang=self.settings.basic.target_lang)
-                        # We're using the old school way to avoid using eval()
-                        if default(recv_loaded_json['postmail'].get('bypass_mf'), False):
-                            self.settings.temp.update(self.fsc.rsc, bypass_mf=True)
-                        if default(recv_loaded_json['postmail'].get('bypass_mt'), True):
-                            self.settings.temp.update(self.fsc.rsc, bypass_mt=True)
-                        if default(recv_loaded_json['postmail'].get('bypass_stream'), True):
-                            self.settings.temp.update(self.fsc.rsc, bypass_stream=True)
-                        if default(recv_loaded_json['postmail'].get('ic_prep'), True):
-                            self.settings.temp.update(self.fsc.rsc, ic_prep=True)
-                        if default(recv_loaded_json['postmail'].get('strict_conv'), False):
-                            self.settings.temp.update(self.fsc.rsc, strict_conv=True)
-                    elif isinstance(recv_loaded_json['postmail'], str):
-                        query_insp = await mtools.make_postmail(content=recv_loaded_json['postmail'], target_lang=self.settings.basic.target_lang)
-                        self.settings.temp.update(self.fsc.rsc, bypass_stream=True, ic_prep=True, strict_conv=False)
-                    else:
-                        await self.maica_assert(False, "postmail")
-                    
-                    query_in = query_insp[2]
+        if 'postmail' in recv_loaded_json and not query_in:
+            if recv_loaded_json['postmail']:
+                await self.maica_assert(0 <= chat_session < 10, "chat_session")
+                if isinstance(recv_loaded_json['postmail'], dict):
+                    query_insp = await mtools.make_postmail(**recv_loaded_json['postmail'], target_lang=self.settings.basic.target_lang)
+                    # We're using the old school way to avoid using eval()
+                    if default(recv_loaded_json['postmail'].get('bypass_mf'), False):
+                        self.settings.temp.update(bypass_mf=True)
+                    if default(recv_loaded_json['postmail'].get('bypass_mt'), True):
+                        self.settings.temp.update(bypass_mt=True)
+                    if default(recv_loaded_json['postmail'].get('bypass_stream'), True):
+                        self.settings.temp.update(bypass_stream=True)
+                    if default(recv_loaded_json['postmail'].get('ic_prep'), True):
+                        self.settings.temp.update(ic_prep=True)
+                    if default(recv_loaded_json['postmail'].get('strict_conv'), False):
+                        self.settings.temp.update(strict_conv=True)
+                elif isinstance(recv_loaded_json['postmail'], str):
+                    query_insp = await mtools.make_postmail(content=recv_loaded_json['postmail'], target_lang=self.settings.basic.target_lang)
+                    self.settings.temp.update(bypass_stream=True, ic_prep=True, strict_conv=False)
+                else:
+                    await self.maica_assert(False, "postmail")
+                
+                query_in = query_insp[2]
 
-            # This is future reserved for MVista
+        # This is future reserved for MVista
 
-            if 'vision' in recv_loaded_json and not query_in:
-                if recv_loaded_json['vision']:
-                    if isinstance(recv_loaded_json['vision'], str):
-                        pass
-                    else:
-                        pass
+        if 'vision' in recv_loaded_json and not query_in:
+            if recv_loaded_json['vision']:
+                if isinstance(recv_loaded_json['vision'], str):
+                    pass
+                else:
+                    pass
 
-            if not query_in:
-                query_in = recv_loaded_json['query']
+        if not query_in:
+            query_in = recv_loaded_json['query']
+        
+        await asyncio.gather(self.sf_inst.reset(), self.mt_inst.reset())
+
+        if 'savefile' in recv_loaded_json:
+            if self.settings.basic.sf_extraction:
+                self.sf_inst.add_extra(**recv_loaded_json['savefile'])
+            else:
+                self.settings.temp.update(sf_extraction_once=True)
+                self.sf_inst.use_only(**recv_loaded_json['savefile'])
+        if 'trigger' in recv_loaded_json:
+            if self.settings.basic.mt_extraction:
+                self.mt_inst.add_extra(*recv_loaded_json['trigger'])
+            else:
+                self.settings.temp.update(mt_extraction_once=True)
+                self.mt_inst.use_only(recv_loaded_json['trigger'])
+
+        # Deprecated: The easter egg thing
+
+        # global easter_exist
+        # if easter_exist:
+        #     easter_check = easter(query_in)
+        #     if easter_check:
+        #         await websocket.send(self.wrap_ws_deformatter('299', 'easter_egg', easter_check, 'info'))
+
+        match int(self.settings.temp.chat_session):
+            case -1:
+
+                # chat_session == -1 means query contains an entire chat history(sequence mode)
+                session_type = -1
+                try:
+                    messages = json.loads(query_in)
+                    query_in = messages[-1]['text']
+                    if len(messages) > 10:
+                        raise MaicaInputWarning('Sequence exceeded 10 rounds for chat_session -1', '413', 'maica_sequence_rounds_exceeded')
+                except Exception as excepted:
+                    raise MaicaInputWarning('Sequence is not JSON for chat_session -1', '406', 'maica_sequence_not_json')
+
+            case i if 0 <= i < 10:
+
+                # chat_session == 0 means single round, else normal
+                session_type = 0 if i == 0 else 1
+                messages0 = {'role': 'user', 'content': query_in}
+
+                if self.settings.basic.enable_mf and not self.settings.temp.bypass_mf:
+                    message_agent_wrapped = await self.mfocus_coro.agenting(query_in)
+                else:
+                    message_agent_wrapped = None
+                
+                prompt = await self.gen_system_prompt(message_agent_wrapped, self.settings.temp.strict_conv)
+                if session_type == 1:
+                    messages = (await self.rw_chat_session('i', messages0, prompt))[1]
+                elif session_type == 0:
+                    messages = [{'role': 'system', 'content': prompt}, messages0]
+
+        # Construction part done, communication part started
+
+        completion_args = {
+            "messages": messages,
+            "stream": self.settings.basic.stream_output,
+            "stop": ['<|im_end|>', '<|endoftext|>'],
+        }
+        
+        if not self.settings.temp.bypass_sup:
+            completion_args.update(self.settings.super())
+        else:
+            completion_args.update(self.settings.super.default())
+            self.settings.temp.update(bypass_sup=False)
+
+        if self.settings.temp.bypass_stream:
+            completion_args['stream'] = False
+            self.settings.temp.update(bypass_stream=False)
+
+        if self.settings.temp.ic_prep:
+            completion_args['presence_penalty'] = 1.0-(1.0-completion_args['presence_penalty'])*(2/3)
+
+        await messenger(info=f'\nQuery constrcted and ready to go, last input is:\n{query_in}\nSending query...', type=MsgType.PRIM_RECV)
+
+        if not self.settings.temp.bypass_gen or not replace_generation: # They should present together
+
+            # Generation here
+            resp = await self.mcore_conn.make_completion(**completion_args)
+
+            if completion_args['stream']:
+                reply_appended = ''
+                seq = 0
+                async for chunk in resp:
+                    token = chunk.choices[0].delta.content
+                    if token:
+                        await asyncio.sleep(0)
+                        await messenger(websocket, 'maica_core_streaming_continue', token, '100')
+                        reply_appended += token
+                        seq += 1
+                await messenger(info='\n', type=MsgType.PLAIN)
+                await messenger(websocket, 'maica_core_streaming_done', f'Streaming finished with seed {completion_args['seed']} for {self.settings.verification.username}, {seq} packets sent', '1000', traceray_id=self.traceray_id)
+            else:
+                reply_appended = resp.choices[0].message.content
+                await messenger(websocket, 'maica_core_nostream_reply', reply_appended, '200', type=MsgType.CARRIAGE)
+                await messenger(None, 'maica_core_nostream_done', f'Reply sent with seed {completion_args['seed']} for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
+
+        else:
+
+            # We just pretend it was generated
+            reply_appended = replace_generation
+            if completion_args['stream']:
+                await messenger(websocket, 'maica_core_streaming_continue', reply_appended, '100'); await messenger(info='\n', type=MsgType.PLAIN)
+                await messenger(websocket, 'maica_core_streaming_done', f'Streaming finished with cache for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
+            else:
+                await messenger(websocket, 'maica_core_nostream_reply', reply_appended, '200', type=MsgType.CARRIAGE)
+                await messenger(None, 'maica_core_nostream_done', f'Reply sent with cache for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
+
+        # Can be post-processed here
+        reply_appended = await wrap_run_in_exc(None, post_proc.filter_format, reply_appended, self.settings.basic.target_lang)
+        reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
+
+        # Trigger process
+        if self.settings.basic.enable_mt and not self.settings.temp.bypass_mt:
+            await self.mtrigger_coro.triggering(query_in, reply_appended)
+        else:
+            self.settings.temp.update(bypass_mt=False)
+
+        if self.settings.temp.ms_cache and not self.settings.temp.bypass_gen and not replace_generation:
+            await self.store_ms_cache(ms_cache_identity, reply_appended)
+
+        # Store history here
+        if session_type == 1:
+            stored = await self.rw_chat_session(self.settings.temp.chat_session, 'a', f'{messages0},{reply_appended_insertion}')
+            match stored[1]:
+                case 1:
+                    await messenger(websocket, 'maica_history_sliced', f"Session {self.settings.temp.chat_session} of {self.settings.verification.username} exceeded {self.settings.basic.max_length} characters and sliced", '204')
+                case 2:
+                    await messenger(websocket, 'maica_history_slice_hint', f"Session {self.settings.temp.chat_session} of {self.settings.verification.username} exceeded {self.settings.basic.max_length * (2/3)} characters, will slice at {self.settings.basic.max_length}", '200', no_print=True)
+
+            await messenger(websocket, 'maica_chat_loop_finished', f'Finished chat loop from {self.settings.verification.username}', '200', traceray_id=self.traceray_id)
+        else:
             
-            await asyncio.gather(self.sf_inst.reset(), self.mt_inst.reset())
-
-            if 'savefile' in recv_loaded_json:
-                if self.settings.basic.sf_extraction:
-                    self.sf_inst.add_extra(**recv_loaded_json['savefile'])
-                else:
-                    self.settings.temp.update(self.fsc.rsc, sf_extraction_once=True)
-                    self.sf_inst.use_only(**recv_loaded_json['savefile'])
-            if 'trigger' in recv_loaded_json:
-                if self.settings.basic.mt_extraction:
-                    self.mt_inst.add_extra(*recv_loaded_json['trigger'])
-                else:
-                    self.settings.temp.update(self.fsc.rsc, mt_extraction_once=True)
-                    self.mt_inst.use_only(recv_loaded_json['trigger'])
-
-            # Deprecated: The easter egg thing
-
-            # global easter_exist
-            # if easter_exist:
-            #     easter_check = easter(query_in)
-            #     if easter_check:
-            #         await websocket.send(self.wrap_ws_deformatter('299', 'easter_egg', easter_check, 'info'))
-
-            match int(self.settings.temp.chat_session):
-                case -1:
-
-                    # chat_session == -1 means query contains an entire chat history(sequence mode)
-                    session_type = -1
-                    try:
-                        messages = json.loads(query_in)
-                        query_in = messages[-1]['text']
-                        if len(messages) > 10:
-                            error = MaicaInputWarning('Sequence exceeded 10 rounds for chat_session -1', '414')
-                            await messenger(websocket, 'maica_sequence_rounds_exceeded', traceray_id=self.traceray_id, error=error)
-                    except Exception as excepted:
-                        error = MaicaInputWarning('Sequence is not JSON for chat_session -1', '405')
-                        await messenger(websocket, 'maica_sequence_not_json', traceray_id=self.traceray_id, error=error)
-
-                case i if 0 <= i < 10:
-
-                    # chat_session == 0 means single round, else normal
-                    session_type = 0 if i == 0 else 1
-                    messages0 = {'role': 'user', 'content': query_in}
-
-                    if self.settings.basic.enable_mf and not self.settings.temp.bypass_mf:
-                        message_agent_wrapped = await self.run_with_log(self.mfocus_coro.agenting(query_in), 'mfocus')
-                    else:
-                        message_agent_wrapped = None
-                    
-                    prompt = await self.gen_system_prompt(message_agent_wrapped, self.settings.temp.strict_conv)
-                    if session_type == 1:
-                        messages = (await self.rw_chat_session('i', messages0, prompt))[1]
-                    elif session_type == 0:
-                        messages = [{'role': 'system', 'content': prompt}, messages0]
-
-            # Construction part done, communication part started
-
-            completion_args = {
-                "messages": messages,
-                "stream": self.settings.basic.stream_output,
-                "stop": ['<|im_end|>', '<|endoftext|>'],
-            }
-            
-            if not self.settings.temp.bypass_sup:
-                completion_args.update(self.settings.super())
-            else:
-                completion_args.update(self.settings.super.default())
-                self.settings.temp.update(self.fsc.rsc, bypass_sup=False)
-
-            if self.settings.temp.bypass_stream:
-                completion_args['stream'] = False
-                self.settings.temp.update(self.fsc.rsc, bypass_stream=False)
-
-            if self.settings.temp.ic_prep:
-                completion_args['presence_penalty'] = 1.0-(1.0-completion_args['presence_penalty'])*(2/3)
-
-            await messenger(info=f'\nQuery constrcted and ready to go, last input is:\n{query_in}\nSending query...', type=MsgType.PRIM_RECV)
-
-            if not self.settings.temp.bypass_gen or not replace_generation: # They should present together
-
-                # Generation here
-                resp = await self.mcore_conn.make_completion(**completion_args)
-
-                if completion_args['stream']:
-                    reply_appended = ''
-                    seq = 0
-                    async for chunk in resp:
-                        token = chunk.choices[0].delta.content
-                        if token:
-                            await asyncio.sleep(0)
-                            await messenger(websocket, 'maica_core_streaming_continue', token, '100')
-                            reply_appended += token
-                            seq += 1
-                    await messenger(info='\n', type=MsgType.PLAIN)
-                    await messenger(websocket, 'maica_core_streaming_done', f'Streaming finished with seed {completion_args['seed']} for {self.settings.verification.username}, {seq} packets sent', '1000', traceray_id=self.traceray_id)
-                else:
-                    reply_appended = resp.choices[0].message.content
-                    await messenger(websocket, 'maica_core_nostream_reply', reply_appended, '200', type=MsgType.CARRIAGE)
-                    await messenger(None, 'maica_core_nostream_done', f'Reply sent with seed {completion_args['seed']} for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
-
-            else:
-
-                # We just pretend it was generated
-                reply_appended = replace_generation
-                if completion_args['stream']:
-                    await messenger(websocket, 'maica_core_streaming_continue', reply_appended, '100'); await messenger(info='\n', type=MsgType.PLAIN)
-                    await messenger(websocket, 'maica_core_streaming_done', f'Streaming finished with cache for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
-                else:
-                    await messenger(websocket, 'maica_core_nostream_reply', reply_appended, '200', type=MsgType.CARRIAGE)
-                    await messenger(None, 'maica_core_nostream_done', f'Reply sent with cache for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
-
-            # Can be post-processed here
-            reply_appended = await wrap_run_in_exc(None, post_proc.filter_format, reply_appended, self.settings.basic.target_lang)
-            reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
-
-            # Trigger process
-            if self.settings.basic.enable_mt and not self.settings.temp.bypass_mt:
-                await self.run_with_log(self.mtrigger_coro.triggering(query_in, reply_appended), 'mtrigger')
-            else:
-                self.settings.temp.update(self.fsc.rsc, bypass_mt=False)
-
-            if self.settings.temp.ms_cache and not self.settings.temp.bypass_gen and not replace_generation:
-                await self.store_ms_cache(ms_cache_identity, reply_appended)
-
-            # Store history here
-            if session_type == 1:
-                stored = await self.rw_chat_session(self.settings.temp.chat_session, 'a', f'{messages0},{reply_appended_insertion}')
-                if stored[0]:
-                    success = True
-                    match stored[4]:
-                        case 1:
-                            await messenger(websocket, 'maica_history_sliced', f"Session {self.settings.temp.chat_session} of {self.settings.verification.username} exceeded {self.settings.basic.max_length} characters and sliced", '204')
-                        case 2:
-                            await messenger(websocket, 'maica_history_slice_hint', f"Session {self.settings.temp.chat_session} of {self.settings.verification.username} exceeded {self.settings.basic.max_length * (2/3)} characters, will slice at {self.settings.basic.max_length}", '200', no_print=True)
-                else:
-                    error = MaicaDbError(f'Chat session writing failed: {str(stored[1])}', '502')
-                    await messenger(websocket, 'maica_history_write_failure', traceray_id=self.traceray_id, error=error)
-                await messenger(websocket, 'maica_chat_loop_finished', f'Finished chat loop from {self.settings.verification.username}', '200', traceray_id=self.traceray_id)
-            else:
-                success = True
-                await messenger(websocket, 'maica_chat_loop_finished', f'Finished non-recording chat loop from {self.settings.verification.username}', '200', traceray_id=self.traceray_id)
-
-        # Handle expected exceptions
-        except CommonMaicaException as ce:
-            raise ce # Will be handled by stage2 loop
-
-        # Handle unexpected exceptions
-        except Exception as e:
-            traceback.print_exc()
-            return 3
+            await messenger(websocket, 'maica_chat_loop_finished', f'Finished non-recording chat loop from {self.settings.verification.username}', '200', traceray_id=self.traceray_id)
 
 # Reserved for whatever
 def callback_func_switch(future):
@@ -807,19 +733,19 @@ async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn, 
             return_status = await thread_instance.function_switch()
             # We let the exception router to handle that
             raise Exception(return_status)
+        
+        except CommonMaicaException as ce:
+            await messenger(websocket, error=ce, traceray_id=getattr(thread_instance, 'traceray_id', None), no_raise=True)
+
+        except websockets.exceptions.WebSocketException as we:
+            try:
+                we_code, we_reason = we.code, we.reason
+                await messenger(info=f'Connection closed with {we_code}: {we_reason}', type=MsgType.PRIM_LOG)
+            except Exception:
+                await messenger(info=f'Connection establishment failed: {str(we)}', type=MsgType.PRIM_LOG)
 
         except Exception as e:
-            match str(e):
-                case '0':
-                    await messenger(info=f'Coroutine quitted. Likely connection loss.', type=MsgType.DEBUG)
-                case '1':
-                    await messenger(info=f'Coroutine broke by a warning.', type=MsgType.WARN)
-                case '2':
-                    await messenger(info=f'Coroutine broke by a critical', type=MsgType.ERROR)
-                case '3':
-                    await messenger(info=f'Coroutine broke by an unknown exception', type=MsgType.ERROR)
-                case _:
-                    await messenger(info=f'Coroutine broke by an unknown exception: {str(e)}', type=MsgType.ERROR)
+            await messenger(info=f'Coroutine broke by an unknown exception: {str(e)}', type=MsgType.ERROR)
 
         finally:
             try:

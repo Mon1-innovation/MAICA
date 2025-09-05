@@ -10,7 +10,6 @@ class SideBoundCoroutine(AsyncCreator):
     FUNC_NAME = 'mfocus'
     EMPTY = {}
 
-
     def __init__(self, fsc: FullSocketsContainer) -> None:
         self.settings: MaicaSettings = fsc.maica_settings
         self.mfocus_conn: AiConnCoroutine = fsc.mfocus_conn

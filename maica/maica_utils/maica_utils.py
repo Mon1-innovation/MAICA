@@ -10,6 +10,7 @@ import colorama
 import time
 import datetime
 import random
+import traceback
 from typing import *
 from dotenv import load_dotenv as __load_dotenv
 from urllib.parse import urlparse
@@ -34,11 +35,11 @@ class MsgType():
 
 class CommonMaicaException(Exception):
     """This is a common MAICA exception."""
-    def __init__(self, message=None, error_code=None):
+    def __init__(self, message=None, error_code=None, status=None, send=None, print=None):
+        """For send and print, None means default, not False."""
         super().__init__(message)
-        self.message, self.error_code = message, error_code
-    def __str__(self):
-        return str(self.error_code) + " - " + super().__str__()
+        self.message, self.error_code, self.status, self.send, self.print = message, error_code, status, send, print
+
     def is_critical(self):
         return int(self.error_code) >= 500
     def is_breaking(self):
@@ -46,13 +47,13 @@ class CommonMaicaException(Exception):
     
 class CommonMaicaError(CommonMaicaException):
     """This is a common MAICA error."""
-    def __init__(self, message=None, error_code='500'):
-        super().__init__(message, error_code)
+    def __init__(self, message=None, error_code='500', status='maica_unidentified_error', send=None, print=None):
+        super().__init__(message, error_code, status, send, print)
     
 class CommonMaicaWarning(CommonMaicaException):
     """This is a common MAICA warning."""
-    def __init__(self, message=None, error_code='400'):
-        super().__init__(message, error_code)
+    def __init__(self, message=None, error_code='400', status='maica_unidentified_warning', send=None, print=None):
+        super().__init__(message, error_code, status, send, print)
     def is_breaking(self):
         return False
 
@@ -165,6 +166,58 @@ class ReUtils():
     re_findall_square_brackets = re.compile(r'\[(.*?)\]')
     re_sub_sqlite_escape = re.compile(r'%s')
 
+class Decos():
+    def escape_sqlite_expression(func):
+        """Used to transform a MySQL expression to SQLite one."""
+        def wrapper(self, expression, *args, **kwargs):
+            expression_new = ReUtils.re_sub_sqlite_escape.sub('?', expression)
+            return func(self, expression_new, *args, **kwargs)
+        return wrapper
+
+    def report_data_error(func):
+        """Raises when the requested action cannot be done because of corrupted data."""
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                if not str(e):
+                    e = 'Assertion'
+                raise MaicaInputWarning(f'Acquired persistent not acceptable:{str(e)}', '405', 'maica_agent_persistent_bad')
+        return wrapper
+
+    def report_reading_error(func):
+        """Raises when the requested variable cannot be read before assignment."""
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                if not str(e):
+                    e = 'Assertion'
+                raise MaicaInputError(f'Access before necessary assignment: {str(e)}', '500', 'maica_settings_read_rejected')
+        return wrapper
+
+    def report_limit_warning(func):
+        """Raises when the input param coming from user is out of bound."""
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                if not str(e):
+                    e = 'Assertion'
+                raise MaicaInputWarning(f'Input param not acceptable: {str(e)}', '422', 'maica_settings_param_rejected')
+        return wrapper
+
+    def report_limit_error(func):
+        """Raises when the input param coming from program is out of bound."""
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                if not str(e):
+                    e = 'Assertion'
+                raise MaicaInputError(f'Input param not acceptable: {str(e)}', '500', 'maica_settings_param_rejected')
+        return wrapper
+
 def default(exp, default, default_list: list=[None]) -> any:
     """If exp is in default list(normally None), use default."""
     return default if exp in default_list else exp
@@ -248,10 +301,11 @@ def proceed_agent_response(text: str, is_json=False) -> Union[str, list, dict]:
         answer_fin = answer_post_think
     return answer_fin
 
-async def messenger(websocket=None, status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaError]=None, prefix='', type='', color='', add_time=True, no_print=False, no_raise=False) -> None:
+async def messenger(websocket=None, status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaException]=None, prefix='', type='', color='', add_time=True, no_print=False, no_raise=False) -> None:
     """It could handle most log printing, websocket sending and exception raising jobs pretty automatically."""
     if error:
-        info = error.message if not info else info; code = error.error_code if code == "0" else code
+        status = error.status if not status else status; info = error.message if not info else info; code = error.error_code if code == "0" else code
+        websocket = websocket if not error.send is False else None; no_print = False if not error.print is False else True
 
     if not type:
         match int(code):
@@ -284,14 +338,17 @@ async def messenger(websocket=None, status='', info='', code='0', traceray_id=''
         msg_print += f"[{time.strftime('%Y-%m-%d %H:%M:%S')}]" if add_time else ''; msg_print += f"-[{str(code)}]" if code else ''
         msg_print = msg_print.ljust(40)
         msg_print += f": {str(info)}"; msg_print += f"; traceray ID {traceray_id}" if traceray_id else ''
-        msg_send = f"{str(info)}"; msg_send += f" -- your traceray ID is {traceray_id}" if traceray_id else ''
+        msg_send = f"{str(info)}"
+        if type == 'error' and load_env('NO_SEND_ERROR') == '1':
+            msg_send = "A critical exception happened serverside, contact administrator"
+        msg_send += f" -- your traceray ID is {traceray_id}" if traceray_id else ''
 
     if websocket:
         await websocket.send(wrap_ws_formatter(code=code, status=status, content=msg_send, type=type))
 
     frametrack_dict = {"error": 5}
     if load_env("PRINT_VERBOSE") == "1":
-        frametrack_dict['warn'] = 0
+        frametrack_dict['warn'] = 1
     if type in frametrack_dict:
         stack = inspect.stack()
         stack.pop(0)
@@ -440,4 +497,3 @@ async def hash_sha256(str) -> str:
     def hash_sync(str):
         return hashlib.new('sha256', str).hexdigest()
     return await wrap_run_in_exc(None, hash_sync, str)
-

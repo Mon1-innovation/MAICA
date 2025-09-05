@@ -2,67 +2,101 @@ import asyncio
 from .maica_utils import *
 """Import layer 2"""
 
+PRV_LIST = ['_lock', 'lock']
+
 class MaicaSettings():
     """All the per-client settings for MAICA."""
+
     class _common_funcs():
         """Just a template. Do not initialize!"""
+
         def __init__(self):
-            self.default = self._default()
-            for k, v in self.default().items():
-                setattr(self, k, v)
             self._lock = False
-        def reset(self):
-            self.__init__()
+
         def _try_lock(self):
             pass
+
         def force_lock(self):
             self._lock = True
 
+        def reset(self):
+            self.__init__()
+
+        def __call__(self):
+            return {k.lstrip('_'): getattr(self, k.lstrip('_')) for k, _ in vars(self).items() if not k in PRV_LIST}
+
+        def update(self, **kwargs):
+            kwargs = {k: v for k, v in kwargs.items() if not k in PRV_LIST}
+            accepted_params = 0
+            for k, v in kwargs.items():
+                if hasattr(self, f'_{k}'):
+                    setattr(self, k, v)
+                    accepted_params += 1
+            return accepted_params
+
+        @classmethod
+        def default(cls, key=None):
+            inst = cls()
+            defaults = {k.lstrip('_'): v for k, v in vars(inst).items() if not k in PRV_LIST}
+            if not key:
+                return defaults
+            else:
+                return defaults[key]
+
     class _identity(_common_funcs):
         """Note that this identity is not verified and not safe to use in most cases. Use verification for those."""
-        class _default():
-            user_id = None
-            username = None
-            nickname = None
-            email = None
-            def __call__(self):
-                return {
-                    'user_id': self.user_id,
-                    'username': self.username,
-                    'nickname': self.nickname,
-                    'email': self.email,
-                }
-        def __call__(self):
-            return {
-                'user_id': self.user_id,
-                'username': self.username,
-                'nickname': self.nickname,
-                'email': self.email,
-            }
-        def update(self, rsc=None, **kwargs):
-            if not rsc:
-                rsc = FscPlain.RealtimeSocketsContainer()
-            accepted_params = 0
-            try:
-                if self._lock:
-                    raise Exception('This identity is locked')
-                if 'user_id' in kwargs:
-                    self.user_id = int(kwargs['user_id'])
-                    accepted_params += 1
-                if 'username' in kwargs:
-                    self.username = str(kwargs['username'])
-                    accepted_params += 1
-                if 'nickname' in kwargs:
-                    self.nickname = str(kwargs['nickname'])
-                    accepted_params += 1
-                if 'email' in kwargs:
-                    self.email = str(kwargs['email'])
-                    accepted_params += 1
-                self._try_lock()
-                return accepted_params
-            except Exception as e:
-                error = MaicaInputWarning(e, '422')
-                asyncio.run(messenger(rsc.websocket, status='maica_settings_param_rejected', traceray_id=rsc.traceray_id, error=error))
+
+        def __init__(self):
+            super().__init__()
+            self._user_id: int = None
+            self._username: str = None
+            self._nickname: Optional[str] = None
+            self._email: str = None
+
+        @property
+        @Decos.report_reading_error
+        def user_id(self):
+            assert self._user_id
+            return self._user_id
+        @user_id.setter
+        @Decos.report_limit_error
+        def user_id(self, v: int):
+            v = int(v)
+            assert v > 0
+            self._user_id = v
+
+        @property
+        @Decos.report_reading_error
+        def username(self):
+            assert self._username
+            return self._username
+        @username.setter
+        @Decos.report_limit_error
+        def username(self, v: str):
+            v = str(v)
+            assert v
+            self._username = v
+
+        @property
+        @Decos.report_reading_error
+        def nickname(self):
+            return self._nickname
+        @nickname.setter
+        @Decos.report_limit_error
+        def nickname(self, v: Optional[str]):
+            self._nickname = v
+
+        @property
+        @Decos.report_reading_error
+        def email(self):
+            assert self._email
+            return self._email
+        @email.setter
+        @Decos.report_limit_error
+        def email(self, v: str):
+            v = str(v)
+            assert v
+            self._email = v
 
     class _verification(_identity):
         """Verified identity, safe to use."""
@@ -71,345 +105,472 @@ class MaicaSettings():
 
     class _basic(_common_funcs):
         """Major params that decide MAICA's behavior."""
-        class _default():
-            stream_output = True
-            deformation = False
-            enable_mf = True
-            enable_mt = True
-            sf_extraction = True
-            mt_extraction = True
-            target_lang = 'zh'
-            max_length = 8192
-            def __call__(self):
-                return {
-                    'stream_output': self.stream_output,
-                    'deformation': self.deformation,
-                    'enable_mf': self.enable_mf,
-                    'enable_mt': self.enable_mt,
-                    'sf_extraction': self.sf_extraction,
-                    'mt_extraction': self.mt_extraction,
-                    'target_lang': self.target_lang,
-                    'max_length': self.max_length,
-                }
-        def __call__(self):
-            return {
-                'stream_output': self.stream_output,
-                'deformation': self.deformation,
-                'enable_mf': self.enable_mf,
-                'enable_mt': self.enable_mt,
-                'sf_extraction': self.sf_extraction,
-                'mt_extraction': self.mt_extraction,
-                'target_lang': self.target_lang,
-                'max_length': self.max_length,
-            }
-        def update(self, rsc=None, **kwargs):
-            if not rsc:
-                rsc = FscPlain.RealtimeSocketsContainer()
-            accepted_params = 0
-            try:
-                if 'enable_mf' in kwargs:
-                    self.enable_mf = bool(default(kwargs['enable_mf'], self.default.enable_mf))
-                    accepted_params += 1
-                if 'enable_mt' in kwargs:
-                    self.enable_mt = bool(default(kwargs['enable_mt'], self.default.enable_mt))
-                    accepted_params += 1
-                if 'sf_extraction' in kwargs:
-                    self.sf_extraction = bool(default(kwargs['sf_extraction'], self.default.sf_extraction))
-                    accepted_params += 1
-                if 'mt_extraction' in kwargs:
-                    self.mt_extraction = bool(default(kwargs['mt_extraction'], self.default.mt_extraction))
-                    accepted_params += 1
-                if 'stream_output' in kwargs:
-                    self.stream_output = bool(default(kwargs['stream_output'], self.default.stream_output))
-                    accepted_params += 1
-                if 'deformation' in kwargs:
-                    self.deformation = bool(default(kwargs['deformation'], self.default.deformation))
-                    accepted_params += 1
-                if 'target_lang' in kwargs:
-                    self.target_lang = 'en' if kwargs['target_lang'] == 'en' else 'zh'
-                    accepted_params += 1
-                if 'max_length' in kwargs:
-                    if kwargs['max_length'] is None:
-                        self.max_length = self.default.max_length
-                        accepted_params += 1
-                    elif 512 <= int(kwargs['max_length']) <= 28672:
-                        self.max_length = int(kwargs['max_length'])
-                        accepted_params += 1
-                return accepted_params
-            except Exception as e:
-                error = MaicaInputWarning(e, '422')
-                asyncio.run(messenger(rsc.websocket, status='maica_settings_param_rejected', traceray_id=rsc.traceray_id, error=error))
+
+        def __init__(self):
+            super().__init__()
+            self._stream_output: bool = True
+            self._deformation: bool = False
+            self._enable_mf: bool = True
+            self._enable_mt: bool = True
+            self._sf_extraction: bool = True
+            self._mt_extraction: bool = True
+            self._target_lang: str = 'zh'
+            self._max_length: int = 8192
+
+        @property
+        def stream_output(self):
+            """Use stream output."""
+            return self._stream_output
+        @stream_output.setter
+        @Decos.report_limit_warning
+        def stream_output(self, v: Optional[bool]):
+            if v is None:
+                self._stream_output = self.default('stream_output')
+            else:
+                self._stream_output = bool(v)
+
+        @property
+        def deformation(self):
+            """Deprecated."""
+            return self._deformation
+        @deformation.setter
+        @Decos.report_limit_warning
+        def deformation(self, v: Optional[bool]):
+            if v is None:
+                self._deformation = self.default('deformation')
+            else:
+                self._deformation = bool(v)
+
+        @property
+        def enable_mf(self):
+            """Enable MFocus."""
+            return self._enable_mf
+        @enable_mf.setter
+        @Decos.report_limit_warning
+        def enable_mf(self, v: Optional[bool]):
+            if v is None:
+                self._enable_mf = self.default('enable_mf')
+            else:
+                self._enable_mf = bool(v)
+
+        @property
+        def enable_mt(self):
+            """Enable MTrigger."""
+            return self._enable_mt
+        @enable_mt.setter
+        @Decos.report_limit_warning
+        def enable_mt(self, v: Optional[bool]):
+            if v is None:
+                self._enable_mt = self.default('enable_mt')
+            else:
+                self._enable_mt = bool(v)
+
+        @property
+        def sf_extraction(self):
+            """Enable savefile extraction."""
+            return self._sf_extraction
+        @sf_extraction.setter
+        @Decos.report_limit_warning
+        def sf_extraction(self, v: Optional[bool]):
+            if v is None:
+                self._sf_extraction = self.default('sf_extraction')
+            else:
+                self._sf_extraction = bool(v)
+
+        @property
+        def mt_extraction(self):
+            """Enable trigger extraction."""
+            return self._mt_extraction
+        @mt_extraction.setter
+        @Decos.report_limit_warning
+        def mt_extraction(self, v: Optional[bool]):
+            if v is None:
+                self._mt_extraction = self.default('mt_extraction')
+            else:
+                self._mt_extraction = bool(v)
+
+        @property
+        def target_lang(self):
+            """Target language."""
+            return self._target_lang
+        @target_lang.setter
+        @Decos.report_limit_warning
+        def target_lang(self, v: Optional[str]):
+            if v is None:
+                self._target_lang = self.default('target_lang')
+            else:
+                self._target_lang = 'zh' if v == 'zh' else 'en'
+
+        @property
+        def max_length(self):
+            """Max session length."""
+            return self._max_length
+        @max_length.setter
+        @Decos.report_limit_warning
+        def max_length(self, v: Optional[int]):
+            if v is None:
+                self._max_length = self.default('max_length')
+            else:
+                assert 512 <= int(v) <= 28672
+                self._max_length = int(v)
 
     class _extra(_common_funcs):
         """Params that aren't that important, but affect MAICA's behavior."""
-        class _default():
-            sfe_aggressive = False
-            """Means using name from savefile instead of [player] in prompts"""
-            mf_aggressive = False
-            """Means using agent model's final output instead of instructed guidance"""
-            tnd_aggressive = 1
-            """Means adding information to MFocus instructed guidance even if no tool used"""
-            esc_aggressive = True
-            """Means forcing agent to resort information acquired from Internet"""
-            amt_aggressive = True
-            """Means adding MTrigger toollist to MFocus tools for a precheck"""
-            nsfw_acceptive = True
-            pre_additive = 0
-            """Means adding history rounds for MFocus to understand the conversation"""
-            post_additive = 1
-            """Means adding history rounds for MFocus to understand the conversation"""
-            tz = None
-            def __call__(self):
-                return {
-                    'sfe_aggressive': self.sfe_aggressive,
-                    'mf_aggressive': self.mf_aggressive,
-                    'tnd_aggressive': self.tnd_aggressive,
-                    'esc_aggressive': self.esc_aggressive,
-                    'amt_aggressive': self.amt_aggressive,
-                    'nsfw_acceptive': self.nsfw_acceptive,
-                    'pre_additive': self.pre_additive,
-                    'post_additive': self.post_additive,
-                    'tz': self.tz,
-                }
-        def __call__(self):
-            return {
-                'sfe_aggressive': self.sfe_aggressive,
-                'mf_aggressive': self.mf_aggressive,
-                'tnd_aggressive': self.tnd_aggressive,
-                'esc_aggressive': self.esc_aggressive,
-                'amt_aggressive': self.amt_aggressive,
-                'nsfw_acceptive': self.nsfw_acceptive,
-                'pre_additive': self.pre_additive,
-                'post_additive': self.post_additive,
-                'tz': self.tz,
-            }
-        def update(self, rsc=None, **kwargs):
-            if not rsc:
-                rsc = FscPlain.RealtimeSocketsContainer()
-            accepted_params = 0
-            try:
-                if 'sfe_aggressive' in kwargs:
-                    self.sfe_aggressive = bool(default(kwargs['sfe_aggressive'], self.default.sfe_aggressive))
-                    accepted_params += 1
-                if 'mf_aggressive' in kwargs:
-                    self.mf_aggressive = bool(default(kwargs['mf_aggressive'], self.default.mf_aggressive))
-                    accepted_params += 1
-                if 'tnd_aggressive' in kwargs:
-                    self.tnd_aggressive = int(default(kwargs['tnd_aggressive'], self.default.tnd_aggressive))
-                    accepted_params += 1
-                if 'esc_aggressive' in kwargs:
-                    self.esc_aggressive = bool(default(kwargs['esc_aggressive'], self.default.esc_aggressive))
-                    accepted_params += 1
-                if 'amt_aggressive' in kwargs:
-                    self.amt_aggressive = bool(default(kwargs['amt_aggressive'], self.default.amt_aggressive))
-                    accepted_params += 1
-                if 'nsfw_acceptive' in kwargs:
-                    self.nsfw_acceptive = bool(default(kwargs['nsfw_acceptive'], self.default.nsfw_acceptive))
-                    accepted_params += 1
-                if 'pre_additive' in kwargs:
-                    if kwargs['pre_additive'] is None:
-                        self.pre_additive = self.default.pre_additive
-                        accepted_params += 1
-                    if 0 <= int(kwargs['pre_additive']) <= 5:
-                        self.pre_additive = int(kwargs['pre_additive'])
-                        accepted_params += 1
-                if 'post_additive' in kwargs:
-                    if kwargs['post_additive'] is None:
-                        self.post_additive = self.default.post_additive
-                        accepted_params += 1
-                    elif 0 <= int(kwargs['post_additive']) <= 5:
-                        self.post_additive = int(kwargs['post_additive'])
-                        accepted_params += 1
-                if 'tz' in kwargs and isinstance(kwargs['tz'], Optional[str]):
-                    self.tz = default(kwargs['tz'], self.default.tz)
-                    accepted_params += 1
-                return accepted_params
-            except Exception as e:
-                error = MaicaInputWarning(e, '422')
-                asyncio.run(messenger(rsc.websocket, status='maica_settings_param_rejected', traceray_id=rsc.traceray_id, error=error))
+
+        def __init__(self):
+            super().__init__()
+            self._sfe_aggressive: bool = False
+            self._mf_aggressive: bool = False
+            self._tnd_aggressive: int = 1
+            self._esc_aggressive: bool = True
+            self._amt_aggressive: bool = True
+            self._nsfw_acceptive: bool = True
+            self._pre_additive: int = 0
+            self._post_additive: int = 1
+            self._tz: Optional[str] = None
+
+        @property
+        def sfe_aggressive(self):
+            """Use name from savefile instead of [player] in prompts."""
+            return self._sfe_aggressive
+        @sfe_aggressive.setter
+        @Decos.report_limit_warning
+        def sfe_aggressive(self, v: Optional[bool]):
+            if v is None:
+                self._sfe_aggressive = self.default('sfe_aggressive')
+            else:
+                self._sfe_aggressive = bool(v)
+
+        @property
+        def mf_aggressive(self):
+            """Use agent model's final output instead of instructed guidance."""
+            return self._mf_aggressive
+        @mf_aggressive.setter
+        @Decos.report_limit_warning
+        def mf_aggressive(self, v: Optional[bool]):
+            if v is None:
+                self._mf_aggressive = self.default('mf_aggressive')
+            else:
+                self._mf_aggressive = bool(v)
+
+        @property
+        def tnd_aggressive(self):
+            """Add information to MFocus instructed guidance even if no tool used."""
+            return self._tnd_aggressive
+        @tnd_aggressive.setter
+        @Decos.report_limit_warning
+        def tnd_aggressive(self, v: Optional[int]):
+            if v is None:
+                self._tnd_aggressive = self.default('tnd_aggressive')
+            else:
+                assert 0 <= int(v) <= 3
+                self._tnd_aggressive = int(v)
+
+        @property
+        def esc_aggressive(self):
+            """Force agent to resort information acquired from Internet."""
+            return self._esc_aggressive
+        @esc_aggressive.setter
+        @Decos.report_limit_warning
+        def esc_aggressive(self, v: Optional[bool]):
+            if v is None:
+                self._esc_aggressive = self.default('esc_aggressive')
+            else:
+                self._esc_aggressive = bool(v)
+
+        @property
+        def amt_aggressive(self):
+            """Add MTrigger toollist to MFocus tools for a precheck."""
+            return self._amt_aggressive
+        @amt_aggressive.setter
+        @Decos.report_limit_warning
+        def amt_aggressive(self, v: Optional[bool]):
+            if v is None:
+                self._amt_aggressive = self.default('amt_aggressive')
+            else:
+                self._amt_aggressive = bool(v)
+
+        @property
+        def nsfw_acceptive(self):
+            """Alter prompt to ask model to handle toxic topics positively."""
+            return self._nsfw_acceptive
+        @nsfw_acceptive.setter
+        @Decos.report_limit_warning
+        def nsfw_acceptive(self, v: Optional[bool]):
+            if v is None:
+                self._nsfw_acceptive = self.default('nsfw_acceptive')
+            else:
+                self._nsfw_acceptive = bool(v)
+
+        @property
+        def pre_additive(self):
+            """Add history rounds for MFocus to understand the conversation."""
+            return self._pre_additive
+        @pre_additive.setter
+        @Decos.report_limit_warning
+        def pre_additive(self, v: Optional[int]):
+            if v is None:
+                self._pre_additive = self.default('pre_additive')
+            else:
+                assert 0 <= int(v) <= 5
+                self._pre_additive = int(v)
+
+        @property
+        def post_additive(self):
+            """Add history rounds for MFocus to understand the conversation."""
+            return self._post_additive
+        @post_additive.setter
+        @Decos.report_limit_warning
+        def post_additive(self, v: Optional[int]):
+            if v is None:
+                self._post_additive = self.default('post_additive')
+            else:
+                assert 0 <= int(v) <= 5
+                self._post_additive = int(v)
+
+        @property
+        def tz(self):
+            """Timezone. This is not fully checked, double check before use."""
+            return self._tz
+        @tz.setter
+        @Decos.report_limit_warning
+        def tz(self, v: Optional[str]):
+            if v is None:
+                self._tz = self.default('tz')
+            else:
+                self._tz = str(v)
 
     class _super(_common_funcs):
         """Passthrough params to core LLM."""
-        class _default():
-            max_tokens = 1600
-            seed = None
-            top_p = 0.7
-            temperature = 0.22
-            frequency_penalty = 0.44
-            presence_penalty = 0.34
-            def __call__(self):
-                return {
-                    'max_tokens': self.max_tokens,
-                    'seed': self.seed,
-                    'top_p': self.top_p,
-                    'temperature': self.temperature,
-                    'frequency_penalty': self.frequency_penalty,
-                    'presence_penalty': self.presence_penalty,
-                }
-        def __call__(self):
-            return {
-                'max_tokens': self.max_tokens,
-                'seed': self.seed,
-                'top_p': self.top_p,
-                'temperature': self.temperature,
-                'frequency_penalty': self.frequency_penalty,
-                'presence_penalty': self.presence_penalty,
-            }
-        def update(self, rsc=None, **kwargs):
-            if not rsc:
-                rsc = FscPlain.RealtimeSocketsContainer()
-            accepted_params = 0
-            try:
-                if 'max_tokens' in kwargs:
-                    if isinstance(kwargs['max_tokens'], Optional[int]):
-                        if kwargs['max_tokens'] is None:
-                            self.max_tokens = self.default.max_tokens
-                            accepted_params += 1
-                        elif int(kwargs['max_tokens']) == -1 or 0 < int(kwargs['max_tokens']) <= 2048:
-                            self.max_tokens = int(default(kwargs['max_tokens'], self.default.max_tokens, [None, -1]))
-                            accepted_params += 1
-                if 'seed' in kwargs:
-                    if isinstance(kwargs['seed'], Optional[int]):
-                        if kwargs['seed'] is None:
-                            self.seed = self.default.seed
-                            accepted_params += 1
-                        elif int(kwargs['seed']) == -1 or 0 < int(kwargs['seed']) <= 99999:
-                            self.seed = int(default(kwargs['seed'], self.default.seed, [None, -1]))
-                            accepted_params += 1
-                if 'top_p' in kwargs:
-                    if isinstance(kwargs['top_p'], Union[int, float, None]):
-                        if kwargs['top_p'] is None:
-                            self.top_p = self.default.top_p
-                            accepted_params += 1
-                        elif int(kwargs['top_p']) == -1 or 0.1 < float(kwargs['top_p']) <= 1.0:
-                            self.top_p = float(default(kwargs['top_p'], self.default.top_p, [None, -1]))
-                            accepted_params += 1
-                if 'temperature' in kwargs:
-                    if isinstance(kwargs['temperature'], Union[int, float, None]):
-                        if kwargs['temperature'] is None:
-                            self.temperature = self.default.temperature
-                            accepted_params += 1
-                        elif int(kwargs['temperature']) == -1 or 0.0 < float(kwargs['temperature']) <= 1.0:
-                            self.temperature = float(default(kwargs['temperature'], self.default.temperature, [None, -1]))
-                            accepted_params += 1
-                if 'frequency_penalty' in kwargs:
-                    if isinstance(kwargs['frequency_penalty'], Union[int, float, None]):
-                        if kwargs['frequency_penalty'] is None:
-                            self.frequency_penalty = self.default.frequency_penalty
-                            accepted_params += 1
-                        elif int(kwargs['frequency_penalty']) == -1 or 0.2 < float(kwargs['frequency_penalty']) <= 1.0:
-                            self.frequency_penalty = float(default(kwargs['frequency_penalty'], self.default.frequency_penalty, [None, 1]))
-                            accepted_params += 1
-                if 'presence_penalty' in kwargs:
-                    if isinstance(kwargs['presence_penalty'], Union[int, float, None]):
-                        if kwargs['presence_penalty'] is None:
-                            self.presence_penalty = self.default.presence_penalty
-                            accepted_params += 1
-                        elif int(kwargs['presence_penalty']) == -1 or 0.0 < float(kwargs['presence_penalty']) <= 1.0:
-                            self.presence_penalty = float(default(kwargs['presence_penalty'], self.default.presence_penalty, [None, -1]))
-                            accepted_params += 1
-                return accepted_params
-            except Exception as e:
-                error = MaicaInputWarning(e, '422')
-                asyncio.run(messenger(rsc.websocket, status='maica_settings_param_rejected', traceray_id=rsc.traceray_id, error=error))
+
+        def __init__(self):
+            super().__init__()
+            self._max_tokens: int = 1600
+            self._seed: int = None
+            self._top_p: float = 0.7
+            self._temperature: float = 0.22
+            self._frequency_penalty: float = 0.44
+            self._presence_penalty: float = 0.34
+
+        @property
+        def max_tokens(self):
+            return self._max_tokens
+        @max_tokens.setter
+        @Decos.report_limit_warning
+        def max_tokens(self, v: Optional[int]):
+            if v is None:
+                self._max_tokens = self.default('max_tokens')
+            else:
+                assert 0 < int(v) <= 2048
+                self._max_tokens = int(v)
+
+        @property
+        def seed(self):
+            return self._seed
+        @seed.setter
+        @Decos.report_limit_warning
+        def seed(self, v: Optional[int]):
+            if v is None:
+                self._seed = self.default('seed')
+            else:
+                self._seed = int(v)
+
+        @property
+        def top_p(self):
+            return self._top_p
+        @top_p.setter
+        @Decos.report_limit_warning
+        def top_p(self, v: Optional[float]):
+            if v is None:
+                self._top_p = self.default('top_p')
+            else:
+                assert 0.1 <= float(v) <= 1.0
+                self._top_p = float(v)
+
+        @property
+        def temperature(self):
+            return self._temperature
+        @temperature.setter
+        @Decos.report_limit_warning
+        def temperature(self, v: Optional[float]):
+            if v is None:
+                self._temperature = self.default('temperature')
+            else:
+                assert 0.0 <= float(v) <= 1.0
+                self._temperature = float(v)
+
+        @property
+        def frequency_penalty(self):
+            return self._frequency_penalty
+        @frequency_penalty.setter
+        @Decos.report_limit_warning
+        def frequency_penalty(self, v: Optional[float]):
+            if v is None:
+                self._frequency_penalty = self.default('frequency_penalty')
+            else:
+                assert 0.2 <= float(v) <= 1.0
+                self._frequency_penalty = float(v)
+
+        @property
+        def presence_penalty(self):
+            return self._presence_penalty
+        @presence_penalty.setter
+        @Decos.report_limit_warning
+        def presence_penalty(self, v: Optional[float]):
+            if v is None:
+                self._presence_penalty = self.default('presence_penalty')
+            else:
+                assert 0.0 <= float(v) <= 1.0
+                self._presence_penalty = float(v)
 
     class _temp(_common_funcs):
         """Should be reset after each round of completion."""
-        class _default():
-            chat_session = 0
-            sf_extraction_once = False
-            """Enable sf_extraction once while sf provided with query"""
-            mt_extraction_once = False
+
+        def __init__(self):
+            super().__init__()
+            self._chat_session = 0
+            self._sf_extraction_once = False
+            self._mt_extraction_once = False
+            self._bypass_mf = False
+            self._bypass_mt = False
+            self._bypass_stream = False
+            self._bypass_sup = False
+            self._bypass_gen = False
+            self._ic_prep = False
+            self._strict_conv = True
+            self._ms_cache = False
+
+        @property
+        def chat_session(self):
+            return self._chat_session
+        @chat_session.setter
+        @Decos.report_limit_warning
+        def chat_session(self, v: Optional[int]):
+            if v is None:
+                self._chat_session = self.default('chat_session')
+            else:
+                assert -1 <= int(v) <= 9
+                self._chat_session = int(v)
+
+        @property
+        def sf_extraction_once(self):
+            """Enable sf_extraction once while sf provided with query."""
+            return self._sf_extraction_once
+        @sf_extraction_once.setter
+        @Decos.report_limit_warning
+        def sf_extraction_once(self, v: Optional[bool]):
+            if v is None:
+                self._sf_extraction_once = self.default('sf_extraction_once')
+            else:
+                self._sf_extraction_once = bool(v)
+
+        @property
+        def mt_extraction_once(self):
             """Enable mt_extraction once while mt provided with query"""
-            bypass_mf = False
-            """Bypass MFocus once"""
-            bypass_mt = False
-            """Bypass MTrigger once"""
-            bypass_stream = False
-            """Bypass stream output once"""
-            bypass_sup = False
-            """Bypass super params once"""
-            bypass_gen = False
-            """Bypass generation once"""
-            ic_prep = False
-            """Adjust generation params once, basically for MPostal"""
-            strict_conv = True
-            """Strict conversation prompt"""
-            ms_cache = False
-            """Cache the MSpire response"""
-            def __call__(self):
-                return {
-                    'chat_session': self.chat_session,
-                    'sf_extraction_once': self.sf_extraction_once,
-                    'mt_extraction_once': self.mt_extraction_once,
-                    'bypass_mf': self.bypass_mf,
-                    'bypass_mt': self.bypass_mt,
-                    'bypass_stream': self.bypass_stream,
-                    'bypass_sup': self.bypass_sup,
-                    'bypass_gen': self.bypass_gen,
-                    'ic_prep': self.ic_prep,
-                    'strict_conv': self.strict_conv,
-                    'ms_cache': self.ms_cache,
-                }
-        def __call__(self):
-            return {
-                'chat_session': self.chat_session,
-                'sf_extraction_once': self.sf_extraction_once,
-                'mt_extraction_once': self.mt_extraction_once,
-                'bypass_mf': self.bypass_mf,
-                'bypass_mt': self.bypass_mt,
-                'bypass_stream': self.bypass_stream,
-                'bypass_sup': self.bypass_sup,
-                'bypass_gen': self.bypass_gen,
-                'ic_prep': self.ic_prep,
-                'strict_conv': self.strict_conv,
-                'ms_cache': self.ms_cache,
-            }
-        def update(self, rsc=None, **kwargs):
-            if not rsc:
-                rsc = FscPlain.RealtimeSocketsContainer()
-            accepted_params = 0
-            try:
-                if 'chat_session' in kwargs:
-                    if isinstance(kwargs['chat_session'], Optional[int]):
-                        if kwargs['chat_session'] is None:
-                            self.chat_session = self.default.chat_session
-                        elif -1 <= int(kwargs['chat_session']) < 10:
-                            self.chat_session = int(kwargs['chat_session'])
-                if 'sf_extraction_once' in kwargs:
-                    self.sf_extraction_once = bool(default(kwargs['sf_extraction_once'], self.default.sf_extraction_once))
-                    accepted_params += 1
-                if 'mt_extraction_once' in kwargs:
-                    self.mt_extraction_once = bool(default(kwargs['mt_extraction_once'], self.default.mt_extraction_once))
-                    accepted_params += 1
-                if 'bypass_mf' in kwargs:
-                    self.bypass_mf = bool(default(kwargs['bypass_mf'], self.default.bypass_mf))
-                    accepted_params += 1
-                if 'bypass_mt' in kwargs:
-                    self.bypass_mt = bool(default(kwargs['bypass_mt'], self.default.bypass_mt))
-                    accepted_params += 1
-                if 'bypass_stream' in kwargs:
-                    self.bypass_stream = bool(default(kwargs['bypass_stream'], self.default.bypass_stream))
-                    accepted_params += 1
-                if 'bypass_sup' in kwargs:
-                    self.bypass_sup = bool(default(kwargs['bypass_sup'], self.default.bypass_sup))
-                    accepted_params += 1
-                if 'bypass_gen' in kwargs:
-                    self.bypass_gen = bool(default(kwargs['bypass_gen'], self.default.bypass_gen))
-                    accepted_params += 1
-                if 'ic_prep' in kwargs:
-                    self.ic_prep = bool(default(kwargs['ic_prep'], self.default.ic_prep))
-                    accepted_params += 1
-                if 'strict_conv' in kwargs:
-                    self.strict_conv = bool(default(kwargs['strict_conv'], self.default.strict_conv))
-                    accepted_params += 1
-                if 'ms_cache' in kwargs:
-                    self.ms_cache = bool(default(kwargs['ms_cache'], self.default.ms_cache))
-                    accepted_params += 1
-                return accepted_params
-            except Exception as e:
-                error = MaicaInputWarning(e, '422')
-                asyncio.run(messenger(rsc.websocket, status='maica_settings_param_rejected', traceray_id=rsc.traceray_id, error=error))
+            return self._mt_extraction_once
+        @mt_extraction_once.setter
+        @Decos.report_limit_warning
+        def mt_extraction_once(self, v: Optional[bool]):
+            if v is None:
+                self._mt_extraction_once = self.default('mt_extraction_once')
+            else:
+                self._mt_extraction_once = bool(v)
+
+        @property
+        def bypass_mf(self):
+            """Bypass MFocus once."""
+            return self._bypass_mf
+        @bypass_mf.setter
+        @Decos.report_limit_warning
+        def bypass_mf(self, v: Optional[bool]):
+            if v is None:
+                self._bypass_mf = self.default('bypass_mf')
+            else:
+                self._bypass_mf = bool(v)
+
+        @property
+        def bypass_mt(self):
+            """Bypass MTrigger once."""
+            return self._bypass_mt
+        @bypass_mt.setter
+        @Decos.report_limit_warning
+        def bypass_mt(self, v: Optional[bool]):
+            if v is None:
+                self._bypass_mt = self.default('bypass_mt')
+            else:
+                self._bypass_mt = bool(v)
+
+        @property
+        def bypass_stream(self):
+            """Bypass stream output once."""
+            return self._bypass_stream
+        @bypass_stream.setter
+        @Decos.report_limit_warning
+        def bypass_stream(self, v: Optional[bool]):
+            if v is None:
+                self._bypass_stream = self.default('bypass_stream')
+            else:
+                self._bypass_stream = bool(v)
+
+        @property
+        def bypass_sup(self):
+            """Bypass super params once."""
+            return self._bypass_sup
+        @bypass_sup.setter
+        @Decos.report_limit_warning
+        def bypass_sup(self, v: Optional[bool]):
+            if v is None:
+                self._bypass_sup = self.default('bypass_sup')
+            else:
+                self._bypass_sup = bool(v)
+
+        @property
+        def bypass_gen(self):
+            """Bypass generation once."""
+            return self._bypass_gen
+        @bypass_gen.setter
+        @Decos.report_limit_warning
+        def bypass_gen(self, v: Optional[bool]):
+            if v is None:
+                self._bypass_gen = self.default('bypass_gen')
+            else:
+                self._bypass_gen = bool(v)
+
+        @property
+        def ic_prep(self):
+            """Adjust generation params once, basically for MPostal."""
+            return self._ic_prep
+        @ic_prep.setter
+        @Decos.report_limit_warning
+        def ic_prep(self, v: Optional[bool]):
+            if v is None:
+                self._ic_prep = self.default('ic_prep')
+            else:
+                self._ic_prep = bool(v)
+
+        @property
+        def strict_conv(self):
+            """Strict conversation prompt."""
+            return self._strict_conv
+        @strict_conv.setter
+        @Decos.report_limit_warning
+        def strict_conv(self, v: Optional[bool]):
+            if v is None:
+                self._strict_conv = self.default('strict_conv')
+            else:
+                self._strict_conv = bool(v)
+
+        @property
+        def ms_cache(self):
+            """Cache the MSpire response."""
+            return self._ms_cache
+        @ms_cache.setter
+        @Decos.report_limit_warning
+        def ms_cache(self, v: Optional[bool]):
+            if v is None:
+                self._ms_cache = self.default('ms_cache')
+            else:
+                self._ms_cache = bool(v)
 
     def __init__(self):
         self.identity, self.verification, self.basic, self.extra, self.super, self.temp = self._identity(), self._verification(), self._basic(), self._extra(), self._super(), self._temp()
@@ -428,14 +589,14 @@ class MaicaSettings():
     def reset(self):
         self.__init__()
 
-    def update(self, secure=None, rsc=None, **kwargs):
+    def update(self, secure=None, **kwargs):
         """Used for handling manual settings."""
         if secure is False:
-            accepted_params = self.identity.update(rsc, **kwargs)
+            accepted_params = self.identity.update(**kwargs)
         elif secure is True:
-            accepted_params = self.verification.update(rsc, **kwargs)
+            accepted_params = self.verification.update(**kwargs)
         else:
-            accepted_params = self.basic.update(rsc, **kwargs) + self.extra.update(rsc, **kwargs) + self.super.update(rsc, **kwargs)
+            accepted_params = self.basic.update(**kwargs) + self.extra.update(**kwargs) + self.super.update(**kwargs)
             # We do not accept temps to be manually set
         return accepted_params
 

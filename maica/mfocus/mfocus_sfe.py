@@ -793,12 +793,15 @@ Begin!"""
         answer_fin_json = proceed_agent_response(response, is_json=True)
         return answer_fin_json
 
+    @Decos.report_data_error
     def add_extra(self, **kwargs) -> None:
         self.sf_forming_buffer.update(kwargs)
 
+    @Decos.report_data_error
     def use_only(self, **kwargs) -> None:
         self.sf_forming_buffer = kwargs
 
+    @Decos.report_data_error
     def read_from_sf(self, key) -> any:
         if not self.settings.basic.sf_extraction and not self.settings.temp.sf_extraction_once:
             return None

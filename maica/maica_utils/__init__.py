@@ -40,6 +40,7 @@ from .maica_utils import (
     clean_text,
     try_load_json,
     hash_sha256,
+    Decos,
 )
 from .connection_utils import DbPoolCoroutine, SqliteDbPoolCoroutine, ConnUtils, AiConnCoroutine, validate_input
 from .setting_utils import MaicaSettings
@@ -91,6 +92,7 @@ __all__ = [
     'clean_text',
     'try_load_json',
     'hash_sha256',
+    'Decos',
     'DbPoolCoroutine',
     'SqliteDbPoolCoroutine',
     'ConnUtils',

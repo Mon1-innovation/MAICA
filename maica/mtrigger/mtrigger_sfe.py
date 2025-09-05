@@ -12,6 +12,7 @@ class MtBoundCoroutine(SideBoundCoroutine):
     FUNC_NAME = 'mtrigger'
     EMPTY = []
 
+    @Decos.report_data_error
     def get_valid_triggers(self):
         if not self.settings.basic.mt_extraction and not self.settings.temp.mt_extraction_once:
             return None
@@ -42,12 +43,15 @@ class MtBoundCoroutine(SideBoundCoroutine):
 
         return aff_trigger_list + switch_trigger_list + meter_trigger_list + customized_trigger_list
     
+    @Decos.report_data_error
     def add_extra(self, *args) -> None:
         self.sf_forming_buffer.extend(args)
 
+    @Decos.report_data_error
     def use_only(self, *args) -> None:
         self.sf_forming_buffer = args
 
+    @Decos.report_data_error
     def read_from_sf(self, seq) -> any:
         if not self.settings.basic.mt_extraction and not self.settings.temp.mt_extraction_once:
             return None

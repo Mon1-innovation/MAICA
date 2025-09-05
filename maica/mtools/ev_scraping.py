@@ -121,7 +121,7 @@ class EventsCollection():
     mwd_dict = {}
 
     @classmethod
-    def _add_all(cls, basic_events_list: list[RegEvent]):
+    def _add_basic(cls, basic_events_list: list[RegEvent]):
         for event in basic_events_list:
             corr_dict = getattr(cls, f'{event.type}_dict')
             if not corr_dict.get(event.identity):
@@ -331,7 +331,7 @@ events_list = [
     # RegEvent(lmd="12_30", name="除夕", importance=2, lasts=1),
 ]
 
-EventsCollection._add_all(events_list)
+EventsCollection._add_basic(events_list)
 
 if __name__ == '__main__':
 

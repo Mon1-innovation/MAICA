@@ -327,135 +327,143 @@ class MFocusCoroutine(AsyncCreator):
         return content, tool_calls
     
     async def agenting(self, query):
-        # Just all the tools
-        instructed_answer = {
-            "time_acquire": '',
-            "date_acquire": '',
-            "weather_acquire": '',
-            "event_acquire": '',
-            "persistent_acquire": '',
-            "search_internet": '',
-            "react_trigger": '',
-        }
-        conclusion_answer = None
+        try:
 
-        def _instructed_add(tool_real_name: str, humane: Union[str, list], edit=True):
-            nonlocal instructed_answer
+            # Just all the tools
+            instructed_answer = {
+                "time_acquire": '',
+                "date_acquire": '',
+                "weather_acquire": '',
+                "event_acquire": '',
+                "persistent_acquire": '',
+                "search_internet": '',
+                "react_trigger": '',
+            }
+            conclusion_answer = None
 
-            # We merge lists and overwrite strings by default
-            if not instructed_answer.get(tool_real_name):
-                instructed_answer[tool_real_name] = humane
-            elif edit:
-                if isinstance(instructed_answer[tool_real_name], list):
-                    if isinstance(humane, list):
-                        instructed_answer[tool_real_name].extend(humane)
-                    else:
-                        # Likely less valuable so we discard
-                        pass
-                else:
-                    # Overwrite it anyway
+            def _instructed_add(tool_real_name: str, humane: Union[str, list], edit=True):
+                nonlocal instructed_answer
+
+                # We merge lists and overwrite strings by default
+                if not instructed_answer.get(tool_real_name):
                     instructed_answer[tool_real_name] = humane
-            # The logic is not that considerate, but trust me it's enough
-
-        # First thing first we prepare the first query
-        self._construct_tools()
-        await self._construct_query(user_input=query)
-
-        cycle = 0; ending = False
-        while cycle <= 7 and not ending:
-
-            # Sanity check
-            cycle += 1
-
-            resp_content, resp_tools = await self._send_query()
-            await messenger(self.websocket, 'maica_mfocus_toolchain', f'\nMFocus toolchain {cycle} round responded, response is:\n{resp_content}\nAnalyzing response...')
-            tool_seq = 0
-            if resp_tools:
-                for resp_tool in resp_tools:
-
-                    # Tool parallel support
-                    tool_seq += 1
-                    tool_id, tool_type, tool_func_name, tool_func_args = resp_tool.id, resp_tool.type, resp_tool.function.name, resp_tool.function.arguments
-                    await messenger(None, 'maica_mfocus_tool_acquire', f'\nCalling parallel tool {tool_seq}/{len(resp_tools)}:\n{resp_tool}\nGathering information...')
-
-                    machine = humane = None
-                    args = []
-
-                    kwargs = try_load_json(tool_func_args)
-                    function_route = getattr(self.agent_tools, tool_func_name, None)
-                    if function_route:
-                        machine, humane = await function_route(*args, **kwargs)
+                elif edit:
+                    if isinstance(instructed_answer[tool_real_name], list):
+                        if isinstance(humane, list):
+                            instructed_answer[tool_real_name].extend(humane)
+                        else:
+                            # Likely less valuable so we discard
+                            pass
                     else:
-                        match tool_func_name:
-                            case 'react_trigger':
-                                if not kwargs.get('prediction') or kwargs.get('prediction').lower() in ['false', 'none']:
-                                    humane = '[player]的请求当前无法被满足. 请表示你做不到, 并建议[player]自行解决或寻找其它方法.' if self.settings.basic.target_lang == 'zh' else '[player]\'s current request cannot be satisfied. please indicate that you can\'t do it, and suggest [player] doing it themselves or find another way.'
-                                else:
-                                    if kwargs.get('prediction') in self.choice_checklist:
-                                        humane = f'[player]的请求是你所了解的, 且会被系统完成, 请作出关于<{kwargs.get("prediction")}>的正面答复.' if self.settings.basic.target_lang == 'zh' else f'[player]\'s request is understood and will be done by system, please make positive answer about <{kwargs.get("prediction")}>.'
+                        # Overwrite it anyway
+                        instructed_answer[tool_real_name] = humane
+                # The logic is not that considerate, but trust me it's enough
+
+            # First thing first we prepare the first query
+            self._construct_tools()
+            await self._construct_query(user_input=query)
+
+            cycle = 0; ending = False
+            while cycle <= 7 and not ending:
+
+                # Sanity check
+                cycle += 1
+
+                resp_content, resp_tools = await self._send_query()
+                await messenger(self.websocket, 'maica_mfocus_toolchain', f'\nMFocus toolchain {cycle} round responded, response is:\n{resp_content}\nAnalyzing response...')
+                tool_seq = 0
+                if resp_tools:
+                    for resp_tool in resp_tools:
+
+                        # Tool parallel support
+                        tool_seq += 1
+                        tool_id, tool_type, tool_func_name, tool_func_args = resp_tool.id, resp_tool.type, resp_tool.function.name, resp_tool.function.arguments
+                        await messenger(None, 'maica_mfocus_tool_acquire', f'\nCalling parallel tool {tool_seq}/{len(resp_tools)}:\n{resp_tool}\nGathering information...')
+
+                        machine = humane = None
+                        args = []
+
+                        kwargs = try_load_json(tool_func_args)
+                        function_route = getattr(self.agent_tools, tool_func_name, None)
+                        if function_route:
+                            machine, humane = await function_route(*args, **kwargs)
+                        else:
+                            match tool_func_name:
+                                case 'react_trigger':
+                                    if not kwargs.get('prediction') or kwargs.get('prediction').lower() in ['false', 'none']:
+                                        humane = '[player]的请求当前无法被满足. 请表示你做不到, 并建议[player]自行解决或寻找其它方法.' if self.settings.basic.target_lang == 'zh' else '[player]\'s current request cannot be satisfied. please indicate that you can\'t do it, and suggest [player] doing it themselves or find another way.'
                                     else:
-                                        humane = '[player]的请求是你所了解的, 且会被系统完成, 请作出正面答复.' if self.settings.basic.target_lang == 'zh' else '[player]\'s request is understood and will be done by system, please make positive answer.'
-                                machine = '已收到你的判断, 请继续调用其它工具或正常结束作答.' if self.settings.basic.target_lang == 'zh' else 'Your judgement recieved, please continue using other tools or end as normal.'
-                            case 'conclude_information':
-                                conclusion_answer = kwargs.get('conclusion')
-                                await messenger(None, 'maica_mfocus_conclusion', f'\nMFocus conclusion recieved:\n{conclusion_answer}\nEnding toolchain...')
-                                ending = True
-                                break
-                            case 'none':
-                                await messenger(None, 'maica_mfocus_empty', f'MFocus null recieved, Ending toolchain...')
-                                ending = True
-                                break
-                            case _:
-                                # This tool call is unrecognizable
-                                raise MaicaInputError('Unrecognizable toolcall recieved', '405')
-                    if machine:
-                        await self._construct_query(tool_input=machine, tool_id=tool_id)
+                                        if kwargs.get('prediction') in self.choice_checklist:
+                                            humane = f'[player]的请求是你所了解的, 且会被系统完成, 请作出关于<{kwargs.get("prediction")}>的正面答复.' if self.settings.basic.target_lang == 'zh' else f'[player]\'s request is understood and will be done by system, please make positive answer about <{kwargs.get("prediction")}>.'
+                                        else:
+                                            humane = '[player]的请求是你所了解的, 且会被系统完成, 请作出正面答复.' if self.settings.basic.target_lang == 'zh' else '[player]\'s request is understood and will be done by system, please make positive answer.'
+                                    machine = '已收到你的判断, 请继续调用其它工具或正常结束作答.' if self.settings.basic.target_lang == 'zh' else 'Your judgement recieved, please continue using other tools or end as normal.'
+                                case 'conclude_information':
+                                    conclusion_answer = kwargs.get('conclusion')
+                                    await messenger(None, 'maica_mfocus_conclusion', f'\nMFocus conclusion recieved:\n{conclusion_answer}\nEnding toolchain...')
+                                    ending = True
+                                    break
+                                case 'none':
+                                    await messenger(None, 'maica_mfocus_empty', f'MFocus null recieved, Ending toolchain...')
+                                    ending = True
+                                    break
+                                case _:
+                                    # This tool call is unrecognizable
+                                    raise MaicaInputError('Unrecognizable toolcall recieved', '405')
+                        if machine:
+                            await self._construct_query(tool_input=machine, tool_id=tool_id)
 
-                    if humane:
-                        _instructed_add(tool_func_name, humane)
-            else:
-                await messenger(None, 'maica_mfocus_absent', f'No tool called, Ending toolchain...')
-                ending = True
+                        if humane:
+                            _instructed_add(tool_func_name, humane)
+                else:
+                    await messenger(None, 'maica_mfocus_absent', f'No tool called, Ending toolchain...')
+                    ending = True
 
-            await messenger(None, 'maica_mfocus_round_finish', f'MFocus toolchain {cycle} round finished, ending is {str(ending)}.')
+                await messenger(None, 'maica_mfocus_round_finish', f'MFocus toolchain {cycle} round finished, ending is {str(ending)}.')
+                    
+            # Now we're out of the loop
+            if self.settings.extra.mf_aggressive:
                 
-        # Now we're out of the loop
-        if self.settings.extra.mf_aggressive:
-            
-            # So we use last response instead if no conclusion offered
-            if not conclusion_answer:
-                conclusion_answer = proceed_agent_response(resp_content)
+                # So we use last response instead if no conclusion offered
+                if not conclusion_answer:
+                    conclusion_answer = proceed_agent_response(resp_content)
 
-            # If there is information and answer
-            if cycle >= 2 and conclusion_answer:
-                await messenger(self.websocket, 'maica_mfocus_using_conclusion', 'MFocus got conclusion and used', '200')
-                return conclusion_answer
-            
-            await messenger(self.websocket, 'maica_mfocus_no_conclusion', 'MFocus got no conclusion, falling back to instruction', '404', traceray_id=self.traceray_id)
-            
-        # Then if mfa not enabled or ignored
-        if self.tnd_aggressive >= 1:
-            # Add time and events
-            if not instructed_answer.get('time_acquire'):
-                _instructed_add('time_acquire', (await self.agent_tools.time_acquire())[1], False)
-            if not instructed_answer.get('event_acquire'):
-                _instructed_add('event_acquire', (await self.agent_tools.event_acquire())[1], False)
-        if self.tnd_aggressive >= 2:
-            # Add date and weather
-            if not instructed_answer.get('date_acquire'):
-                _instructed_add('date_acquire', (await self.agent_tools.date_acquire())[1], False)
-            if not instructed_answer.get('weather_acquire'):
-                _instructed_add('weather_acquire', (await self.agent_tools.weather_acquire())[1], False)
+                # If there is information and answer
+                if cycle >= 2 and conclusion_answer:
+                    await messenger(self.websocket, 'maica_mfocus_using_conclusion', 'MFocus got conclusion and used', '200')
+                    return conclusion_answer
+                
+                await messenger(self.websocket, 'maica_mfocus_no_conclusion', 'MFocus got no conclusion, falling back to instruction', '404', traceray_id=self.traceray_id)
+                
+            # Then if mfa not enabled or ignored
+            if self.tnd_aggressive >= 1:
+                # Add time and events
+                if not instructed_answer.get('time_acquire'):
+                    _instructed_add('time_acquire', (await self.agent_tools.time_acquire())[1], False)
+                if not instructed_answer.get('event_acquire'):
+                    _instructed_add('event_acquire', (await self.agent_tools.event_acquire())[1], False)
+            if self.tnd_aggressive >= 2:
+                # Add date and weather
+                if not instructed_answer.get('date_acquire'):
+                    _instructed_add('date_acquire', (await self.agent_tools.date_acquire())[1], False)
+                if not instructed_answer.get('weather_acquire'):
+                    _instructed_add('weather_acquire', (await self.agent_tools.weather_acquire())[1], False)
 
-        instructed_answer_list = []
-        if instructed_answer:
-            for k, v in instructed_answer.items():
-                # v can be only list or str
-                instructed_answer_list.extend(v) if isinstance(v, list) else instructed_answer_list.append(v)
-        else:
-            # If there's really no instruction
-            return None
+            instructed_answer_list = []
+            if instructed_answer:
+                for k, v in instructed_answer.items():
+                    # v can be only list or str
+                    instructed_answer_list.extend(v) if isinstance(v, list) else instructed_answer_list.append(v)
+            else:
+                # If there's really no instruction
+                return None
 
-        instructed_answer_str = ', '.join(instructed_answer_list)
-        return instructed_answer_str
+            instructed_answer_str = ', '.join(instructed_answer_list)
+            return instructed_answer_str
         
+        except Exception as e:
+            if isinstance(e, CommonMaicaException):
+                await messenger(self.websocket, 'maica_mfocus_input_bad', error=e, traceray_id=self.traceray_id)
+            else:
+                e = CommonMaicaError(str(e), '500')
+                await messenger(self.websocket, 'maica_mfocus_critical', error=e, traceray_id=self.traceray_id)
