@@ -633,9 +633,8 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
                 {
                     "isMaicaNameServer": true,
                     "servers": [
-                        {"id": 1, "name": "MAICA Official Provider", "description": "XP00-20\"铸灾神械\"", "isOfficial": true, "portalPage":"https://maica.monika.love", "servingModel": "MAICAv0-DAA2-72B", "modelLink": "https://huggingface.co/edgeinfinity/MAICAv0-LIA-72B", "wsInterface": "wss://maicadev.monika.love/websocket", "httpInterface": "https://maicadev.monika.love/api"},
-                        {"id": 0, "name": "Local MAICA Instance", "description": "Used for conveniently connecting to a local deployed MAICA instance", "isOfficial": true, "portalPage":"http://127.0.0.1", "servingModel": "UNKNOWN", "modelLink": "UNKNOWN", "wsInterface": "ws://127.0.0.1:5000/websocket", "httpInterface": "http://127.0.0.1:6000/api"},
-                        {"id": 2, "name": "MAICA Official Provider (plain)", "description": "Used for ssl/tls unsuitable situations", "isOfficial": true, "portalPage":"https://maica.monika.love", "servingModel": "MAICAv0-DAA2-72B", "modelLink": "https://huggingface.co/edgeinfinity/MAICAv0-LIA-72B", "wsInterface": "ws://maicadev.0721play.icu/websocket", "httpInterface": "http://maicadev.0721play.icu/api"}
+                        {"id": 1, "name": "MAICA Official Provider", "description": "XP00-20\"铸灾神械\"", "isOfficial": true, "portalPage":"https://maica.monika.love", "servingModel": "MAICAv0-DAA2-72B", "modelLink": "https://huggingface.co/edgeinfinity/MAICAv0-LIA-72B", "wsInterface": "wss://maicadev.monika.love/websocket", "httpInterface": "https://maicadev.monika.love/api", "isFullRestful": true},
+                        {"id": 2, "name": "MAICA Official Provider (plain)", "description": "Used for ssl/tls unsuitable situations", "isOfficial": true, "portalPage":"https://maica.monika.love", "servingModel": "MAICAv0-DAA2-72B", "modelLink": "https://huggingface.co/edgeinfinity/MAICAv0-LIA-72B", "wsInterface": "ws://maicadev.0721play.icu/websocket", "httpInterface": "http://maicadev.0721play.icu/api", "isFullRestful": true}
                     ]
                 }
 
@@ -660,6 +659,8 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
                     wsInterface: 长连接端点.
 
                     httpInterface: 短连接端点.
+
+                    isFullRestful: 短连接是否启用完全RESTful.
 
                         * 应当注意, 除id, isOfficial和连接端点以外的内容均没有强制性, 也不一定准确.
                 
