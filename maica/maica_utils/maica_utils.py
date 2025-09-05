@@ -248,7 +248,7 @@ def proceed_agent_response(text: str, is_json=False) -> Union[str, list, dict]:
         answer_fin = answer_post_think
     return answer_fin
 
-async def messenger(websocket=None, status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaError]=None, prefix='', type='', color='', add_time=True, no_print=False) -> None:
+async def messenger(websocket=None, status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaError]=None, prefix='', type='', color='', add_time=True, no_print=False, no_raise=False) -> None:
     """It could handle most log printing, websocket sending and exception raising jobs pretty automatically."""
     if error:
         info = error.message if not info else info; code = error.error_code if code == "0" else code
@@ -332,7 +332,7 @@ async def messenger(websocket=None, status='', info='', code='0', traceray_id=''
                     for stack_layer in stack[frametrack_dict['error']::-1]:
                         print((color or colorama.Fore.RED) + f"! ERROR happened when executing {stack_layer.function} at {stack_layer.filename}#{stack_layer.lineno}:")
                 print((color or colorama.Fore.LIGHTRED_EX) + msg_print)
-    if error:
+    if error and not no_raise:
         raise error
     return
 

@@ -420,8 +420,10 @@ async def prepare_thread(**kwargs):
     try:
         await asyncio.wait(task_list, return_when=asyncio.FIRST_COMPLETED)
 
-    except BaseException:
-        pass
+    except BaseException as be:
+        if isinstance(be, Exception):
+            error = CommonMaicaError(str(be), '504')
+            await messenger(error=error, no_raise=True)
     finally:
         close_list = []
         if auth_created:

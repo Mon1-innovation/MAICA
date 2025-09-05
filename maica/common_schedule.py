@@ -36,8 +36,10 @@ async def schedule_rotate_cache(**kwargs):
         while True:
             schedule.run_pending()
             await asyncio.sleep(60)
-    except BaseException:
-        pass
+    except BaseException as be:
+        if isinstance(be, Exception):
+            error = CommonMaicaError(str(be), '504')
+            await messenger(error=error, no_raise=True)
     finally:
         if maica_created:
             await maica_pool.close()

@@ -861,8 +861,10 @@ async def prepare_thread(**kwargs):
     try:
         server = await websockets.serve(functools.partial(main_logic, auth_pool=auth_pool, maica_pool=maica_pool, mcore_conn=mcore_conn, mfocus_conn=mfocus_conn, online_dict=online_dict), '0.0.0.0', 5000)
         await server.wait_closed()
-    except BaseException:
-        pass
+    except BaseException as be:
+        if isinstance(be, Exception):
+            error = CommonMaicaError(str(be), '504')
+            await messenger(error=error, no_raise=True)
     finally:
         close_list = []
         if auth_created:
