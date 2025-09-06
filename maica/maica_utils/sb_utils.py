@@ -116,8 +116,7 @@ class SideFunctionCoroutine(AsyncCreator):
         if not self.serial_messages and additive_setting and 1 <= self.settings.temp.chat_session <= 9:
             sql_expression = 'SELECT content FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
             result = await self.maica_pool.query_get(expression=sql_expression, values=(self.settings.verification.user_id, self.settings.temp.chat_session))
-            print(f'debug-119:{result}')
-            if result:
+            if result and result[0]:
                 res_list = json.loads(f'[{result[0]}]')
                 lines_num = min(self.settings.extra.pre_additive * 2, len(res_list) - 1)
                 message_additive = res_list[-lines_num:] if lines_num > 0 else []
