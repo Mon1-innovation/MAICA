@@ -391,7 +391,7 @@ class WsCoroutine(NoWsCoroutine):
 
             # Handle expected exceptions
             except CommonMaicaException as ce:
-                if ce.is_critical() or ce.is_breaking():
+                if ce.is_critical or ce.is_breaking:
                     raise ce
                 else:
                     await messenger(websocket, error=ce, no_raise=True)
@@ -459,7 +459,7 @@ class WsCoroutine(NoWsCoroutine):
 
             # Handle expected exceptions
             except CommonMaicaException as ce:
-                if ce.is_critical() or ce.is_breaking():
+                if ce.is_critical or ce.is_breaking:
                     raise ce
                 else:
                     await messenger(websocket, error=ce, no_raise=True)
@@ -735,6 +735,8 @@ async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn, 
             raise Exception(return_status)
         
         except CommonMaicaException as ce:
+            if ce.is_critical:
+                traceback.print_exc()
             await messenger(websocket, error=ce, traceray_id=getattr(thread_instance, 'traceray_id', None), no_raise=True)
 
         except websockets.exceptions.WebSocketException as we:

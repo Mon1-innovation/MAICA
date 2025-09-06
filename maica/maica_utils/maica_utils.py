@@ -40,8 +40,10 @@ class CommonMaicaException(Exception):
         super().__init__(message)
         self.message, self.error_code, self.status, self.send, self.print = message, error_code, status, send, print
 
+    @property
     def is_critical(self):
         return int(self.error_code) >= 500
+    @property
     def is_breaking(self):
         return True
     

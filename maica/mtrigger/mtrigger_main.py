@@ -284,7 +284,6 @@ class MTriggerCoroutine(AsyncCreator):
 
         except Exception as e:
             if isinstance(e, CommonMaicaException):
-                await messenger(self.websocket, 'maica_mtrigger_input_bad', error=e, traceray_id=self.traceray_id)
+                raise e
             else:
-                e = CommonMaicaError(str(e), '500')
-                await messenger(self.websocket, 'maica_mtrigger_critical', error=e, traceray_id=self.traceray_id)
+                raise CommonMaicaError(str(e), '500', 'maica_mtrigger_critical')
