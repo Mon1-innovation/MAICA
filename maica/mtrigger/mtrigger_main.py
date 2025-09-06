@@ -11,7 +11,7 @@ from maica_utils import *
 
 class MTriggerCoroutine(SideFunctionCoroutine):
     def __init__(self, fsc: FullSocketsContainer, mt_inst: MtBoundCoroutine, sf_inst: Optional[SfBoundCoroutine]=None):
-        super().__init__()
+        super().__init__(fsc, sf_inst, mt_inst)
 
     def _construct_tools(self):
         self.tools = []
