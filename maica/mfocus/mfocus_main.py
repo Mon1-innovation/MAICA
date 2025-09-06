@@ -15,14 +15,6 @@ class MFocusCoroutine(SideFunctionCoroutine):
         super().__init__(fsc, sf_inst, mt_inst)        
         self.agent_tools = AgentTools(fsc, sf_inst)
 
-    async def reset(self):
-        """Caution: we should reset sf_inst and mt_inst here, but these are done more manually to prevent duplication."""
-        self.tnd_aggressive = self.settings.extra.tnd_aggressive
-        if self.settings.temp.ic_prep:
-            self.tnd_aggressive = 2
-        self.tools = []
-        self.serial_messages = []
-
     def _construct_tools(self):
         self.tools = []
         if self.mt_inst and not self.settings.temp.bypass_mt:

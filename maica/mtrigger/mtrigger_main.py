@@ -13,11 +13,6 @@ class MTriggerCoroutine(SideFunctionCoroutine):
     def __init__(self, fsc: FullSocketsContainer, mt_inst: MtBoundCoroutine, sf_inst: Optional[SfBoundCoroutine]=None):
         super().__init__()
 
-    async def reset(self):
-        """Caution: we should reset sf_inst and mt_inst here, but these are done more manually to prevent duplication."""
-        self.tools = []
-        self.serial_messages = []
-
     def _construct_tools(self):
         self.tools = []
         trigger_list = self.mt_inst.get_valid_triggers()
