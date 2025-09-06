@@ -747,6 +747,7 @@ async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn, 
                 await messenger(info=f'Connection establishment failed: {str(we)}', type=MsgType.PRIM_LOG)
 
         except Exception as e:
+            traceback.print_exc()
             await messenger(info=f'Coroutine broke by an unknown exception: {str(e)}', type=MsgType.ERROR)
 
         finally:
