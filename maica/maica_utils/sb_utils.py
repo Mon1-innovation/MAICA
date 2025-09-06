@@ -94,7 +94,7 @@ class SideFunctionCoroutine(AsyncCreator):
             self.tnd_aggressive = 2
         self.tools = []
         self.serial_messages = []
-        
+
     async def full_reset(self):
         """This resets sf_inst and mt_inst too."""
         reset_list = []
@@ -116,6 +116,7 @@ class SideFunctionCoroutine(AsyncCreator):
         if not self.serial_messages and additive_setting and 1 <= self.settings.temp.chat_session <= 9:
             sql_expression = 'SELECT content FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
             result = await self.maica_pool.query_get(expression=sql_expression, values=(self.settings.verification.user_id, self.settings.temp.chat_session))
+            print(f'debug-119:{result}')
             if result:
                 res_list = json.loads(f'[{result[0]}]')
                 lines_num = min(self.settings.extra.pre_additive * 2, len(res_list) - 1)

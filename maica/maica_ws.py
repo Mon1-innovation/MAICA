@@ -142,6 +142,8 @@ class NoWsCoroutine(AsyncCreator):
 
             # By 'i' we mean initiate, so we ensure this session has a prompt
             # Here we do not write user input to protect data integrity
+            print(f'debug-145:{content_original}')
+            print(f'debug-146:{content_finale}')
             content_original_json = await self._jsonify_chat_session(content_original)
             content_finale_json = await self._jsonify_chat_session(content_finale)
             if not system_prompt:
