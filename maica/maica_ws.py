@@ -690,7 +690,7 @@ class WsCoroutine(NoWsCoroutine):
 
         # Can be post-processed here
         reply_appended = post_proc.filter_format(reply_appended, self.settings.basic.target_lang)
-        reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
+        reply_appended_insertion = {'role': 'assistant', 'content': reply_appended}
 
         # Trigger process
         if self.settings.basic.enable_mt and not self.settings.temp.bypass_mt:
