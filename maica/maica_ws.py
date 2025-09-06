@@ -703,7 +703,7 @@ class WsCoroutine(NoWsCoroutine):
 
         # Store history here
         if session_type == 1:
-            stored = await self.rw_chat_session('a', [{messages0}, {reply_appended_insertion}])
+            stored = await self.rw_chat_session('a', [messages0, reply_appended_insertion])
             match stored[1]:
                 case 1:
                     await messenger(websocket, 'maica_history_sliced', f"Session {self.settings.temp.chat_session} of {self.settings.verification.username} exceeded {self.settings.basic.max_length} characters and sliced", '204')
