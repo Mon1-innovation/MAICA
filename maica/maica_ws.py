@@ -643,7 +643,7 @@ class WsCoroutine(NoWsCoroutine):
             self.settings.temp.update(bypass_stream=False)
 
         if self.settings.temp.ic_prep:
-            completion_args['presence_penalty'] = 1.0-(1.0-completion_args['presence_penalty'])*(2/3)
+            completion_args['presence_penalty'] = 1.0 - (1.0 - completion_args['presence_penalty']) * (2/3)
 
         await messenger(info=f'\nQuery constrcted and ready to go, last input is:\n{query_in}\nSending query...', type=MsgType.PRIM_RECV)
 

@@ -196,7 +196,7 @@ class MTriggerCoroutine(SideFunctionCoroutine):
                             break
                         else:
                             trigger_signal = {tool_func_name: try_load_json(tool_func_args)}
-                            await messenger(self.websocket, 'maica_mtrigger_trigger', trigger_signal, '101')
+                            await messenger(self.websocket, 'maica_mtrigger_trigger', trigger_signal, '200', type='carriage')
 
                             machine = f'{tool_func_name}已被调用过并生效' if self.settings.basic.target_lang == 'zh' else f'{tool_func_name} has been called already and taking effect'
                             await self._construct_query(tool_input=machine, tool_id=tool_id)

@@ -330,11 +330,13 @@ async def messenger(websocket=None, status='', info='', code='0', traceray_id=''
 
     # This is especially for streaming output
     if not prefix and type == "carriage":
-        msg_print = msg_send = info
+        msg_print = str(info)
+        msg_send = info
 
     elif type == "plain":
-        msg_print = msg_send = info
-
+        msg_print = str(info)
+        msg_send = info
+        
     else:
         msg_print = f"<{prefix}>"
         msg_print = msg_print.ljust(10)

@@ -323,7 +323,7 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
 
         在响应完成后, 若MTrigger启用, MAICA会发送MTrigger指示:
 
-            {"code": "101", "status": "maica_mtrigger_trigger", "content": {"调用的触发器": {"调用参数": "参数值"}}, "timestamp": 时间戳}
+            {"code": "200", "status": "maica_mtrigger_trigger", "content": {"调用的触发器": {"调用参数": "参数值"}}, "timestamp": 时间戳}
             ...
             {"code": "1001", "status": "maica_mtrigger_done", "content": "MTrigger ended with 2 triggers sent", "timestamp": 时间戳}
 
