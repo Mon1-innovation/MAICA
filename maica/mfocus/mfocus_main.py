@@ -377,7 +377,7 @@ class MFocusCoroutine(SideFunctionCoroutine):
                 # If there's really no instruction
                 return None
 
-            instructed_answer_str = ', '.join(instructed_answer_list)
+            instructed_answer_str = ', '.join([i for i in instructed_answer_list if i])
             return instructed_answer_str
         
         except Exception as e:

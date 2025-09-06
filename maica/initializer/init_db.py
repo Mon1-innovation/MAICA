@@ -189,7 +189,7 @@ FOR EACH ROW
 BEGIN
     UPDATE persistents
     SET timestamp = CURRENT_TIMESTAMP
-    WHERE id = OLD.id;
+    WHERE persistent_id = OLD.persistent_id;
 END;
 """,
 """
@@ -199,7 +199,7 @@ FOR EACH ROW
 BEGIN
     UPDATE triggers
     SET timestamp = CURRENT_TIMESTAMP
-    WHERE id = OLD.id;
+    WHERE trigger_id = OLD.trigger_id;
 END;
 """,
 """
@@ -209,7 +209,7 @@ FOR EACH ROW
 BEGIN
     UPDATE ms_cache
     SET timestamp = CURRENT_TIMESTAMP
-    WHERE id = OLD.id;
+    WHERE spire_id = OLD.spire_id;
 END;
 """,
     ]

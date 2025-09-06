@@ -140,25 +140,30 @@ class NoWsCoroutine(AsyncCreator):
             content_finale = content_append
 
         if irwa == 'i':
+
             # By 'i' we mean initiate, so we ensure this session has a prompt
-            content_json = await self._jsonify_chat_session(content_finale)
+            # Here we do not write user input to protect data integrity
+            content_original_json = await self._jsonify_chat_session(content_original)
+            content_finale_json = await self._jsonify_chat_session(content_finale)
             if not system_prompt:
                 system_prompt = await self.gen_system_prompt()
 
-            if content_json:
-                if content_json[0]['role'] == 'system':
-                    content_json[0]['content'] = system_prompt
+            for j in [content_original_json, content_finale_json]:
+                if j:
+                    if j[0]['role'] == 'system':
+                        j[0]['content'] = system_prompt
+                    else:
+                        j.insert(0, {"role": "system", "content": system_prompt})
                 else:
-                    content_json.insert(0, {"role": "system", "content": system_prompt})
-            else:
-                content_json = [{"role": "system", "content": system_prompt}]
-            content_finale = self._flattern_chat_session(content_json)
+                    j = [{"role": "system", "content": system_prompt}]
+
+            content_insert = self._flattern_chat_session(content_original_json)
             if not chat_session_id:
-                chat_session_id = await self._create_session(content=content_finale, chat_session_num=chat_session_num)
+                chat_session_id = await self._create_session(content=content_insert, chat_session_num=chat_session_num)
             else:
                 sql_expression_2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-                await self.maica_pool.query_modify(expression=sql_expression_2, values=(content_finale, chat_session_id))
-            return chat_session_id, content_json
+                await self.maica_pool.query_modify(expression=sql_expression_2, values=(content_insert, chat_session_id))
+            return chat_session_id, content_finale_json
 
         elif irwa == 'r':
             if not chat_session_id:
@@ -621,7 +626,7 @@ class WsCoroutine(NoWsCoroutine):
                 
                 prompt = await self.gen_system_prompt(message_agent_wrapped, self.settings.temp.strict_conv)
                 if session_type == 1:
-                    messages = (await self.rw_chat_session('i', messages0, prompt))[1]
+                    messages = (await self.rw_chat_session('i', [messages0], prompt))[1]
                 elif session_type == 0:
                     messages = [{'role': 'system', 'content': prompt}, messages0]
 
@@ -696,7 +701,7 @@ class WsCoroutine(NoWsCoroutine):
 
         # Store history here
         if session_type == 1:
-            stored = await self.rw_chat_session('a', f'{messages0},{reply_appended_insertion}')
+            stored = await self.rw_chat_session('a', [{messages0}, {reply_appended_insertion}])
             match stored[1]:
                 case 1:
                     await messenger(websocket, 'maica_history_sliced', f"Session {self.settings.temp.chat_session} of {self.settings.verification.username} exceeded {self.settings.basic.max_length} characters and sliced", '204')
