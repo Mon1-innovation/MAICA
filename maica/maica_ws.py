@@ -135,6 +135,7 @@ class NoWsCoroutine(AsyncCreator):
             content_finale = content_original
         elif content_original:
             content_finale = content_original + ', ' + content_append
+            print(content_finale)
         else:
             content_finale = content_append
 
