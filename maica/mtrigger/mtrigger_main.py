@@ -180,10 +180,10 @@ class MTriggerCoroutine(AsyncCreator):
 
     async def _construct_query(self, user_input=None, tool_input=None, tool_id=None):
         if not self.serial_messages and self.settings.extra.post_additive and 1 <= self.settings.temp.chat_session <= 9:
-            sql_expression = 'SELECT * FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
+            sql_expression = 'SELECT content FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
             result = await self.maica_pool.query_get(expression=sql_expression, values=(self.settings.verification.user_id, self.settings.temp.chat_session))
             if result:
-                res_list = json.loads(f'[{result}]')
+                res_list = json.loads(f'[{result[0]}]')
                 lines_num = min(self.settings.extra.pre_additive * 2, len(res_list) - 1)
                 message_additive = res_list[-lines_num:] if lines_num > 0 else []
                 if message_additive:
