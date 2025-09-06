@@ -681,7 +681,7 @@ class WsCoroutine(NoWsCoroutine):
                 await messenger(None, 'maica_core_nostream_done', f'Reply sent with cache for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
 
         # Can be post-processed here
-        reply_appended = await wrap_run_in_exc(None, post_proc.filter_format, reply_appended, self.settings.basic.target_lang)
+        reply_appended = post_proc.filter_format(reply_appended, self.settings.basic.target_lang)
         reply_appended_insertion = json.dumps({'role': 'assistant', 'content': reply_appended}, ensure_ascii=False)
 
         # Trigger process
@@ -695,7 +695,7 @@ class WsCoroutine(NoWsCoroutine):
 
         # Store history here
         if session_type == 1:
-            stored = await self.rw_chat_session(self.settings.temp.chat_session, 'a', f'{messages0},{reply_appended_insertion}')
+            stored = await self.rw_chat_session('a', f'{messages0},{reply_appended_insertion}')
             match stored[1]:
                 case 1:
                     await messenger(websocket, 'maica_history_sliced', f"Session {self.settings.temp.chat_session} of {self.settings.verification.username} exceeded {self.settings.basic.max_length} characters and sliced", '204')
