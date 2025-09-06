@@ -97,7 +97,6 @@ def filter_format(reply_appended, target_lang='zh'):
             elif sig_striped in curr_emoset.keys():
                 full_word = f'[{curr_emoset[sig_striped]}]'
             else:
-                print(sig_striped)
                 if target_lang == 'zh':
                     if '笑' in signature:
                         full_word = '[微笑]'

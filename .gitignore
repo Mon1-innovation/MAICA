@@ -166,6 +166,7 @@ cython_debug/
 .essentials_generated.ps1
 .servers
 .initiated
+.env*
 key/
 keys/
 *.db

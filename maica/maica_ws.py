@@ -124,7 +124,7 @@ class NoWsCoroutine(AsyncCreator):
         if not chat_session_num:
             chat_session_num = self.settings.temp.chat_session
         else:
-            await self.maica_assert(1 <= chat_session_num < 10, "chat_session")
+            self.maica_assert(1 <= chat_session_num <= 9, "chat_session")
 
         sql_expression_1 = "SELECT chat_session_id, content FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
         result = await self.maica_pool.query_get(expression=sql_expression_1, values=(self.settings.verification.user_id, chat_session_num))
@@ -157,7 +157,7 @@ class NoWsCoroutine(AsyncCreator):
                     else:
                         j.insert(0, {"role": "system", "content": system_prompt})
                 else:
-                    j = [{"role": "system", "content": system_prompt}]
+                    j.append({"role": "system", "content": system_prompt})
 
             content_insert = self._flattern_chat_session(content_original_json)
             if not chat_session_id:
@@ -196,7 +196,7 @@ class NoWsCoroutine(AsyncCreator):
         if not chat_session_num:
             chat_session_num = self.settings.temp.chat_session
         else:
-            await self.maica_assert(1 <= chat_session_num < 10, "chat_session")
+            self.maica_assert(1 <= chat_session_num <= 9, "chat_session")
 
         sql_expression_1 = "SELECT chat_session_id, content FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
         result = await self.maica_pool.query_get(expression=sql_expression_1, values=(self.settings.verification.user_id, chat_session_num))
@@ -218,7 +218,7 @@ class NoWsCoroutine(AsyncCreator):
         if not chat_session_num:
             chat_session_num = self.settings.temp.chat_session
         else:
-            await self.maica_assert(1 <= chat_session_num < 10, "chat_session")
+            self.maica_assert(1 <= chat_session_num < 10, "chat_session")
 
         if not isinstance(content_restore, str):
             content_restore = self._flattern_chat_session(content_restore)
@@ -340,7 +340,7 @@ class NoWsCoroutine(AsyncCreator):
                 raise MaicaPermissionError(verification_result[1], '400', 'maica_login_denied_rsa')
         return False
     
-    async def maica_assert(self, condition, kwd):
+    def maica_assert(self, condition, kwd='param'):
         """Normally used for input checkings."""
         if not condition:
             raise MaicaInputError(f"Illegal input {kwd} detected", '405', 'maica_input_param_bad')
@@ -503,22 +503,23 @@ class WsCoroutine(NoWsCoroutine):
 
         # Param assertions here
         chat_session = int(default(recv_loaded_json.get('chat_session'), 0))
-        await self.maica_assert(-1 <= chat_session < 10, "chat_session")
+        self.maica_assert(-1 <= chat_session < 10, "chat_session")
         self.settings.temp.update(chat_session=chat_session)
 
 
         if 'reset' in recv_loaded_json:
             if recv_loaded_json['reset']:
-                await self.maica_assert(1 <= chat_session < 10, "chat_session")
+                self.maica_assert(1 <= chat_session < 10, "chat_session")
                 purge_result = await self.reset_chat_session(self.settings.temp.chat_session)
                 if not purge_result:
                     await messenger(websocket, "maica_session_not_found", "Determined chat_session doesn't exist", "302", self.traceray_id)
                 else:
                     await messenger(websocket, "maica_session_reset", "Determined chat_session reset", "204", self.traceray_id)
+                return
 
         if 'inspire' in recv_loaded_json and not query_in:
             if recv_loaded_json['inspire']:
-                await self.maica_assert(0 <= chat_session < 10, "chat_session")
+                self.maica_assert(0 <= chat_session < 10, "chat_session")
                 if isinstance(recv_loaded_json['inspire'], dict):
                     query_insp = await mtools.make_inspire(title_in=recv_loaded_json['inspire'], target_lang=self.settings.basic.target_lang)
                 else:
@@ -545,7 +546,7 @@ class WsCoroutine(NoWsCoroutine):
 
         if 'postmail' in recv_loaded_json and not query_in:
             if recv_loaded_json['postmail']:
-                await self.maica_assert(0 <= chat_session < 10, "chat_session")
+                self.maica_assert(0 <= chat_session < 10, "chat_session")
                 if isinstance(recv_loaded_json['postmail'], dict):
                     query_insp = await mtools.make_postmail(**recv_loaded_json['postmail'], target_lang=self.settings.basic.target_lang)
                     # We're using the old school way to avoid using eval()
@@ -563,7 +564,7 @@ class WsCoroutine(NoWsCoroutine):
                     query_insp = await mtools.make_postmail(content=recv_loaded_json['postmail'], target_lang=self.settings.basic.target_lang)
                     self.settings.temp.update(bypass_stream=True, ic_prep=True, strict_conv=False)
                 else:
-                    await self.maica_assert(False, "postmail")
+                    self.maica_assert(False, "postmail")
                 
                 query_in = query_insp[2]
 
@@ -577,6 +578,7 @@ class WsCoroutine(NoWsCoroutine):
                     pass
 
         if not query_in:
+            self.maica_assert(recv_loaded_json.get('query'), 'query')
             query_in = recv_loaded_json['query']
         
         await asyncio.gather(self.sf_inst.reset(), self.mt_inst.reset())

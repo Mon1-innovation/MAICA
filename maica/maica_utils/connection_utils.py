@@ -42,6 +42,7 @@ class DbPoolCoroutine(AsyncCreator):
 
     async def query_get(self, expression, values=None, fetchall=False) -> list:
         results = None
+        # print(expression, str(values))
         for tries in range(0, 3):
             try:
                 await self.keep_alive()
@@ -65,6 +66,7 @@ class DbPoolCoroutine(AsyncCreator):
         if self.ro:
             raise MaicaDbError(f'DB marked as ro, no modify permitted', '511', 'db_modification_denied')
         lrid = None
+        # print(expression, str(values))
         for tries in range(0, 3):
             try:
                 await self.keep_alive()

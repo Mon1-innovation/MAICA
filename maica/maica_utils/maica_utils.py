@@ -354,7 +354,7 @@ async def messenger(websocket=None, status='', info='', code='0', traceray_id=''
 
     frametrack_dict = {"error": 99}
     if load_env("PRINT_VERBOSE") == "1":
-        frametrack_dict['warn'] = 1
+        frametrack_dict['warn'] = 0
     if type in frametrack_dict:
         stack = inspect.stack()
         stack.pop(0)
