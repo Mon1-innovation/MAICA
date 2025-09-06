@@ -104,7 +104,7 @@ class FscPlain():
 class AsyncCreator():
     """Inherit this for async init."""
     async def _ainit(self):
-        pass
+        """Placeholder."""
 
     @classmethod
     async def async_create(cls, *args, **kwargs):
@@ -349,7 +349,7 @@ async def messenger(websocket=None, status='', info='', code='0', traceray_id=''
     if websocket:
         await websocket.send(wrap_ws_formatter(code=code, status=status, content=msg_send, type=type))
 
-    frametrack_dict = {"error": 5}
+    frametrack_dict = {"error": 99}
     if load_env("PRINT_VERBOSE") == "1":
         frametrack_dict['warn'] = 1
     if type in frametrack_dict:
