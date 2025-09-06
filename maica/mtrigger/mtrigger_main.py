@@ -9,29 +9,14 @@ from mfocus.mfocus_sfe import SfBoundCoroutine
 from .mtrigger_sfe import MtBoundCoroutine
 from maica_utils import *
 
-class MTriggerCoroutine(AsyncCreator):
+class MTriggerCoroutine(SideFunctionCoroutine):
     def __init__(self, fsc: FullSocketsContainer, mt_inst: MtBoundCoroutine, sf_inst: Optional[SfBoundCoroutine]=None):
-        self.settings = fsc.maica_settings
-        self.websocket, self.traceray_id = fsc.rsc.websocket, fsc.rsc.traceray_id
-        self.mcore_conn, self.mfocus_conn = fsc.mcore_conn, fsc.mfocus_conn
-        self.sf_inst, self.mt_inst = sf_inst, mt_inst
-        self.maica_pool = fsc.maica_pool
-        
-    async def _ainit(self):
-        await self.reset()
+        super().__init__()
 
     async def reset(self):
         """Caution: we should reset sf_inst and mt_inst here, but these are done more manually to prevent duplication."""
         self.tools = []
         self.serial_messages = []
-
-    async def full_reset(self):
-        """This resets sf_inst and mt_inst too."""
-        reset_list = [self.mt_inst.reset()]
-        if self.sf_inst:
-            reset_list.append(self.sf_inst.reset())
-        await asyncio.gather(*reset_list)
-        await self.reset()
 
     def _construct_tools(self):
         self.tools = []
@@ -179,61 +164,7 @@ class MTriggerCoroutine(AsyncCreator):
         self.tools = alt_tools(self.tools)
 
     async def _construct_query(self, user_input=None, tool_input=None, tool_id=None):
-        if not self.serial_messages and self.settings.extra.post_additive and 1 <= self.settings.temp.chat_session <= 9:
-            sql_expression = 'SELECT content FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
-            result = await self.maica_pool.query_get(expression=sql_expression, values=(self.settings.verification.user_id, self.settings.temp.chat_session))
-            if result:
-                res_list = json.loads(f'[{result[0]}]')
-                lines_num = min(self.settings.extra.pre_additive * 2, len(res_list) - 1)
-                message_additive = res_list[-lines_num:] if lines_num > 0 else []
-                if message_additive:
-                    self.serial_messages.extend(message_additive)
-                    assert self.serial_messages[-1]['role'] == 'assistant', 'Additive got corrupted chat history'
-
-        if user_input:
-
-            # Having user input here suggests the last tool calls are over.
-            # So we have to cleanup the thinking part and toolcalls.
-            self.serial_messages = [msg for msg in self.serial_messages if msg.get('role') != 'tool']
-            assistant_last_msg = ''
-            for msg in self.serial_messages[::-1]:
-                if isinstance(msg, ChatCompletionMessage):
-                    assistant_last_msg = msg.content + assistant_last_msg
-                    self.serial_messages.pop()
-                elif msg.get('role') == 'assistant':
-                    assistant_last_msg = msg.get('content') + assistant_last_msg
-                    self.serial_messages.pop()
-                else:
-                    break
-
-            # Then we peal off the thinking part
-            assistant_last_msg = proceed_agent_response(assistant_last_msg)
-
-            if assistant_last_msg:
-                self.serial_messages.append({'role': 'assistant', 'content': assistant_last_msg})
-
-            self.serial_messages.append({'role': 'user', 'content': user_input})
-
-        elif tool_input:
-            self.serial_messages.append({'role': 'tool', 'tool_call_id': tool_id, 'content': tool_input})
-
-    async def _send_query(self) -> tuple[str, list]:
-        completion_args = {
-            "messages": self.serial_messages,
-            "tools": self.tools,
-            "stop": ['Observation:', '</think>'],
-            "temperature": 0.2,
-            "top_p": 0.6,
-            "presence_penalty": 0.4,
-            "frequency_penalty": 0.5,
-            "seed": 42
-        }
-
-        resp = await self.mfocus_conn.make_completion(**completion_args)
-        content, tool_calls = resp.choices[0].message.content, resp.choices[0].message.tool_calls
-
-        self.serial_messages.append({"role": "assistant", "content": content})
-        return content, tool_calls
+        await super()._construct_query(user_input, tool_input, tool_id, 'post')
 
     async def triggering(self, input, output):
         try:

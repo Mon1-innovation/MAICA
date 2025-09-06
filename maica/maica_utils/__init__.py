@@ -46,7 +46,7 @@ from .connection_utils import DbPoolCoroutine, SqliteDbPoolCoroutine, ConnUtils,
 from .setting_utils import MaicaSettings
 from .account_utils import AccountCursor, encrypt_token, sign_message, verify_message, sort_message
 from .container_utils import FullSocketsContainer
-from .sb_utils import SideBoundCoroutine
+from .sb_utils import SideBoundCoroutine, SideFunctionCoroutine
 from .get_a_sentence import SentenceOfTheDay
 
 __all__ = [
@@ -98,6 +98,7 @@ __all__ = [
     'ConnUtils',
     'AiConnCoroutine',
     'SideBoundCoroutine',
+    'SideFunctionCoroutine',
     'MaicaSettings',
     'AccountCursor',
     'encrypt_token',
