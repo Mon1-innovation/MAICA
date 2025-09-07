@@ -16,6 +16,13 @@ from mfocus import MFocusCoroutine, SfBoundCoroutine
 from mtrigger import MTriggerCoroutine, MtBoundCoroutine
 from maica_utils import *
 
+PROMPT_ZC = load_env('PROMPT_ZC')
+PROMPT_ZW = load_env('PROMPT_ZW')
+PROMPT_EC = load_env('PROMPT_EC')
+PROMPT_EW = load_env('PROMPT_EW')
+
+maica_assert(str(PROMPT_ZC) and str(PROMPT_ZW) and str(PROMPT_EC) and str(PROMPT_EW), 'prompt')
+
 class NoWsCoroutine(AsyncCreator):
     """
     Not actually no-ws, but ws can be None.
@@ -124,7 +131,7 @@ class NoWsCoroutine(AsyncCreator):
         if not chat_session_num:
             chat_session_num = self.settings.temp.chat_session
         else:
-            self.maica_assert(1 <= chat_session_num <= 9, "chat_session")
+            maica_assert(1 <= chat_session_num <= 9, "chat_session")
 
         sql_expression_1 = "SELECT chat_session_id, content FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
         result = await self.maica_pool.query_get(expression=sql_expression_1, values=(self.settings.verification.user_id, chat_session_num))
@@ -196,7 +203,7 @@ class NoWsCoroutine(AsyncCreator):
         if not chat_session_num:
             chat_session_num = self.settings.temp.chat_session
         else:
-            self.maica_assert(1 <= chat_session_num <= 9, "chat_session")
+            maica_assert(1 <= chat_session_num <= 9, "chat_session")
 
         sql_expression_1 = "SELECT chat_session_id, content FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
         result = await self.maica_pool.query_get(expression=sql_expression_1, values=(self.settings.verification.user_id, chat_session_num))
@@ -218,7 +225,7 @@ class NoWsCoroutine(AsyncCreator):
         if not chat_session_num:
             chat_session_num = self.settings.temp.chat_session
         else:
-            self.maica_assert(1 <= chat_session_num < 10, "chat_session")
+            maica_assert(1 <= chat_session_num < 10, "chat_session")
 
         if not isinstance(content_restore, str):
             content_restore = self._flattern_chat_session(content_restore)
@@ -250,14 +257,15 @@ class NoWsCoroutine(AsyncCreator):
         def _basic_gen_system(player_name, target_lang='zh', strict_conv=True):
             if target_lang == 'zh':
                 if strict_conv:
-                    system_init = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答. 你只应使用中文自然语言, 以聊天语气回答, 每个句子自然且不超过60字, 不要编造信息, 并在每个句子前用方括号中的文字表示情绪."
+                    system_init = PROMPT_ZC
                 else:
-                    system_init = f"你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的来信, 请作为莫妮卡作出合适的回复. 你只应使用中文书面语言作答, 不要编造信息."
+                    system_init = PROMPT_ZW
             else:
                 if strict_conv:
-                    system_init = f"You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Answer the following query from {player_name} properly as Monika. You should only answer in casual natural tone in English, each sentence should not exceed 180 characters, do not make up things you don't know, and express your emotion at the beginning of each sentence by wrapping them in square brackets."
+                    system_init = PROMPT_EC
                 else:
-                    system_init = f"You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Reply to the following mail from {player_name} properly as Monika. You should only answer in natural written language in English, and do not make up things you don't know."
+                    system_init = PROMPT_EW
+            system_init.format(player_name=player_name)
             return system_init
 
         self._check_essentials()
@@ -339,11 +347,6 @@ class NoWsCoroutine(AsyncCreator):
             else:
                 raise MaicaPermissionError(verification_result[1], '400', 'maica_login_denied_rsa')
         return False
-    
-    def maica_assert(self, condition, kwd='param'):
-        """Normally used for input checkings."""
-        if not condition:
-            raise MaicaInputError(f"Illegal input {kwd} detected", '405', 'maica_input_param_bad')
 
 class WsCoroutine(NoWsCoroutine):
     """
@@ -503,13 +506,13 @@ class WsCoroutine(NoWsCoroutine):
 
         # Param assertions here
         chat_session = int(default(recv_loaded_json.get('chat_session'), 0))
-        self.maica_assert(-1 <= chat_session < 10, "chat_session")
+        maica_assert(-1 <= chat_session < 10, "chat_session")
         self.settings.temp.update(chat_session=chat_session)
 
 
         if 'reset' in recv_loaded_json:
             if recv_loaded_json['reset']:
-                self.maica_assert(1 <= chat_session < 10, "chat_session")
+                maica_assert(1 <= chat_session < 10, "chat_session")
                 purge_result = await self.reset_chat_session(self.settings.temp.chat_session)
                 if not purge_result:
                     await messenger(websocket, "maica_session_not_found", "Determined chat_session doesn't exist", "302", self.traceray_id)
@@ -519,7 +522,7 @@ class WsCoroutine(NoWsCoroutine):
 
         if 'inspire' in recv_loaded_json and not query_in:
             if recv_loaded_json['inspire']:
-                self.maica_assert(0 <= chat_session < 10, "chat_session")
+                maica_assert(0 <= chat_session < 10, "chat_session")
                 if isinstance(recv_loaded_json['inspire'], dict):
                     query_insp = await mtools.make_inspire(title_in=recv_loaded_json['inspire'], target_lang=self.settings.basic.target_lang)
                 else:
@@ -546,7 +549,7 @@ class WsCoroutine(NoWsCoroutine):
 
         if 'postmail' in recv_loaded_json and not query_in:
             if recv_loaded_json['postmail']:
-                self.maica_assert(0 <= chat_session < 10, "chat_session")
+                maica_assert(0 <= chat_session < 10, "chat_session")
                 if isinstance(recv_loaded_json['postmail'], dict):
                     query_insp = await mtools.make_postmail(**recv_loaded_json['postmail'], target_lang=self.settings.basic.target_lang)
                     # We're using the old school way to avoid using eval()
@@ -564,7 +567,7 @@ class WsCoroutine(NoWsCoroutine):
                     query_insp = await mtools.make_postmail(content=recv_loaded_json['postmail'], target_lang=self.settings.basic.target_lang)
                     self.settings.temp.update(bypass_stream=True, ic_prep=True, strict_conv=False)
                 else:
-                    self.maica_assert(False, "postmail")
+                    maica_assert(False, "postmail")
                 
                 query_in = query_insp[2]
 
@@ -578,7 +581,7 @@ class WsCoroutine(NoWsCoroutine):
                     pass
 
         if not query_in:
-            self.maica_assert(recv_loaded_json.get('query'), 'query')
+            maica_assert(recv_loaded_json.get('query'), 'query')
             query_in = recv_loaded_json['query']
         
         await asyncio.gather(self.sf_inst.reset(), self.mt_inst.reset())

@@ -284,6 +284,11 @@ def alt_tools(tools: list) -> list:
                 tool['type'] = 'function'
             return tools
 
+def maica_assert(condition, kwd='param'):
+    """Normally used for input checkings."""
+    if not condition:
+        raise MaicaInputError(f"Illegal input {kwd} detected", '405', 'maica_input_param_bad')
+
 def proceed_agent_response(text: str, is_json=False) -> Union[str, list, dict]:
     """Proceeds thinking/nothinking."""
     try:
