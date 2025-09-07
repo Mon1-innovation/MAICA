@@ -20,6 +20,14 @@ MFOCUS_ADDR = load_env('MFOCUS_ADDR')
 MFOCUS_KEY = load_env('MFOCUS_KEY')
 MFOCUS_CHOICE = load_env('MFOCUS_CHOICE')
 
+def test_logger(func):
+    async def wrapper(self, expression, values, *args, **kwargs):
+        print(f'Query: {expression}\nValues: {values}')
+        result = await func(self, expression, values, *args, **kwargs)
+        print(f'Result: {result}')
+        return result
+    return wrapper
+
 class DbPoolCoroutine(AsyncCreator):
     """Maintain a database connection pool so you don't have to."""
     def __init__(self, db, host, user, password, ro=False):
@@ -27,15 +35,6 @@ class DbPoolCoroutine(AsyncCreator):
 
     async def _ainit(self):
         self.pool: aiomysql.Pool = await aiomysql.create_pool(host=self.host, user=self.user, password=self.password, db=self.db)
-
-    @staticmethod
-    def test_logger(func):
-        async def wrapper(self, expression, values, *args, **kwargs):
-            print(f'Query: {expression}\nValues: {values}')
-            result = await func(self, expression, values, *args, **kwargs)
-            print(f'Result: {result}')
-            return result
-        return wrapper
 
     async def keep_alive(self):
         try:
@@ -134,6 +133,7 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
                 raise MaicaDbError(f'Failure when trying reconnecting to {self.db}', '502', 'db_connection_failed')
 
     @Decos.escape_sqlite_expression
+    # @test_logger
     async def query_get(self, expression, values=None, fetchall=False) -> list:
         """Execute SELECT query on SQLite database."""
         results = None
@@ -156,6 +156,7 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
         return results
 
     @Decos.escape_sqlite_expression
+    # @test_logger
     async def query_modify(self, expression, values=None, fetchall=False) -> int:
         """Execute INSERT/UPDATE/DELETE query on SQLite database."""
         if self.ro:
