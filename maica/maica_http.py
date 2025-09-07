@@ -108,7 +108,7 @@ class ShortConnHandler(View):
 
         chat_session = valid_data.get('chat_session')
         content = valid_data.get('content')
-        content_str = json.dumps(valid_data.get('content')) if content else None
+        content_str = json.dumps(valid_data.get('content'), ensure_ascii=False) if content else None
 
         sql_expression_1 = "SELECT persistent_id FROM persistents WHERE user_id = %s AND chat_session_num = %s"
         result = await self.maica_pool.query_get(sql_expression_1, (self.settings.verification.user_id, chat_session))
@@ -141,7 +141,7 @@ class ShortConnHandler(View):
 
         chat_session = valid_data.get('chat_session')
         content = valid_data.get('content')
-        content_str = json.dumps(valid_data.get('content')) if content else None
+        content_str = json.dumps(valid_data.get('content'), ensure_ascii=False) if content else None
 
         sql_expression_1 = "SELECT trigger_id FROM triggers WHERE user_id = %s AND chat_session_num = %s"
         result = await self.maica_pool.query_get(sql_expression_1, (self.settings.verification.user_id, chat_session))

@@ -306,6 +306,10 @@ def proceed_agent_response(text: str, is_json=False) -> Union[str, list, dict]:
 
 async def messenger(websocket=None, status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaException]=None, prefix='', type='', color='', add_time=True, no_print=False, no_raise=False) -> None:
     """It could handle most log printing, websocket sending and exception raising jobs pretty automatically."""
+    term_v = os.get_terminal_size().columns
+    rep2 = int(term_v / 2)
+    rep1 = int(rep2 - 20)
+
     if error:
         status = error.status if not status else status; info = error.message if not info else info; code = error.error_code if code == "0" else code
         websocket = websocket if not error.send is False else None; no_print = False if not error.print is False else True
@@ -342,7 +346,7 @@ async def messenger(websocket=None, status='', info='', code='0', traceray_id=''
         msg_print = msg_print.ljust(10)
         msg_print += f"[{time.strftime('%Y-%m-%d %H:%M:%S')}]" if add_time else ''; msg_print += f"-[{str(code)}]" if code else ''
         msg_print = msg_print.ljust(40)
-        msg_print += f": {str(info)}" if not str(info).startswith('\n') else f"{'-='*40}{str(info)}\n{'-='*60}"
+        msg_print += f": {str(info)}" if not str(info).startswith('\n') else f"{'-=' * rep1}{str(info)}\n{'-=' * rep2}"
         msg_print += f"; traceray ID {traceray_id}" if traceray_id else ''
         msg_send = f"{str(info)}"
         if type == 'error' and load_env('NO_SEND_ERROR') == '1':

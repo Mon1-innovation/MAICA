@@ -67,7 +67,7 @@ class SideBoundCoroutine(AsyncCreator):
             except Exception:
                 self.p_id = self.timestamp = None
                 self.sf_content = self.EMPTY
-                await messenger(self.websocket, f'{self.FUNC_NAME}_no_persistent', f'No persistent found for {self._cap_2(self.FUNC_NAME)}, using empty', '404', traceray_id=self.traceray_id)
+                await messenger(self.websocket, f'{self.FUNC_NAME}_no_persistent', f'No persistent found for {self._cap_2(self.FUNC_NAME)}, using empty', '204', traceray_id=self.traceray_id)
             self.sf_forming_buffer = self.EMPTY
             self._add(self.sf_forming_buffer, self.sf_content)
         else:
