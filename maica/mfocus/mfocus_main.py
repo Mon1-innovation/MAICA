@@ -329,8 +329,9 @@ class MFocusCoroutine(SideFunctionCoroutine):
                                 case _:
                                     # This tool call is unrecognizable
                                     raise MaicaInputError('Unrecognizable toolcall recieved', '405')
-                        if machine:
-                            await self._construct_query(tool_input=machine, tool_id=tool_id)
+                        if not machine:
+                            machine = '未获得有效信息' if self.settings.basic.target_lang == 'zh' else 'No useful information found'
+                        await self._construct_query(tool_input=machine, tool_id=tool_id)
 
                         if humane:
                             _instructed_add(tool_func_name, humane)

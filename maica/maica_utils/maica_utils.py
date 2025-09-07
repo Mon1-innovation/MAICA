@@ -278,11 +278,11 @@ def alt_tools(tools: list) -> list:
                 new_tools.append({})
                 new_tools[-1]['function'] = tool
                 new_tools[-1]['type'] = 'function'
-                return new_tools
+            return new_tools
         case '2':
             for tool in tools:
                 tool['type'] = 'function'
-                return tools
+            return tools
 
 def proceed_agent_response(text: str, is_json=False) -> Union[str, list, dict]:
     """Proceeds thinking/nothinking."""
