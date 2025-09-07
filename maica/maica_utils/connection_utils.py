@@ -50,7 +50,7 @@ class DbPoolCoroutine(AsyncCreator):
             except Exception:
                 raise MaicaDbError(f'Failure when trying reconnecting to {self.db}', '502', 'db_connection_failed')
 
-    @test_logger
+    # @test_logger
     async def query_get(self, expression, values=None, fetchall=False) -> list:
         results = None
         for tries in range(3):
@@ -72,7 +72,7 @@ class DbPoolCoroutine(AsyncCreator):
                     raise MaicaDbError(f'DB connection failure after {str(tries + 1)} times', '502', 'db_connection_failed')
         return results
 
-    @test_logger
+    # @test_logger
     async def query_modify(self, expression, values=None, fetchall=False) -> int:
         if self.ro:
             raise MaicaDbError(f'DB marked as ro, no modify permitted', '511', 'db_modification_denied')
