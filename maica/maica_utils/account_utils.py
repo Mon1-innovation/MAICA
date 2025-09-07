@@ -106,7 +106,7 @@ class AccountCursor(AsyncCreator):
         sql_expression = 'SELECT * FROM users WHERE email = %s' if is_email else 'SELECT * FROM users WHERE username = %s'
         try:
             result = await self.auth_pool.query_get(expression=sql_expression, values=(identity, ))
-            assert isinstance(result[0], int), "User does not exist"
+            assert result and isinstance(result[0], int), "User does not exist"
 
             dbres_id, dbres_username, dbres_nickname, dbres_email, dbres_ecf, dbres_pwd_bcrypt, *_ = result
             self.settings.identity.update(user_id=dbres_id, username=dbres_username, nickname=dbres_nickname, email=dbres_email)
