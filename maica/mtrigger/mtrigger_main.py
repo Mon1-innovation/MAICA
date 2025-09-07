@@ -19,8 +19,9 @@ class MTriggerCoroutine(SideFunctionCoroutine):
         for trigger in trigger_list:
             match trigger.template:
                 case 'common_affection_template':
-                    current_aff = int(float(self.sf_inst.read_from_sf('mas_affection'))) if self.sf_inst else None
+                    current_aff = self.sf_inst.read_from_sf('mas_affection') if self.sf_inst else None
                     if current_aff:
+                        current_aff = int(float(current_aff))
                         current_aff_str = f', 当前好感度是{current_aff}' if self.settings.basic.target_lang == 'zh' else f', current affection is {current_aff}'
                     else:
                         current_aff_str = ''
