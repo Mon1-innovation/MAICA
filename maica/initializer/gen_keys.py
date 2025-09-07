@@ -1,13 +1,11 @@
 from Crypto.PublicKey import RSA
 import os
+from maica_utils import get_outer_path
 
 def generate_rsa_keys():
 
-    self_path = os.path.dirname(os.path.abspath(__file__))
-    # Change this for packing up
-    key_path = os.path.join(self_path, "../../keys")
-    prv_path = os.path.join(key_path, "prv.key")
-    pub_path = os.path.join(key_path, "pub.key")
+    prv_path = get_outer_path('keys/prv.key')
+    pub_path = get_outer_path('keys/pub.key')
 
     try:
         with open(prv_path, "r") as privkey_file:
@@ -20,7 +18,7 @@ def generate_rsa_keys():
     
     except:
         print("Keys not exist, creating...")
-        os.makedirs(key_path)
+        os.makedirs(get_outer_path('keys'))
     
         key = RSA.generate(2048)
         

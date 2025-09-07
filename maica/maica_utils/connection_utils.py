@@ -6,6 +6,7 @@ from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion
 from .maica_utils import *
 from .setting_utils import *
+from .locater import *
 """Import layer 3"""
 
 DB_ADDR = load_env('DB_ADDR')
@@ -284,18 +285,17 @@ class ConnUtils():
         """We suppose we're using SQLite."""
         async def auth_pool(ro=True):
             return await SqliteDbPoolCoroutine.async_create(
-                db=AUTH_DB
+                db=get_inner_path(AUTH_DB)
             )
         
         async def maica_pool(ro=False):
             return await SqliteDbPoolCoroutine.async_create(
-                db=MAICA_DB
+                db=get_inner_path(MAICA_DB)
             )
         
         async def basic_pool(ro=False):
             """
-            There's no host concept in SQLite, so no basic pool
-            We can use this to identify sql type, though
+            There's no host concept in SQLite, so no basic pool.
             """
             return None
 

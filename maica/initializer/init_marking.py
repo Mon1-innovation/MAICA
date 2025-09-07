@@ -1,8 +1,8 @@
 import os
-from maica_utils import load_env
+from maica_utils import load_env, get_inner_path
 
-self_path = os.path.dirname(os.path.abspath(__file__))
-mark_path = os.path.join(self_path, "../.initiated")
+mark_path = get_inner_path('.initialized')
+print(mark_path)
 curr_version, legc_version = load_env('VERSION_CONTROL').split(';', 1)
 
 def check_marking():

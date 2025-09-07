@@ -31,7 +31,7 @@ async def create_tables():
             await basic_pool.query_modify(f"CREATE DATABASE IF NOT EXISTS {MAICA_DB}")
         else:
             print(f"MAICA_DB {MAICA_DB} exists, skipping...")
-    elif not os.path.exists(AUTH_DB):
+    elif not os.path.exists(get_inner_path(AUTH_DB)):
         auth_created = True
 
     auth_pool = await ConnUtils.auth_pool(ro=False)

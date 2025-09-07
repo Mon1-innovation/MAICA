@@ -32,8 +32,7 @@ app = Quart(import_name=__name__)
 app.config['JSON_AS_ASCII'] = False
 
 try:
-    server_path = os.path.dirname(os.path.abspath(__file__))
-    with open(os.path.join(server_path, ".servers"), "r", encoding='utf-8') as servers_file:
+    with open(get_inner_path('.servers'), "r", encoding='utf-8') as servers_file:
         known_servers = json.loads(servers_file.read())
 except Exception:
     known_servers = False

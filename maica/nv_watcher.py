@@ -45,8 +45,8 @@ class NvWatcher(AsyncCreator):
         self.node_ssh = await asyncssh.connect(host=self.node_addr, username=self.node_user, password=self.node_pwd, known_hosts=None)
 
     async def _initiate_db(self):
-        self.self_path = os.path.dirname(os.path.abspath(__file__))
-        async with aiosqlite.connect(os.path.join(self.self_path, ".nvsw.db"), autocommit=True) as db_client:
+        self.db_path = get_inner_path('.nvsw.db')
+        async with aiosqlite.connect(self.db_path, autocommit=True) as db_client:
             self.gpu_overall = []
 
             basis_keys = ['name', 'memory.total']
@@ -74,7 +74,7 @@ class NvWatcher(AsyncCreator):
         dynamic_keys = ['utilization.gpu', 'memory.used', 'power.draw']
         while True:
             dynamics_new = await self._query_nvsmi(self.node_ssh, dynamic_keys)
-            async with aiosqlite.connect(os.path.join(self.self_path, ".nvsw.db"), autocommit=True) as db_client:
+            async with aiosqlite.connect(self.db_path, autocommit=True) as db_client:
 
                 for i, gpu in enumerate(dynamics_new):
                     try:
@@ -106,7 +106,7 @@ class NvWatcher(AsyncCreator):
     def __del__(self):
         try:
             self.node_ssh.close()
-            os.remove(os.path.join(self.self_path, ".nvsw.db"))
+            os.remove(self.db_path)
         except Exception:
             pass
 
