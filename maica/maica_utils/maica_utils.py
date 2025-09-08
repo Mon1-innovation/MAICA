@@ -356,7 +356,7 @@ async def messenger(websocket=None, status='', info='', code='0', traceray_id=''
         msg_send = info
         if type == 'error' and load_env('NO_SEND_ERROR') == '1':
             msg_send = "A critical exception happened serverside, contact administrator"
-        msg_send += f" -- your traceray ID is {traceray_id}" if traceray_id else ''
+        msg_send += f" -- your traceray ID is {traceray_id}" if traceray_id and isinstance(info, str) else ''
 
     if websocket:
         await websocket.send(wrap_ws_formatter(code=code, status=status, content=msg_send, type=type))
