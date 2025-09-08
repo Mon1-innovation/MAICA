@@ -231,7 +231,7 @@ def wrap_ws_formatter(code, status, content, type, deformation=False, **kwargs) 
         "status" : status,
         "content" : content,
         "type" : type,
-        "timestamp" : time.time()
+        "timestamp" : time.time(),
     }
     output.update(kwargs)
     return json.dumps(output, ensure_ascii=deformation)
@@ -353,7 +353,7 @@ async def messenger(websocket=None, status='', info='', code='0', traceray_id=''
         msg_print = msg_print.ljust(40)
         msg_print += f": {str(info)}" if not str(info).startswith('\n') else f"{'-=' * rep1}{str(info)}\n{'-=' * rep2}"
         msg_print += f"; traceray ID {traceray_id}" if traceray_id else ''
-        msg_send = f"{str(info)}"
+        msg_send = info
         if type == 'error' and load_env('NO_SEND_ERROR') == '1':
             msg_send = "A critical exception happened serverside, contact administrator"
         msg_send += f" -- your traceray ID is {traceray_id}" if traceray_id else ''
