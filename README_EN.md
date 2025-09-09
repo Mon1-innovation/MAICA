@@ -15,13 +15,15 @@ Quickstarting and terms are at https://maica.monika.love/tos.
 
 MAICA backend repository is https://github.com/Mon1-innovation/MAICA.
 
-MAICA-MTTS repository is https://github.com/Mon1-innovation/MAICA_MTTS.
+MAICA backend compact branch repository is https://github.com/Mon1-innovation/MAICA_Server_Submod.
 
 MAICA Submod frontend repository is https://github.com/Mon1-innovation/MAICA_ChatSubmod.
 
 LIA branch of MAICA core model is at https://huggingface.co/edgeinfinity/MAICAv0-LIA-72B.
 
 LOA branch of MAICA core model is at https://huggingface.co/edgeinfinity/MAICAv0-LOA-7B.
+
+MAICA-MTTS repository is https://github.com/Mon1-innovation/MAICA_MTTS.
 
 MAICA-MTTS model is at https://huggingface.co/edgeinfinity/MTTSv0-VoiceClone.
 
