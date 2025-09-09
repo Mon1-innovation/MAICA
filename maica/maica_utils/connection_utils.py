@@ -217,8 +217,9 @@ class AiConnCoroutine(AsyncCreator):
     async def keep_alive(self):
         try:
             model_list = await self.socket.models.list()
+            models = model_list.data
             if isinstance(self.model, int):
-                self.model_actual = model_list[0].id
+                self.model_actual = models[0].id
             else:
                 self.model_actual = self.model
         except Exception:
