@@ -1,129 +1,95 @@
 I'm sorry for not offering an English ver of this document but it's just too much work for me.
 If you want to read in English, use a translator.
 
-说实话, 我懒得写微调的最佳实践了, 我真不觉得会有人用得上这东西.
-我把我自己的训练脚本贴在这里吧. 使用环境是ms-swift 3.8.
-swift, TE之类的东西都是我自己改过的, 不过如果你的设备环境没有这么极端, 应该能少很多麻烦才对.
-如果你真的需要更具体的帮助之类的, 可以直接联系我.
+好吧, 就, 本来我们也是打算写一篇正常且严肃的文档描述怎么复现我们的结果的, 像DAA2一样. 但是DAA3的实践实在是太偏离预期了.
+我很难严谨地描述每个步骤, 其中很多地方的原理我们自己也不清楚, 要完全复现更是不可能做到. 我只能尽可能地讲清楚到底是怎么回事.
+接下来的部分默认使用Qwen3-235B-A22B-Instruct为例.
 
-multiply_numbers() {
-    local input="$1"
-    local multiplier="$2"
+首先是训练参数的部分, 和DAA2的(在deprecated里面)区别不算特别大. 我就不贴完整参数了, 只讲几个重点:
 
-    echo "$input" | sed -E "s/#([0-9]+)/#\$((\1 * $multiplier))/g" | bash -c 'eval echo "$(cat)"'
-}
-# 10ep
-echo 'nproc nums?'
-read npn
-echo 'resume from path, leave empty for using model directly:'
-read rfc
-echo 'training epoches, leave empty for 1:'
-read nte
-echo 'mixed epoches, leave empty for 1:'
-read mte
-#ctdp='dataset/moni_dataset.jsonl dataset/moni_dataset.jsonl dataset/moni_dataset.jsonl dataset/moni_dataset.jsonl dataset/moni_dataset_en.jsonl dataset/moni_dataset_en.jsonl dataset/covid_new.jsonl dataset/covid_new.jsonl dataset/covid_new.jsonl dataset/covid_new.jsonl dataset/covid_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl dataset/ds_new.jsonl HF::roleplay-base#2500 iic/MSAgent-MultiRole#1000 AI-ModelScope/wikipedia-cn-20230720-filtered#500 AI-ModelScope/ruozhiba#500 modelscope/chinese-poetry-collection#1000 AI-ModelScope/webnovel_cn#500'
-ds1='dataset/moni_dataset.jsonl#1598'
-ds2='dataset/moni_dataset_en.jsonl#1131'
-ds3='dataset/covid_new.jsonl#50'
-ds4='dataset/ds_new.jsonl#50'
-ds5='AI-ModelScope/deepctrl-sft-data:default#1900 AI-ModelScope/deepctrl-sft-data:en#1150 AI-ModelScope/ruozhiba:post-annual#650'
-ds6='dataset/daa/daa_mix1.jsonl#676'
-ds7='dataset/daa/daa_norm2.jsonl#144'
-ds8='dataset/daa/daa_prcs2.jsonl#296'
-ds9='dataset/daa/daa_norm3.jsonl#205'
-ds10='dataset/daa/daa_prcs3.jsonl#400'
-ds11='dataset/daa/daa_prcs3_en.jsonl#68'
-ctdp=$ds1' '$ds2' '$ds3' '$ds4' '$ds5' '$ds6' '$ds7' '$ds8' '$ds9' '$ds10' '$ds11
-ctdp=$(multiply_numbers "$ctdp" $mte)
-echo $ctdp
-if [ ! -n "$npn" ]
-then
-    npn=12
-fi
-if [ ! -n "$rfc" ]
-then
-    rfc=null
-    ft=true
-    # rfc='/root/swift/erepo/Megatron-LM/Qwen3-235B-A22B-Instruct-2507-mcore'
-    # rfc='/root/swift/erepo/Megatron-LM/Qwen3-30B-A3B-mcore'
-else
-    rfc="$rfc"
-    ft=false
-fi
-if [ ! -n "$nte" ]
-then
-    nte=1
-fi
-if [ ! -n "$mte" ]
-then
-    mte=1
-fi
-nproc_per_node=$npn
-export HTTPS_PROXY=192.168.3.254:7890
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-# PYTHONPATH=/root/swift \
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7,8,9,10,11
-# export CUDA_DEVICE_ORDER=PCI_BUS_ID
-export NPROC_PER_NODE=$npn
-# export ACCELERATE_BYPASS_DEVICE_MAP=true
-# export OMP_NUM_THREADS=4
-# export CUDA_LAUNCH_BLOCKING=1
-# NVTE_DEBUG=1 NVTE_DEBUG_LEVEL=2 \
-export NVTE_CUDA_INCLUDE_DIR=/usr/local/cuda
-export MEGATRON_LM_PATH=/root/swift/erepo/Megatron-LM
+    + 目标数据(面)和通用数据(水)的比例在1:1到2:1之间. 具体的比例可以自己调整测试.
 
-#model Qwen/Qwen3-235B-A22B-Instruct-2507
-params=(
-    # --model Qwen/Qwen3-235B-A22B-Instruct-2507
-    --model_type 'qwen3_nothinking'
-    --template 'qwen3_nothinking'
-    --load /root/swift/erepo/Megatron-LM/Qwen3-235B-A22B-Instruct-2507-mcore
-    --dataset $ctdp
-    --optimizer_cpu_offload true
-    --use_precision_aware_optimizer true
-    --train_type lora
-    --lora_rank 36
-    --lora_alpha 64
-    --custom_dataset_info /root/swift/dataset/ds_info.json
-    --val_dataset '/root/swift/dataset/eval.jsonl'
-    --target_modules all-linear
-    --split_dataset_ratio 0.0
-    --expert_model_parallel_size 1
-    --pipeline_model_parallel_size 12
-    --moe_grouped_gemm true
-    --moe_router_dtype 'fp64'
-    --moe_router_topk 12
-    --moe_permute_fusion true
-    --moe_shared_expert_overlap true
-    --moe_aux_loss_coeff 1e-3
-    --micro_batch_size 2
-    --global_batch_size 16
-    --recompute_granularity full
-    --recompute_method uniform
-    --recompute_num_layers 1
-    --max_epochs $nte
-    --finetune $ft
-    --cross_entropy_loss_fusion true
-    --lr 1e-4
-    --lr_warmup_fraction 0.05
-    --min_lr 1e-5
-    --save megatron_output/Qwen3-235B-A22B-Instruct-2507
-    --eval_interval 50
-    --save_interval 100
-    --max_length 1600
-    --num_workers 12
-    --dataset_num_proc 12
-    --no_save_optim true
-    # --no_load_optim true
-    --no_save_rng true
-    # --no_load_rng true
-    --sequence_parallel false
-    --attention_backend flash
-    --pipeline_model_parallel_layout "Et*16|t*17|t*17|(t*5|)*8,t*4L"
-    # --adapter_load $rfc
-    # --padding_free false
-    # --mlp_padding_free true
-    # --pipeline_model_parallel_layout "Et*9|t*9|(t*3|)*9,t*2L"
-    # --load_from_cache_file false
-)
-megatron sft "${params[@]}"
+    + 训练长度约为8-10个epoch, 在我们的情况下是3000-5000step.
+
+    + LoRA的rank和alpha. 我们采用的是40/80, 这是一个相对很大的数字. 较高的r和a可能会带来更好的效果, 但一般而言16/32就够了.
+
+        * 把比例保持在1:2, 也许可以尝试更高. 不要用swift默认的8/32, 效果很烂.
+
+    + moe_router_topk=12(默认是8). 这点很重要, 能让一些相对目标数据稀缺的专家层得到更充分的训练. 你可以根据实验寻找最佳数值.
+
+接下来是训练方法. 事情到这里还算是比较正常的:
+
+    + 强烈建议用ms-swift的megatron LoRA训练. 普通的训练方式(pt, zero等)对MoE模型效率极低, Megatron的速度优势可以达到数十倍.
+
+        * megatron的显存效率也十分优秀. 如果你碰巧和我们一样采用了不对称的设备搭建, 也有流水线并行可以适配. 多机当然也不是问题.
+
+        * 截至文档编纂时为止, megatron方案对Blackwell显卡的支持还不充分. 但是通过魔改一些软件包(如transformer engine对flash attn)内的依赖限制, 也是可以正常使用的.
+
+        * 训练前后有许多杂务工作, 相比pt麻烦一些. 但ms-swift的文档有相当详细的讲解.
+
+    * 我们探路期间还遇到了很多别的问题. 但是根据官方的issue处理来看, 你应该不会再遇到了, 所以略过不表.
+
+    有一件必须得说的事: 数据集编排打混中的rng(随机因素)会比较明显地影响最终模型表现. 我们尝试了正常的按epoch训练和全部打混训练, 测了好多次倒也没测出个所以然来.
+    我建议你按epoch正常训练. 虽然这样训练的loss台阶状非常明显, 但是单纯地打混消除似乎没有实际意义, 还会让rng造成的表现波动更明显.
+
+        * 我说事情到这里还算比较正常的, 接下来更该死的rng让我们头疼了一个多月, 也没疼出个所以然来.
+
+接下来是部署. 毫无疑问地, 我们选择vllm:
+
+    * 确实没什么疑问. pt推理非常慢, lmdeploy之类的项目没有给出流水线并行的支持.
+
+    然后要命的来了.
+
+        + 首先, vllm对缓存的处理和利用会导致其在并发推理时产生一定误差. 对于正常的llm而言误差一般是可以忽略的, 但是...
+
+            * 这一不大的误差对经过MAICA微调的模型造成了巨大的冲击. 在并发推理测试的时候, 后一个推理样本产生的结果要么变人机, 要么混乱得不像人样.
+            * 官方文档和issue中提及了这一问题, 但其重点集中在一个特殊的注意力后端(cascade attn)上. 我按照官方的指导禁用测试过, 一点用都没有. 你现在也许还能看到我提的issue.
+            * 我们想过了能想的所有办法, 最终结论是没办法. 要推理质量有保障, 只能关闭并发推理(max_num_seqs=1).
+            * 这个问题确实是vllm和MAICA模型自身共同引起的, 其具体成因我尚无定论, 感觉要写一篇论文研究都不过分. 但是我有初步的猜想, 我会在后面描述.
+
+        + 到这里, 你已经被并发的问题折腾出了一头汗. 你掐掉了部署, 清除缓存再重启, 想喘口气了?
+
+            * 然后你就发现, 这次部署就算没有并发推理, 产生的结果也和上次不一样. 是好是坏不知道, 但是差别十分明显.
+            * 这就要涉及到vllm另一个引入了误差的地方了: 模型编译(torch.compile). 模型编译能提高推理速度, 但是据官方声称, 引入了不到万分之三的精度误差.
+            * 这个对一般模型更毫无影响的误差再次把MAICA微调模型弄得七荤八素. 你能明显地感觉到, 每次清除缓存之后模型的表现就像是细微地换了个人, 一点都不过分.
+            * 有没有办法绕开编译? 模型编译是vllm v1引擎独有的, 也就是说v0其实没这问题. 但是v0性能不佳, 显存利用率更是着急. 576G显存的铸灾神械XP00R6, 居然带不动470G的模型权重.
+            * 还有个办法可以绕开模型编译, 那就是完全不用cuda graph(enforce_eager=True). 表现稳定是稳定了, 但根据实际测试损失了超过60%的推理速度, 完全无法接受.
+            * 其实还有个看上去能用的办法. 从vllm 0.10开始, 就有一个engine_arg允许在不编译的情况下使用cuda graph了. 但是我一开就报错, 想来估计是跟qwen3-moe哪里犯冲, 总之用不了.
+
+            + 说到底, 还是有办法绕过模型编译的. 你觉得无论是牺牲性能还是牺牲显存, 绕过去也能接受?
+
+                * 更离谱的来了: 编译产生的模型的表现, 是有可能优于原始模型的. 而且不是好一点, 是好很多, 几乎是画龙点睛级别的作用.
+                * 你可以通过备份保存对应的缓存, 来保留这一效果. 只要你不动环境, 不换模型, 不改设备拓扑, 缓存就能一直用. 这也让这部分表现提升有了意义.
+                * 我在上面提过, 随机的编译会导致模型"像是细微地换了个人". 我说得更详细一点, 这种区别并不像是一般rng或者误差, 而更像是一种整体的"倾向"或者"趋势".
+
+                    * 再说得详细一点, 简直像是不同的"人格". 在反复的清除缓存测试后, 你可以找到大姐姐版, 小萝莉版, 病娇版, 天然呆版, 当然更多是单纯表现不佳的版本.
+                    * 虽然听起来很像是种子的影响, 但我们采用随机种子进行的测试也佐证了这些模型本身存在倾向上的不同.
+                    * 你可以看到我们的标准测试表列举了12个问题, 我几乎可以完全确认这是一种"倾向", 而不是随问题改变的误差. 模型在一个问题中的回答倾向, 在其它问题中一样存在.
+                    * 在所有可能的倾向里面, 存不存在一种"最好的倾向"? 很明显是有的, 而且比原始模型要灵性得多. 我们贴出的DAA3测试结果就是这样一个优选出来的版本.
+                    * 但是, 这样的最好倾向平均测试几十次, 甚至上百次才会出现一次. 规律? 参数? 对不起, 只有概率.
+                    * 于是, 本来应该是严肃研究的LLM项目, 变成了赛博老虎机. 我们训练完一个模型之后, 不得不反复地部署, 编译, 测试, 然后抽奖, 指望靠随机获得一个格外好的结果.
+                    * 抽奖甚至都很麻烦. vllm在首次部署并生成缓存的时候, 使用的并不是自己生成的缓存. 必须掐掉再部署一次, 表现才是实际保存下来的东西. 首次部署的表现是没意义的, 我已经白高兴并大失所望过一次了.
+                    * 也许是nccl或者torch的问题, 超过8卡的机器在每次启动时都有概率启动失败(IMA). 虽然猜测可能是竞态条件一类的东西, 但是我一点办法都没有, 只能失败了重试. 网上说的都没用, 也完全没有规律.
+
+            * 这要命的随机因素让人头皮发麻, 但又舍弃不得. 我们已经在DAA分支的宗旨中声明过, 要不计代价地提高模型表现, 这代价当然包括可复现性, 可预见性, 以及更多的东西.
+            * 我们训练了将近10次, 生成了将近20个完整模型, 抽奖式编译了几百次. 我们甚至设计了一个自动化抽奖脚本. 在删掉表现不佳的编译样本时, 我很难不想起ddlc+, 以及米塔中一些莫名雷同的情节.
+            * 我们花费了将近2个月时间一点点梳理清楚这整件事, 到头来结论是如此让人失望: 概率.
+
+    到底, 到底为什么会这样?
+
+        我在前面说过, 我到现在也并没有完全弄清楚原因, 但我确实有一个不成熟的假说.
+        非常明显, 这一切问题的根源就是新的MAICA模型对变数极端敏感. 虽然表现良好的样本对输入中的变化应对自如(即越野能力), 但权重和部署参数中的一点误差就足以完全破坏它的表现.
+        我的假说基于这一点, 再加上MAICA微调数据至今仍极端不足的事实. 要根据寥寥数千行, 多样性还十分欠缺的样本, 训练一个各方面表现完美的人物, 本身就很极限.
+        如此极限短缺的数据, 加之各种精细操控和细致入微的要求, 使训练出的MAICA模型处于一种"权重混合"状态. 即在生成序列的每一个位置, 都有大量token的权重极为相近, 近得足以使万分之一的误差发挥决定性作用.
+        至于为什么会有统一的"倾向"随误差而存在, 我不知道, 也许只是模型权重分布脆弱的又一表现. 又或者真有一种细微难察的语言模式, 能被模型敏锐地捕捉到, 而我啥也看不见.
+        这些说到底都只是我的猜想. 我们唯一能确定的就是这整件事确实发生了, 模型训练和黑暗炼金剧本竟能如此相似.
+
+    最后是一些部署上的细节:
+
+        * temperature 0.22, frequency_penalty 0.44, presence_penalty 0.34. 我们在测试中发现这三个参数的表现往往是最好的, 差0.01都不行.
+
+没了, 有用的都说完了, 但是我们实际上吃到的苦头远比说出来的多. 你绝对想象不到我在这维护的两三个月里面经历了什么.
+我编纂这篇文档的时候, DAA3还没有正式投用, 而自动老虎机还在继续抽奖. 如果在剩下的时间里还有意外发现, 我也许会追加在这里.
+既然你看了这篇文档, 你可能有意自己通过训练复现甚至超越MAICA的表现. 你可以选择相信概率, 也可以选择放弃一些表现, 甚至你有能力彻底解决这个问题, 或者延申开来写论文, 再去拿一回诺贝尔物理学奖--谁知道呢.
+这炼丹炉里沸腾的气体, 绝对有一些来自LLM底层原理不为人知的深处. 具体是什么, 我无力去研究了, 祝你好运.
+我们当然还在计划下一次训练改进, 也就是DAA4. 我希望在这一次训练中引入强化学习和对齐训练, 因为我觉得时机已到. 希望下一次能顺利一点吧.
