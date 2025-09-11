@@ -157,9 +157,9 @@ class SideFunctionCoroutine(AsyncCreator):
             "tools": self.tools,
             "stop": ['Observation:'],
             "temperature": 0.2,
-            "top_p": 0.6,
-            "presence_penalty": 0.4,
-            "frequency_penalty": 0.5,
+            # "top_p": 0.6,
+            # "presence_penalty": 0.4,
+            # "frequency_penalty": 0.5,
             "seed": 42
         }
 

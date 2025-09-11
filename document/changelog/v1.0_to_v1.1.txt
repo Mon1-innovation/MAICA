@@ -13,6 +13,8 @@ If you want to read in English, use a translator.
 
 = 现在长连接令牌也以json形式提交, 键是access_token.
 
+= 重置对话的purge键改为reset.
+
 = 现在修改设置时, 值为null的键会恢复默认值.
 
 = max_token基础参数改为max_length
