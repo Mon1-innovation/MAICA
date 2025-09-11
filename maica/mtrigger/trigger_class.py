@@ -79,6 +79,4 @@ class CustomizedTrigger(CommonTrigger):
         try:
             self.exprop = _exprop(**kwargs.get('exprop'))
         except Exception:
-            traceback.print_exc()
-            print(self.name)
             raise STRUCTURE_NOT_INTACT
