@@ -272,12 +272,16 @@ class AgentTools():
 
 if __name__ == "__main__":
     import asyncio
-    fsc = FullSocketsContainer(maica_settings=MaicaSettings())
-    fsc.maica_settings.verification.update(user_id=23, username="edge")
-    fsc.maica_settings.update(esc_aggressive=False)
-    sf_inst = SfBoundCoroutine(fsc)
-    at = AgentTools(fsc, sf_inst)
-    # res_d = asyncio.run(at.date_acquire())
-    # res_e = asyncio.run(at.event_acquire(year=2025, month=10, day=1))
-    res_i = asyncio.run(at.search_internet('24年奥运会', False, '24年奥运会在哪里'))
-    print(res_i)
+    async def main():
+        fsc = FullSocketsContainer(maica_settings=MaicaSettings())
+        fsc.maica_settings.verification.update(user_id=23, username="edge")
+        fsc.mfocus_conn = await ConnUtils.mfocus_conn()
+        # fsc.maica_settings.update(esc_aggressive=False)
+        sf_inst = SfBoundCoroutine(fsc)
+        at = AgentTools(fsc, sf_inst)
+        # res_d = asyncio.run(at.date_acquire())
+        # res_e = asyncio.run(at.event_acquire(year=2025, month=10, day=1))
+        # res_i = asyncio.run(at.search_internet('24年奥运会', False, '24年奥运会在哪里'))
+        res_p = await at.persistent_acquire('你喜欢吃什么')
+        print(res_p)
+    asyncio.run(main())
