@@ -769,10 +769,12 @@ class SfBoundCoroutine(SideBoundCoroutine):
         information = (await wrap_run_in_exc(None, self._mfocus_form_info))
         system_init = """你是一个人工智能助手, 你接下来会收到一个问题和一系列信息.
 注意不要对信息作任何改动. 你可以认为[player]是用户的名字, 莫妮卡是你的名字.
-从信息中挑选1至5条最能用于回答的信息, 互不重复, 并以单行json列表的形式输出. 如果你最终认为没有信息符合条件, 输出false.
+从中挑选1至5条最相关的信息, 并以单行json列表的形式输出. 如果你最终认为没有信息符合条件, 输出false.
+你应当保持思考过程尽可能短, 因此不要在思考中复述或逐条解读信息.
 Begin!""" if self.settings.basic.target_lang == 'zh' else """You are a helpful assistant, now you will recieve a question and a list of information.
 Remember not to modify any item. Output them as what they were. You can consider [player] as user's name and Monika as yours.
-Pick 1 to 5 independent items from the information that helps answering the question the most, and return them in a json list. If you think no information provided is helpful at last, return false.
+Pick 1 to 5 most relative items from the information, and return them in a json list. If you think no information provided is helpful at last, return false.
+Keep your thinking as short as possible, so do not enumerate or repeat the information while thinking.
 Begin!"""
         messages = [{'role': 'system', 'content': system_init}]
         messages.append({'role': 'user', 'content': f'question: {query}; information: {information}'})
