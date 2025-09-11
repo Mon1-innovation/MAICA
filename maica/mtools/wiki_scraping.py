@@ -72,10 +72,10 @@ async def get_page(title=None, target_lang='zh'):
             hans_len, hant_len = hans_list['query']['searchinfo']['totalhits'], hant_list['query']['searchinfo']['totalhits']
             if hans_len >= hant_len:
                 next_title = nxt_hans
-                print('MSpire using simplified Chinese title')
+                await messenger(info='MSpire using simplified Chinese title', type=MsgType.DEBUG)
             else:
                 next_title = nxt_hant
-                print('MSpire using traditional Chinese title')
+                await messenger(info='MSpire using traditional Chinese title', type=MsgType.DEBUG)
         if insanity >= 2:
             sample = set_sample
         page_url = f"https://{target_lang}.wikipedia.org/w/api.php?action=query&format=json&list=search&redirects=1&utf8=1&formatversion=2&srsearch={next_title}&srnamespace=0&srlimit={sample}&sroffset=0&srprop="
@@ -98,20 +98,20 @@ async def get_page(title=None, target_lang='zh'):
                 next_item = random.choice(cat_list_r)
                 next_cat_title = cat_scraper.match(next_item['title'])[1]
                 next_title = f"incategory:{next_cat_title.replace(' ', '_')}"
-                print(f"MSpire entering fork: {next_cat_title}")
+                await messenger(info=f"MSpire entering fork: {next_cat_title}", type=MsgType.DEBUG)
                 use_page = None
             else:
                 next_item = random.choice(page_list_r)
                 next_title = next_item['title']
                 page_found = next_title
-                print(f"MSpire hit midway page: {next_title}")
+                await messenger(info=f"MSpire hit midway page: {next_title}", type=MsgType.LOG)
         elif len(page_list_r):
             next_item = random.choice(page_list_r)
             next_title = next_item['title']
             page_found = next_title
-            print(f"MSpire hit bottom page: {next_title}")
+            await messenger(info=f"MSpire hit bottom page: {next_title}", type=MsgType.LOG)
         else:
-            print('MSpire hit deadend--trying again')
+            await messenger(info='MSpire hit deadend--trying again', type=MsgType.DEBUG)
             next_title = next_title_fs
 
     finale_url = f"https://{target_lang}.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exsentences=15&exlimit=1&titles={next_title}&explaintext=1&formatversion=2"

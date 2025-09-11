@@ -1,3 +1,4 @@
+import traceback
 from typing import *
 from maica_utils import *
 
@@ -58,7 +59,7 @@ class CommonSwitchTrigger(CommonTrigger):
         try:
             self.exprop = _exprop(**kwargs.get('exprop'))
             assert self.exprop.item_list
-        except:
+        except Exception:
             raise STRUCTURE_NOT_INTACT
         
 class CommonMeterTrigger(CommonTrigger):
@@ -68,7 +69,7 @@ class CommonMeterTrigger(CommonTrigger):
         try:
             self.exprop = _exprop(**kwargs.get('exprop'))
             assert self.exprop.value_limits
-        except:
+        except Exception:
             raise STRUCTURE_NOT_INTACT
 
 class CustomizedTrigger(CommonTrigger):
@@ -77,6 +78,7 @@ class CustomizedTrigger(CommonTrigger):
         super().__init__(**kwargs)
         try:
             self.exprop = _exprop(**kwargs.get('exprop'))
-        except:
+        except Exception:
+            traceback.print_exc()
             print(self.name)
             raise STRUCTURE_NOT_INTACT

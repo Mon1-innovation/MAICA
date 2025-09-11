@@ -328,7 +328,7 @@ async def validate_input(input: Union[str, dict, list], limit: int=4096, rsc: Op
             raise MaicaInputWarning('Input length exceeded', '413', 'maica_input_validation_denied')
         try:
             input_json = json.loads(input)
-        except:
+        except Exception:
             raise MaicaInputWarning('Request body not JSON', '400', 'maica_input_validation_denied')
     elif isinstance(input, dict | list):
         if len(str(input)) > limit:

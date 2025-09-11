@@ -328,8 +328,10 @@ class ShortConnHandler(View):
 
     async def get_workload(self):
         """GET, val=False"""
-
-        content = [self.mcore_watcher.get_statics_inside(), self.mfocus_watcher.get_statics_inside()]
+        content = self.mcore_watcher.get_statics_inside()
+        content_2 = self.mfocus_watcher.get_statics_inside()
+        if isinstance(content_2, dict):
+            content.update(content_2)
 
         return jsonify({"success": True, "exception": None, "content": content})
     
