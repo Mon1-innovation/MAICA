@@ -265,7 +265,7 @@ class NoWsCoroutine(AsyncCreator):
                     system_init = PROMPT_EC
                 else:
                     system_init = PROMPT_EW
-            system_init.format(player_name=player_name)
+            system_init = system_init.format(player_name=player_name)
             return system_init
 
         self._check_essentials()
