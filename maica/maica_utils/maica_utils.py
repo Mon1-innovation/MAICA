@@ -59,6 +59,8 @@ class CommonMaicaWarning(CommonMaicaException):
     """This is a common MAICA warning."""
     def __init__(self, message=None, error_code='400', status='maica_unidentified_warning', send=None, print=None):
         super().__init__(message, error_code, status, send, print)
+
+    @property
     def is_breaking(self):
         return False
 
