@@ -229,6 +229,8 @@ def default(exp, default, default_list: list=[None]) -> any:
     return default if exp in default_list else exp
 
 def wrap_ws_formatter(code, status, content, type, deformation=False, **kwargs) -> str:
+    if not isinstance(content, (str, list, dict, None)):
+        content = str(content)
     output = {
         "code" : code,
         "status" : status,
