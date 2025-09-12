@@ -24,6 +24,8 @@ MVISTA_KEY = 'EMPTY'
 MVISTA_CHOICE = ''
 # 0 = ms-swift, 1 = deepseek, 2 = openai
 ALT_TOOLCALL = '1'
+# MFocus provide trained data or not
+BASIC_MFOCUS = '0'
 
 
 # Data exchanging endpoint settings
