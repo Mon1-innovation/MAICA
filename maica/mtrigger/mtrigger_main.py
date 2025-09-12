@@ -171,7 +171,7 @@ class MTriggerCoroutine(SideFunctionCoroutine):
 
             # This is a little bit special
             self.serial_messages.extend([{'role': 'user', 'content': input}, {'role': 'assistant', 'content': output}])
-            user_instruct_input = '观察以上对话历史记录, 依据你上一次作出的回应调用工具. 每个工具最多调用一次.' if self.settings.basic.target_lang == 'zh' else 'Observe the chat history and make tool calls according to your last reply. Each tool can only be used once at most.'
+            user_instruct_input = '观察以上对话历史记录, 依据你上一次作出的回应调用工具. 除好感外, 不要调用未经用户明确指示的工具, 每个工具最多调用一次.' if self.settings.basic.target_lang == 'zh' else 'Observe the chat history and make tool calls according to your last reply. Do not use tools except affection, unless user requested directly. Each tool can only be used once at most.'
             await self._construct_query(user_input=user_instruct_input)
 
             cycle = 0; ending = False
