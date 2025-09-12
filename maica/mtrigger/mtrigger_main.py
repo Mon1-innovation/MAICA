@@ -182,7 +182,7 @@ class MTriggerCoroutine(SideFunctionCoroutine):
                 cycle += 1
 
                 resp_content, resp_tools = await self._send_query()
-                await messenger(self.websocket, 'maica_mtrigger_toolchain', f'\nMTrigger toolchain {cycle} round responded, response is:\n{resp_content}\nAnalyzing response...')
+                await messenger(self.websocket, 'maica_mtrigger_toolchain', f'\nMTrigger toolchain {cycle} round responded, response is:\n{resp_content}\nAnalyzing response...', code='200')
                 tool_seq = 0
                 if resp_tools:
                     for resp_tool in resp_tools:
