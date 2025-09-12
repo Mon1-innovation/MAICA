@@ -263,7 +263,7 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
 
                     0 < int(max_tokens) <= 2048
 
-                    0.2 <= float(frequency_penalty) <= 1.0
+                    0.0 <= float(frequency_penalty) <= 1.0
 
                     0.0 <= float(presence_penalty) <= 1.0
 

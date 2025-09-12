@@ -52,7 +52,7 @@ class MaicaSettings():
 
         def force_lock(self):
             self._lock = True
-            
+
         @property
         @Decos.report_reading_error
         def user_id(self):
@@ -408,7 +408,7 @@ class MaicaSettings():
             if v is None:
                 self._frequency_penalty = self.default('frequency_penalty')
             else:
-                assert 0.2 <= float(v) <= 1.0
+                assert 0.0 <= float(v) <= 1.0
                 self._frequency_penalty = float(v)
 
         @property
