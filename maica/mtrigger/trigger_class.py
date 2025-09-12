@@ -12,9 +12,9 @@ class CommonTrigger():
     def __init__(self, **kwargs):
         try:
             self.name = kwargs.get('name')
-            assert self.name
-        except Exception:
-            raise STRUCTURE_NOT_INTACT
+            assert self.name, 'Trigger name absent'
+        except Exception as e:
+            raise e
 
 class _exprop():
     item_list: Optional[list] = None
@@ -31,21 +31,21 @@ class _exprop():
                 if kwargs.get(acceptable_key) != None:
                     setattr(self, acceptable_key, kwargs.get(acceptable_key))
             if self.item_list:
-                assert isinstance(self.item_list, list)
+                assert isinstance(self.item_list, list), 'Item list not list'
                 self.item_list = limit_length(self.item_list, 72)
             if self.value_limits:
-                assert isinstance(self.value_limits, list)
-                assert len(self.value_limits) == 2
-        except Exception:
-            raise STRUCTURE_NOT_INTACT
+                assert isinstance(self.value_limits, list), 'Value limits not list'
+                assert len(self.value_limits) == 2, 'Value limits not two'
+        except Exception as e:
+            raise e
 
 class _item_name():
     def __init__(self, **kwargs):
         try:
             self.zh, self.en = kwargs.get('zh'), kwargs.get('en')
-            assert self.zh and self.en
-        except Exception:
-            raise STRUCTURE_NOT_INTACT
+            assert self.zh and self.en, 'Item name absent'
+        except Exception as e:
+            raise e
 
 class CommonAffectionTrigger(CommonTrigger):
     template = 'common_affection_template'
@@ -58,9 +58,9 @@ class CommonSwitchTrigger(CommonTrigger):
         super().__init__(**kwargs)
         try:
             self.exprop = _exprop(**kwargs.get('exprop'))
-            assert self.exprop.item_list
-        except Exception:
-            raise STRUCTURE_NOT_INTACT
+            assert self.exprop.item_list, 'No item list provided for switch'
+        except Exception as e:
+            raise MaicaInputWarning(f'Trigger {self.name} not intact: {str(e)}')
         
 class CommonMeterTrigger(CommonTrigger):
     template = 'common_meter_template'
@@ -69,8 +69,8 @@ class CommonMeterTrigger(CommonTrigger):
         try:
             self.exprop = _exprop(**kwargs.get('exprop'))
             assert self.exprop.value_limits
-        except Exception:
-            raise STRUCTURE_NOT_INTACT
+        except Exception as e:
+            raise MaicaInputWarning(f'Trigger {self.name} not intact: {str(e)}')
 
 class CustomizedTrigger(CommonTrigger):
     template = 'customized'
@@ -78,5 +78,5 @@ class CustomizedTrigger(CommonTrigger):
         super().__init__(**kwargs)
         try:
             self.exprop = _exprop(**kwargs.get('exprop'))
-        except Exception:
-            raise STRUCTURE_NOT_INTACT
+        except Exception as e:
+            raise MaicaInputWarning(f'Trigger {self.name} not intact: {str(e)}')

@@ -190,7 +190,7 @@ class MTriggerCoroutine(SideFunctionCoroutine):
                         # Tool parallel support
                         tool_seq += 1; all_tool_count += 1
                         tool_id, tool_type, tool_func_name, tool_func_args = resp_tool.id, resp_tool.type, resp_tool.function.name, resp_tool.function.arguments
-                        await messenger(None, 'maica_mtrigger_tool_acquire', f'\nCalling parallel tool {tool_seq}/{len(resp_tools)}:\n{resp_tool}\nSending trigger...')
+                        await messenger(info=f'\nCalling parallel tool {tool_seq}/{len(resp_tools)}:\n{resp_tool}\nSending trigger...', type=MsgType.PRIM_LOG)
 
                         if tool_func_name == 'agent_finished':
                             ending = True
