@@ -248,7 +248,7 @@ class NoWsCoroutine(AsyncCreator):
         """Store ms cache with prompt hash."""
         self._check_essentials()
 
-        sql_expression_1 = "INSERT INTO ms_cache VALUES (NULL, %s, %s, %s)"
+        sql_expression_1 = "INSERT INTO ms_cache (user_id, hash, content) VALUES (%s, %s, %s)"
         spire_id = await self.maica_pool.query_modify(expression=sql_expression_1, values=(self.settings.verification.user_id, hash_identity, content))
         await messenger(None, 'maica_spire_cache_stored', 'Stored a cache for MSpire', '200')
         return spire_id
