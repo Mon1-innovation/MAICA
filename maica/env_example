@@ -1,6 +1,9 @@
 # cp ./env_example ./.env
 # vim .env
 
+# Is this configured or not
+IS_REAL_ENV = '0'
+
 
 # Model endpoint settings
 

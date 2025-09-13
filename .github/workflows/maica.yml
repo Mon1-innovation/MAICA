@@ -30,6 +30,12 @@ jobs:
         python -m pip install --upgrade pip
         pip install setuptools wheel twine
         pip install -r requirements.txt
+
+    - name: Initialize basic env
+      run: |
+        cp maica/env_example maica/.env
+        cp maica/servers_example maica/.servers
+      shell: bash
         
     - name: Run tests
       run: |

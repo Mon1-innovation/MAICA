@@ -16,7 +16,7 @@ from maica.maica_utils import *
 from maica.initializer import *
 
 def check_basic_init():
-    if load_env('DB_ADDR'):
+    if load_env('IS_REAL_ENV'):
         return
     else:
         print('''No env detected, is this workflow?
