@@ -2,7 +2,6 @@ import os
 from maica.maica_utils import load_env, get_inner_path
 
 mark_path = get_inner_path('.initialized')
-curr_version, legc_version = load_env('VERSION_CONTROL').split(';', 1)
 
 def check_marking():
 
@@ -13,7 +12,7 @@ def check_marking():
         return False
     
 def create_marking():
-
+    curr_version, legc_version = load_env('VERSION_CONTROL').split(';', 1)
     with open(mark_path, 'w') as mark:
         mark.write(f"This file's existence indicates that the program has been initiated once.\nTo try initiating it again, delete this file.\n\nWarning: Deleting this file will not make the program run any cleanups.\n\nInitiation version: {curr_version}")
     return

@@ -19,8 +19,7 @@ def check_basic_init():
     if load_env('DB_ADDR'):
         return
     else:
-        print('''
-No env detected, is this workflow?
+        print('''No env detected, is this workflow?
 If it is, at least the imports and grammar are good if you see this.
 If not, please follow the documents and finish configures before running.
 Quitting...'''
@@ -63,6 +62,7 @@ async def start_all():
     quit()
 
 def full_start():
+    check_basic_init()
     check_init()
     asyncio.run(start_all())
 
