@@ -1,12 +1,16 @@
+import os
+import setuptools
+from dotenv import load_dotenv
 
-import setuptools #导入setuptools打包工具
- 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
+
+load_dotenv(dotenv_path="maica/.env")
+curr_version, legc_version = os.getenv('VERSION_CONTROL').split(';', 1)
  
 setuptools.setup(
     name="mi-maica", # 用自己的名替换其中的YOUR_USERNAME_
-    version="1.1000",    #包版本号，便于维护版本
+    version=curr_version,    #包版本号，便于维护版本
     author="EdgeInfinity",    #作者，可以写自己的姓名
     author_email="dcc@monika.love",    #作者联系方式，可写自己的邮箱地址
     description="MAICA Illuminator (Backend)",#包的简述
