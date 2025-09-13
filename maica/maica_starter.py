@@ -21,6 +21,7 @@ def check_basic_init():
     else:
         print('''
 No env detected, is this workflow?
+If it is, at least the imports and grammar are good if you see this.
 If not, please follow the documents and finish configures before running.
 Quitting...'''
               )
