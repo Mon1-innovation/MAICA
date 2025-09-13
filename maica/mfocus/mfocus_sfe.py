@@ -647,7 +647,7 @@ class SfBoundCoroutine(SideBoundCoroutine):
 
     def _conclude_moni_sf(self, extra=0):
         target_lang = self.settings.basic.target_lang
-        include_basic = load_env('BASIC_MFOCUS')
+        include_basic = load_env('BASIC_MFOCUS') == '1'
         if target_lang == 'zh':
             data_ex = [
                 '莫妮卡的生日是9月22日.',
