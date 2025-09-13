@@ -5,9 +5,9 @@ import asyncio
 
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from typing import *
-from mfocus.mfocus_sfe import SfBoundCoroutine
-from .mtrigger_sfe import MtBoundCoroutine
-from maica_utils import *
+from maica.mfocus.mfocus_sfe import SfBoundCoroutine
+from maica.mtrigger.mtrigger_sfe import MtBoundCoroutine
+from maica.maica_utils import *
 
 class MTriggerCoroutine(SideFunctionCoroutine):
     def __init__(self, fsc: FullSocketsContainer, mt_inst: MtBoundCoroutine, sf_inst: Optional[SfBoundCoroutine]=None):

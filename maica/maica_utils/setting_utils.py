@@ -1,5 +1,6 @@
 import asyncio
-from .maica_utils import *
+from typing import *
+from maica.maica_utils import *
 """Import layer 2"""
 
 PRV_LIST = ['_lock', 'lock']

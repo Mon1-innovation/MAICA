@@ -12,7 +12,7 @@ import lunar_python
 import datetime
 import math
 from typing import *
-from maica_utils import *
+from maica.maica_utils import *
 
 # lm = {
 #     1: "正",

@@ -1,8 +1,8 @@
 import asyncio
 import os
-from maica_utils import DbPoolCoroutine, ConnUtils
+from maica.maica_utils import DbPoolCoroutine, ConnUtils
 from typing import *
-from maica_utils import *
+from maica.maica_utils import *
 
 async def create_tables():
 

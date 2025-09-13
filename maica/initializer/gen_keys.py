@@ -1,6 +1,6 @@
 from Crypto.PublicKey import RSA
 import os
-from maica_utils import get_outer_path
+from maica.maica_utils import get_outer_path
 
 def generate_rsa_keys():
 

@@ -2,7 +2,7 @@ import re
 import asyncio
 import traceback
 import functools
-from maica_utils import *
+from maica.maica_utils import *
 from googlesearch import asearch
 from openai import AsyncOpenAI # type: ignore
 

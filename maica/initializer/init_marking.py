@@ -1,8 +1,7 @@
 import os
-from maica_utils import load_env, get_inner_path
+from maica.maica_utils import load_env, get_inner_path
 
 mark_path = get_inner_path('.initialized')
-print(mark_path)
 curr_version, legc_version = load_env('VERSION_CONTROL').split(';', 1)
 
 def check_marking():

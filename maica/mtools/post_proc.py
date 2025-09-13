@@ -1,5 +1,5 @@
 import re
-from maica_utils import *
+from maica.maica_utils import *
 
 emotion_etz = {
     "smile": "微笑",

@@ -1,7 +1,7 @@
 from openai.types.chat import ChatCompletionMessage
 from .connection_utils import *
 from .container_utils import *
-from .maica_utils import *
+from maica.maica_utils import *
 """Import layer 5"""
 
 class SideBoundCoroutine(AsyncCreator):

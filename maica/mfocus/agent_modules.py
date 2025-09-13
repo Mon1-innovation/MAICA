@@ -3,9 +3,9 @@ import pytz
 import json
 import re
 import traceback
-from mtools import *
+from maica.mtools import *
 from .mfocus_main import SfBoundCoroutine
-from maica_utils import *
+from maica.maica_utils import *
 
 class AgentTools():
     """I didn't intend to make classes everywhere, but they're oh so convenient."""

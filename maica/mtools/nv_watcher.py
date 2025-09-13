@@ -8,7 +8,7 @@ import aiosqlite
 import traceback
 import asyncssh
 import signal
-from maica_utils import *
+from maica.maica_utils import *
 
 class NvWatcher(AsyncCreator):
     def __init__(self, node):

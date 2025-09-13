@@ -7,11 +7,12 @@ import uuid
 import re
 import traceback
 import colorama
-import mtools
 
 from typing import *
-from maica_nows import NoWsCoroutine
-from maica_utils import *
+
+from maica import mtools
+from maica.maica_nows import NoWsCoroutine
+from maica.maica_utils import *
 
 class WsCoroutine(NoWsCoroutine):
     """

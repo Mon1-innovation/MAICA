@@ -1,5 +1,5 @@
 from typing import *
-from .maica_utils import *
+from maica.maica_utils import *
 from .setting_utils import *
 from .connection_utils import *
 """Import layer 4"""

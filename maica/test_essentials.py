@@ -2,7 +2,7 @@ import asyncio
 import platform
 import colorama
 
-from maica_utils import messenger, load_env, MsgType
+from maica.maica_utils import messenger, load_env, MsgType
 
 
 def basic_chk():

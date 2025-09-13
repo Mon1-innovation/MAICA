@@ -4,7 +4,7 @@ import asyncio
 import datetime
 import traceback
 from .trigger_class import *
-from maica_utils import *
+from maica.maica_utils import *
 
 class MtBoundCoroutine(SideBoundCoroutine):
     DB_NAME = 'triggers'

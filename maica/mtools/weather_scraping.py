@@ -1,6 +1,6 @@
 import json
 import datetime
-from maica_utils import *
+from maica.maica_utils import *
 
 async def weather_api_get(location):
 

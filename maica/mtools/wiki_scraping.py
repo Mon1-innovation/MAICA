@@ -2,7 +2,7 @@ import re
 import random
 import asyncio
 import zhconv
-from maica_utils import *
+from maica.maica_utils import *
  
 
 async def get_multi_json(*list_url):

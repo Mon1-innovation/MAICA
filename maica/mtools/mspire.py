@@ -3,7 +3,7 @@ import json
 import traceback
 from . import wiki_scraping
 from openai import AsyncOpenAI
-from maica_utils import *
+from maica.maica_utils import *
 
 async def make_inspire(title_in=None, target_lang='zh'):
     success = True

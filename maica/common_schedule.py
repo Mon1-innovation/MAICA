@@ -3,7 +3,7 @@ import datetime
 import schedule
 
 from typing import *
-from maica_utils import *
+from maica.maica_utils import *
 
 async def rotate_cache(maica_pool: DbPoolCoroutine):
     """Always provide a pool in production deployment!"""

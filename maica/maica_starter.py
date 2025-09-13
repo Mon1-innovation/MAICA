@@ -1,9 +1,19 @@
+import os
+import sys
+from pathlib import Path
+try:
+    from maica import maica_ws
+except Exception:
+    current_dir = Path(__file__).parent
+    parent_dir = current_dir.parent
+    if str(parent_dir) not in sys.path:
+        sys.path.insert(0, str(parent_dir))
+
 import asyncio
-import maica_ws
-import maica_http
-import common_schedule
-from maica_utils import *
-from initializer import *
+
+from maica import maica_ws, maica_http, common_schedule
+from maica.maica_utils import *
+from maica.initializer import *
 
 def check_init():
     if not check_marking():

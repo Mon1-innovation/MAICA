@@ -5,7 +5,7 @@ import datetime
 import traceback
 from typing import *
 from random import sample
-from maica_utils import *
+from maica.maica_utils import *
 
 class SfBoundCoroutine(SideBoundCoroutine):
     """Maintain a savefile for convenience of using."""

@@ -3,9 +3,10 @@ import json
 
 from typing import *
 from Crypto.Random import random as CRANDOM
-from mfocus import MFocusCoroutine, SfBoundCoroutine
-from mtrigger import MTriggerCoroutine, MtBoundCoroutine
-from maica_utils import *
+
+from maica.mfocus import MFocusCoroutine, SfBoundCoroutine
+from maica.mtrigger import MTriggerCoroutine, MtBoundCoroutine
+from maica.maica_utils import *
 
 PROMPT_ZC = load_env('PROMPT_ZC')
 PROMPT_ZW = load_env('PROMPT_ZW')
