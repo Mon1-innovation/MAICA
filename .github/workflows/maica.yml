@@ -28,4 +28,6 @@ jobs:
         
     - name: Run tests
       run: |
+        cp env_example .env
+        cp servers_example .servers
         python -m maica.maica_starter
