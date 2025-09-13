@@ -69,6 +69,8 @@ class NvWatcher(AsyncCreator):
         if not self.is_active():
             await messenger(info=f"Necessary info not complete for watching {self.node}, freezing watcher", type=MsgType.PRIM_SYS)
             await sleep_forever()
+        else:
+            await messenger(info=f'Necessities complete for watching {self.node}, starting watcher', type=MsgType.LOG)
 
         self.dynamics_curr = []
         dynamic_keys = ['utilization.gpu', 'memory.used', 'power.draw']
@@ -87,6 +89,23 @@ class NvWatcher(AsyncCreator):
                     self.gpu_overall[i][4] = gpu_curr
 
             await asyncio.sleep(10)
+
+    async def wrapped_main_watcher(self):
+        FAIL_TIMES = 5
+        FAIL_PERIOD = 300
+        start_times = LimitedList(FAIL_TIMES, [time.time()])
+        while len(start_times.list) <= 5 or start_times[-1] - start_times[0] >= FAIL_PERIOD:
+
+            # We consider 5 failures in 5 minute as complete failure
+            try:
+                await self.main_watcher()
+            except Exception as e:
+                time_now = time.time()
+                await messenger(info=f'Watcher temporary failure after {int(time_now - start_times[-1])}sec: {str(e)}', type=MsgType.WARN)
+                start_times.append(time_now)
+        
+        # If while loop quitted, the complete failure has happened
+        raise MaicaConnectionWarning(f'Watcher query failed {FAIL_TIMES} times in {FAIL_PERIOD}sec', '503')
     
     def get_statics_inside(self):
         if not self.is_active():

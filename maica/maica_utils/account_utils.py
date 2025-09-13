@@ -46,11 +46,10 @@ def _check_keys() -> bool:
         encryptor, decryptor, verifier, signer = _get_keys()
 
 class AccountCursor(AsyncCreator):
-    def __init__(self, fsc:FullSocketsContainer, auth_pool=None, maica_pool=None):
-        self.fsc = fsc
-        self.settings = fsc.maica_settings
+    """Handles any account related things."""
+    def __init__(self, settings: MaicaSettings, auth_pool=None, maica_pool=None):
+        self.settings = settings
         self.auth_pool, self.maica_pool = auth_pool, maica_pool
-        self.websocket, self.traceray_id = fsc.rsc.websocket, fsc.rsc.traceray_id
         _check_keys()
         
     async def _ainit(self):
@@ -102,7 +101,7 @@ class AccountCursor(AsyncCreator):
             traceback.print_exc()
             raise MaicaDbError(e, '502', f'user_{status}_write_failed')
 
-    async def run_hash_dcc(self, identity, is_email, password) -> tuple[bool, Union[str, dict, None]]:
+    async def _account_pwd_verify(self, identity, is_email, password) -> tuple[bool, Union[str, dict, None]]:
         sql_expression = 'SELECT * FROM users WHERE email = %s' if is_email else 'SELECT * FROM users WHERE username = %s'
         try:
             result = await self.auth_pool.query_get(expression=sql_expression, values=(identity, ))
@@ -181,7 +180,7 @@ class AccountCursor(AsyncCreator):
             login_password = login_cridential['password']
         except Exception:
             raise Exception('No password provided')
-        return await self.run_hash_dcc(login_identity, login_is_email, login_password)
+        return await self._account_pwd_verify(login_identity, login_is_email, login_password)
     
 def encrypt_token(cridential: str) -> str:
     """Generates an encrypted token. It does not care validity."""

@@ -8,7 +8,6 @@ import re
 import traceback
 import colorama
 import mtools
-import post_proc
 
 from typing import *
 from Crypto.Random import random as CRANDOM
@@ -44,7 +43,7 @@ class NoWsCoroutine(AsyncCreator):
         self.fsc = FullSocketsContainer(self.websocket, self.traceray_id, self.settings, self.auth_pool, self.maica_pool)
 
     async def _ainit(self):
-        self.hasher = await AccountCursor.async_create(self.fsc, self.auth_pool, self.maica_pool)
+        self.hasher = await AccountCursor.async_create(self.settings, self.auth_pool, self.maica_pool)
 
     def _check_essentials(self) -> None:
         if not self.settings.verification.user_id:
@@ -694,7 +693,7 @@ class WsCoroutine(NoWsCoroutine):
                 await messenger(None, 'maica_core_nostream_done', f'Reply sent with cache for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
 
         # Can be post-processed here
-        reply_appended = post_proc.filter_format(reply_appended, self.settings.basic.target_lang)
+        reply_appended = mtools.post_proc(reply_appended, self.settings.basic.target_lang)
         reply_appended_insertion = {'role': 'assistant', 'content': reply_appended}
 
         # Trigger process

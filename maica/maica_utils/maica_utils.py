@@ -117,6 +117,38 @@ class AsyncCreator():
         await instance._ainit()
         return instance
 
+class LimitedList(list):
+    """Might not have applied to all functionalities!"""
+    def __init__(self, max_size, *args, **kwargs):
+        self.max_size = max_size
+        super().__init__(*args, **kwargs)
+        
+        while len(self) > self.max_size:
+            self.pop(0)
+
+    @property
+    def list(self):
+        while len(self) > self.max_size:
+            self.pop(0)
+        return list(self)
+
+    def append(self, item):
+        if len(self) >= self.max_size:
+            self.pop(0)
+        super().append(item)
+    
+    def extend(self, iterable):
+        for item in iterable:
+            self.append(item)
+    
+    def insert(self, index, item):
+        if len(self) >= self.max_size:
+            self.pop(0)
+        super().insert(index, item)
+    
+    def __repr__(self):
+        return f"LimitedList(max_size={self.max_size}, {super().__repr__()})"
+    
 class LoginResult():
     """
     A packed login result.

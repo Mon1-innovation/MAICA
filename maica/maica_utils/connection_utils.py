@@ -21,6 +21,8 @@ MFOCUS_ADDR = load_env('MFOCUS_ADDR')
 MFOCUS_KEY = load_env('MFOCUS_KEY')
 MFOCUS_CHOICE = load_env('MFOCUS_CHOICE')
 
+RETRY_TIMES = 3
+
 def test_logger(func):
     async def wrapper(self, expression, values, *args, **kwargs):
         print(f'Query: {expression}\nValues: {values}')
@@ -53,7 +55,7 @@ class DbPoolCoroutine(AsyncCreator):
     # @test_logger
     async def query_get(self, expression, values=None, fetchall=False) -> list:
         results = None
-        for tries in range(3):
+        for tries in range(RETRY_TIMES):
             try:
                 await self.keep_alive()
                 async with self.pool.acquire() as conn:
@@ -64,12 +66,12 @@ class DbPoolCoroutine(AsyncCreator):
                             await cur.execute(expression, values)
                         results = await cur.fetchone() if not fetchall else await cur.fetchall()
                 break
-            except Exception:
-                if tries < 2:
+            except Exception as e:
+                if tries < RETRY_TIMES - 1:
                     await messenger(info=f'DB temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
-                    raise MaicaDbError(f'DB connection failure after {str(tries + 1)} times', '502', 'db_connection_failed')
+                    raise MaicaDbError(f'DB get query failure after {str(tries + 1)} times: {str(e)}', '502', 'db_get_failed')
         return results
 
     # @test_logger
@@ -77,7 +79,7 @@ class DbPoolCoroutine(AsyncCreator):
         if self.ro:
             raise MaicaDbError(f'DB marked as ro, no modify permitted', '511', 'db_modification_denied')
         lrid = None
-        for tries in range(3):
+        for tries in range(RETRY_TIMES):
             try:
                 await self.keep_alive()
                 async with self.pool.acquire() as conn:
@@ -89,12 +91,12 @@ class DbPoolCoroutine(AsyncCreator):
                         await conn.commit()
                         lrid = cur.lastrowid
                 break
-            except Exception:
-                if tries < 2:
+            except Exception as e:
+                if tries < RETRY_TIMES - 1:
                     await messenger(info=f'DB temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
-                    raise MaicaDbError(f'DB connection failure after {str(tries + 1)} times', '502', 'db_connection_failed')
+                    raise MaicaDbError(f'DB modify query failure after {str(tries + 1)} times: {str(e)}', '502', 'db_modify_failed')
         return lrid
     
     async def close(self):
@@ -138,7 +140,7 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
     async def query_get(self, expression, values=None, fetchall=False) -> list:
         """Execute SELECT query on SQLite database."""
         results = None
-        for tries in range(3):
+        for tries in range(RETRY_TIMES):
             try:
                 await self.keep_alive()
                 if not values:
@@ -148,12 +150,12 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
                 results = await cursor.fetchone() if not fetchall else await cursor.fetchall()
                 await cursor.close()
                 break
-            except Exception:
-                if tries < 2:
+            except Exception as e:
+                if tries < RETRY_TIMES - 1:
                     await messenger(info=f'SQLite temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
-                    raise MaicaDbError(f'SQLite connection failure after {str(tries + 1)} times', '502', 'sqlite_connection_failed')
+                    raise MaicaDbError(f'SQLite get query failure after {str(tries + 1)} times: {str(e)}', '502', 'sqlite_get_failed')
         return results
 
     @Decos.escape_sqlite_expression
@@ -163,7 +165,7 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
         if self.ro:
             raise MaicaDbError(f'DB marked as ro, no modify permitted', '511', 'sqlite_modification_denied')
         lrid = None
-        for tries in range(3):
+        for tries in range(RETRY_TIMES):
             try:
                 await self.keep_alive()
                 if not values:
@@ -174,12 +176,12 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
                 lrid = cursor.lastrowid
                 await cursor.close()
                 break
-            except Exception:
-                if tries < 2:
+            except Exception as e:
+                if tries < RETRY_TIMES - 1:
                     await messenger(info=f'SQLite temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
-                    raise MaicaDbError(f'SQLite connection failure after {str(tries + 1)} times', '502', 'sqlite_connection_failed')
+                    raise MaicaDbError(f'SQLite modify query failure after {str(tries + 1)} times: {str(e)}', '502', 'sqlite_modify_failed')
         return lrid
 
     async def close(self):
@@ -239,18 +241,18 @@ class AiConnCoroutine(AsyncCreator):
                 "model": self.model_actual
             }
         )
-        for tries in range(3):
+        for tries in range(RETRY_TIMES):
             try:
                 await self.keep_alive()
                 task_stream_resp = asyncio.create_task(self.socket.chat.completions.create(**kwargs))
                 await task_stream_resp
                 return task_stream_resp.result()
-            except Exception:
-                if tries < 2:
+            except Exception as e:
+                if tries < RETRY_TIMES - 1:
                     await messenger(info=f'Model temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
-                    raise MaicaResponseError(f'Cannot reach model endpoint after {str(tries + 1)} times', '502', f'{self.name}_connection_failed')
+                    raise MaicaResponseError(f'{self.name} AI query failure after {str(tries + 1)} times: {str(e)}', '502', f'{self.name}_query_failed')
 
 class ConnUtils():
     """Just a wrapping for functions."""

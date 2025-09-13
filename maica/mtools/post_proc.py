@@ -76,7 +76,7 @@ emotion_zte = {
 def get_equal_len(str):
     return len(str.encode('utf-8'))
 
-def filter_format(reply_appended, target_lang='zh'):
+def post_proc(reply_appended, target_lang='zh'):
     global emotion_etz, emotion_zte
     reply_all_signatures = ReUtils.re_findall_square_marks.findall(reply_appended)
 
@@ -120,4 +120,4 @@ def filter_format(reply_appended, target_lang='zh'):
 
 if __name__ == '__main__':
     ra = '[理解 ]没关系, [player]. [微笑 ]我知[fear]道[womble]你很[adaifgnashioufoiusahdfoiua]忙[a1]. [开心]你能抽空[slash我]陪我就[害怕]很好啦!'
-    print(filter_format(ra, 'zh'))
+    print(post_proc(ra, 'zh'))
