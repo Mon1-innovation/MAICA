@@ -1,0 +1,1 @@
+python3 ../maica/maica_starter.py

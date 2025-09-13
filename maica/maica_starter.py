@@ -40,6 +40,9 @@ async def start_all():
     await asyncio.gather(auth_pool.close(), maica_pool.close(), return_exceptions=True)
     quit()
 
-if __name__ == "__main__":
+def full_start():
     check_init()
     asyncio.run(start_all())
+
+if __name__ == "__main__":
+    full_start()
