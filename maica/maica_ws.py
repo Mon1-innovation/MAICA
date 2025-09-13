@@ -733,7 +733,7 @@ async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn, 
     async with unique_lock:
         try:
             sentence_of_the_day = SentenceOfTheDay().get_sentence()
-            await messenger(websocket, 'maica_connection_initiated', sentence_of_the_day, '200', no_print=True)
+            await messenger(websocket, 'maica_connection_initiated', sentence_of_the_day, '200', type=MsgType.INFO, no_print=True)
 
             thread_instance = await WsCoroutine.async_create(websocket, auth_pool=auth_pool, maica_pool=maica_pool, mcore_conn=mcore_conn, mfocus_conn=mfocus_conn, online_dict=online_dict)
 
