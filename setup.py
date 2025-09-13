@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
  
 setuptools.setup(
-    name="MAICA", # 用自己的名替换其中的YOUR_USERNAME_
+    name="mi-maica", # 用自己的名替换其中的YOUR_USERNAME_
     version="1.1000",    #包版本号，便于维护版本
     author="EdgeInfinity",    #作者，可以写自己的姓名
     author_email="dcc@monika.love",    #作者联系方式，可写自己的邮箱地址
