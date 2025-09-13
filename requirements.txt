@@ -49,6 +49,7 @@ hyperframe==6.1.0
 idna==3.7
 itsdangerous==2.2.0
 Jinja2==3.1.4
+jiter==0.10.0
 lunar_python==1.4.4
 Markdown==3.6
 MarkupSafe==2.1.5
@@ -57,7 +58,7 @@ mysql==0.0.3
 mysqlclient==2.2.4
 nest-asyncio==1.6.0
 numpy==1.26.4
-openai==1.30.2
+openai==1.105.0
 packaging==24.2
 panda==0.3.1
 pandas==2.2.3
