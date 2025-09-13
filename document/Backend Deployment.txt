@@ -13,10 +13,9 @@ If you want to read in English, use a translator.
         git clone https://github.com/Mon1-innovation/MAICA.git
         cd MAICA
 
-    安装依赖:
+    安装:
 
-        pip install -r requirements.txt
-        cd maica
+        pip install -e .
 
     调整设置:
 
@@ -26,11 +25,16 @@ If you want to read in English, use a translator.
     注册本地服务:
 
         cp servers_example .servers
-
-    (若需要)初始化数据库:
-
-        python3.12 00initdb.py
+        vim .servers
 
     启动实例:
 
-        python3.12 maica_starter.py
+        maica
+
++ 或者, 直接通过pypi安装:
+
+    * 直接安装相对不便配置, 建议用于开发而非部署.
+
+    安装:
+
+        pip install mi-maica
