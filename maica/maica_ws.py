@@ -4,7 +4,6 @@ import time
 import functools
 import json
 import uuid
-import re
 import traceback
 import colorama
 
