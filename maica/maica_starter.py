@@ -15,6 +15,17 @@ from maica import maica_ws, maica_http, common_schedule
 from maica.maica_utils import *
 from maica.initializer import *
 
+def check_basic_init():
+    if load_env('DB_ADDR'):
+        return
+    else:
+        print('''
+No env detected, is this workflow?
+If not, please follow the documents and finish configures before running.
+Quitting...'''
+              )
+        quit(0)
+
 def check_init():
     if not check_marking():
         generate_rsa_keys()
