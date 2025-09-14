@@ -1,6 +1,7 @@
 import os
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
 try:
     from maica import maica_ws
 except Exception:
@@ -10,18 +11,78 @@ except Exception:
         sys.path.insert(0, str(parent_dir))
 
 import asyncio
+import argparse
 
 from maica import maica_ws, maica_http, common_schedule
 from maica.maica_utils import *
 from maica.initializer import *
 
+from maica.maica_http import pkg_init_maica_http
+from maica.maica_nows import pkg_init_maica_nows
+from maica.maica_utils import pkg_init_maica_utils
+def pkg_init_maica():
+    pkg_init_maica_http()
+    pkg_init_maica_nows()
+    pkg_init_maica_utils()
+
+initialized = False
+
+def check_params(envdir=None):
+    """This will only run once. Recalling will not take effect."""
+    global initialized
+    def init_parser():
+        parser = argparse.ArgumentParser(description="Start MAICA Illuminator deployment")
+        parser.add_argument('-e', '--envdir', help='Include external env file for running deployment')
+        return parser
+    def dest_env(envdir=None):
+        parser = init_parser()
+        args = parser.parse_args()
+        envdir = envdir or args.envdir
+        try:
+            if envdir:
+                realpath = os.path.abspath(envdir)
+                if not os.path.isfile(realpath):
+                    print(f'[maica-argparse] Warning: {realpath} is not a file, trying {os.path.join(realpath, '.env')}...')
+                    realpath = os.path.join(realpath, '.env')
+                    if not os.path.isfile(realpath):
+                        raise Exception('designated env file not exist')
+                print(f'[maica-argparse] Loading env file {realpath}...')
+                load_dotenv(dotenv_path=realpath)
+
+            else:
+                realpath = get_inner_path('.env')
+                print(f'[maica-argparse] No env file designated, trying to load {realpath}...')
+                if os.path.isfile(realpath):
+                    load_dotenv(dotenv_path=realpath)
+                else:
+                    print(f'[maica_argparse] Warning: {realpath} is not a file, skipping real env file...')
+            
+            if not load_env('IS_REAL_ENV') == '1':
+                realpath = get_inner_path('env_example')
+                print(f'[maica-argparse] Trying to load {realpath} to maintain basic functions...')
+                if os.path.isfile(realpath):
+                    load_dotenv(dotenv_path=realpath)
+                else:
+                    raise Exception('no env file available')
+        except Exception as e:
+            print(f'[maica-argparse] Error: {str(e)}, quitting...')
+            exit(1)
+
+    if not initialized:
+        dest_env()
+        pkg_init_maica()
+        initialized = True
+
 def check_basic_init():
-    if load_env('IS_REAL_ENV') != '0':
+    if load_env('IS_REAL_ENV') == '1':
         return
     else:
-        print('''No env detected, is this workflow?
+        print('''No real env detected, is this workflow?
 If it is, at least the imports and grammar are good if you see this.
-If not, please follow the documents and finish configures before running.
+If not:
+    If you're running MAICA for deployment, pass in "--envdir path/to/.env".
+    If you're developing with MAICA as dependency, call maica.init() after import.
+    Or, you can manually set the necessary env vars.
 Quitting...'''
               )
         quit(0)
@@ -62,6 +123,7 @@ async def start_all():
     quit()
 
 def full_start():
+    check_params()
     check_basic_init()
     check_init()
     asyncio.run(start_all())

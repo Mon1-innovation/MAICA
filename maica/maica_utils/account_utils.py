@@ -17,13 +17,14 @@ from .setting_utils import *
 from .container_utils import *
 """Import layer 6"""
 
-DB_ADDR = load_env('DB_ADDR')
-DB_USER = load_env('DB_USER')
-DB_PASSWORD = load_env('DB_PASSWORD')
-AUTH_DB = load_env('AUTH_DB')
-MAICA_DB = load_env('MAICA_DB')
-
-encryptor = decryptor = verifier = signer = None
+def pkg_init_account_utils():
+    global DB_ADDR, DB_USER, DB_PASSWORD, AUTH_DB, MAICA_DB, encryptor, decryptor, verifier, signer
+    DB_ADDR = load_env('DB_ADDR')
+    DB_USER = load_env('DB_USER')
+    DB_PASSWORD = load_env('DB_PASSWORD')
+    AUTH_DB = load_env('AUTH_DB')
+    MAICA_DB = load_env('MAICA_DB')
+    encryptor = decryptor = verifier = signer = None
 
 def _get_keys() -> tuple[PKCS1_OAEP.PKCS1OAEP_Cipher, PKCS1_OAEP.PKCS1OAEP_Cipher, PSS_SigScheme, PSS_SigScheme]:
     prv_path = get_outer_path('keys/prv.key')

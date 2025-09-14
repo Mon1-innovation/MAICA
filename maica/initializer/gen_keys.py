@@ -13,11 +13,11 @@ def generate_rsa_keys():
         with open(pub_path, "r") as pubkey_file:
             pubkey = pubkey_file.read()
         
-        print("Keys exist already, skipping...")
+        print("[maica-keys-init] Keys exist already, skipping...")
         return
     
     except:
-        print("Keys not exist, creating...")
+        print("[maica-keys-init] Keys not exist, creating...")
         os.makedirs(get_outer_path('keys'))
     
         key = RSA.generate(2048)
@@ -32,7 +32,7 @@ def generate_rsa_keys():
         with open(pub_path, "wb") as pub_file:
             pub_file.write(public_key)
 
-        print("Keys generated successfully, store with care!")
+        print("[maica-keys-init] Keys generated successfully, store with care!")
 
 # 使用示例
 if __name__ == "__main__":

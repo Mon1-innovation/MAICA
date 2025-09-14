@@ -115,3 +115,9 @@ __all__ = [
     'get_inner_path',
     'get_outer_path',
 ]
+
+from .account_utils import pkg_init_account_utils
+from .connection_utils import pkg_init_connection_utils
+def pkg_init_maica_utils():
+    pkg_init_account_utils()
+    pkg_init_connection_utils()

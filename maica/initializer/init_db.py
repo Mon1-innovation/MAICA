@@ -20,17 +20,17 @@ async def create_tables():
             curr_dbs.append(curr_db[0])
 
         if not AUTH_DB in curr_dbs:
-            print(f"AUTH_DB {AUTH_DB} does not exist, creating...")
+            print(f"[maica-dbs-init] AUTH_DB {AUTH_DB} does not exist, creating...")
             await basic_pool.query_modify(f"CREATE DATABASE IF NOT EXISTS {AUTH_DB}")
             auth_created = True
         else:
-            print(f"AUTH_DB {AUTH_DB} exists, skipping...")
+            print(f"[maica-dbs-init] AUTH_DB {AUTH_DB} exists, skipping...")
 
         if not MAICA_DB in curr_dbs:
-            print(f"MAICA_DB {MAICA_DB} does not exist, creating...")
+            print(f"[maica-dbs-init] MAICA_DB {MAICA_DB} does not exist, creating...")
             await basic_pool.query_modify(f"CREATE DATABASE IF NOT EXISTS {MAICA_DB}")
         else:
-            print(f"MAICA_DB {MAICA_DB} exists, skipping...")
+            print(f"[maica-dbs-init] MAICA_DB {MAICA_DB} exists, skipping...")
     elif not os.path.exists(get_inner_path(AUTH_DB)):
         auth_created = True
 
@@ -223,13 +223,13 @@ END;
 
     if auth_created:
         for table in auth_tables:
-            print("Adding table to AUTH_DB...")
+            print("[maica-dbs-init] Adding table to AUTH_DB...")
             await auth_pool.query_modify(table)
     else:
-        print("Warning: AUTH_DB was not created by MAICA, so we're not writing anything for security reason.\nPlease make sure AUTH_DB is already ready for authentication.")
+        print("[maica-dbs-init]\nWarning: AUTH_DB was not created by MAICA, so we're not writing anything for security reason.\nPlease make sure AUTH_DB is already ready for authentication.")
 
     for table in maica_tables:
-        print("Adding table to MAICA_DB...")
+        print("[maica-dbs-init] Adding table to MAICA_DB...")
         await maica_pool.query_modify(table)
 
 if __name__ == "__main__":

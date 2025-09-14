@@ -11,17 +11,68 @@ from .setting_utils import *
 from .locater import *
 """Import layer 3"""
 
-DB_ADDR = load_env('DB_ADDR')
-DB_USER = load_env('DB_USER')
-DB_PASSWORD = load_env('DB_PASSWORD')
-AUTH_DB = load_env('AUTH_DB')
-MAICA_DB = load_env('MAICA_DB')
-MCORE_ADDR = load_env('MCORE_ADDR')
-MCORE_KEY = load_env('MCORE_KEY')
-MCORE_CHOICE = load_env('MCORE_CHOICE')
-MFOCUS_ADDR = load_env('MFOCUS_ADDR')
-MFOCUS_KEY = load_env('MFOCUS_KEY')
-MFOCUS_CHOICE = load_env('MFOCUS_CHOICE')
+def pkg_init_connection_utils():
+    global DB_ADDR, DB_USER, DB_PASSWORD, AUTH_DB, MAICA_DB, MCORE_ADDR, MCORE_KEY, MCORE_CHOICE, MFOCUS_ADDR, MFOCUS_KEY, MFOCUS_CHOICE, ConnUtils
+    DB_ADDR = load_env('DB_ADDR')
+    DB_USER = load_env('DB_USER')
+    DB_PASSWORD = load_env('DB_PASSWORD')
+    AUTH_DB = load_env('AUTH_DB')
+    MAICA_DB = load_env('MAICA_DB')
+    MCORE_ADDR = load_env('MCORE_ADDR')
+    MCORE_KEY = load_env('MCORE_KEY')
+    MCORE_CHOICE = load_env('MCORE_CHOICE')
+    MFOCUS_ADDR = load_env('MFOCUS_ADDR')
+    MFOCUS_KEY = load_env('MFOCUS_KEY')
+    MFOCUS_CHOICE = load_env('MFOCUS_CHOICE')
+
+    if DB_ADDR != "sqlite":
+        """We suppose we're using MySQL."""
+        async def auth_pool(ro=True):
+            return await DbPoolCoroutine.async_create(
+                host=DB_ADDR,
+                db=AUTH_DB,
+                user=DB_USER,
+                password=DB_PASSWORD,
+                ro=ro,
+            )
+
+        async def maica_pool(ro=False):
+            return await DbPoolCoroutine.async_create(
+                host=DB_ADDR,
+                db=MAICA_DB,
+                user=DB_USER,
+                password=DB_PASSWORD,
+                ro=ro,
+            )
+        
+        async def basic_pool(ro=False):
+            return await DbPoolCoroutine.async_create(
+                host=DB_ADDR,
+                db=None,
+                user=DB_USER,
+                password=DB_PASSWORD,
+                ro=ro,
+            )
+    else:
+        """We suppose we're using SQLite."""
+        async def auth_pool(ro=True):
+            return await SqliteDbPoolCoroutine.async_create(
+                db=get_inner_path(AUTH_DB)
+            )
+        
+        async def maica_pool(ro=False):
+            return await SqliteDbPoolCoroutine.async_create(
+                db=get_inner_path(MAICA_DB)
+            )
+        
+        async def basic_pool(ro=False):
+            """
+            There's no host concept in SQLite, so no basic pool.
+            """
+            return None
+    setattr(ConnUtils, 'auth_pool', auth_pool)
+    setattr(ConnUtils, 'maica_pool', maica_pool)
+    setattr(ConnUtils, 'basic_pool', basic_pool)
 
 RETRY_TIMES = 3
 
@@ -258,52 +309,12 @@ class AiConnCoroutine(AsyncCreator):
 
 class ConnUtils():
     """Just a wrapping for functions."""
-    if DB_ADDR != "sqlite":
-        """We suppose we're using MySQL."""
-        async def auth_pool(ro=True):
-            return await DbPoolCoroutine.async_create(
-                host=DB_ADDR,
-                db=AUTH_DB,
-                user=DB_USER,
-                password=DB_PASSWORD,
-                ro=ro,
-            )
-
-        async def maica_pool(ro=False):
-            return await DbPoolCoroutine.async_create(
-                host=DB_ADDR,
-                db=MAICA_DB,
-                user=DB_USER,
-                password=DB_PASSWORD,
-                ro=ro,
-            )
-        
-        async def basic_pool(ro=False):
-            return await DbPoolCoroutine.async_create(
-                host=DB_ADDR,
-                db=None,
-                user=DB_USER,
-                password=DB_PASSWORD,
-                ro=ro,
-            )
-    else:
-        """We suppose we're using SQLite."""
-        async def auth_pool(ro=True):
-            return await SqliteDbPoolCoroutine.async_create(
-                db=get_inner_path(AUTH_DB)
-            )
-        
-        async def maica_pool(ro=False):
-            return await SqliteDbPoolCoroutine.async_create(
-                db=get_inner_path(MAICA_DB)
-            )
-        
-        async def basic_pool(ro=False):
-            """
-            There's no host concept in SQLite, so no basic pool.
-            """
-            return None
-
+    async def auth_pool(ro=True):
+        """Dummy."""
+    async def maica_pool(ro=False):
+        """Dummy."""
+    async def basic_pool(ro=False):
+        """Dummy."""
     async def mcore_conn():
         return await AiConnCoroutine.async_create(
             api_key=MCORE_KEY,

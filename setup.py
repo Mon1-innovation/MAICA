@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-load_dotenv(dotenv_path="maica/.env")
+load_dotenv(dotenv_path="maica/env_example")
 curr_version, legc_version = os.getenv('VERSION_CONTROL').split(';', 1)
  
 setuptools.setup(
@@ -28,5 +28,8 @@ setuptools.setup(
         'console_scripts': [
             'maica = maica.maica_starter:full_start',
         ],
+    },
+    package_data={
+        'maica': ['env_example', 'servers_example'],
     },
 )

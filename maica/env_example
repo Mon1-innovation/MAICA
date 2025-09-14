@@ -1,7 +1,8 @@
 # cp ./env_example ./.env
 # vim .env
+# Do not mv, rm or edit examples! They're required as default templates.
 
-# Is this configured or not
+# If this env is manually configured
 IS_REAL_ENV = '0'
 
 
@@ -86,7 +87,7 @@ DEV_IDENTITY = 'Evan & Clifford'
 # "serving" / "testing"
 DEV_STATUS = 'serving'
 # Self / Oldest capable backend version
-VERSION_CONTROL = '1.1001;1.1000'
+VERSION_CONTROL = '1.1.000;1.1.000'
 # Max length/3 in encode a session can have
 SESSION_MAX_TOKEN = '28672'
 
