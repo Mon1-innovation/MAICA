@@ -1,13 +1,34 @@
 import os
+import sys
+import argparse
 import setuptools
 from dotenv import load_dotenv
+
+custom_parser = argparse.ArgumentParser(add_help=False)
+custom_parser.add_argument('-o', '--override-version', help='Override default version for testing')
+
+custom_args, remaining_args = custom_parser.parse_known_args()
+sys.argv = [sys.argv[0]] + remaining_args
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 load_dotenv(dotenv_path="maica/env_example")
 curr_version, legc_version = os.getenv('VERSION_CONTROL').split(';', 1)
- 
+curr_version = custom_args.override_version if custom_args.override_version else curr_version
+
+def parse_requirements(filename='requirements.txt'):
+    """从requirements.txt文件中加载依赖列表"""
+    with open(filename, 'r') as f:
+        lines = f.read().splitlines()
+    # 过滤空行、注释和可选索引链接
+    requirements = []
+    for line in lines:
+        line = line.strip()
+        if line and not line.startswith('#') and not line.startswith('-'):
+            requirements.append(line)
+    return requirements
+
 setuptools.setup(
     name="mi-maica", # 用自己的名替换其中的YOUR_USERNAME_
     version=curr_version,    #包版本号，便于维护版本
@@ -23,7 +44,8 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.12',    #对python的最低版本要求
+    python_requires='>=3.12',
+    install_requires=parse_requirements(),
     entry_points={
         'console_scripts': [
             'maica = maica.maica_starter:full_start',
