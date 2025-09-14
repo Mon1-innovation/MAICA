@@ -154,8 +154,8 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
                     "seed": null,
                     "top_p": 0.7,
                     "temperature": 0.22,
-                    "frequency_penalty": 0.44,
-                    "presence_penalty": 0.34
+                    "frequency_penalty": 0.0,
+                    "presence_penalty": 0.0
                 }
             }
 
@@ -749,7 +749,7 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
                     "enable_mf": true,
                     "enable_mt": true,
                     "esc_aggressive": true,
-                    "frequency_penalty": 0.44,
+                    "frequency_penalty": 0.0,
                     "max_length": 8192,
                     "max_tokens": 1600,
                     "mf_aggressive": false,
@@ -757,7 +757,7 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
                     "nsfw_acceptive": true,
                     "post_additive": 1,
                     "pre_additive": 0,
-                    "presence_penalty": 0.34,
+                    "presence_penalty": 0.0,
                     "seed": null,
                     "sf_extraction": true,
                     "sfe_aggressive": false,

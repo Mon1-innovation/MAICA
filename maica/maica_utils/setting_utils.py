@@ -350,8 +350,8 @@ class MaicaSettings():
             self._seed: int = None
             self._top_p: float = 0.7
             self._temperature: float = 0.22
-            self._frequency_penalty: float = 0.44
-            self._presence_penalty: float = 0.34
+            self._frequency_penalty: float = 0.0
+            self._presence_penalty: float = 0.0
 
         @property
         def max_tokens(self):
