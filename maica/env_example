@@ -87,7 +87,7 @@ DEV_IDENTITY = 'Evan & Clifford'
 # "serving" / "testing"
 DEV_STATUS = 'serving'
 # Self / Oldest capable backend version
-VERSION_CONTROL = '1.1.001;1.1.000'
+VERSION_CONTROL = '1.1.002;1.1.000'
 # Max length/3 in encode a session can have
 SESSION_MAX_TOKEN = '28672'
 

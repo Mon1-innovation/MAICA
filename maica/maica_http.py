@@ -21,7 +21,7 @@ from maica.maica_utils import *
 from maica.mtools import NvWatcher
 
 def pkg_init_maica_http():
-    global MCORE_ADDR, MFOCUS_ADDR, FULL_RESTFUL
+    global MCORE_ADDR, MFOCUS_ADDR, FULL_RESTFUL, known_servers
     MCORE_ADDR = load_env('MCORE_ADDR')
     MFOCUS_ADDR = load_env('MFOCUS_ADDR')
     FULL_RESTFUL = load_env('FULL_RESTFUL')
@@ -63,14 +63,19 @@ def pkg_init_maica_http():
         app.add_url_rule("/defaults", methods=['GET'], view_func=ShortConnHandler.as_view("get_defaults", val=False))
     app.add_url_rule("/<path>", methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], view_func=ShortConnHandler.as_view("any_unknown", val=False))
 
+    try:
+        servers_path = get_inner_path('.servers')
+        if not os.path.isfile(servers_path):
+            print(f'[maica-http] Warning: {servers_path} is not a file, configure "-s" for corresponding functionalities.')
+            servers_path = get_inner_path('servers_template')
+            print(f'[maica-http] Trying to load {servers_path} to maintain basic functions...')
+        with open(get_inner_path('.servers'), "r", encoding='utf-8') as servers_file:
+            known_servers = json.loads(servers_file.read())
+    except Exception:
+        known_servers = False
+
 app = Quart(import_name=__name__)
 app.config['JSON_AS_ASCII'] = False
-
-try:
-    with open(get_inner_path('.servers'), "r", encoding='utf-8') as servers_file:
-        known_servers = json.loads(servers_file.read())
-except Exception:
-    known_servers = False
 
 workload_cache = {}
 

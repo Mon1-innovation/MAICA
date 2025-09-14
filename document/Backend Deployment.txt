@@ -17,13 +17,10 @@ If you want to read in English, use a translator.
 
         pip install -e .
 
-    调整设置:
+    配置:
 
         cp env_example .env
         vim .env
-    
-    注册本地服务:
-
         cp servers_example .servers
         vim .servers
 
@@ -33,8 +30,18 @@ If you want to read in English, use a translator.
 
 + 或者, 直接通过pypi安装:
 
-    * 直接安装相对不便配置, 建议用于开发而非部署.
+    * 便捷但不适合开发, 兼容性有待测试.
 
     安装:
 
         pip install mi-maica
+
+    配置:
+
+        maica -t create
+        vim .env
+        vim .servers
+
+    启动实例:
+
+        maica -e .env -s .servers
