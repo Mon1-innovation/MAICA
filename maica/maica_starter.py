@@ -49,7 +49,7 @@ def check_params(envdir=None):
         if envdir:
             realpath = os.path.abspath(envdir)
             if not os.path.isfile(realpath):
-                print(f'[maica-argparse] Warning: envdir {realpath} is not a file, trying {os.path.join(realpath, '.env')}...')
+                print(f'[maica-argparse] Warning: envdir {realpath} is not a file, trying {os.path.join(realpath, ".env")}...')
                 realpath = os.path.join(realpath, '.env')
                 if not os.path.isfile(realpath):
                     raise Exception('designated env file not exist')
@@ -76,7 +76,7 @@ def check_params(envdir=None):
         if serversdir:
             realpath = os.path.abspath(serversdir)
             if not os.path.isfile(realpath):
-                print(f'[maica-argparse] Warning: serversdir {realpath} is not a file, trying {os.path.join(realpath, '.servers')}...')
+                print(f'[maica-argparse] Warning: serversdir {realpath} is not a file, trying {os.path.join(realpath, ".servers")}...')
                 realpath = os.path.join(realpath, '.servers')
                 if not os.path.isfile(realpath):
                     raise Exception('designated servers list not exist')
