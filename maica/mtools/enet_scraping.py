@@ -57,9 +57,6 @@ Begin!"""
     completion_args = {
         "messages": messages,
         "temperature": 0.2,
-        "top_p": 0.6,
-        "presence_penalty": -0.5,
-        "frequency_penalty": 0.5,
         "seed": 42
     }
 

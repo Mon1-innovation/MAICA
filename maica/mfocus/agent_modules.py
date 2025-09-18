@@ -273,6 +273,8 @@ class AgentTools():
 if __name__ == "__main__":
     import asyncio
     import time
+    from maica import init
+    init()
     async def main():
         fsc = FullSocketsContainer(maica_settings=MaicaSettings())
         fsc.maica_settings.verification.update(user_id=18064, username="edge1")
@@ -282,11 +284,12 @@ if __name__ == "__main__":
         # fsc.maica_settings.update(esc_aggressive=False)
         sf_inst = await SfBoundCoroutine.async_create(fsc)
         at = AgentTools(fsc, sf_inst)
+        time0 = time.time()
         # res_d = asyncio.run(at.date_acquire())
         # res_e = asyncio.run(at.event_acquire(year=2025, month=10, day=1))
-        # res_i = asyncio.run(at.search_internet('24年奥运会', False, '24年奥运会在哪里'))
-        time0 = time.time()
-        res_p = await at.persistent_acquire('你喜欢吃什么')
+        res_i = await at.search_internet('24年奥运会', False, '24年奥运会在哪里')
+        
+        # res_p = await at.persistent_acquire('你喜欢吃什么')
         print(f'Time consumed: {time.time() - time0}')
-        print(res_p)
+        print(res_i)
     asyncio.run(main())
