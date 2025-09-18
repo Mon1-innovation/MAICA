@@ -325,12 +325,20 @@ def maica_assert(condition, kwd='param'):
     if not condition:
         raise MaicaInputWarning(f"Illegal input {kwd} detected", '405', 'maica_input_param_bad')
 
+def has_valid_content(text: str):
+    """If the LLM actually gave anything."""
+    text_proc = text.lower().strip()
+    if (not text_proc) or text_proc in ['false', 'null', 'none']:
+        return False
+    else:
+        return True
+
 def proceed_agent_response(text: str, is_json=False) -> Union[str, list, dict]:
     """Proceeds thinking/nothinking."""
     try:
         answer_post_think = (ReUtils.re_search_post_think.search(text))[1]
     except Exception:
-        if text and not text.lower() in ['false', 'null', 'none']:
+        if has_valid_content(text):
             answer_post_think = text
         else:
             answer_post_think = None
@@ -534,12 +542,12 @@ def clean_text(text: str) -> str:
     text = text.replace('\n', ' ')
     return text
 
-def try_load_json(j: str) -> dict:
+def try_load_json(sj: str) -> dict:
     """I'd basically trust the LLM here, they're far better than the earlier ones."""
-    if not j or j.lower() in ['none', 'false']:
+    if not has_valid_content(sj):
         return {}
     try:
-        return json.loads(j)
+        return json.loads(sj)
     except Exception:
         return {}
 

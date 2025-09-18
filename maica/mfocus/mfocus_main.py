@@ -304,13 +304,16 @@ class MFocusCoroutine(SideFunctionCoroutine):
                         args = []
 
                         kwargs = try_load_json(tool_func_args)
+                        if tool_func_name == "search_internet":
+                            kwargs['original_query'] = query
+
                         function_route = getattr(self.agent_tools, tool_func_name, None)
                         if function_route:
                             machine, humane = await function_route(*args, **kwargs)
                         else:
                             match tool_func_name:
                                 case 'react_trigger':
-                                    if not kwargs.get('prediction') or kwargs.get('prediction').lower() in ['false', 'none']:
+                                    if not has_valid_content(kwargs.get('prediction')):
                                         humane = '[player]的请求当前无法被满足. 请表示你做不到, 并建议[player]自行解决或寻找其它方法.' if self.settings.basic.target_lang == 'zh' else '[player]\'s current request cannot be satisfied. please indicate that you can\'t do it, and suggest [player] doing it themselves or find another way.'
                                     else:
                                         if kwargs.get('prediction') in self.choice_checklist:
@@ -330,11 +333,11 @@ class MFocusCoroutine(SideFunctionCoroutine):
                                 case _:
                                     # This tool call is unrecognizable
                                     raise MaicaInputError('Unrecognizable toolcall recieved', '405')
-                        if not machine:
+                        if not has_valid_content(machine):
                             machine = '未获得有效信息' if self.settings.basic.target_lang == 'zh' else 'No useful information found'
                         await self._construct_query(tool_input=machine, tool_id=tool_id)
 
-                        if humane:
+                        if has_valid_content(humane):
                             _instructed_add(tool_func_name, humane)
                 else:
                     await messenger(None, 'maica_mfocus_absent', f'No tool called, Ending toolchain...')
