@@ -2,6 +2,7 @@ import json
 import random
 import traceback
 import asyncio
+import websockets
 
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from typing import *
@@ -209,8 +210,11 @@ class MTriggerCoroutine(SideFunctionCoroutine):
             
             await messenger(self.websocket, 'maica_mtrigger_done', f'MTrigger ended with {all_tool_count} triggers sent', '1001')
 
+        except CommonMaicaException as ce:
+            raise ce
+        
+        except websockets.WebSocketException as we:
+            raise MaicaConnectionWarning(str(we), '408')
+
         except Exception as e:
-            if isinstance(e, CommonMaicaException):
-                raise e
-            else:
-                raise CommonMaicaError(str(e), '500', 'maica_mtrigger_critical')
+            raise CommonMaicaError(str(e), '500', 'maica_mtrigger_critical')

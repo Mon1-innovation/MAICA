@@ -180,7 +180,7 @@ class WsCoroutine(NoWsCoroutine):
                 maica_assert(1 <= chat_session < 10, "chat_session")
                 purge_result = await self.reset_chat_session(self.settings.temp.chat_session)
                 if not purge_result:
-                    await messenger(websocket, "maica_session_not_found", "Determined chat_session doesn't exist", "302", self.traceray_id)
+                    await messenger(websocket, "maica_session_not_found", "Determined chat_session doesn't exist", "204", self.traceray_id)
                 else:
                     await messenger(websocket, "maica_session_reset", "Determined chat_session reset", "204", self.traceray_id)
                 return

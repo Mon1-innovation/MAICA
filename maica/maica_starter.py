@@ -29,7 +29,7 @@ def pkg_init_maica():
 colorama.init(autoreset=True)
 initialized = False
 
-def check_params(envdir=None):
+def check_params(envdir=None, **kwargs):
     """This will only run once. Recalling will not take effect."""
     global initialized
     def init_parser():

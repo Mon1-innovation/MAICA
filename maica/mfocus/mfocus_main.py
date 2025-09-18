@@ -2,6 +2,7 @@ import json
 import random
 import traceback
 import asyncio
+import websockets
 
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from typing import *
@@ -381,8 +382,11 @@ class MFocusCoroutine(SideFunctionCoroutine):
             instructed_answer_str = ', '.join([i for i in instructed_answer_list if i])
             return instructed_answer_str
         
+        except CommonMaicaException as ce:
+            raise ce
+        
+        except websockets.WebSocketException as we:
+            raise MaicaConnectionWarning(str(we), '408')
+
         except Exception as e:
-            if isinstance(e, CommonMaicaException):
-                raise e
-            else:
-                raise CommonMaicaError(str(e), '500', 'maica_mfocus_critical')
+            raise CommonMaicaError(str(e), '500', 'maica_mfocus_critical')
