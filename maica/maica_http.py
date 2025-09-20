@@ -64,14 +64,9 @@ def pkg_init_maica_http():
     app.add_url_rule("/<path>", methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], view_func=ShortConnHandler.as_view("any_unknown", val=False))
 
     try:
-        servers_path = get_inner_path('.servers')
-        if not os.path.isfile(servers_path):
-            print(f'[maica-http] Warning: {servers_path} is not a file, configure "-s" for corresponding functionalities.')
-            servers_path = get_inner_path('servers_template')
-            print(f'[maica-http] Trying to load {servers_path} to maintain basic functions...')
-        with open(get_inner_path('.servers'), "r", encoding='utf-8') as servers_file:
-            known_servers = json.loads(servers_file.read())
-    except Exception:
+        known_servers = json.loads(load_env("SERVERS_LIST"))
+    except Exception as e:
+        sync_messenger(info=f'Loading servers list failed: {str(e)}', type=MsgType.ERROR)
         known_servers = False
 
 app = Quart(import_name=__name__)
@@ -363,7 +358,7 @@ class ShortConnHandler(View):
     
     async def get_version(self):
         """GET, val=False"""
-        curr_version, legc_version = load_env('VERSION_CONTROL').split(';', 1)
+        curr_version, legc_version = load_env('CURR_VERSION'), load_env('VERSION_CONTROL')
         return jsonify({"success": True, "exception": None, "content": {"curr_version": curr_version, "legc_version": legc_version}})
 
     async def get_workload(self):

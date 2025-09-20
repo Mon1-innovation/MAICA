@@ -315,10 +315,6 @@ def alt_tools(tools: list) -> list:
                 new_tools[-1]['function'] = tool
                 new_tools[-1]['type'] = 'function'
             return new_tools
-        case '2':
-            for tool in tools:
-                tool['type'] = 'function'
-            return tools
 
 def maica_assert(condition, kwd='param'):
     """Normally used for input checkings."""
@@ -353,8 +349,17 @@ def proceed_agent_response(text: str, is_json=False) -> Union[str, list, dict]:
         answer_fin = answer_post_think
     return answer_fin
 
-async def messenger(websocket=None, status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaException]=None, prefix='', type='', color='', add_time=True, no_print=False, no_raise=False) -> None:
-    """It could handle most log printing, websocket sending and exception raising jobs pretty automatically."""
+@overload
+async def messenger(websocket=None, status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaException]=None, prefix='', type='', color='', add_time=True, no_print=False, no_raise=False) -> None: ...
+
+async def messenger(websocket=None, *args, **kwargs) -> None:
+    """Together with websocket.send()."""
+    ws_tuple = sync_messenger(*args, **kwargs)
+    if websocket:
+        await websocket.send(wrap_ws_formatter(*ws_tuple))
+
+def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaException]=None, prefix='', type='', color='', add_time=True, no_print=False, no_raise=False) -> list:
+    """It could handle most log printing and exception raising jobs pretty automatically."""
     term_v = os.get_terminal_size().columns
     rep2 = int(term_v / 2)
     rep1 = int(rep2 - 20)
@@ -403,11 +408,8 @@ async def messenger(websocket=None, status='', info='', code='0', traceray_id=''
         if traceray_id and isinstance(info, str):
             msg_send += f" -- your traceray ID is {traceray_id}"
 
-    if websocket:
-        await websocket.send(wrap_ws_formatter(code=code, status=status, content=msg_send, type=type))
-
     frametrack_dict = {"error": 99}
-    if load_env("PRINT_VERBOSE") == "1":
+    if not load_env("PRINT_VERBOSE") == "0":
         frametrack_dict['warn'] = 0
     if type in frametrack_dict:
         stack = inspect.stack()
@@ -421,12 +423,12 @@ async def messenger(websocket=None, status='', info='', code='0', traceray_id=''
                 if 100 <= int(code) < 200:
                     print((color or colorama.Fore.LIGHTGREEN_EX) + msg_print, end='', flush=True)
                 else:
-                    print((color or colorama.Fore.GREEN) + msg_print)
+                    print((color or colorama.Fore.LIGHTGREEN_EX) + msg_print)
             case "debug":
-                if load_env("PRINT_VERBOSE") == "1":
+                if not load_env("PRINT_VERBOSE") == "0":
                     print((color or colorama.Fore.LIGHTBLACK_EX) + msg_print)
             case "info":
-                print((color or colorama.Fore.LIGHTWHITE_EX) + msg_print)
+                print((color or colorama.Fore.GREEN) + msg_print)
             case "log":
                 print((color or colorama.Fore.BLUE) + msg_print)
             case "prim_log":
@@ -451,7 +453,7 @@ async def messenger(websocket=None, status='', info='', code='0', traceray_id=''
                 print((color or colorama.Fore.LIGHTRED_EX) + msg_print)
     if error and not no_raise:
         raise error
-    return
+    return code, status, msg_send, type
 
 def load_env(key) -> str:
     """Load something from .env."""

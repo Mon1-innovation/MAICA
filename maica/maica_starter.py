@@ -29,73 +29,56 @@ def pkg_init_maica():
 colorama.init(autoreset=True)
 initialized = False
 
-def check_params(envdir=None, **kwargs):
+def check_params(envdir=None, silent=False, **kwargs):
     """This will only run once. Recalling will not take effect, except passing in extra kwargs."""
     global initialized
+
+    def printer(*args, **kwargs):
+        nonlocal silent
+        if not silent:
+            sync_messenger(*args, **kwargs)
+
     def init_parser():
         parser = argparse.ArgumentParser(description="Start MAICA Illuminator deployment")
         parser.add_argument('-e', '--envdir', help='Include external env file for running deployment, specify every time')
-        parser.add_argument('-s', '--serversdir', help='Use external servers list for running deployment, specify once or everytime')
         parser.add_argument('-t', '--templates', choices=['print', 'create'], nargs='?', const='print', help='Print config templates or create them in current directory')
         return parser
     
     parser = init_parser()
     args = parser.parse_args()
     envdir = envdir or args.envdir
-    serversdir = args.serversdir
     templates = args.templates
 
     def dest_env(envdir):
         if envdir:
             realpath = os.path.abspath(envdir)
             if not os.path.isfile(realpath):
-                print(f'[maica-argparse] Warning: envdir {realpath} is not a file, trying {os.path.join(realpath, ".env")}...')
+                printer(info=f'envdir {realpath} is not a file, trying {os.path.join(realpath, ".env")}...', type=MsgType.WARN)
                 realpath = os.path.join(realpath, '.env')
                 if not os.path.isfile(realpath):
                     raise Exception('designated env file not exist')
-            print(f'[maica-argparse] Loading env file {realpath}...')
+            printer(info=f'Loading env file {realpath}...', type=MsgType.DEBUG)
             load_dotenv(dotenv_path=realpath)
 
         else:
             realpath = get_inner_path('.env')
-            print(f'[maica-argparse] No env file designated, trying to load {realpath}...')
+            printer(info=f'No env file designated, trying to load {realpath}...', type=MsgType.DEBUG)
             if os.path.isfile(realpath):
                 load_dotenv(dotenv_path=realpath)
             else:
-                print(f'[maica_argparse] Warning: {realpath} is not a file, skipping real env file...')
+                printer(info=f'{realpath} is not a file, skipping real env file...', type=MsgType.WARN)
         
-        if not load_env('IS_REAL_ENV') == '1':
-            realpath = get_inner_path('env_example')
-            print(f'[maica-argparse] Trying to load {realpath} to maintain basic functions...')
-            if os.path.isfile(realpath):
-                load_dotenv(dotenv_path=realpath)
-            else:
-                raise Exception('no env file available')
-
-    def dest_servers(serversdir):
-        if serversdir:
-            realpath = os.path.abspath(serversdir)
-            if not os.path.isfile(realpath):
-                print(f'[maica-argparse] Warning: serversdir {realpath} is not a file, trying {os.path.join(realpath, ".servers")}...')
-                realpath = os.path.join(realpath, '.servers')
-                if not os.path.isfile(realpath):
-                    raise Exception('designated servers list not exist')
-            targetpath = get_inner_path('.servers')
-            if targetpath == realpath:
-                print(f'[maica-argparse] designated path {realpath} already default path, skipping copy...')
-            else:
-                print(f'[maica-argparse] Copying servers list {realpath} to {targetpath}...')
-                with open(realpath, 'r', encoding='utf-8') as original:
-                    content = original.read()
-                with open(targetpath, 'w+', encoding='utf-8') as target:
-                    target.write(content)
+        realpath = get_inner_path('env_example')
+        printer(info=f'Loading env example {realpath} to guarantee basic functions...', type=MsgType.DEBUG)
+        if os.path.isfile(realpath):
+            load_dotenv(dotenv_path=realpath)
+        else:
+            raise Exception('env template lost')
 
     def get_templates():
         with open(get_inner_path('env_example'), 'r', encoding='utf-8') as env_e:
             env_c = env_e.read()
-        with open(get_inner_path('servers_example'), 'r', encoding='utf-8') as servers_e:
-            servers_c = servers_e.read()
-        return env_c, servers_c
+        return env_c
     
     def separate_line(title: str):
         terminal_width = os.get_terminal_size().columns
@@ -103,48 +86,39 @@ def check_params(envdir=None, **kwargs):
         return line
     
     def print_templates():
-        env_c, servers_c = get_templates()
+        env_c = get_templates()
         print(colorama.Fore.BLUE + separate_line('Begin .env template'))
         print(env_c)
         print(colorama.Fore.BLUE + separate_line('End .env template'))
-        print(colorama.Fore.GREEN + separate_line('Begin .servers template'))
-        print(servers_c)
-        print(colorama.Fore.GREEN + separate_line('End .servers template'))
         exit(0)
 
     def create_templates():
-        env_c, servers_c = get_templates()
-        env_p, servers_p = os.path.abspath('./.env'), os.path.abspath('./.servers')
+        env_c = get_templates()
+        env_p = os.path.abspath('./.env')
         if os.path.exists(env_p):
-            print(f'[maica-argparse] Config {env_p} already exists, skipping creation...')
+            printer(info=f'Config {env_p} already exists, skipping creation...', type=MsgType.WARN)
         else:
             with open(env_p, 'w', encoding='utf-8') as env_f:
-                print(f'[maica-argparse] Generating {env_p}...')
+                printer(info=f'Generating {env_p}...', type=MsgType.DEBUG)
                 env_f.write(env_c)
-        if os.path.exists(servers_p):
-            print(f'[maica-argparse] Config {servers_p} already exists, skipping creation...')
-        else:
-            with open(servers_p, 'w', encoding='utf-8') as servers_f:
-                print(f'[maica-argparse] Generating {servers_p}...')
-                servers_f.write(servers_c)
-        print('[maica-argparse] Creation succeeded, edit them yourself and then start with "maica -c .env -s .servers".')
+
+        printer(info='Creation succeeded, edit them yourself and then start with "maica -c .env"', type=MsgType.INFO)
         exit(0)
 
     if kwargs:
         for k, v in kwargs.items():
             os.environ[k] = v
-        print(f'[maica-argparse] Added {len(kwargs)} vars to environ.')
+        printer(info=f'Added {len(kwargs)} vars to environ.', type=MsgType.DEBUG)
 
     if not initialized:
         try:
             if templates:
                 print_templates() if templates == 'print' else create_templates()
             dest_env(envdir)
-            dest_servers(serversdir)
             pkg_init_maica()
             initialized = True
         except Exception as e:
-            print(f'[maica-argparse] Error: {str(e)}, quitting...')
+            printer(info=f'Error: {str(e)}, quitting...', type=MsgType.ERROR)
             exit(1)
 
 def check_basic_init():
@@ -167,9 +141,9 @@ def check_init():
         generate_rsa_keys()
         asyncio.run(create_tables())
         create_marking()
-        asyncio.run(messenger(info="MAICA Illuminator initiation finished", type=MsgType.PRIM_SYS))
+        sync_messenger(info="MAICA Illuminator initiation finished", type=MsgType.PRIM_SYS)
     else:
-        asyncio.run(messenger(info="Initiated marking detected, skipping initiation", type=MsgType.DEBUG))
+        sync_messenger(info="Initiated marking detected, skipping initiation", type=MsgType.DEBUG)
 
 async def start_all():
     if load_env('DB_ADDR') == 'sqlite':

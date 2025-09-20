@@ -799,8 +799,6 @@ Begin!"""
         messages.append({'role': 'user', 'content': f'question: {query}; information: {information}'})
         completion_args = {
             "messages": messages,
-            "temperature": 0.2,
-            "seed": 42
         }
 
         resp = await self.mfocus_conn.make_completion(**completion_args)

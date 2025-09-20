@@ -249,6 +249,7 @@ class AiConnCoroutine(AsyncCreator):
         self.api_key, self.base_url, self.name, self.model = api_key, base_url, name, model
         self.websocket = None
         self.traceray_id = ''
+        self.gen_kwargs = {}
 
     async def _ainit(self):
         if not self.base_url:
@@ -268,6 +269,10 @@ class AiConnCoroutine(AsyncCreator):
     def init_rsc(self, rsc: FscPlain.RealtimeSocketsContainer):
         """AiConn can actually work without rsc, so we make it individual."""
         self.websocket, self.traceray_id = rsc.websocket, rsc.traceray_id
+
+    def default_params(self, **kwargs):
+        """These params will always be applied to generations. Overwritting."""
+        self.gen_kwargs = kwargs
 
     async def keep_alive(self):
         try:
@@ -297,7 +302,7 @@ class AiConnCoroutine(AsyncCreator):
         for tries in range(RETRY_TIMES):
             try:
                 await self.keep_alive()
-                task_stream_resp = asyncio.create_task(self.socket.chat.completions.create(**kwargs))
+                task_stream_resp = asyncio.create_task(self.socket.chat.completions.create(**self.gen_kwargs, **kwargs))
                 await task_stream_resp
                 return task_stream_resp.result()
             except Exception as e:
@@ -316,20 +321,24 @@ class ConnUtils():
     async def basic_pool(ro=False):
         """Dummy."""
     async def mcore_conn():
-        return await AiConnCoroutine.async_create(
+        conn = await AiConnCoroutine.async_create(
             api_key=MCORE_KEY,
             base_url=MCORE_ADDR,
             name='mcore_cli',
             model=MCORE_CHOICE if MCORE_CHOICE else 0,
         )
+        conn.default_params(**json.loads(load_env("MCORE_EXTRA")))
+        return conn
 
     async def mfocus_conn():
-        return await AiConnCoroutine.async_create(
+        conn = await AiConnCoroutine.async_create(
             api_key=MFOCUS_KEY,
             base_url=MFOCUS_ADDR,
             name='mfocus_cli',
             model=MFOCUS_CHOICE if MFOCUS_CHOICE else 0,
         )
+        conn.default_params(**json.loads(load_env("MFOCUS_EXTRA")))
+        return conn
 
 async def validate_input(input: Union[str, dict, list], limit: int=4096, rsc: Optional[FscPlain.RealtimeSocketsContainer]=None, must: list=[], warn: list=[]) -> Union[dict, list]:
     """

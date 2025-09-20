@@ -3,6 +3,7 @@ import random
 import traceback
 import asyncio
 import websockets
+import colorama
 
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from typing import *
@@ -191,7 +192,7 @@ class MTriggerCoroutine(SideFunctionCoroutine):
                         # Tool parallel support
                         tool_seq += 1; all_tool_count += 1
                         tool_id, tool_type, tool_func_name, tool_func_args = resp_tool.id, resp_tool.type, resp_tool.function.name, resp_tool.function.arguments
-                        await messenger(info=f'\nCalling parallel tool {tool_seq}/{len(resp_tools)}:\n{resp_tool}\nSending trigger...', type=MsgType.PRIM_LOG)
+                        await messenger(self.websocket, 'maica_mtrigger_parallel_tool', f'\nCalling parallel tool {tool_seq}/{len(resp_tools)}:\n{resp_tool}\nSending trigger...', '200', type=MsgType.INFO, color=colorama.Fore.BLUE)
 
                         if tool_func_name == 'agent_finished':
                             ending = True
@@ -206,9 +207,9 @@ class MTriggerCoroutine(SideFunctionCoroutine):
                 else:
                     ending = True
                     
-                await messenger(None, 'maica_mtrigger_round_finish', f'MTrigger toolchain {cycle} round finished, ending is {str(ending)}.')
+                await messenger(self.websocket, 'maica_mtrigger_round_finish', f'MTrigger toolchain {cycle} round finished, ending is {str(ending)}', '200', type=MsgType.INFO, color=colorama.Fore.BLUE)
             
-            await messenger(self.websocket, 'maica_mtrigger_done', f'MTrigger ended with {all_tool_count} triggers sent', '1001')
+            await messenger(self.websocket, 'maica_mtrigger_done', f'MTrigger ended with {all_tool_count} triggers sent', '1001', color=colorama.Fore.LIGHTBLUE_EX)
 
         except CommonMaicaException as ce:
             raise ce

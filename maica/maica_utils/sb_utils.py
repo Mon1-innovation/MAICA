@@ -170,8 +170,6 @@ class SideFunctionCoroutine(AsyncCreator):
         completion_args = {
             "messages": self.serial_messages,
             "tools": self.tools,
-            "temperature": 0.2,
-            "seed": 42
         }
 
         resp = await self.mfocus_conn.make_completion(**completion_args)

@@ -3,6 +3,7 @@ import random
 import traceback
 import asyncio
 import websockets
+import colorama
 
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from typing import *
@@ -298,7 +299,7 @@ class MFocusCoroutine(SideFunctionCoroutine):
                         # Tool parallel support
                         tool_seq += 1
                         tool_id, tool_type, tool_func_name, tool_func_args = resp_tool.id, resp_tool.type, resp_tool.function.name, resp_tool.function.arguments
-                        await messenger(info=f'\nCalling parallel tool {tool_seq}/{len(resp_tools)}:\n{resp_tool}\nGathering information...', type=MsgType.PRIM_LOG)
+                        await messenger(self.websocket, 'maica_mfocus_parallel_tool', f'\nCalling parallel tool {tool_seq}/{len(resp_tools)}:\n{resp_tool}\nGathering information...', '200', type=MsgType.INFO, color=colorama.Fore.BLUE)
 
                         machine = humane = None
                         args = []
@@ -323,11 +324,11 @@ class MFocusCoroutine(SideFunctionCoroutine):
                                     machine = '已收到你的判断, 请继续调用其它工具或正常结束作答.' if self.settings.basic.target_lang == 'zh' else 'Your judgement recieved, please continue using other tools or end as normal.'
                                 case 'conclude_information':
                                     conclusion_answer = kwargs.get('conclusion')
-                                    await messenger(None, 'maica_mfocus_conclusion', f'\nMFocus conclusion recieved:\n{conclusion_answer}\nEnding toolchain...')
+                                    await messenger(self.websocket, 'maica_mfocus_conclusion', f'\nMFocus conclusion recieved:\n{conclusion_answer}\nEnding toolchain...', '200', type=MsgType.INFO, color=colorama.Fore.LIGHTBLUE_EX)
                                     ending = True
                                     break
                                 case 'agent_finished':
-                                    await messenger(None, 'maica_mfocus_empty', f'MFocus null recieved, Ending toolchain...')
+                                    await messenger(self.websocket, 'maica_mfocus_empty', f'MFocus null recieved, Ending toolchain...', '204', type=MsgType.INFO, color=colorama.Fore.LIGHTBLUE_EX)
                                     ending = True
                                     break
                                 case _:
@@ -338,12 +339,13 @@ class MFocusCoroutine(SideFunctionCoroutine):
                         await self._construct_query(tool_input=machine, tool_id=tool_id)
 
                         if has_valid_content(humane):
+                            await messenger(self.websocket, 'maica_mfocus_parallel_result', f'Answer to parallel tool {tool_seq}/{len(resp_tools)} is "{ellipsis_str(humane, 50)}"', '200', type=MsgType.INFO)
                             _instructed_add(tool_func_name, humane)
                 else:
-                    await messenger(None, 'maica_mfocus_absent', f'No tool called, Ending toolchain...')
+                    await messenger(self.websocket, 'maica_mfocus_absent', f'No tool called, Ending toolchain...', '204', type=MsgType.INFO, color=colorama.Fore.LIGHTBLUE_EX)
                     ending = True
 
-                await messenger(None, 'maica_mfocus_round_finish', f'MFocus toolchain {cycle} round finished, ending is {str(ending)}.')
+                await messenger(self.websocket, 'maica_mfocus_round_finish', f'MFocus toolchain {cycle} round finished, ending is {str(ending)}', '200', type=MsgType.INFO, color=colorama.Fore.BLUE)
                     
             # Now we're out of the loop
             if self.settings.extra.mf_aggressive:

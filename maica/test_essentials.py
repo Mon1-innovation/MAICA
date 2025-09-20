@@ -9,7 +9,7 @@ def basic_chk():
     sysstruct = platform.system()
     assert sysstruct in ['Windows', 'Linux'], 'Your system is not supported!'
 
-    curr_version, legc_version = load_env('VERSION_CONTROL').split(';', 1)
+    curr_version, legc_version = load_env('CURR_VERSION'), load_env('VERSION_CONTROL')
     asyncio.run(messenger(info=f"Running MAICA Illuminator V{curr_version} on {sysstruct}", type=MsgType.PRIM_SYS))
 
     try:

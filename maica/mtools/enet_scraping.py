@@ -56,8 +56,6 @@ Begin!"""
     messages.append({'role': 'user', 'content': f'question: {original_query}; information: {results_full_str}'})
     completion_args = {
         "messages": messages,
-        "temperature": 0.2,
-        "seed": 42
     }
 
     resp = await fsc.mfocus_conn.make_completion(**completion_args)
