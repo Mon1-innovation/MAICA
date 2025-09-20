@@ -360,7 +360,10 @@ async def messenger(websocket=None, *args, **kwargs) -> None:
 
 def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaException]=None, prefix='', type='', color='', add_time=True, no_print=False, no_raise=False) -> list:
     """It could handle most log printing and exception raising jobs pretty automatically."""
-    term_v = os.get_terminal_size().columns
+    try:
+        term_v = os.get_terminal_size().columns
+    except:
+        term_v = 40
     rep2 = int(term_v / 2)
     rep1 = int(rep2 - 20)
 

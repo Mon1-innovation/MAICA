@@ -81,7 +81,10 @@ def check_params(envdir=None, silent=False, **kwargs):
         return env_c
     
     def separate_line(title: str):
-        terminal_width = os.get_terminal_size().columns
+        try:
+            terminal_width = os.get_terminal_size().columns
+        except:
+            terminal_width = 40
         line = title.center(terminal_width, '/')
         return line
     
