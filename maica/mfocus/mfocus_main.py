@@ -228,7 +228,7 @@ class MFocusCoroutine(SideFunctionCoroutine):
         self.tools.append(
             {
                 "name": "none",
-                "description": "若你不需要任何工具就能作出回答, 则先调用此工具." if self.settings.basic.target_lang == 'zh' else "If you don't need any other tool to make your answer, call this tool before final answer.",
+                "description": "若你不需要任何工具就能作出回答, 则在作出任何额外思考, 工具调用或最终回答之前, 调用此工具." if self.settings.basic.target_lang == 'zh' else "If you don't need any other tool to make your answer, call this tool before any extra thinking, tool calling or final answer.",
                 "parameters": {
                     "type": "object",
                     "properties": {
