@@ -30,7 +30,7 @@ colorama.init(autoreset=True)
 initialized = False
 
 def check_params(envdir=None, **kwargs):
-    """This will only run once. Recalling will not take effect."""
+    """This will only run once. Recalling will not take effect, except passing in extra kwargs."""
     global initialized
     def init_parser():
         parser = argparse.ArgumentParser(description="Start MAICA Illuminator deployment")
@@ -130,6 +130,11 @@ def check_params(envdir=None, **kwargs):
         print('[maica-argparse] Creation succeeded, edit them yourself and then start with "maica -c .env -s .servers".')
         exit(0)
 
+    if kwargs:
+        for k, v in kwargs.items():
+            os.environ[k] = v
+        print(f'[maica-argparse] Added {len(kwargs)} vars to environ.')
+
     if not initialized:
         try:
             if templates:
@@ -143,6 +148,7 @@ def check_params(envdir=None, **kwargs):
             exit(1)
 
 def check_basic_init():
+    """We run this only if called to serve. No env is basically not a problem for working as module."""
     if load_env('IS_REAL_ENV') == '1':
         return
     else:
