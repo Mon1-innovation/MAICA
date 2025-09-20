@@ -133,6 +133,12 @@ class SideFunctionCoroutine(AsyncCreator):
                     self.serial_messages.extend(message_additive)
                     assert self.serial_messages[-1]['role'] == 'assistant', 'Additive got corrupted chat history'
 
+        # This does no good. LLMs are too stupid for things like this.
+
+        # if not self.serial_messages or self.serial_messages[0].get('role') != 'system':
+        #     system_content = "你是一个信息检索助手, 因此保持输出和思考尽可能简短. 只要必要工具调用完成, 就在继续思考或作答前调用agent_finished." if self.settings.basic.target_lang == 'zh' else ""
+        #     self.serial_messages.insert(0, {'role': 'system', 'content': system_content})
+
         if user_input:
 
             # Having user input here suggests the last tool calls are over.

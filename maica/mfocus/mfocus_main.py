@@ -227,7 +227,7 @@ class MFocusCoroutine(SideFunctionCoroutine):
             )
         self.tools.append(
             {
-                "name": "none",
+                "name": "agent_finished",
                 "description": "若你不需要任何工具就能作出回答, 则在作出任何额外思考, 工具调用或最终回答之前, 调用此工具." if self.settings.basic.target_lang == 'zh' else "If you don't need any other tool to make your answer, call this tool before any extra thinking, tool calling or final answer.",
                 "parameters": {
                     "type": "object",
@@ -326,7 +326,7 @@ class MFocusCoroutine(SideFunctionCoroutine):
                                     await messenger(None, 'maica_mfocus_conclusion', f'\nMFocus conclusion recieved:\n{conclusion_answer}\nEnding toolchain...')
                                     ending = True
                                     break
-                                case 'none':
+                                case 'agent_finished':
                                     await messenger(None, 'maica_mfocus_empty', f'MFocus null recieved, Ending toolchain...')
                                     ending = True
                                     break
