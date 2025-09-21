@@ -138,14 +138,14 @@ SERVERS_LIST = '
 # NVWatcher settings
 
 # Name of MAICA core deployment device
-MCORE_NODE = 'HGX690-nuclear-edition'
+# MCORE_NODE = 'HGX690-nuclear-edition'
 # Username to access nvidia-smi through SSH
-MCORE_USER = 'root'
+# MCORE_USER = 'root'
 # Password for SSH login
-MCORE_PWD = '123456'
+# MCORE_PWD = '123456'
 # Name of MFocus deployment device
-MFOCUS_NODE = 'HGX610-biohazard-edition'
+# MFOCUS_NODE = 'HGX610-biohazard-edition'
 # Username to access nvidia-smi through SSH
-MFOCUS_USER = 'root'
+# MFOCUS_USER = 'root'
 # Password for SSH login
-MFOCUS_PWD = '123456'
+# MFOCUS_PWD = '123456'
