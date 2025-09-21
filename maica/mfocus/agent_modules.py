@@ -145,9 +145,9 @@ class AgentTools():
         # importance levels to be represented on major day. This is not
         # recommended
 
-        global_importance = kwargs.get('importance', 1)
+        global_importance = kwargs.get('importance', 2)
         if not major_day_is_today:
-            global_importance -= 1
+            global_importance -= 2
         if self.fsc.maica_settings.extra.tnd_aggressive >= 3:
             global_importance -= 1
         assert isinstance(global_importance, int), "Importance input not valid"
@@ -163,7 +163,7 @@ class AgentTools():
         for day_regs_list in days_regs_list:
             day_seq += 1
             is_major_day = day_seq == 1
-            local_importance = global_importance if is_major_day else global_importance + 1
+            local_importance = global_importance if (is_major_day or global_importance >= 2) else global_importance + 1
 
             if major_day_is_today:
                 match day_seq:
