@@ -205,6 +205,7 @@ class ReUtils():
 class Decos():
     def escape_sqlite_expression(func):
         """Used to transform a MySQL expression to SQLite one."""
+        @functools.wraps(func)
         def wrapper(self, expression, *args, **kwargs):
             expression_new = ReUtils.re_sub_sqlite_escape.sub('?', expression)
             return func(self, expression_new, *args, **kwargs)
@@ -212,6 +213,7 @@ class Decos():
 
     def report_data_error(func):
         """Raises when the requested action cannot be done because of corrupted data."""
+        @functools.wraps(func)
         def wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
@@ -223,6 +225,7 @@ class Decos():
 
     def report_reading_error(func):
         """Raises when the requested variable cannot be read before assignment."""
+        @functools.wraps(func)
         def wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
@@ -234,6 +237,7 @@ class Decos():
 
     def report_limit_warning(func):
         """Raises when the input param coming from user is out of bound."""
+        @functools.wraps(func)
         def wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
@@ -245,6 +249,7 @@ class Decos():
 
     def report_limit_error(func):
         """Raises when the input param coming from program is out of bound."""
+        @functools.wraps(func)
         def wrapper(self, *args, **kwargs):
             try:
                 assert not getattr(self, '_lock', None)
