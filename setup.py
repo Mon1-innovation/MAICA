@@ -52,6 +52,6 @@ setuptools.setup(
         ],
     },
     package_data={
-        'maica': ['env_example', 'servers_example'],
+        'maica': ['env_example'],
     },
 )

@@ -14,7 +14,6 @@ def pkg_init_maica_nows():
     PROMPT_ZW = load_env('PROMPT_ZW')
     PROMPT_EC = load_env('PROMPT_EC')
     PROMPT_EW = load_env('PROMPT_EW')
-    maica_assert(str(PROMPT_ZC) and str(PROMPT_ZW) and str(PROMPT_EC) and str(PROMPT_EW), 'prompt')
 
 class NoWsCoroutine(AsyncCreator):
     """
