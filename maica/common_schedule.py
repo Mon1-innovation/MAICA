@@ -44,5 +44,4 @@ async def schedule_rotate_cache(**kwargs):
         if maica_created:
             await maica_pool.close()
             
-        await messenger(info='\n', type=MsgType.PLAIN)
         await messenger(info="MAICA scheduler stopped!", type=MsgType.SYS)

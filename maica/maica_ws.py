@@ -481,7 +481,6 @@ async def prepare_thread(**kwargs):
 
         await asyncio.gather(*close_list, return_exceptions=True)
 
-        await messenger(info='\n', type=MsgType.PLAIN)
         await messenger(info='MAICA WS server stopped!', type=MsgType.PRIM_SYS)
 
 def run_ws(**kwargs):

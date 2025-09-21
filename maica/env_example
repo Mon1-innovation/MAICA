@@ -41,7 +41,7 @@ MFOCUS_EXTRA = '
         "seed": 42,
         "extra_body": {
             "repetition_penalty": 1.05,
-            "length_penalty": 1.1
+            "length_penalty": 1.15
         }
     }
 '

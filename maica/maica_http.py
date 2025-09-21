@@ -6,6 +6,7 @@ import json
 import traceback
 import time
 import colorama
+import logging
 
 from hypercorn.config import Config
 from hypercorn.asyncio import serve
@@ -71,6 +72,9 @@ def pkg_init_maica_http():
 
 app = Quart(import_name=__name__)
 app.config['JSON_AS_ASCII'] = False
+
+quart_logger = logging.getLogger('hypercorn.error')
+quart_logger.disabled = True
 
 workload_cache = {}
 
@@ -437,6 +441,11 @@ async def prepare_thread(**kwargs):
 
         await asyncio.gather(*close_list, return_exceptions=True)
 
+        # Normally maica_http should be the first one (possibly only one) to
+        # respond to the original SIGINT.
+
+        # So its stop msg will be print first, adding \n after ^C to look prettier.
+        
         await messenger(info='\n', type=MsgType.PLAIN)
         await messenger(info='MAICA HTTP server stopped!', type=MsgType.PRIM_SYS)
 

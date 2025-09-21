@@ -164,14 +164,18 @@ async def start_all():
     task_http = asyncio.create_task(maica_http.prepare_thread(**kwargs))
     task_schedule = asyncio.create_task(common_schedule.schedule_rotate_cache(**kwargs))
 
-    await asyncio.wait([
+    res = await asyncio.wait([
         task_ws,
         task_http,
         task_schedule,
     ], return_when=asyncio.FIRST_COMPLETED)
-
+    await messenger(info="First quit collected, quitting other tasks...", type=MsgType.DEBUG)
+    for pending in res[1]:
+        pending.cancel()
+        await pending
     await messenger(info="All quits collected, doing final cleanup...", type=MsgType.DEBUG)
     await asyncio.gather(auth_pool.close(), maica_pool.close(), return_exceptions=True)
+    await messenger(info="Everything done, bye", type=MsgType.DEBUG)
     quit()
 
 def full_start():
