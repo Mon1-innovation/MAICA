@@ -27,8 +27,8 @@ def pkg_init_account_utils():
     encryptor = decryptor = verifier = signer = None
 
 def _get_keys() -> tuple[PKCS1_OAEP.PKCS1OAEP_Cipher, PKCS1_OAEP.PKCS1OAEP_Cipher, PSS_SigScheme, PSS_SigScheme]:
-    prv_path = get_outer_path('keys/prv.key')
-    pub_path = get_outer_path('keys/pub.key')
+    prv_path = get_inner_path('keys/prv.key')
+    pub_path = get_inner_path('keys/pub.key')
 
     with open(prv_path, "r") as privkey_file:
         privkey = privkey_file.read()

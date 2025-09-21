@@ -29,7 +29,7 @@ def pkg_init_maica():
 colorama.init(autoreset=True)
 initialized = False
 
-def check_params(envdir=None, silent=False, **kwargs):
+def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwargs):
     """This will only run once. Recalling will not take effect, except passing in extra kwargs."""
     global initialized
 
@@ -49,7 +49,7 @@ def check_params(envdir=None, silent=False, **kwargs):
     envdir = envdir or args.envdir
     templates = args.templates
 
-    def dest_env(envdir):
+    def dest_env(envdir, extra_envdir):
         if envdir:
             realpath = os.path.abspath(envdir)
             if not os.path.isfile(realpath):
@@ -59,6 +59,13 @@ def check_params(envdir=None, silent=False, **kwargs):
                     raise Exception('designated env file not exist')
             printer(info=f'Loading env file {realpath}...', type=MsgType.DEBUG)
             load_dotenv(dotenv_path=realpath)
+
+            if extra_envdir:
+                for edir in extra_envdir:
+                    realpath = os.path.abspath(edir)
+                    if os.path.isfile(realpath):
+                        printer(info=f'Loading extra env file {realpath}...', type=MsgType.DEBUG)
+                        load_dotenv(dotenv_path=realpath)
 
         else:
             realpath = get_inner_path('.env')
@@ -117,7 +124,7 @@ def check_params(envdir=None, silent=False, **kwargs):
         try:
             if templates:
                 print_templates() if templates == 'print' else create_templates()
-            dest_env(envdir)
+            dest_env(envdir, extra_envdir)
             pkg_init_maica()
             initialized = True
         except Exception as e:
