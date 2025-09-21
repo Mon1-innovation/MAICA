@@ -6,7 +6,7 @@
 IS_REAL_ENV = '0'
 
 # Current backend version
-CURR_VERSION = '1.1.003.post2'
+CURR_VERSION = '1.1.003.post3'
 
 
 # Model endpoint settings
