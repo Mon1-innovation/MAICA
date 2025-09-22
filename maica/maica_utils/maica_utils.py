@@ -310,7 +310,7 @@ async def sleep_forever() -> None:
 
 def alt_tools(tools: list) -> list:
     """If ALT_TOOLCALL"""
-    match load_env('ALT_TOOLCALL'):
+    match load_env('MAICA_ALT_TOOLCALL'):
         case '0':
             return tools
         case '1':
@@ -411,13 +411,13 @@ def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional
         msg_print += f": {str(info)}" if not str(info).startswith('\n') else f"{'-=' * rep1}{str(info)}\n{'-=' * rep2}"
         msg_print += f"; traceray ID {traceray_id}" if traceray_id else ''
         msg_send = info
-        if type == 'error' and load_env('NO_SEND_ERROR') == '1':
+        if type == 'error' and load_env('MAICA_NO_SEND_ERROR') == '1':
             msg_send = "A critical exception happened serverside, contact administrator"
         if traceray_id and isinstance(info, str):
             msg_send += f" -- your traceray ID is {traceray_id}"
 
     frametrack_dict = {"error": 99}
-    if not load_env("PRINT_VERBOSE") == "0":
+    if not load_env('MAICA_PRINT_VERBOSE') == "0":
         frametrack_dict['warn'] = 0
     if type in frametrack_dict:
         stack = inspect.stack()
@@ -433,7 +433,7 @@ def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional
                 else:
                     print((color or colorama.Fore.LIGHTGREEN_EX) + msg_print)
             case "debug":
-                if not load_env("PRINT_VERBOSE") == "0":
+                if not load_env('MAICA_PRINT_VERBOSE') == "0":
                     print((color or colorama.Fore.LIGHTBLACK_EX) + msg_print)
             case "info":
                 print((color or colorama.Fore.GREEN) + msg_print)
@@ -484,7 +484,7 @@ async def get_json(url) -> json:
     try:
         for tries in range(0, 3):
             try:
-                client = httpx.AsyncClient(proxy=load_env("PROXY_ADDR"))
+                client = httpx.AsyncClient(proxy=load_env('MAICA_PROXY_ADDR'))
                 res = (await client.get(url, headers=headers)).json()
                 break
             except Exception as e:

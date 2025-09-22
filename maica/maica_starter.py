@@ -28,15 +28,17 @@ def pkg_init_maica():
 
 colorama.init(autoreset=True)
 initialized = False
+_silent = False
+
+def printer(*args, **kwargs):
+    global _silent
+    if not _silent:
+        sync_messenger(*args, **kwargs)
 
 def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwargs):
     """This will only run once. Recalling will not take effect, except passing in extra kwargs."""
-    global initialized
-
-    def printer(*args, **kwargs):
-        nonlocal silent
-        if not silent:
-            sync_messenger(*args, **kwargs)
+    global initialized, _silent
+    _silent = silent
 
     def init_parser():
         parser = argparse.ArgumentParser(description="Start MAICA Illuminator deployment")
@@ -49,7 +51,7 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwar
     envdir = envdir or args.envdir
     templates = args.templates
 
-    def dest_env(envdir, extra_envdir):
+    def dest_env(envdir: str=None, extra_envdir: list=None):
         if not envdir:
             realpath = get_inner_path('.env')
             printer(info=f'No env file designated, defaulting to {realpath}...', type=MsgType.DEBUG)
@@ -125,9 +127,9 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwar
             printer(info=f'Error: {str(e)}, quitting...', type=MsgType.ERROR)
             exit(1)
 
-def check_basic_init():
+def check_env_init():
     """We run this only if called to serve. No env is basically not a problem for working as module."""
-    if load_env('IS_REAL_ENV') == '1':
+    if load_env('MAICA_IS_REAL_ENV') == '1':
         return
     else:
         print('''No real env detected, is this workflow?
@@ -140,24 +142,26 @@ Quitting...'''
               )
         quit(0)
 
-def check_init():
+def check_data_init():
     if not check_marking():
         generate_rsa_keys()
         asyncio.run(create_tables())
         create_marking()
-        sync_messenger(info="MAICA Illuminator initiation finished", type=MsgType.PRIM_SYS)
+        printer(info="MAICA Illuminator initiation finished", type=MsgType.PRIM_SYS)
     else:
-        sync_messenger(info="Initiated marking detected, skipping initiation", type=MsgType.DEBUG)
+        printer(info="Initiated marking detected, skipping initiation", type=MsgType.DEBUG)
+
+def check_warns():
+    if load_env('MAICA_DB_ADDR') == 'sqlite':
+        printer(info='\nMAICA using SQLite database detected\nWhile MAICA Illuminator is fully compatible with SQLite, it can be a significant drawback of performance under heavy workload\nIf this is a public service instance, it\'s strongly recommended to use MySQL/MariaDB instead', type=MsgType.DEBUG)
+    if not load_env('MAICA_PROXY_ADDR'):
+        printer(info='\nInternet proxy absence detected\nMAICA Illuminator needs to access Google and Wikipedia for full functionalities, so you\'ll possibly need a proxy for those\nYou can ignore this message safely if you have direct access to those or have a global proxy set already', type=MsgType.DEBUG)
+    if load_env('MAICA_DEV_STATUS') != 'serving':
+        printer(info='\nServer status not serving detected\nWith this announcement taking effect, standard clients will stop further communications with MAICA Illuminator respectively\nYou should set DEV_STATUS to \'serving\' whenever the instance is ready to serve', type=MsgType.DEBUG)
+    if (load_env('MAICA_MCORE_NODE') and load_env('MAICA_MCORE_USER') and load_env('MAICA_MCORE_PWD')) or (load_env('MAICA_MFOCUS_NODE') and load_env('MAICA_MFOCUS_USER') and load_env('MAICA_MFOCUS_PWD')):
+        printer(info='\nOne or more NVwatch nodes detected\nNVwatch of MAICA Illuminator will try to collect nvidia-smi outputs through SSH, which can fail the process if SSH not avaliable\nIf SSH of nodes are not accessable or not wanted to be used, delete X_NODE, X_USER, X_PWD accordingly', type=MsgType.DEBUG)
 
 async def start_all():
-    if load_env('DB_ADDR') == 'sqlite':
-        await messenger(info='\nMAICA using SQLite database detected\nWhile MAICA Illuminator is fully compatible with SQLite, it can be a significant drawback of performance under heavy workload\nIf this is a public service instance, it\'s strongly recommended to use MySQL/MariaDB instead', type=MsgType.DEBUG)
-    if not load_env('PROXY_ADDR'):
-        await messenger(info='\nInternet proxy absence detected\nMAICA Illuminator needs to access Google and Wikipedia for full functionalities, so you\'ll possibly need a proxy for those\nYou can ignore this message safely if you have direct access to those or have a global proxy set already', type=MsgType.DEBUG)
-    if load_env('DEV_STATUS') != 'serving':
-        await messenger(info='\nServer status not serving detected\nWith this announcement taking effect, standard clients will stop further communications with MAICA Illuminator respectively\nYou should set DEV_STATUS to \'serving\' whenever the instance is ready to serve', type=MsgType.DEBUG)
-    if (load_env('MCORE_NODE') and load_env('MCORE_USER') and load_env('MCORE_PWD')) or (load_env('MFOCUS_NODE') and load_env('MFOCUS_USER') and load_env('MFOCUS_PWD')):
-        await messenger(info='\nOne or more NVwatch nodes detected\nNVwatch of MAICA Illuminator will try to collect nvidia-smi outputs through SSH, which can fail the process if SSH not avaliable\nIf SSH of nodes are not accessable or not wanted to be used, delete X_NODE, X_USER, X_PWD accordingly', type=MsgType.DEBUG)
 
     auth_pool, maica_pool = await asyncio.gather(ConnUtils.auth_pool(), ConnUtils.maica_pool())
     kwargs = {"auth_pool": auth_pool, "maica_pool": maica_pool}
@@ -181,8 +185,9 @@ async def start_all():
 
 def full_start():
     check_params()
-    check_basic_init()
-    check_init()
+    check_env_init()
+    check_data_init()
+    check_warns()
     asyncio.run(start_all())
 
 if __name__ == "__main__":

@@ -13,6 +13,9 @@ from maica import mtools
 from maica.maica_nows import NoWsCoroutine
 from maica.maica_utils import *
 
+# For imports
+_onliners = {}
+
 class WsCoroutine(NoWsCoroutine):
     """
     Force ws existence.
@@ -80,7 +83,7 @@ class WsCoroutine(NoWsCoroutine):
         websocket, mcore_conn = self.websocket, self.mcore_conn
 
         await messenger(websocket, "maica_connection_established", "MAICA connection established", "201", type=MsgType.INFO, no_print=True)
-        await messenger(websocket, "maica_provider_anno", f"Current service provider is {load_env('DEV_IDENTITY')}", "200", type=MsgType.INFO, no_print=True)
+        await messenger(websocket, "maica_provider_anno", f"Current service provider is {load_env('MAICA_DEV_IDENTITY') or 'UNKNOWN'}", "200", type=MsgType.INFO, no_print=True)
 
         # Starting loop from here
         while True:
@@ -439,7 +442,7 @@ async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn, 
             await messenger(info=f"Closing connection gracefully", type=MsgType.DEBUG)
 
 async def prepare_thread(**kwargs):
-    online_dict = {}; auth_created = False; maica_created = False
+    online_dict = _onliners; auth_created = False; maica_created = False
 
     if kwargs.get('auth_pool'):
         auth_pool = kwargs.get('auth_pool')
@@ -458,7 +461,7 @@ async def prepare_thread(**kwargs):
     except Exception:
         mcore_conn = mfocus_conn = None
 
-    await messenger(info='MAICA WS server started!' if load_env('DEV_STATUS') == 'serving' else 'MAICA WS server started in development mode!', type=MsgType.PRIM_SYS)
+    await messenger(info='MAICA WS server started!' if load_env('MAICA_DEV_STATUS') == 'serving' else 'MAICA WS server started in development mode!', type=MsgType.PRIM_SYS)
 
     try:
         await messenger(info=f"Main model is {mcore_conn.model_actual}, MFocus model is {mfocus_conn.model_actual}", type=MsgType.SYS)

@@ -15,7 +15,7 @@ async def internet_search(fsc: FullSocketsContainer, query, original_query):
             # Here goes the search module
             # Highly unstable I would say
             # Fuck google
-            results_async = asearch(query, advanced=True, proxy=load_env("PROXY_ADDR"))
+            results_async = asearch(query, advanced=True, proxy=load_env('MAICA_PROXY_ADDR'))
             results_sync = []
             async for result_async in results_async:
                 results_sync.append({"title": result_async.title, "text": result_async.description})

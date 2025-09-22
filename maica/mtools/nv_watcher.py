@@ -13,11 +13,11 @@ from maica.maica_utils import *
 class NvWatcher(AsyncCreator):
     def __init__(self, node):
         self.node = node
-        self.node_name = load_env(f'{node.upper()}_NODE')
-        self.node_user = load_env(f'{node.upper()}_USER')
-        self.node_pwd = load_env(f'{node.upper()}_PWD')
+        self.node_name = load_env(f'MAICA_{node.upper()}_NODE')
+        self.node_user = load_env(f'MAICA_{node.upper()}_USER')
+        self.node_pwd = load_env(f'MAICA_{node.upper()}_PWD')
         try:
-            self.node_addr = ReUtils.re_search_host_addr.search(load_env(f'{node.upper()}_ADDR'))[1]
+            self.node_addr = ReUtils.re_search_host_addr.search(load_env(f'MAICA_{node.upper()}_ADDR'))[1]
         except Exception:
             self.node_addr = None
 

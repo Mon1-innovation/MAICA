@@ -13,17 +13,17 @@ from .locater import *
 
 def pkg_init_connection_utils():
     global DB_ADDR, DB_USER, DB_PASSWORD, AUTH_DB, MAICA_DB, MCORE_ADDR, MCORE_KEY, MCORE_CHOICE, MFOCUS_ADDR, MFOCUS_KEY, MFOCUS_CHOICE, ConnUtils
-    DB_ADDR = load_env('DB_ADDR')
-    DB_USER = load_env('DB_USER')
-    DB_PASSWORD = load_env('DB_PASSWORD')
-    AUTH_DB = load_env('AUTH_DB')
-    MAICA_DB = load_env('MAICA_DB')
-    MCORE_ADDR = load_env('MCORE_ADDR')
-    MCORE_KEY = load_env('MCORE_KEY')
-    MCORE_CHOICE = load_env('MCORE_CHOICE')
-    MFOCUS_ADDR = load_env('MFOCUS_ADDR')
-    MFOCUS_KEY = load_env('MFOCUS_KEY')
-    MFOCUS_CHOICE = load_env('MFOCUS_CHOICE')
+    DB_ADDR = load_env('MAICA_DB_ADDR')
+    DB_USER = load_env('MAICA_DB_USER')
+    DB_PASSWORD = load_env('MAICA_DB_PASSWORD')
+    AUTH_DB = load_env('MAICA_AUTH_DB')
+    MAICA_DB = load_env('MAICA_DATA_DB')
+    MCORE_ADDR = load_env('MAICA_MCORE_ADDR')
+    MCORE_KEY = load_env('MAICA_MCORE_KEY')
+    MCORE_CHOICE = load_env('MAICA_MCORE_CHOICE')
+    MFOCUS_ADDR = load_env('MAICA_MFOCUS_ADDR')
+    MFOCUS_KEY = load_env('MAICA_MFOCUS_KEY')
+    MFOCUS_CHOICE = load_env('MAICA_MFOCUS_CHOICE')
 
     if DB_ADDR != "sqlite":
         """We suppose we're using MySQL."""
@@ -327,7 +327,7 @@ class ConnUtils():
             name='mcore_cli',
             model=MCORE_CHOICE if MCORE_CHOICE else 0,
         )
-        conn.default_params(**json.loads(load_env("MCORE_EXTRA")))
+        conn.default_params(**json.loads(load_env('MAICA_MCORE_EXTRA')))
         return conn
 
     async def mfocus_conn():
@@ -337,7 +337,7 @@ class ConnUtils():
             name='mfocus_cli',
             model=MFOCUS_CHOICE if MFOCUS_CHOICE else 0,
         )
-        conn.default_params(**json.loads(load_env("MFOCUS_EXTRA")))
+        conn.default_params(**json.loads(load_env('MAICA_MFOCUS_EXTRA')))
         return conn
 
 async def validate_input(input: Union[str, dict, list], limit: int=4096, rsc: Optional[FscPlain.RealtimeSocketsContainer]=None, must: list=[], warn: list=[]) -> Union[dict, list]:

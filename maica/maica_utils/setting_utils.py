@@ -212,7 +212,7 @@ class MaicaSettings():
             if v is None:
                 self._max_length = self.default('max_length')
             else:
-                assert 512 <= int(v) <= 28672
+                assert 512 <= int(v) <= load_env('MAICA_SESSION_MAX_LENGTH')
                 self._max_length = int(v)
 
     class _extra(_common_funcs):

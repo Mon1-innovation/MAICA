@@ -175,7 +175,7 @@ class SideFunctionCoroutine(AsyncCreator):
         resp = await self.mfocus_conn.make_completion(**completion_args)
         content, tool_calls = resp.choices[0].message.content, resp.choices[0].message.tool_calls
 
-        if load_env('ALT_TOOLCALL') != '0':
+        if load_env('MAICA_ALT_TOOLCALL') != '0':
             self.serial_messages.append(resp.choices[0].message)
         else:
             self.serial_messages.append({"role": "assistant", "content": content})

@@ -14,7 +14,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 load_dotenv(dotenv_path="maica/env_example")
-curr_version, legc_version = os.getenv('CURR_VERSION'), os.getenv('VERSION_CONTROL')
+curr_version, legc_version = os.getenv('MAICA_CURR_VERSION'), os.getenv('MAICA_VERSION_CONTROL')
 curr_version = custom_args.override_version if custom_args.override_version else curr_version
 
 def parse_requirements(filename='requirements.txt'):

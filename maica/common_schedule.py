@@ -7,7 +7,7 @@ from maica.maica_utils import *
 
 async def rotate_cache(maica_pool: DbPoolCoroutine):
     """Always provide a pool in production deployment!"""
-    keep_time = load_env('ROTATE_MSCACHE')
+    keep_time = load_env('MAICA_ROTATE_MSCACHE')
     if int(keep_time):
         timestamp = datetime.datetime.now()
         sql_expression_1 = "SELECT spire_id, timestamp FROM ms_cache"
@@ -29,7 +29,7 @@ async def schedule_rotate_cache(**kwargs):
         maica_created = True
 
     await messenger(info="MAICA scheduler started!", type=MsgType.SYS)
-    if load_env('ROTATE_MSCACHE') != '0':
+    if load_env('MAICA_ROTATE_MSCACHE') != '0':
         await messenger()
         schedule.every().day.at("04:00").do(wrap_rotate_cache, maica_pool=maica_pool)
     try:

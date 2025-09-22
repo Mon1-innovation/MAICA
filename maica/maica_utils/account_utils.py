@@ -19,11 +19,11 @@ from .container_utils import *
 
 def pkg_init_account_utils():
     global DB_ADDR, DB_USER, DB_PASSWORD, AUTH_DB, MAICA_DB, encryptor, decryptor, verifier, signer
-    DB_ADDR = load_env('DB_ADDR')
-    DB_USER = load_env('DB_USER')
-    DB_PASSWORD = load_env('DB_PASSWORD')
-    AUTH_DB = load_env('AUTH_DB')
-    MAICA_DB = load_env('MAICA_DB')
+    DB_ADDR = load_env('MAICA_DB_ADDR')
+    DB_USER = load_env('MAICA_DB_USER')
+    DB_PASSWORD = load_env('MAICA_DB_PASSWORD')
+    AUTH_DB = load_env('MAICA_AUTH_DB')
+    MAICA_DB = load_env('MAICA_DATA_DB')
     encryptor = decryptor = verifier = signer = None
 
 def _get_keys() -> tuple[PKCS1_OAEP.PKCS1OAEP_Cipher, PKCS1_OAEP.PKCS1OAEP_Cipher, PSS_SigScheme, PSS_SigScheme]:
@@ -121,9 +121,9 @@ class AccountCursor(AsyncCreator):
 
             if f2b_stamp:
                 # If there's possibility that the account is under F2B
-                if time.time() - f2b_stamp < float(load_env('F2B_TIME')):
+                if time.time() - f2b_stamp < float(load_env('MAICA_F2B_TIME')):
                     # Waiting for F2B timeout
-                    e = {'f2b': int(float(load_env('F2B_TIME'))+f2b_stamp-time.time())}
+                    e = {'f2b': int(float(load_env('MAICA_F2B_TIME'))+f2b_stamp-time.time())}
                     return False, e
                 else:
                     # Reset f2b_stamp since it has expired
@@ -146,7 +146,7 @@ class AccountCursor(AsyncCreator):
                 f2b_count += 1
                 # Adding to f2b_count
                 e = {'pwdw': f2b_count}
-                if f2b_count >= int(load_env('F2B_COUNT')):
+                if f2b_count >= int(load_env('MAICA_F2B_COUNT')):
                     # Trigger F2B
                     await self.write_user_status(f2b_stamp=time.time())
                     f2b_count = 0

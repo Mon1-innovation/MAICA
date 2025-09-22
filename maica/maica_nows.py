@@ -10,10 +10,10 @@ from maica.maica_utils import *
 
 def pkg_init_maica_nows():
     global PROMPT_ZC, PROMPT_ZW, PROMPT_EC, PROMPT_EW
-    PROMPT_ZC = load_env('PROMPT_ZC')
-    PROMPT_ZW = load_env('PROMPT_ZW')
-    PROMPT_EC = load_env('PROMPT_EC')
-    PROMPT_EW = load_env('PROMPT_EW')
+    PROMPT_ZC = load_env('MAICA_PROMPT_ZC')
+    PROMPT_ZW = load_env('MAICA_PROMPT_ZW')
+    PROMPT_EC = load_env('MAICA_PROMPT_EC')
+    PROMPT_EW = load_env('MAICA_PROMPT_EW')
 
 class NoWsCoroutine(AsyncCreator):
     """
@@ -307,7 +307,7 @@ class NoWsCoroutine(AsyncCreator):
             # Cridential correct and not banned
             if check_online and not logged_in_already:
                 if self.settings.verification.user_id in self.online_dict:
-                    if load_env("KICK_STALE_CONNS") == "0":
+                    if load_env('MAICA_KICK_STALE_CONNS') == "0":
                         self.settings.verification.reset()
                         raise MaicaConnectionWarning('A connection was established already and kicking not enabled', '406', 'maica_connection_reuse_denied')
                     else:

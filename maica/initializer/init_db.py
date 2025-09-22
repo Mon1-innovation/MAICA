@@ -1,13 +1,12 @@
 import asyncio
 import os
-from maica.maica_utils import DbPoolCoroutine, ConnUtils
 from typing import *
 from maica.maica_utils import *
 
 async def create_tables():
 
-    AUTH_DB = load_env('AUTH_DB')
-    MAICA_DB = load_env('MAICA_DB')
+    AUTH_DB = load_env('MAICA_AUTH_DB')
+    MAICA_DB = load_env('MAICA_DATA_DB')
 
     basic_pool: DbPoolCoroutine = await ConnUtils.basic_pool()
     auth_created = False

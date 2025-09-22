@@ -17,15 +17,15 @@ from Crypto.Signature import PKCS1_PSS
 from Crypto.Hash import SHA256
 from typing import *
 
-from maica.maica_ws import NoWsCoroutine
+from maica.maica_ws import NoWsCoroutine, _onliners
 from maica.maica_utils import *
 from maica.mtools import NvWatcher
 
 def pkg_init_maica_http():
     global MCORE_ADDR, MFOCUS_ADDR, FULL_RESTFUL, known_servers
-    MCORE_ADDR = load_env('MCORE_ADDR')
-    MFOCUS_ADDR = load_env('MFOCUS_ADDR')
-    FULL_RESTFUL = load_env('FULL_RESTFUL')
+    MCORE_ADDR = load_env('MAICA_MCORE_ADDR')
+    MFOCUS_ADDR = load_env('MAICA_MFOCUS_ADDR')
+    FULL_RESTFUL = load_env('MAICA_FULL_RESTFUL')
     if FULL_RESTFUL == '1':
         app.add_url_rule("/savefile", methods=['POST'], view_func=ShortConnHandler.as_view("upload_savefile"))
         app.add_url_rule("/savefile", methods=['DELETE'], view_func=ShortConnHandler.as_view("delete_savefile"))
@@ -65,7 +65,7 @@ def pkg_init_maica_http():
     app.add_url_rule("/<path>", methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], view_func=ShortConnHandler.as_view("any_unknown", val=False))
 
     try:
-        known_servers = json.loads(load_env("SERVERS_LIST"))
+        known_servers = json.loads(load_env('MAICA_SERVERS_LIST'))
     except Exception as e:
         sync_messenger(info=f'Loading servers list failed: {str(e)}', type=MsgType.ERROR)
         known_servers = False
@@ -357,12 +357,12 @@ class ShortConnHandler(View):
     
     async def get_accessibility(self):
         """GET, val=False"""
-        accessibility = load_env('DEV_STATUS')
+        accessibility = load_env('MAICA_DEV_STATUS')
         return jsonify({"success": True, "exception": None, "content": accessibility})
     
     async def get_version(self):
         """GET, val=False"""
-        curr_version, legc_version = load_env('CURR_VERSION'), load_env('VERSION_CONTROL')
+        curr_version, legc_version = load_env('MAICA_CURR_VERSION'), load_env('MAICA_VERSION_CONTROL')
         return jsonify({"success": True, "exception": None, "content": {"curr_version": curr_version, "legc_version": legc_version}})
 
     async def get_workload(self):
@@ -371,6 +371,7 @@ class ShortConnHandler(View):
         content_2 = self.mfocus_watcher.get_statics_inside()
         if isinstance(content_2, dict):
             content.update(content_2)
+        content.update({"onliners": len(_onliners)})
 
         return jsonify({"success": True, "exception": None, "content": content})
     
@@ -445,7 +446,7 @@ async def prepare_thread(**kwargs):
         # respond to the original SIGINT.
 
         # So its stop msg will be print first, adding \n after ^C to look prettier.
-        
+
         await messenger(info='\n', type=MsgType.PLAIN)
         await messenger(info='MAICA HTTP server stopped!', type=MsgType.PRIM_SYS)
 

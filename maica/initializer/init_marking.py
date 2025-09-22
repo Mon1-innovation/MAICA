@@ -11,7 +11,7 @@ def check_marking():
         return False
     
 def create_marking():
-    curr_version, legc_version = load_env('CURR_VERSION'), load_env('VERSION_CONTROL')
+    curr_version, legc_version = load_env('MAICA_CURR_VERSION'), load_env('MAICA_VERSION_CONTROL')
     with open(mark_path, 'w') as mark:
         mark.write(f"This file's existence indicates that the program has been initiated once.\nTo try initiating it again, delete this file.\n\nWarning: Deleting this file will not make the program run any cleanups.\n\nInitiation version: {curr_version}")
     return
