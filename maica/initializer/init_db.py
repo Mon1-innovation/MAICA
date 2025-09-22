@@ -19,17 +19,17 @@ async def create_tables():
             curr_dbs.append(curr_db[0])
 
         if not AUTH_DB in curr_dbs:
-            print(f"[maica-dbs-init] AUTH_DB {AUTH_DB} does not exist, creating...")
+            sync_messenger(info=f"[maica-db] AUTH_DB {AUTH_DB} does not exist, creating...", type=MsgType.DEBUG)
             await basic_pool.query_modify(f"CREATE DATABASE IF NOT EXISTS {AUTH_DB}")
             auth_created = True
         else:
-            print(f"[maica-dbs-init] AUTH_DB {AUTH_DB} exists, skipping...")
+            sync_messenger(info=f"[maica-db] AUTH_DB {AUTH_DB} exists, skipping...", type=MsgType.WARN)
 
         if not MAICA_DB in curr_dbs:
-            print(f"[maica-dbs-init] MAICA_DB {MAICA_DB} does not exist, creating...")
+            sync_messenger(info=f"[maica-db] MAICA_DB {MAICA_DB} does not exist, creating...", type=MsgType.DEBUG)
             await basic_pool.query_modify(f"CREATE DATABASE IF NOT EXISTS {MAICA_DB}")
         else:
-            print(f"[maica-dbs-init] MAICA_DB {MAICA_DB} exists, skipping...")
+            sync_messenger(info=f"[maica-db] MAICA_DB {MAICA_DB} exists, skipping...", type=MsgType.WARN)
     elif not os.path.exists(get_inner_path(AUTH_DB)):
         auth_created = True
 
@@ -222,14 +222,16 @@ END;
 
     if auth_created:
         for table in auth_tables:
-            print("[maica-dbs-init] Adding table to AUTH_DB...")
+            sync_messenger(info="[maica-db] Adding table to AUTH_DB...", type=MsgType.DEBUG)
             await auth_pool.query_modify(table)
     else:
-        print("[maica-dbs-init]\nWarning: AUTH_DB was not created by MAICA, so we're not writing anything for security reason.\nPlease make sure AUTH_DB is already ready for authentication.")
+        sync_messenger(info="\n[maica-db] Warning: AUTH_DB was not created by MAICA, so we're not writing anything for security reason.\nPlease manually make sure AUTH_DB is already ready for authentication, or delete at your own risk.", type=MsgType.WARN)
 
     for table in maica_tables:
-        print("[maica-dbs-init] Adding table to MAICA_DB...")
+        sync_messenger(info="[maica-db] Adding table to MAICA_DB...", type=MsgType.DEBUG)
         await maica_pool.query_modify(table)
+
+    sync_messenger(info="[maica-db] MAICA databse initialization finished", type=MsgType.LOG)
 
 if __name__ == "__main__":
     asyncio.run(create_tables())

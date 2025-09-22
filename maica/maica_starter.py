@@ -14,7 +14,7 @@ import asyncio
 import argparse
 import colorama
 
-from maica import maica_ws, maica_http, common_schedule
+from maica import maica_ws, maica_http, common_schedule, silent as _silent
 from maica.maica_utils import *
 from maica.initializer import *
 
@@ -28,51 +28,57 @@ def pkg_init_maica():
 
 colorama.init(autoreset=True)
 initialized = False
-_silent = False
-
-def printer(*args, **kwargs):
-    global _silent
-    if not _silent:
-        sync_messenger(*args, **kwargs)
 
 def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwargs):
     """This will only run once. Recalling will not take effect, except passing in extra kwargs."""
-    global initialized, _silent
-    _silent = silent
+    global initialized
 
     def init_parser():
-        parser = argparse.ArgumentParser(description="Start MAICA Illuminator deployment")
+        parser = argparse.ArgumentParser(description="Start MAICA Illuminator deployment or run self-maintenance functions")
         parser.add_argument('-e', '--envdir', help='Include external env file for running deployment, specify every time')
-        parser.add_argument('-t', '--templates', choices=['print', 'create'], nargs='?', const='print', help='Print config templates or create them in current directory')
+        parser.add_argument('-s', '--silent', action="store_true", help='Run without logging (unrecommended for deployment)')
+        excluse_1 = parser.add_mutually_exclusive_group()
+        excluse_1.add_argument('-k', '--keys', choices=['path', 'export', 'import'], nargs='?', const='path', help='Get path of RSA keys, or export/import to/from current directory')
+        excluse_1.add_argument('-d', '--databases', choices=['path', 'export', 'import'], nargs='?', const='path', help='Get path of databases, or export/import to/from current directory')
+        excluse_1.add_argument('-t', '--templates', choices=['print', 'create'], nargs='?', const='print', help='Print config templates or create them in current directory')
         return parser
     
     parser = init_parser()
     args = parser.parse_args()
     envdir = envdir or args.envdir
-    templates = args.templates
+    silent = silent or args.silent
+    operate_keys = args.keys
+    operate_databases = args.databases
+    operate_templates = args.templates
+
+    _silent(silent)
 
     def dest_env(envdir: str=None, extra_envdir: list=None):
         if not envdir:
             realpath = get_inner_path('.env')
-            printer(info=f'No env file designated, defaulting to {realpath}...', type=MsgType.DEBUG)
+            sync_messenger(info=f'[maica-env] No env file designated, defaulting to {realpath}...', type=MsgType.DEBUG)
             envdir = realpath
+            if not os.path.isfile(envdir):
+                realpath = os.path.abspath('.env')
+                sync_messenger(info=f'[maica-env] {envdir} is not a file, trying {realpath}...', type=MsgType.DEBUG)
+        else:
+            realpath = os.path.abspath(envdir)
 
-        realpath = os.path.abspath(envdir)
         if os.path.isfile(realpath):
-            printer(info=f'Loading env file {realpath}...', type=MsgType.DEBUG)
+            sync_messenger(info=f'[maica-env] Loading env file {realpath}...', type=MsgType.DEBUG)
             load_dotenv(dotenv_path=realpath)
         else:
-            printer(info=f'{realpath} is not a file, skipping real env file...', type=MsgType.WARN)
+            sync_messenger(info=f'[maica-env] {realpath} is not a file, skipping real env file...', type=MsgType.WARN)
 
         if extra_envdir:
             for edir in extra_envdir:
                 realpath = os.path.abspath(edir)
                 if os.path.isfile(realpath):
-                    printer(info=f'Loading extra env file {realpath}...', type=MsgType.DEBUG)
+                    sync_messenger(info=f'[maica-env] Loading extra env file {realpath}...', type=MsgType.DEBUG)
                     load_dotenv(dotenv_path=realpath)
 
         realpath = get_inner_path('env_example')
-        printer(info=f'Loading env example {realpath} to guarantee basic functions...', type=MsgType.DEBUG)
+        sync_messenger(info=f'[maica-env] Loading env example {realpath} to guarantee basic functions...', type=MsgType.DEBUG)
         if os.path.isfile(realpath):
             load_dotenv(dotenv_path=realpath)
         else:
@@ -96,35 +102,63 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwar
         print(colorama.Fore.BLUE + separate_line('Begin .env template'))
         print(env_c)
         print(colorama.Fore.BLUE + separate_line('End .env template'))
-        exit(0)
+
+    def print_path(*files: list, common: str="keys"):
+        print(colorama.Fore.BLUE + separate_line(f'Begin {common} paths'))
+        for file in files:
+            print(get_inner_path(file))
+        print(colorama.Fore.BLUE + separate_line(f'End {common} paths'))
 
     def create_templates():
         env_c = get_templates()
         env_p = os.path.abspath('./.env')
         if os.path.exists(env_p):
-            printer(info=f'Config {env_p} already exists, skipping creation...', type=MsgType.WARN)
+            sync_messenger(info=f'[maica-cli] Config {env_p} already exists, skipping creation...', type=MsgType.WARN)
         else:
             with open(env_p, 'w', encoding='utf-8') as env_f:
-                printer(info=f'Generating {env_p}...', type=MsgType.DEBUG)
+                sync_messenger(info=f'[maica-cli] Generating {env_p}...', type=MsgType.DEBUG)
                 env_f.write(env_c)
 
-        printer(info='Creation succeeded, edit them yourself and then start with "maica -c .env"', type=MsgType.INFO)
-        exit(0)
+        sync_messenger(info='[maica-cli] Creation succeeded, edit them yourself and then start with "maica -c .env"', type=MsgType.LOG)
 
     if kwargs:
         for k, v in kwargs.items():
             os.environ[k] = v
-        printer(info=f'Added {len(kwargs)} vars to environ.', type=MsgType.DEBUG)
+        sync_messenger(info=f'[maica-env] Added {len(kwargs)} vars to environ.', type=MsgType.DEBUG)
 
     if not initialized:
         try:
-            if templates:
-                print_templates() if templates == 'print' else create_templates()
+            if operate_keys:
+                match operate_keys:
+                    case 'path':
+                        print_path('pub.key', 'prv.key')
+                    case 'export':
+                        export_keys('.')
+                    case 'import':
+                        import_keys('.')
+                exit()
+
+            if operate_templates:
+                print_templates() if operate_templates == 'print' else create_templates()
+                exit()
+
             dest_env(envdir, extra_envdir)
+
+            if operate_databases:
+                match operate_databases:
+                    case 'path':
+                        if load_env('MAICA_DB_ADDR') == "sqlite":
+                            print_path(load_env('MAICA_AUTH_DB'), load_env('MAICA_DATA_DB'), common='databases')
+                        else:
+                            sync_messenger(info='[maica-cli] MAICA using served databases!', type=MsgType.WARN)
+                    case _:
+                        sync_messenger(info='\n[maica-cli] Function yet not supported, do it manually.\nNever ask why we made this.', type=MsgType.LOG)
+                exit()
+
             pkg_init_maica()
             initialized = True
         except Exception as e:
-            printer(info=f'Error: {str(e)}, quitting...', type=MsgType.ERROR)
+            sync_messenger(info=f'[maica-init] Error: {str(e)}, quitting...', type=MsgType.ERROR)
             exit(1)
 
 def check_env_init():
@@ -147,19 +181,19 @@ def check_data_init():
         generate_rsa_keys()
         asyncio.run(create_tables())
         create_marking()
-        printer(info="MAICA Illuminator initiation finished", type=MsgType.PRIM_SYS)
+        sync_messenger(info="MAICA Illuminator initialization finished", type=MsgType.PRIM_SYS)
     else:
-        printer(info="Initiated marking detected, skipping initiation", type=MsgType.DEBUG)
+        sync_messenger(info="Initiated marking detected, skipping initialization", type=MsgType.DEBUG)
 
 def check_warns():
     if load_env('MAICA_DB_ADDR') == 'sqlite':
-        printer(info='\nMAICA using SQLite database detected\nWhile MAICA Illuminator is fully compatible with SQLite, it can be a significant drawback of performance under heavy workload\nIf this is a public service instance, it\'s strongly recommended to use MySQL/MariaDB instead', type=MsgType.DEBUG)
+        sync_messenger(info='\nMAICA using SQLite database detected\nWhile MAICA Illuminator is fully compatible with SQLite, it can be a significant drawback of performance under heavy workload\nIf this is a public service instance, it\'s strongly recommended to use MySQL/MariaDB instead', type=MsgType.DEBUG)
     if not load_env('MAICA_PROXY_ADDR'):
-        printer(info='\nInternet proxy absence detected\nMAICA Illuminator needs to access Google and Wikipedia for full functionalities, so you\'ll possibly need a proxy for those\nYou can ignore this message safely if you have direct access to those or have a global proxy set already', type=MsgType.DEBUG)
+        sync_messenger(info='\nInternet proxy absence detected\nMAICA Illuminator needs to access Google and Wikipedia for full functionalities, so you\'ll possibly need a proxy for those\nYou can ignore this message safely if you have direct access to those or have a global proxy set already', type=MsgType.DEBUG)
     if load_env('MAICA_DEV_STATUS') != 'serving':
-        printer(info='\nServer status not serving detected\nWith this announcement taking effect, standard clients will stop further communications with MAICA Illuminator respectively\nYou should set DEV_STATUS to \'serving\' whenever the instance is ready to serve', type=MsgType.DEBUG)
+        sync_messenger(info='\nServer status not serving detected\nWith this announcement taking effect, standard clients will stop further communications with MAICA Illuminator respectively\nYou should set DEV_STATUS to \'serving\' whenever the instance is ready to serve', type=MsgType.DEBUG)
     if (load_env('MAICA_MCORE_NODE') and load_env('MAICA_MCORE_USER') and load_env('MAICA_MCORE_PWD')) or (load_env('MAICA_MFOCUS_NODE') and load_env('MAICA_MFOCUS_USER') and load_env('MAICA_MFOCUS_PWD')):
-        printer(info='\nOne or more NVwatch nodes detected\nNVwatch of MAICA Illuminator will try to collect nvidia-smi outputs through SSH, which can fail the process if SSH not avaliable\nIf SSH of nodes are not accessable or not wanted to be used, delete X_NODE, X_USER, X_PWD accordingly', type=MsgType.DEBUG)
+        sync_messenger(info='\nOne or more NVwatch nodes detected\nNVwatch of MAICA Illuminator will try to collect nvidia-smi outputs through SSH, which can fail the process if SSH not avaliable\nIf SSH of nodes are not accessable or not wanted to be used, delete X_NODE, X_USER, X_PWD accordingly', type=MsgType.DEBUG)
 
 async def start_all():
 

@@ -17,6 +17,7 @@ from .locater import *
 """Import layer 1"""
 
 colorama.init(autoreset=True)
+_silent = False
 
 class MsgType():
     """For convenience."""
@@ -423,7 +424,7 @@ def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional
         stack = inspect.stack()
         stack.pop(0)
 
-    if not no_print:
+    if (not no_print) and (not _silent):
         match type:
             case "plain":
                 print((color or '') + msg_print, end='')
