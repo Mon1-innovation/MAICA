@@ -84,6 +84,7 @@ class WsCoroutine(NoWsCoroutine):
 
         await messenger(websocket, "maica_connection_established", "MAICA connection established", "201", type=MsgType.INFO, no_print=True)
         await messenger(websocket, "maica_provider_anno", f"Current service provider is {load_env('MAICA_DEV_IDENTITY') or 'UNKNOWN'}", "200", type=MsgType.INFO, no_print=True)
+        await messenger(websocket, "maica_model_anno", f"Main model is {self.mcore_conn.model_actual}, MFocus model is {self.mfocus_conn.model_actual}", "200", type=MsgType.INFO, no_print=True)
 
         # Starting loop from here
         while True:
@@ -423,7 +424,7 @@ async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn, 
         except websockets.exceptions.WebSocketException as we:
             try:
                 we_code, we_reason = we.code, we.reason
-                await messenger(info=f'Connection closed with {we_code}: {we_reason}', type=MsgType.PRIM_LOG)
+                await messenger(info=f'Connection closed with {we_code}: {we_reason or 'No reason provided'}', type=MsgType.PRIM_LOG)
             except Exception:
                 await messenger(info=f'Connection establishment failed: {str(we)}', type=MsgType.PRIM_LOG)
 

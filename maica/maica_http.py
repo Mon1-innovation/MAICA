@@ -10,11 +10,6 @@ import logging
 
 from hypercorn.config import Config
 from hypercorn.asyncio import serve
-from Crypto.Random import random as CRANDOM
-from Crypto.Cipher import PKCS1_OAEP
-from Crypto.PublicKey import RSA
-from Crypto.Signature import PKCS1_PSS
-from Crypto.Hash import SHA256
 from typing import *
 
 from maica.maica_ws import NoWsCoroutine, _onliners
@@ -405,14 +400,14 @@ async def prepare_thread(**kwargs):
 
     if get_host(MCORE_ADDR) != get_host(MFOCUS_ADDR):
 
-        ShortConnHandler.mcore_watcher = await NvWatcher.async_create('mcore')
-        ShortConnHandler.mfocus_watcher = await NvWatcher.async_create('mfocus')
+        ShortConnHandler.mcore_watcher = await NvWatcher.async_create('mcore', 'maica')
+        ShortConnHandler.mfocus_watcher = await NvWatcher.async_create('mfocus', 'maica')
         mcore_task = asyncio.create_task(ShortConnHandler.mcore_watcher.wrapped_main_watcher())
         mfocus_task = asyncio.create_task(ShortConnHandler.mfocus_watcher.wrapped_main_watcher())
 
     else:
 
-        ShortConnHandler.mcore_watcher = await NvWatcher.async_create('mcore')
+        ShortConnHandler.mcore_watcher = await NvWatcher.async_create('mcore', 'maica')
         mcore_task = asyncio.create_task(ShortConnHandler.mcore_watcher.wrapped_main_watcher())
         mfocus_task = None
 

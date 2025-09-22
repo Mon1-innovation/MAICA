@@ -1,8 +1,8 @@
 import os
+import re
 import sys
 import argparse
 import setuptools
-from dotenv import load_dotenv
 
 custom_parser = argparse.ArgumentParser(add_help=False)
 custom_parser.add_argument('-o', '--override-version', help='Override default version for testing')
@@ -13,8 +13,19 @@ sys.argv = [sys.argv[0]] + remaining_args
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-load_dotenv(dotenv_path="maica/env_example")
-curr_version, legc_version = os.getenv('MAICA_CURR_VERSION'), os.getenv('MAICA_VERSION_CONTROL')
+with open("maica/env_example", "r", encoding="utf-8") as env:
+    curr_version_line = re.compile(r'^MAICA_CURR_VERSION\s*=\s*\'(.*)\'')
+    for line in env:
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        res = curr_version_line.match(line)
+        if res:
+            curr_version = res[1]
+            break
+    else:
+        raise Exception('no version line found')
+
 curr_version = custom_args.override_version if custom_args.override_version else curr_version
 
 def parse_requirements(filename='requirements.txt'):

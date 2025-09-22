@@ -8,7 +8,7 @@
 MAICA_IS_REAL_ENV = '0'
 
 # Current backend version
-MAICA_CURR_VERSION = '1.1.004'
+MAICA_CURR_VERSION = '1.1.004.post1'
 
 
 # Model endpoint settings
@@ -140,14 +140,14 @@ MAICA_SERVERS_LIST = '
 # NVWatcher settings
 
 # Name of MAICA core deployment device
-# MAICA_MCORE_NODE = 'HGX690-nuclear-edition'
+# MAICA_MCORE_NODE = ''# HGX690-nuclear-edition
 # Username to access nvidia-smi through SSH
-# MAICA_MCORE_USER = 'root'
+# MAICA_MCORE_USER = ''# root
 # Password for SSH login
-# MAICA_MCORE_PWD = '123456'
+# MAICA_MCORE_PWD = ''# 123456
 # Name of MFocus deployment device
-# MAICA_MFOCUS_NODE = 'HGX610-biohazard-edition'
+# MAICA_MFOCUS_NODE = ''# HGX610-biohazard-edition
 # Username to access nvidia-smi through SSH
-# MAICA_MFOCUS_USER = 'root'
+# MAICA_MFOCUS_USER = ''# root
 # Password for SSH login
-# MAICA_MFOCUS_PWD = '123456'
+# MAICA_MFOCUS_PWD = ''# 123456

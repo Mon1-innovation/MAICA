@@ -11,11 +11,11 @@ import signal
 from maica.maica_utils import *
 
 class NvWatcher(AsyncCreator):
-    def __init__(self, node):
+    def __init__(self, node, prefix="maica"):
         self.node = node
-        self.node_name = load_env(f'MAICA_{node.upper()}_NODE')
-        self.node_user = load_env(f'MAICA_{node.upper()}_USER')
-        self.node_pwd = load_env(f'MAICA_{node.upper()}_PWD')
+        self.node_name = load_env(f'{prefix.upper()}_{node.upper()}_NODE')
+        self.node_user = load_env(f'{prefix.upper()}_{node.upper()}_USER')
+        self.node_pwd = load_env(f'{prefix.upper()}_{node.upper()}_PWD')
         try:
             self.node_addr = ReUtils.re_search_host_addr.search(load_env(f'MAICA_{node.upper()}_ADDR'))[1]
         except Exception:
@@ -130,8 +130,8 @@ class NvWatcher(AsyncCreator):
             pass
 
 async def prepare_watcher():
-    watcher_mcore = await NvWatcher.async_create('mcore')
-    watcher_mfocus = await NvWatcher.async_create('mfocus')
+    watcher_mcore = await NvWatcher.async_create('mcore', 'maica')
+    watcher_mfocus = await NvWatcher.async_create('mfocus', 'maica')
     try:
         await asyncio.gather(watcher_mcore.main_watcher(), watcher_mfocus.main_watcher())
     except Exception as e:
