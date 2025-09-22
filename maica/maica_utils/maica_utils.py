@@ -114,31 +114,6 @@ class AsyncCreator():
         await instance._ainit()
         return instance
 
-    # 使用类装饰器更新 async_create 的元数据
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        # 获取子类的 __init__ 或构造函数文档和签名
-        init_doc = cls.__init__.__doc__ or cls.__doc__
-        init_sig = inspect.signature(cls.__init__)
-        
-        # 更新 async_create 的文档和注解
-        original_method = cls.async_create
-        
-        # 创建包装器并更新元数据
-        @functools.wraps(original_method)
-        async def async_create_wrapper(*args, **kwargs):
-            return await original_method(*args, **kwargs)
-        
-        # 设置文档字符串
-        async_create_wrapper.__doc__ = init_doc
-        
-        # 更新参数签名（保留 cls 参数，其余与 __init__ 一致）
-        parameters = tuple(init_sig.parameters.values())[1:]  # 移除 self 参数
-        async_create_wrapper.__signature__ = init_sig.replace(parameters=parameters)
-        
-        # 重新绑定到类
-        cls.async_create = classmethod(async_create_wrapper)
-
 class LimitedList(list):
     """Might not have applied to all functionalities!"""
     def __init__(self, max_size, *args, **kwargs):
