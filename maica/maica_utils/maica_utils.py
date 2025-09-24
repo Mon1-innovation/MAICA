@@ -361,7 +361,7 @@ async def messenger(websocket=None, status='', info='', code='0', traceray_id=''
 async def messenger(websocket=None, *args, **kwargs) -> None:
     """Together with websocket.send()."""
     ws_tuple = sync_messenger(*args, **kwargs)
-    if websocket:
+    if websocket and ws_tuple:
         await websocket.send(wrap_ws_formatter(*ws_tuple))
 
 def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaException]=None, prefix='', type='', color='', add_time=True, no_print=False, no_raise=False) -> list:
@@ -375,7 +375,7 @@ def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional
 
     if error:
         status = error.status if not status else status; info = error.message if not info else info; code = error.error_code if code == "0" else code
-        websocket = websocket if not error.send is False else None; no_print = False if not error.print is False else True
+        no_print = False if not error.print is False else True
 
     if not type:
         match int(code):
@@ -462,6 +462,8 @@ def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional
                 print((color or colorama.Fore.LIGHTRED_EX) + msg_print)
     if error and not no_raise:
         raise error
+    if error and not error.send:
+        return
     return code, status, msg_send, type
 
 def load_env(key) -> str:
