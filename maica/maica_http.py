@@ -89,6 +89,10 @@ class ShortConnHandler(View):
         else:
             self.val = False
 
+    def msg_http(self, *args, **kwargs):
+        if self.val:
+            sync_messenger(*args, **kwargs)
+
     async def dispatch_request(self, **kwargs):
         try:
             if self.val:
@@ -99,16 +103,16 @@ class ShortConnHandler(View):
                 self.settings = None
             endpoint = request.endpoint
             function_routed = getattr(self, endpoint)
-            if function_routed:
-                await messenger(info=f'Recieved request on API endpoint {endpoint}', type=MsgType.RECV)
-                result = await function_routed()
 
-                if isinstance(result, Response):
-                    result_json = await result.get_json()
-                    d = {"success": result_json.get('success'), "exception": result_json.get('exception'), "content": ellipsis_str(result_json.get('content'))}
-                    await messenger(info=f'Return value: {str(d)}', type=MsgType.SYS)
+            self.msg_http(info=f'Recieved request on API endpoint {endpoint}', type=MsgType.RECV)
+            result = await function_routed()
 
-                return result
+            if isinstance(result, Response):
+                result_json = await result.get_json()
+                d = {"success": result_json.get('success'), "exception": result_json.get('exception'), "content": ellipsis_str(result_json.get('content'))}
+                self.msg_http(info=f'Return value: {str(d)}', type=MsgType.SYS)
+
+            return result
 
         except CommonMaicaException as ce:
             if ce.is_critical:
