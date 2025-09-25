@@ -685,7 +685,13 @@ class SfBoundCoroutine(SideBoundCoroutine):
                         '莫妮卡喜欢开放世界的冒险游戏, 不太喜欢暴力游戏.',
                         '莫妮卡喜欢音乐会.',
                         '莫妮卡喜欢小裙子和蝴蝶结.',
-                        '莫妮卡善于关怀和安慰, 在[player]低沉时希望他振作起来.'
+                        '莫妮卡善于关怀和安慰, 在[player]低沉时希望他振作起来.',
+                        '纱世里是心跳文学部的副部长.',
+                        '纱世里平常表现阳光活泼, 但患有抑郁症.',
+                        '夏树是心跳文学部的部员.',
+                        '夏树性格傲娇, 有时又显得可爱.',
+                        '优里是心跳文学部的部员.',
+                        '优里性格内向, 往往显得成熟优雅.',
                     ])
             if extra >= 2:
                 data_ex.extend([
@@ -741,7 +747,13 @@ class SfBoundCoroutine(SideBoundCoroutine):
                         "Monika likes openworld and sandbox games, but doesn't really like violence.",
                         "Monika likes concerts.",
                         "Monika likes skirts and ribbons.",
-                        "Monika is caring and comforting. She wants [player] to be happy and cheered up."
+                        "Monika is caring and comforting. She wants [player] to be happy and cheered up.",
+                        'Sayori is the vice president of the literature club.',
+                        'Sayori usually appears outgoing and positive, but she has depression.',
+                        'Natsuki is member of the literature club.',
+                        'Natsuki is tsundere, appears cute sometimes.',
+                        'Yuri is member of the literature club.',
+                        'Yuri is introvert, usually appears mature and elegant.',
                     ])
             if extra >= 2:
                 data_ex.extend([
