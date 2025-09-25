@@ -212,7 +212,7 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
 
                     + 信息密度更高, 更容易维持语言自然.
                     - 表现十分依赖agent模型自身的能力.
-                    - 启用时会禁用tnd_aggressive.
+                    - 启用时一般会无效化tnd_aggressive.
 
                 tnd_aggressive: 即使MFocus未调用工具, 也提供一些工具的结果.
 
