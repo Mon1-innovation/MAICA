@@ -203,8 +203,9 @@ class NoWsCoroutine(AsyncCreator):
             chat_session_id, content_archive = result
             sql_expression_2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
             await self.maica_pool.query_modify(expression=sql_expression_2, values=(content_new, chat_session_id))
-            sql_expression_3 = "INSERT INTO csession_archived (chat_session_id, content) VALUES (%s, %s)"
-            await self.maica_pool.query_modify(expression=sql_expression_3, values=(chat_session_id, content_archive))
+            if content_archive:
+                sql_expression_3 = "INSERT INTO csession_archived (chat_session_id, content) VALUES (%s, %s)"
+                await self.maica_pool.query_modify(expression=sql_expression_3, values=(chat_session_id, content_archive))
             return True
         else:
             chat_session_id = await self._create_session(chat_session_num=chat_session_num, content=content_new)
