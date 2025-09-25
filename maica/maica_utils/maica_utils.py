@@ -424,6 +424,7 @@ def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional
     if type in frametrack_dict:
         stack = inspect.stack()
         stack.pop(0)
+        stack.pop(0)
 
     if (not no_print) and (not _silent):
         match type:
@@ -463,7 +464,7 @@ def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional
                 print((color or colorama.Fore.LIGHTRED_EX) + msg_print)
     if error and not no_raise:
         raise error
-    if error and not error.send:
+    if error and error.send is False:
         return
     return code, status, msg_send, type
 

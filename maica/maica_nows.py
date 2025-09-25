@@ -332,11 +332,11 @@ class NoWsCoroutine(AsyncCreator):
                 if 'f2b' in verification_result[1]:
                     raise MaicaPermissionError(f'Account locked by Fail2Ban, {verification_result[1]['f2b']} seconds remaining', '429', 'maica_login_denied_fail2ban')
                 elif 'necf' in verification_result[1]:
-                    raise MaicaPermissionError(f'Account Email not verified, check inbox and retry', '401', 'maica_login_denied_email')
+                    raise MaicaPermissionWarning(f'Account Email not verified, check inbox and retry', '401', 'maica_login_denied_email')
                 elif 'pwdw' in verification_result[1]:
                     raise MaicaPermissionWarning(f'Password hashing failed {verification_result[1]['pwdw']} times, check password and retry', '403', 'maica_login_denied_password')
             elif isinstance(verification_result[1], CommonMaicaException):
                 raise verification_result[1]
             else:
-                raise MaicaPermissionError(verification_result[1], '400', 'maica_login_denied_rsa')
+                raise MaicaPermissionWarning(verification_result[1], '400', 'maica_login_denied_rsa')
         return False
