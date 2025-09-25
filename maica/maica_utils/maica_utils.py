@@ -327,8 +327,9 @@ def maica_assert(condition, kwd='param'):
     if not condition:
         raise MaicaInputWarning(f"Illegal input {kwd} detected", '405', 'maica_input_param_bad')
 
-def has_valid_content(text: str):
+def has_valid_content(text: Union[str, list, dict]):
     """If the LLM actually gave anything."""
+    text = str(text)
     text_proc = text.lower().strip()
     if (not text_proc) or text_proc in ['false', 'null', 'none']:
         return False
