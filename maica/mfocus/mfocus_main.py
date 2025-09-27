@@ -375,17 +375,19 @@ class MFocusCoroutine(SideFunctionCoroutine):
                 if not instructed_answer.get('weather_acquire'):
                     _instructed_add('weather_acquire', (await self.agent_tools.weather_acquire())[1], False)
 
-            instructed_answer_list = []
+            instructed_answer_str = ''
             if instructed_answer:
                 for k, v in instructed_answer.items():
                     # v can be only list or str
-                    instructed_answer_list.extend(v) if isinstance(v, list) else instructed_answer_list.append(v)
+                    if k in ["persistent_acquire", "search_internet"]:
+                        v = '"' + v + '"' if isinstance(v, str) else '"' + ', '.join(v) + '"'
+                    else:
+                        v = '[' + v + ']'
+                    instructed_answer_str += v
             else:
                 # If there's really no instruction
                 return None
 
-            instructed_answer_str = ']; ['.join([i for i in instructed_answer_list if i])
-            instructed_answer_str = f'[{instructed_answer_str}]'
             return instructed_answer_str
         
         except CommonMaicaException as ce:
