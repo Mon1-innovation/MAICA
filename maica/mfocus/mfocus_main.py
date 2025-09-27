@@ -385,7 +385,7 @@ class MFocusCoroutine(SideFunctionCoroutine):
                 return None
 
             instructed_answer_str = ']; ['.join([i for i in instructed_answer_list if i])
-            instructed_answer = f'[{instructed_answer_str}]'
+            instructed_answer_str = f'[{instructed_answer_str}]'
             return instructed_answer_str
         
         except CommonMaicaException as ce:
