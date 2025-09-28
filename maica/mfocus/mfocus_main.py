@@ -380,9 +380,15 @@ class MFocusCoroutine(SideFunctionCoroutine):
                 for k, v in instructed_answer.items():
                     # v can be only list or str
                     if k in ["persistent_acquire", "search_internet"]:
-                        v = '"' + v + '"' if isinstance(v, str) else '"' + ', '.join(v) + '"'
+                        if v:
+                            v = '"' + v + '"' if isinstance(v, str) else '"' + ', '.join(v) + '"'
+                        else:
+                            v = ''
                     else:
-                        v = '[' + v + ']'
+                        if v:
+                            v = '[' + v + ']'
+                        else:
+                            v = ''
                     instructed_answer_str += v
             else:
                 # If there's really no instruction

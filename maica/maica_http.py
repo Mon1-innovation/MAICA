@@ -124,7 +124,8 @@ class ShortConnHandler(View):
             await messenger(info=f'Handler hit an exception: {str(e)}', type=MsgType.WARN)
             return jsonify({"success": False, "exception": str(e)})
 
-    async def _validate_http(self, raw_data: Union[str, dict], must: list=[]) -> dict:
+    async def _validate_http(self, raw_data: Union[str, dict], must: Optional[list]=None) -> dict:
+        must = must if must else []
         data_json = await validate_input(raw_data, 100000, None, must=must)
         if self.val and 'access_token' in must:
             access_token = data_json.get('access_token')
@@ -269,7 +270,7 @@ class ShortConnHandler(View):
         content = valid_data.get('content')
         assert isinstance(content, dict), "Request content invalid" 
         preferences_json.update(content)
-        await self._validate_http(preferences_json, must=[])
+        await self._validate_http(preferences_json)
 
         await self.stem_inst.hasher.write_user_status(enforce=True, pref=True, **preferences_json)
         return jsonify({"success": True, "exception": None})

@@ -340,10 +340,12 @@ class ConnUtils():
         conn.default_params(**json.loads(load_env('MAICA_MFOCUS_EXTRA')))
         return conn
 
-async def validate_input(input: Union[str, dict, list], limit: int=4096, rsc: Optional[FscPlain.RealtimeSocketsContainer]=None, must: list=[], warn: list=[]) -> Union[dict, list]:
+async def validate_input(input: Union[str, dict, list], limit: int=4096, rsc: Optional[FscPlain.RealtimeSocketsContainer]=None, must: Optional[list]=None, warn: Optional[list]=None) -> Union[dict, list]:
     """
     Mostly for ws.
     """
+    must = must if must else []
+    warn = warn if warn else []
     if not input:
         raise MaicaInputWarning('Input is empty', '410', 'maica_input_validation_denied')
     

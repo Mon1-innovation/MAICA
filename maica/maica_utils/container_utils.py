@@ -13,7 +13,7 @@ class FullSocketsContainer():
     
     def __init__(self, websocket=None, traceray_id='', maica_settings=None, auth_pool=None, maica_pool=None, mcore_conn=None, mfocus_conn=None):
         self.rsc = self.RealtimeSocketsContainer(websocket, traceray_id)
-        self.maica_settings: MaicaSettings = maica_settings() if not maica_settings else maica_settings
+        self.maica_settings: MaicaSettings = MaicaSettings() if not maica_settings else maica_settings
         self.auth_pool: Optional[DbPoolCoroutine] = auth_pool
         self.maica_pool: Optional[DbPoolCoroutine] = maica_pool
         self.mcore_conn: Optional[AiConnCoroutine] = mcore_conn

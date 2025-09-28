@@ -341,6 +341,7 @@ class WsCoroutine(NoWsCoroutine):
                     token = chunk.choices[0].delta.content
                     if token:
                         await asyncio.sleep(0)
+                        token = ReUtils.re_sub_replacement_chr.sub('', token)
                         await messenger(websocket, 'maica_core_streaming_continue', token, '100')
                         reply_appended += token
                         seq += 1

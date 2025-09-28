@@ -202,6 +202,7 @@ class ReUtils():
     re_findall_square_marks = re.compile(r'\[(?:(?:[A-Za-z ]{1,15}?)|(?:[一-龥 ]{1,4}?))\]')
     re_findall_square_brackets = re.compile(r'\[(.*?)\]')
     re_sub_sqlite_escape = re.compile(r'%s')
+    re_sub_replacement_chr = re.compile(r'[\uFFF9-\uFFFF]')
 
 class Decos():
     def escape_sqlite_expression(func):
