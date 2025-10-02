@@ -8,7 +8,7 @@
 MAICA_IS_REAL_ENV = '0'
 
 # Current backend version
-MAICA_CURR_VERSION = '1.1.004.post4'
+MAICA_CURR_VERSION = '1.1.004.post5'
 
 
 # Model endpoint settings
@@ -139,6 +139,8 @@ MAICA_SERVERS_LIST = '
 
 # NVWatcher settings
 
+# Write NVW data to dedicated SQLite or not
+MAICA_WRITE_NVW = '0'
 # Name of MAICA core deployment device
 # MAICA_MCORE_NODE = ''# HGX690-nuclear-edition
 # Username to access nvidia-smi through SSH

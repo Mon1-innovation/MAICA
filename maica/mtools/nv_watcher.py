@@ -10,12 +10,21 @@ import asyncssh
 import signal
 from maica.maica_utils import *
 
+class _FakeSQLiteConn():
+    async def __aenter__(self):
+        return self
+    async def execute(self, *args, **kwargs):
+        return self
+    async def __aexit__(self, exc_type, exc_val, exc_tb):...
+
 class NvWatcher(AsyncCreator):
     def __init__(self, node, prefix="maica"):
+        self.write_nvw = load_env('MAICA_WRITE_NVW') == '1'
         self.node = node
         self.node_name = load_env(f'{prefix.upper()}_{node.upper()}_NODE')
         self.node_user = load_env(f'{prefix.upper()}_{node.upper()}_USER')
         self.node_pwd = load_env(f'{prefix.upper()}_{node.upper()}_PWD')
+        self.is_dead = False
         try:
             self.node_addr = ReUtils.re_search_host_addr.search(load_env(f'MAICA_{node.upper()}_ADDR'))[1]
         except Exception:
@@ -23,14 +32,15 @@ class NvWatcher(AsyncCreator):
 
     async def _ainit(self):
         """Must run in the action loop."""
-        if not self.is_active():
-            return
+        try:
+            await self._connect_remotes()
+            await self._initiate_db()
+        except Exception:
+            self.is_dead = True
 
-        await self._connect_remotes()
-        await self._initiate_db()
-
+    @property
     def is_active(self):
-        if not self.node_name or not self.node_user or not self.node_pwd or not self.node_addr:
+        if not self.node_name or not self.node_user or not self.node_pwd or not self.node_addr or self.is_dead:
             return False
         else:
             return True
@@ -46,7 +56,7 @@ class NvWatcher(AsyncCreator):
 
     async def _initiate_db(self):
         self.db_path = get_inner_path('.nvsw.db')
-        async with aiosqlite.connect(self.db_path, autocommit=True) as db_client:
+        async with aiosqlite.connect(self.db_path, autocommit=True) if self.write_nvw else _FakeSQLiteConn() as db_client:
             self.gpu_overall = []
 
             basis_keys = ['name', 'memory.total']
@@ -54,8 +64,18 @@ class NvWatcher(AsyncCreator):
             await db_client.execute(f'CREATE TABLE IF NOT EXISTS `{self.node_name}` (id INT PRIMARY KEY, name TEXT, memory TEXT, tflops TEXT, dynamic TEXT);')
 
             for i, gpu in enumerate(basic_result):
-                await db_client.execute(f'INSERT OR REPLACE INTO `{self.node_name}` (id, name, memory, tflops, dynamic) VALUES ({i}, "{gpu["name"]}", "{gpu[" memory.total [MiB]"]}", "400", "[]");')
-                self.gpu_overall.append([i, gpu["name"], gpu[" memory.total [MiB]"], "400", []])
+                name = gpu["name"]; memory = gpu[" memory.total [MiB]"]; tflops = '200'
+                
+                match name:
+                    case n if 'PRO 6000' in n:
+                        tflops = '460'
+                    case n if '5090' in n:
+                        tflops = '420'
+                    case n if '4090' in n:
+                        tflops = '330'
+
+                await db_client.execute(f'INSERT OR REPLACE INTO `{self.node_name}` (id, name, memory, tflops, dynamic) VALUES ({i}, "{name}", "{memory}", "{tflops}", "[]");')
+                self.gpu_overall.append([i, name, memory, tflops, []])
 
     async def _append_dynamic(self, history: list, gpu: dict):
         gpu_values = list(gpu.values())
@@ -66,8 +86,11 @@ class NvWatcher(AsyncCreator):
         return history
 
     async def main_watcher(self):
-        if not self.is_active():
-            await messenger(info=f"Necessary info not complete for watching {self.node}, freezing watcher", type=MsgType.PRIM_SYS)
+        if not self.is_active:
+            if self.is_dead:
+                await messenger(info=f"Cannot connect to SSH of {self.node}, freezing watcher", type=MsgType.WARN)
+            else:
+                await messenger(info=f"Necessary info not complete for watching {self.node}, freezing watcher", type=MsgType.LOG)
             await sleep_forever()
         else:
             await messenger(info=f'Necessities complete for watching {self.node}, starting watcher', type=MsgType.LOG)
@@ -76,7 +99,7 @@ class NvWatcher(AsyncCreator):
         dynamic_keys = ['utilization.gpu', 'memory.used', 'power.draw']
         while True:
             dynamics_new = await self._query_nvsmi(self.node_ssh, dynamic_keys)
-            async with aiosqlite.connect(self.db_path, autocommit=True) as db_client:
+            async with aiosqlite.connect(self.db_path, autocommit=True) if self.write_nvw else _FakeSQLiteConn() as db_client:
 
                 for i, gpu in enumerate(dynamics_new):
                     try:
@@ -108,7 +131,7 @@ class NvWatcher(AsyncCreator):
         raise MaicaConnectionWarning(f'Watcher query failed {FAIL_TIMES} times in {FAIL_PERIOD}sec', '503')
     
     def get_statics_inside(self):
-        if not self.is_active():
+        if not self.is_active:
             return {}
         
         node_info = {}
