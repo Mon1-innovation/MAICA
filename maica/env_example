@@ -8,7 +8,7 @@
 MAICA_IS_REAL_ENV = '0'
 
 # Current backend version
-MAICA_CURR_VERSION = '1.1.005'
+MAICA_CURR_VERSION = '1.1.005.post1'
 
 
 # Model endpoint settings
@@ -107,6 +107,7 @@ MAICA_PRINT_VERBOSE = '1'
 # Enable MAICA X11 forwarding for special cases or not
 MAICA_ENABLE_X11 = '1'
 # No use online searching tool or do
+# It's OS dependent, performance consuming and relatively slow since it spawns a full Chrome instance on each search, but google hardly detects it in exchange
 MAICA_NO_SERP = '0'
 # No send 5xx exceptions' real content or do
 MAICA_NO_SEND_ERROR = '0'
