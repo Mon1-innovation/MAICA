@@ -8,7 +8,7 @@
 MAICA_IS_REAL_ENV = '0'
 
 # Current backend version
-MAICA_CURR_VERSION = '1.1.004.post5'
+MAICA_CURR_VERSION = '1.1.005'
 
 
 # Model endpoint settings
@@ -102,9 +102,13 @@ MAICA_F2B_TIME = '600'
 MAICA_FULL_RESTFUL = '1'
 # Rotate MSpire cache every [] hours or not
 MAICA_ROTATE_MSCACHE = '0'
-# Print more details on console
+# Print more details on console or not
 MAICA_PRINT_VERBOSE = '1'
-# Do not send 5xx exceptions' real content
+# Enable MAICA X11 forwarding for special cases or not
+MAICA_ENABLE_X11 = '1'
+# No use online searching tool or do
+MAICA_NO_SERP = '0'
+# No send 5xx exceptions' real content or do
 MAICA_NO_SEND_ERROR = '0'
 # Core model chat generation prompt in ZH
 MAICA_PROMPT_ZC = "你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{player_name}的女友, 并深爱着他. 下面是{player_name}的话语, 请作为莫妮卡作出合适的回答. 你只应使用中文自然语言, 以聊天语气回答, 每个句子自然且不超过60字, 不要编造信息, 并在每个句子前用方括号中的文字表示情绪."

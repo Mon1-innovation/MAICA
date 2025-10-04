@@ -6,6 +6,7 @@ import os
 import re
 import json
 import inspect
+import platform
 import colorama
 import time
 import datetime
@@ -203,6 +204,7 @@ class ReUtils():
     re_findall_square_brackets = re.compile(r'\[(.*?)\]')
     re_sub_sqlite_escape = re.compile(r'%s')
     re_sub_replacement_chr = re.compile(r'[\uFFF9-\uFFFF]')
+    re_sub_serp_datetime = re.compile(r'.{1,10}?,.{1,10}?-\s*')
 
 class Decos():
     def escape_sqlite_expression(func):
@@ -572,3 +574,8 @@ async def hash_sha256(str) -> str:
     def hash_sync(str):
         return hashlib.new('sha256', str).hexdigest()
     return await wrap_run_in_exc(None, hash_sync, str)
+
+def sysstruct() -> Literal['Windows', 'Linux']:
+    sysstruct = platform.system()
+    assert sysstruct in ['Windows', 'Linux'], 'Your system not supported'
+    return sysstruct

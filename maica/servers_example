@@ -1,6 +1,0 @@
-{
-    "isMaicaNameServer": true,
-    "servers": [
-        {"id": 0, "name": "Local MAICA Instance", "description": "Used for conveniently connecting to a local deployed MAICA instance", "isOfficial": true, "portalPage":"http://127.0.0.1", "servingModel": "UNKNOWN", "modelLink": "UNKNOWN", "wsInterface": "ws://127.0.0.1:5000", "httpInterface": "http://127.0.0.1:6000", "isFullRestful": true}
-    ]
-}

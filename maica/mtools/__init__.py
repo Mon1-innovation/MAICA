@@ -18,3 +18,7 @@ __all__ = [
     'post_proc',
     'NvWatcher',
     ]
+
+from .mcp import pkg_init_mcp
+def pkg_init_mtools():
+    pkg_init_mcp()

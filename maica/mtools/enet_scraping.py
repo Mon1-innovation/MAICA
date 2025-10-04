@@ -1,9 +1,10 @@
 import re
+import json
 import asyncio
 import traceback
 import functools
 from maica.maica_utils import *
-from googlesearch import asearch
+from .mcp.mcp_serp import asearch
 from openai import AsyncOpenAI # type: ignore
 
 async def internet_search(fsc: FullSocketsContainer, query, original_query):
@@ -12,13 +13,12 @@ async def internet_search(fsc: FullSocketsContainer, query, original_query):
     for tries in range(0, 3):
         try:
 
-            # Here goes the search module
-            # Highly unstable I would say
-            # Fuck google
-            results_async = asearch(query, advanced=True, proxy=load_env('MAICA_PROXY_ADDR'))
-            results_sync = []
-            async for result_async in results_async:
-                results_sync.append({"title": result_async.title, "text": result_async.description})
+            results = await asearch(query, target_lang)
+            results = json.loads(results)
+            results_sync = [{"title": it['title'], "text": it['snippet']} for it in results['searches'][0]['results']]
+            assert len(results_sync), 'Search result is empty'
+            # async for result_async in results_async:
+            #     results_sync.append({"title": result_async.title, "text": result_async.description})
         except Exception:
             if tries < 2:
                 await messenger(info=f'Search engine temporary failure, retrying {str(tries + 1)} time(s)')
@@ -37,7 +37,8 @@ async def internet_search(fsc: FullSocketsContainer, query, original_query):
         if rank <= 5:
             results_short.append({'rank': rank, 'title': title, 'text': text})
         if rank <= 3:
-            results_humane += f'信息{rank}\n标题:{title}\n内容:{text}\n'
+            humane_text = ReUtils.re_sub_serp_datetime.sub('', text, 1)
+            results_humane += f'信息{rank}\n标题:{title}\n内容:{humane_text}\n'
 
     await messenger(info=f'MFocus got {rank} information lines from search engine', type=MsgType.DEBUG)
 

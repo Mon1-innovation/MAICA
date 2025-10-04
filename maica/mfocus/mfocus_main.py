@@ -120,32 +120,36 @@ class MFocusCoroutine(SideFunctionCoroutine):
                     ]
                 }
             },
-            {
-                "name": "search_internet",
-                "description": "调用该工具以搜索互联网. 如果你需要联网搜索信息以帮助回答, 则使用该工具搜索互联网. 如果该信息可以通过其它工具获取, 则优先使用其它工具." if self.settings.basic.target_lang == 'zh' else "Call this tool to search a question on the Internet. Use this tool if you need information from the Internet to make your answer. If another tool avaliable could provide the information, use that tool instead.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "需要在搜索引擎中搜索的问题, 应当是一个简洁的句子." if self.settings.basic.target_lang == 'zh' else "The question needs to be searched on Google, which should be a simple sentence.",
-                            "example_value": "附近的餐馆" if self.settings.basic.target_lang == 'zh' else "Nearby restaurants"
-                        },
-                        "location_req": {
-                            "type": "boolean",
-                            "description": "该问题是否与用户的地理位置有关, 若有关则工具会自动补充." if self.settings.basic.target_lang == 'zh' else "The question is related with user's location or not, the tool will implement automatically if true given.",
-                            "example_value": "true"
-                        }
-                    },
-                    "required": [
-                        "query",
-                    ],
-                    "optional": [
-                        "location_req",
-                    ]
-                }
-            },
         ]
+
+        if load_env('MAICA_NO_SERP') != '1':
+            self.tools.append(
+                {
+                    "name": "search_internet",
+                    "description": "调用该工具以搜索互联网. 如果你需要联网搜索信息以帮助回答, 则使用该工具搜索互联网. 如果该信息可以通过其它工具获取, 则优先使用其它工具." if self.settings.basic.target_lang == 'zh' else "Call this tool to search a question on the Internet. Use this tool if you need information from the Internet to make your answer. If another tool avaliable could provide the information, use that tool instead.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {
+                                "type": "string",
+                                "description": "需要在搜索引擎中搜索的问题, 应当是一个简洁的句子." if self.settings.basic.target_lang == 'zh' else "The question needs to be searched on Google, which should be a simple sentence.",
+                                "example_value": "附近的餐馆" if self.settings.basic.target_lang == 'zh' else "Nearby restaurants"
+                            },
+                            "location_req": {
+                                "type": "boolean",
+                                "description": "该问题是否与用户的地理位置有关, 若有关则工具会自动补充." if self.settings.basic.target_lang == 'zh' else "The question is related with user's location or not, the tool will implement automatically if true given.",
+                                "example_value": "true"
+                            }
+                        },
+                        "required": [
+                            "query",
+                        ],
+                        "optional": [
+                            "location_req",
+                        ]
+                    }
+                },
+            )
 
         if trigger_list and self.settings.extra.amt_aggressive:
             choice_list = []; choice_checklist = []
@@ -328,7 +332,7 @@ class MFocusCoroutine(SideFunctionCoroutine):
                                     ending = True
                                     break
                                 case 'agent_finished':
-                                    await messenger(self.websocket, 'maica_mfocus_empty', f'MFocus null recieved, Ending toolchain...', '204', type=MsgType.INFO, color=colorama.Fore.LIGHTBLUE_EX)
+                                    await messenger(self.websocket, 'maica_mfocus_empty', f'MFocus null recieved, ending toolchain...', '204', type=MsgType.INFO, color=colorama.Fore.LIGHTBLUE_EX)
                                     ending = True
                                     break
                                 case _:
@@ -342,7 +346,7 @@ class MFocusCoroutine(SideFunctionCoroutine):
                             await messenger(self.websocket, 'maica_mfocus_parallel_result', f'Answer to parallel tool {tool_seq}/{len(resp_tools)} is "{ellipsis_str(humane, 50)}"', '200', type=MsgType.INFO)
                             _instructed_add(tool_func_name, humane)
                 else:
-                    await messenger(self.websocket, 'maica_mfocus_absent', f'No tool called, Ending toolchain...', '204', type=MsgType.INFO, color=colorama.Fore.LIGHTBLUE_EX)
+                    await messenger(self.websocket, 'maica_mfocus_absent', f'No tool called, ending toolchain...', '204', type=MsgType.INFO, color=colorama.Fore.LIGHTBLUE_EX)
                     ending = True
 
                 await messenger(self.websocket, 'maica_mfocus_round_finish', f'MFocus toolchain {cycle} round finished, ending is {str(ending)}', '200', type=MsgType.INFO, color=colorama.Fore.BLUE)

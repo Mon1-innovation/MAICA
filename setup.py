@@ -64,5 +64,6 @@ setuptools.setup(
     },
     package_data={
         'maica': ['env_example'],
+        'maica.bin': ['mi-serp-precompiled-binary-linux', 'mi-serp-precompiled-binary-win.exe'],
     },
 )

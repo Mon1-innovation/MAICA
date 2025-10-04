@@ -7,7 +7,7 @@ from maica.maica_utils import messenger, load_env, MsgType
 
 def basic_chk():
     sysstruct = platform.system()
-    assert sysstruct in ['Windows', 'Linux'], 'Your system is not supported!'
+    assert sysstruct in ['Windows', 'Linux'], 'Your system not supported'
 
     curr_version, legc_version = load_env('MAICA_CURR_VERSION'), load_env('MAICA_VERSION_CONTROL')
     asyncio.run(messenger(info=f"Running MAICA Illuminator V{curr_version} on {sysstruct}", type=MsgType.PRIM_SYS))

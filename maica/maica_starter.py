@@ -21,10 +21,12 @@ from maica.initializer import *
 from maica.maica_http import pkg_init_maica_http
 from maica.maica_nows import pkg_init_maica_nows
 from maica.maica_utils import pkg_init_maica_utils
+from maica.mtools import pkg_init_mtools
 def pkg_init_maica():
     pkg_init_maica_http()
     pkg_init_maica_nows()
     pkg_init_maica_utils()
+    pkg_init_mtools()
 
 colorama.init(autoreset=True)
 initialized = False
