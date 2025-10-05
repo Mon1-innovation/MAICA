@@ -497,10 +497,10 @@ async def get_json(url) -> json:
                 break
             except Exception as e:
                 if tries < 2:
-                    print('HTTP temporary failure')
+                    await messenger(info=f'Wikipedia temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
-                    raise MaicaInternetWarning(f'HTTP connection failure: {str(e)}', '408')
+                    raise MaicaInternetWarning(f'Cannot get wiki result after {str(tries + 1)} times', '408')
     except Exception as e:
         raise e
     finally:

@@ -245,9 +245,9 @@ class WsCoroutine(NoWsCoroutine):
         if 'vision' in recv_loaded_json and not query_in:
             if recv_loaded_json['vision']:
                 if isinstance(recv_loaded_json['vision'], str):
-                    pass
+                    ...
                 else:
-                    pass
+                    ...
 
         if not query_in:
             maica_assert(recv_loaded_json.get('query'), 'query')
