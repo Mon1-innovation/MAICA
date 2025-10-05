@@ -209,7 +209,7 @@ class MTriggerCoroutine(SideFunctionCoroutine):
                     
                 await messenger(self.websocket, 'maica_mtrigger_round_finish', f'MTrigger toolchain {cycle} round finished, ending is {str(ending)}', '200', type=MsgType.INFO, color=colorama.Fore.BLUE)
             
-            await messenger(self.websocket, 'maica_mtrigger_done', f'MTrigger ended with {all_tool_count} triggers sent', '1001', color=colorama.Fore.LIGHTBLUE_EX)
+            await messenger(self.websocket, 'maica_mtrigger_done', f'MTrigger ended with {all_tool_count - 1} triggers sent', '1001', color=colorama.Fore.LIGHTBLUE_EX)
 
         except CommonMaicaException as ce:
             raise ce

@@ -92,7 +92,7 @@ class SfBoundCoroutine(SideBoundCoroutine):
 
         data1 = _rf('mas_geolocation')
         if data1:
-            _ap(f'[player]住在{data1}.')
+            _ap(f'[player]住在{data1}.', f'[player] lives in {data1}.')
 
         data1 = _rf('sessions')
         if data1:
