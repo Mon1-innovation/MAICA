@@ -18,3 +18,8 @@ class FullSocketsContainer():
         self.maica_pool: Optional[DbPoolCoroutine] = maica_pool
         self.mcore_conn: Optional[AiConnCoroutine] = mcore_conn
         self.mfocus_conn: Optional[AiConnCoroutine] = mfocus_conn
+
+    def __del__(self):
+        """Debugging purpose."""
+        ...
+        # sync_messenger(info="Deleting an FSC", type=MsgType.DEBUG)

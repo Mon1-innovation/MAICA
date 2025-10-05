@@ -797,7 +797,7 @@ class SfBoundCoroutine(SideBoundCoroutine):
     async def mfocus_find_info(self, query) -> Optional[list]:
         if not self.settings.basic.sf_extraction and not self.settings.temp.sf_extraction_once:
             return None
-        information = (await wrap_run_in_exc(None, self._mfocus_form_info))
+        information = self._mfocus_form_info()
         system_init = """你是一个人工智能助手, 你接下来会收到一个问题和一系列信息.
 注意不要对信息作任何改动. 你可以认为[player]是用户的名字, 莫妮卡是你的名字.
 从中挑选1至5条最相关的信息, 并以单行json列表的形式输出. 如果你最终认为没有信息符合条件, 输出false.

@@ -163,6 +163,8 @@ cython_debug/
 
 *.code-workspace
 .vscode
+profile.html
+profile.json
 
 # MAICA
 .essentials_generated.sh
