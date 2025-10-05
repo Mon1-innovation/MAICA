@@ -109,7 +109,9 @@ class ShortConnHandler(View):
 
             if isinstance(result, Response):
                 result_json = await result.get_json()
-                d = {"success": result_json.get('success'), "exception": result_json.get('exception'), "content": ellipsis_str(result_json.get('content'))}
+                d = {"success": result_json.get('success'), "exception": result_json.get('exception')}
+                if "content" in result_json:
+                    d["content"] = ellipsis_str(result_json.get('content'))
                 self.msg_http(info=f'Return value: {str(d)}', type=MsgType.SYS)
 
             return result
