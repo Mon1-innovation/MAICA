@@ -347,18 +347,18 @@ async def validate_input(input: Union[str, dict, list], limit: int=4096, rsc: Op
     must = must if must else []
     warn = warn if warn else []
     if not input:
-        raise MaicaInputWarning('Input is empty', '410', 'maica_input_validation_denied')
+        raise MaicaInputWarning('Input is empty', '410', 'maica_input_empty')
     
     if isinstance(input, str):
         if len(input) > limit:
-            raise MaicaInputWarning('Input length exceeded', '413', 'maica_input_validation_denied')
+            raise MaicaInputWarning('Input length exceeded', '413', 'maica_input_length_exceeded')
         try:
             input_json = json.loads(input)
         except Exception:
-            raise MaicaInputWarning('Request body not JSON', '400', 'maica_input_validation_denied')
+            raise MaicaInputWarning('Request body not JSON', '400', 'maica_input_not_json')
     elif isinstance(input, dict | list):
         if len(str(input)) > limit:
-            raise MaicaInputWarning('Input length exceeded', '413', 'maica_input_validation_denied')
+            raise MaicaInputWarning('Input length exceeded', '413', 'maica_input_length_exceeded')
         input_json = input
     else:
         raise MaicaInputError('Input must be string or JSON-like', '400', 'maica_input_validation_denied')
@@ -366,7 +366,7 @@ async def validate_input(input: Union[str, dict, list], limit: int=4096, rsc: Op
     if must:
         for mustkey in must:
             if input_json.get(mustkey) is None:
-                raise MaicaInputWarning(f'Request contains no necessary {mustkey}', '405', 'maica_input_validation_denied')
+                raise MaicaInputWarning(f'Request contains no necessary {mustkey}', '405', 'maica_input_necessity_missing')
     if warn:
         for warnkey in warn:
             if input_json.get(warnkey) is None:
