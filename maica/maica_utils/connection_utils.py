@@ -118,6 +118,10 @@ class DbPoolCoroutine(AsyncCreator):
                         else:
                             await cur.execute(expression, values)
                         results = await cur.fetchone() if not fetchall else await cur.fetchall()
+                        
+                        # aiomysql caches results in some cases if you don't commit
+                        # Really weird to me
+                        await conn.commit()
                 break
             except Exception as e:
                 if tries < RETRY_TIMES - 1:
@@ -201,6 +205,7 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
                 else:
                     cursor = await self.pool.execute(expression, values)
                 results = await cursor.fetchone() if not fetchall else await cursor.fetchall()
+                await self.pool.commit()
                 await cursor.close()
                 break
             except Exception as e:

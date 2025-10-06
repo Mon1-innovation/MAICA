@@ -105,12 +105,12 @@ class AccountCursor(AsyncCreator):
             raise MaicaDbError(e, '502', f'user_{status}_write_failed')
 
     async def _account_pwd_verify(self, identity, is_email, password) -> tuple[bool, Union[str, dict, None]]:
-        sql_expression = 'SELECT * FROM users WHERE email = %s' if is_email else 'SELECT * FROM users WHERE username = %s'
+        sql_expression = 'SELECT id, username, nickname, email, is_email_confirmed, password FROM users WHERE email = %s' if is_email else 'SELECT id, username, nickname, email, is_email_confirmed, password FROM users WHERE username = %s'
         try:
             result = await self.auth_pool.query_get(expression=sql_expression, values=(identity, ))
-            assert result and isinstance(result[0], int), "User does not exist"
+            assert result, "User does not exist"
 
-            dbres_id, dbres_username, dbres_nickname, dbres_email, dbres_ecf, dbres_pwd_bcrypt, *_ = result
+            dbres_id, dbres_username, dbres_nickname, dbres_email, dbres_ecf, dbres_pwd_bcrypt = result
             self.settings.identity.update(user_id=dbres_id, username=dbres_username, nickname=dbres_nickname, email=dbres_email)
 
             input_pwd, target_pwd = password.encode(), dbres_pwd_bcrypt.encode()
@@ -222,3 +222,14 @@ def sort_message(message):
         line_new = {"role": line['role'], "content": line['content']}
         message_new.append(line_new)
     return message_new
+
+if __name__ == '__main__':
+    from maica import init
+    init()
+    pkg_init_account_utils()
+    
+    async def _atest():
+        a = await AccountCursor.async_create(MaicaSettings())
+        ...
+
+    print(asyncio.run(_atest()))
