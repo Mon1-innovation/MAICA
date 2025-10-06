@@ -9,7 +9,10 @@ class SideBoundCoroutine(AsyncCreator):
     DB_NAME = 'persistents'
     PRIM_KEY = 'persistent_id'
     FUNC_NAME = 'mfocus'
-    EMPTY = {}
+
+    @staticmethod
+    def EMPTY():
+        return {}
 
     @staticmethod
     def test_log_cache_stats(func):
@@ -24,9 +27,9 @@ class SideBoundCoroutine(AsyncCreator):
         self.mfocus_conn: AiConnCoroutine = fsc.mfocus_conn
         self.websocket, self.traceray_id = fsc.rsc.websocket, fsc.rsc.traceray_id
         self.maica_pool = fsc.maica_pool
-        self.sf_forming_buffer = self.EMPTY
+        self.sf_forming_buffer = self.EMPTY()
         self.p_id = self.timestamp = None
-        self.sf_content = self.EMPTY
+        self.sf_content = self.EMPTY()
         self.formed_info = None
 
     async def _ainit(self):
@@ -58,7 +61,7 @@ class SideBoundCoroutine(AsyncCreator):
                 if new_timestamp == self.timestamp:
                     return False
             except Exception:
-                if self.sf_content is self.EMPTY:
+                if self.sf_content is self.EMPTY():
                     return False
                 else:
                     return True
@@ -75,13 +78,13 @@ class SideBoundCoroutine(AsyncCreator):
                 self.sf_content = json.loads(content)
             except Exception:
                 self.p_id = self.timestamp = None
-                self.sf_content = self.EMPTY
+                self.sf_content = self.EMPTY()
                 await messenger(self.websocket, f'{self.FUNC_NAME}_no_persistent', f'No persistent found for {self._cap_2(self.FUNC_NAME)}, using empty', '204', traceray_id=self.traceray_id)
-            self.sf_forming_buffer = self.EMPTY
+            self.sf_forming_buffer = self.EMPTY()
             self._add(self.sf_forming_buffer, self.sf_content)
         else:
             # If the cache is not expired, we just reuse it
-            self.sf_forming_buffer = self.EMPTY
+            self.sf_forming_buffer = self.EMPTY()
             self._add(self.sf_forming_buffer, self.sf_content)
 
 class SideFunctionCoroutine(AsyncCreator):

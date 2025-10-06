@@ -8,7 +8,7 @@
 MAICA_IS_REAL_ENV = '0'
 
 # Current backend version
-MAICA_CURR_VERSION = '1.1.005.post2'
+MAICA_CURR_VERSION = '1.1.006.rc1'
 
 
 # Model endpoint settings

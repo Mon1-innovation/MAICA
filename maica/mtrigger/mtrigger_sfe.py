@@ -10,7 +10,10 @@ class MtBoundCoroutine(SideBoundCoroutine):
     DB_NAME = 'triggers'
     PRIM_KEY = 'trigger_id'
     FUNC_NAME = 'mtrigger'
-    EMPTY = []
+
+    @staticmethod
+    def EMPTY():
+        return []
 
     @Decos.report_data_error
     def get_valid_triggers(self):

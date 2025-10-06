@@ -12,7 +12,10 @@ class SfBoundCoroutine(SideBoundCoroutine):
     DB_NAME = 'persistents'
     PRIM_KEY = 'persistent_id'
     FUNC_NAME = 'mfocus'
-    EMPTY = {}
+
+    @staticmethod
+    def EMPTY():
+        return {}
 
     def _conclude_basic_sf(self):
         result = []
