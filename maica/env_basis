@@ -132,7 +132,7 @@ MAICA_DEV_IDENTITY = ''# Evan & Clifford
 # "serving" / "testing"
 MAICA_DEV_STATUS = 'serving'
 # Oldest capable backend version
-MAICA_VERSION_CONTROL = '1.1.000'
+MAICA_VERSION_CONTROL = '1.1.006'
 # Servers announcement, must be valid json
 MAICA_SERVERS_LIST = '
     {
