@@ -16,7 +16,7 @@ class MTriggerCoroutine(SideFunctionCoroutine):
         super().__init__(fsc, sf_inst, mt_inst)
 
     def _construct_tools(self):
-        self.tools = []
+        self.tools = []; self._aff_name = None
         trigger_list = self.mt_inst.get_valid_triggers()
         for trigger in trigger_list:
             match trigger.template:
@@ -49,6 +49,7 @@ class MTriggerCoroutine(SideFunctionCoroutine):
                             }
                         }
                     )
+                    self._aff_name = trigger.name
                 case 'common_switch_template':
                     item_common_name = trigger.exprop.item_name.zh if self.settings.basic.target_lang == 'zh' else trigger.exprop.item_name.en
                     curr_item = trigger.exprop.curr_item
@@ -173,7 +174,7 @@ class MTriggerCoroutine(SideFunctionCoroutine):
 
             # This is a little bit special
             self.serial_messages.extend([{'role': 'user', 'content': input}, {'role': 'assistant', 'content': output}])
-            user_instruct_input = '观察以上对话历史记录, 依据你上一次作出的回应调用工具. 除好感和结束外, 不要调用未"提及且明确指示"的工具, 每个工具最多调用一次.' if self.settings.basic.target_lang == 'zh' else 'Observe the chat history and make tool calls according to your last reply. Do not use tools except affection or finish unless "mentioned and requested directly". Each tool can only be used once at most.'
+            user_instruct_input = f'观察以上对话历史记录, 依据你上一次作出的回应调用工具. 除{self._aff_name}和agent_finished外, 不要调用未"提及且明确指示"的工具, 每个工具最多调用一次.' if self.settings.basic.target_lang == 'zh' else f'Observe the chat history and make tool calls according to your last reply. Do not use tools except {self._aff_name} or agent_finished unless "mentioned and requested directly". Each tool can only be used once at most.'
             await self._construct_query(user_input=user_instruct_input)
 
             cycle = 0; ending = False
