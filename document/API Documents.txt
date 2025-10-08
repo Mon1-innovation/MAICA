@@ -627,6 +627,26 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
 
                 * 若令牌校验失败, 返回的success将为false, 且exception将提供原因.
 
+        在线处理表情:
+
+            端点: GET /emotion
+
+            * 需要access_token, content
+
+                其中content是一个dict:
+
+                    {"type": "norm", "target_lang": "zh", "text": "表情或句子"}
+
+                        其中type的值可选"norm"或"add", 前者代表归正一个不标准的表情, 后者代表为没有表情的句子补全表情.
+
+                        target_lang: 目标语言, 可选"zh"或"en".
+
+                    返回的content:
+
+                        ["表情", 置信度]
+
+                            其中置信度为float, 取值范围0.0-1.0.
+
         获取服务器声明表:
 
             端点: GET /servers

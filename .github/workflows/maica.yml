@@ -33,7 +33,7 @@ jobs:
 
     # - name: Initialize basic env
     #   run: |
-    #     cp maica/env_example maica/.env
+    #     cp maica/env_basis maica/.env
     #     cp maica/servers_example maica/.servers
     #   shell: bash
         

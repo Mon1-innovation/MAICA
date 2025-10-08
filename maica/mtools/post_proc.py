@@ -1,12 +1,13 @@
 import re
+from typing import *
 from maica.maica_utils import *
 
 emotion_etz = {
     "smile": "微笑",
+    "happy": "开心",
     "worry": "担心",
     "grin": "笑",
     "think": "思考",
-    "happy": "开心",
     "angry": "生气",
     "blush": "脸红",
     "gaze": "凝视",
@@ -44,10 +45,10 @@ emotion_etz = {
 }
 emotion_zte = {
     "微笑": "smile",
+    "开心": "happy",
     "担心": "worry",
     "笑": "grin",
     "思考": "think",
-    "开心": "happy",
     "生气": "angry",
     "脸红": "blush",
     "凝视": "gaze",
@@ -72,52 +73,63 @@ emotion_zte = {
     "害怕": "fear",
     "可爱": "kawaii"
 }
+elist = list(emotion_etz.keys())
+zlist = list(emotion_zte.keys())
+
+def emo_proc(emo: str, target_lang: Literal['zh', 'en']='zh'):
+    emo_clean = emo.strip().strip('[').strip(']').lower()
+
+    res: Annotated[str, Desc('Final result')] = f'[{emo_clean}]'
+    cfd: Annotated[float, Desc('Result confidence')] = 0.0
+
+    if len(emo_clean.encode()) >= 16:
+        # This might be a sentence or what
+        res = emo_clean; cfd = 0.4
+    else:
+        def match_by_z(emo):
+            if has_words_in(emo, 'player', '玩家'):
+                return 'player'
+            for z in zlist:
+                if has_words_in(emo, *list(z)):
+                    return z
+            for e in elist:
+                if has_words_in(emo, e):
+                    return emotion_etz.get(e)
+        
+        def match_by_e(emo):
+            if has_words_in(emo, 'player', '玩家'):
+                return 'player'
+            for e in elist:
+                if has_words_in(emo, e):
+                    return e
+            for z in zlist:
+                if has_words_in(emo, *list(z)):
+                    return emotion_zte.get(z)
+                
+        res_temp = match_by_z(emo_clean) if target_lang == 'zh' else match_by_e(emo_clean)
+        if res_temp:
+            res = f'[{res_temp}]'; cfd = 0.9
+        else:
+            res = '[微笑]' if target_lang == 'zh' else '[smile]'; cfd = 0.1
+
+    return res, cfd
 
 def get_equal_len(str):
     return len(str.encode('utf-8'))
 
-def post_proc(reply_appended, target_lang='zh'):
-    global emotion_etz, emotion_zte
-    reply_all_signatures = ReUtils.re_findall_square_marks.findall(reply_appended)
+def post_proc(reply_appended, target_lang: Literal['zh', 'en']='zh'):
+
+    reply_all_signatures = ReUtils.re_findall_square_brackets.findall(reply_appended)
 
     for signature in reply_all_signatures:
-        full_word = None
-        if 'player' in signature:
-            if signature == '[player]':
-                continue
-            else:
-                full_word = '[player]'
-        else:
-            sig_striped = signature.strip('[').strip(']')
-            curr_emoset, oppo_emoset = (emotion_etz, emotion_zte) if target_lang == 'zh' else (emotion_zte, emotion_etz)
-            if ' ' in sig_striped:
-                sig_striped = sig_striped.replace(' ', '')
-            if sig_striped in oppo_emoset.keys():
-                full_word = f'[{sig_striped}]'
-            elif sig_striped in curr_emoset.keys():
-                full_word = f'[{curr_emoset[sig_striped]}]'
-            else:
-                if target_lang == 'zh':
-                    if '笑' in signature:
-                        full_word = '[微笑]'
-                    elif '心' in signature:
-                        full_word = '[凝视]'
-                    elif '思' in signature:
-                        full_word = '[思考]'
-                    else:
-                        full_word = '[微笑]'
-                else:
-                    full_word = '[smile]'
-        if full_word:
-            reply_appended = re.sub(re.escape(signature), full_word, reply_appended, flags = re.I)
+        if not signature == '[player]' and not signature.strip('[').strip(']') in (zlist if target_lang == 'zh' else elist):
+            realword = emo_proc(signature, target_lang)[0]
+            reply_appended = re.sub(re.escape(signature), realword, reply_appended, flags = re.I)
     
-    # Filter quoted full sentences
-    quoted_strs = ReUtils.re_findall_square_brackets.findall(reply_appended)
-    for any_str in quoted_strs:
-        if get_equal_len(any_str) >= 16 and not '[' in any_str and not ']' in any_str:
-            reply_appended = reply_appended.replace(f'[{any_str}]', any_str)
     return reply_appended
 
 if __name__ == '__main__':
-    ra = '[理解 ]没关系, [player]. [微笑 ]我知[fear]道[womble]你很[adaifgnashioufoiusahdfoiua]忙[a1]. [开心]你能抽空[slash我]陪我就[害怕]很好啦!'
+    ra = '[理解 ]没关系, [player]. [微笑 ]我知[fear]道[womble]你很[adaifgnashioufoiusahdfoiua]忙[a1]. [心]你能抽空[slash我]陪我就[害怕]很好啦!'
     print(post_proc(ra, 'zh'))
+    # print(elist)
+    # print(zlist)

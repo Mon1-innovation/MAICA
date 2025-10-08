@@ -13,7 +13,7 @@ sys.argv = [sys.argv[0]] + remaining_args
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-with open("maica/env_example", "r", encoding="utf-8") as env:
+with open("maica/env_basis", "r", encoding="utf-8") as env:
     curr_version_line = re.compile(r'^MAICA_CURR_VERSION\s*=\s*\'(.*)\'')
     for line in env:
         line = line.strip()
@@ -63,7 +63,7 @@ setuptools.setup(
         ],
     },
     package_data={
-        'maica': ['env_example'],
+        'maica': ['env_basis'],
         'maica.bin': ['mi-serp-precompiled-binary-linux', 'mi-serp-precompiled-binary-win.exe'],
     },
 )

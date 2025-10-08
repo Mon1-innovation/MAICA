@@ -79,7 +79,7 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwar
                     sync_messenger(info=f'[maica-env] Loading extra env file {realpath}...', type=MsgType.DEBUG)
                     load_dotenv(dotenv_path=realpath)
 
-        realpath = get_inner_path('env_example')
+        realpath = get_inner_path('env_basis')
         sync_messenger(info=f'[maica-env] Loading env example {realpath} to guarantee basic functions...', type=MsgType.DEBUG)
         if os.path.isfile(realpath):
             load_dotenv(dotenv_path=realpath)
@@ -87,7 +87,7 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwar
             raise Exception('env template lost')
 
     def get_templates():
-        with open(get_inner_path('env_example'), 'r', encoding='utf-8') as env_e:
+        with open(get_inner_path('env_basis'), 'r', encoding='utf-8') as env_e:
             env_c = env_e.read()
         return env_c
     

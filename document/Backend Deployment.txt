@@ -19,14 +19,12 @@ If you want to read in English, use a translator.
 
     配置:
 
-        cp env_example .env
+        maica -t create
         vim .env
-        cp servers_example .servers
-        vim .servers
 
     启动实例:
 
-        maica
+        maica -e .env
 
 + 或者, 直接通过pypi安装:
 
@@ -40,8 +38,7 @@ If you want to read in English, use a translator.
 
         maica -t create
         vim .env
-        vim .servers
 
     启动实例:
 
-        maica -e .env -s .servers
+        maica -e .env

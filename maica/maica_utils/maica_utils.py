@@ -13,6 +13,7 @@ import datetime
 import random
 import traceback
 from typing import *
+from dataclasses import dataclass
 from urllib.parse import urlparse
 from .locater import *
 """Import layer 1"""
@@ -174,6 +175,7 @@ class LoginResult():
         return d
 
 class ReUtils():
+    """Do not initialize."""
     IS = re.I | re.S
     re_sub_password_spoiler = re.compile(r'"password"\s*:\s*"(.*?)"')
     re_search_sfe_fs = re.compile(r"first_session.*?datetime\(([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\)", re.I)
@@ -201,12 +203,13 @@ class ReUtils():
     re_search_host_addr = re.compile(r"^https?://(.*?)(:|/|$).*", re.I)
     re_sub_capt_status = re.compile(r"(_|^)([A-Za-z])")
     re_findall_square_marks = re.compile(r'\[(?:(?:[A-Za-z ]{1,15}?)|(?:[一-龥 ]{1,4}?))\]')
-    re_findall_square_brackets = re.compile(r'\[(.*?)\]')
+    re_findall_square_brackets = re.compile(r'(\[.*?\])')
     re_sub_sqlite_escape = re.compile(r'%s')
     re_sub_replacement_chr = re.compile(r'[\uFFF9-\uFFFF]')
     re_sub_serp_datetime = re.compile(r'.{1,10}?,.{1,10}?-\s*')
 
 class Decos():
+    """Do not initialize."""
     def escape_sqlite_expression(func):
         """Used to transform a MySQL expression to SQLite one."""
         @functools.wraps(func)
@@ -264,6 +267,14 @@ class Decos():
                 raise MaicaInputError(f'Input param not acceptable: {str(e)}', '500', 'maica_settings_param_rejected')
         return wrapper
 
+@dataclass
+class Desc():
+    """Just a description."""
+    desc: str
+
+    def __str__(self):
+        return self.desc
+
 def default(exp, default, default_list: list=[None]) -> any:
     """If exp is in default list(normally None), use default."""
     return default if exp in default_list else exp
@@ -301,7 +312,7 @@ def fuzzy_match(pattern: str, text):
         expression = pattern.replace('_', r'.*')
         return re.match(expression, text, re.I | re.S)
 
-def words_upper(text: str) -> str:
+def mstuff_words_upper(text: str) -> str:
     """Overkill..."""
     def u_upper(c: re.Match):
         return f'{c[1]}{c[2].upper()}'
@@ -338,6 +349,13 @@ def has_valid_content(text: Union[str, list, dict]):
         return False
     else:
         return True
+
+def has_words_in(text: str, *args: str):
+    """A rough matching mechanism."""
+    for word in args:
+        if word in text:
+            return True
+    return False
 
 def proceed_agent_response(text: str, is_json=False) -> Union[str, list, dict]:
     """Proceeds thinking/nothinking."""
@@ -397,7 +415,7 @@ def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional
                 type = "error"
 
     if type and not prefix and not 100 <= int(code) < 200:
-        prefix = words_upper(type)
+        prefix = mstuff_words_upper(type)
 
     # This is especially for streaming output
     if not prefix and type == "carriage":

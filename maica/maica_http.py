@@ -14,7 +14,7 @@ from typing import *
 
 from maica.maica_ws import NoWsCoroutine, _onliners
 from maica.maica_utils import *
-from maica.mtools import NvWatcher
+from maica.mtools import emo_proc, zlist, elist, NvWatcher
 
 def pkg_init_maica_http():
     global MCORE_ADDR, MFOCUS_ADDR, FULL_RESTFUL, known_servers
@@ -34,6 +34,7 @@ def pkg_init_maica_http():
         app.add_url_rule("/preferences", methods=['POST'], view_func=ShortConnHandler.as_view("reset_preferences"))
         app.add_url_rule("/register", methods=['GET'], view_func=ShortConnHandler.as_view("download_token", val=False))
         app.add_url_rule("/legality", methods=['GET'], view_func=ShortConnHandler.as_view("check_legality"))
+        app.add_url_rule("/emotion", methods=['GET'], view_func=ShortConnHandler.as_view("normalize_emo"))
         app.add_url_rule("/servers", methods=['GET'], view_func=ShortConnHandler.as_view("get_servers", val=False))
         app.add_url_rule("/accessibility", methods=['GET'], view_func=ShortConnHandler.as_view("get_accessibility", val=False))
         app.add_url_rule("/version", methods=['GET'], view_func=ShortConnHandler.as_view("get_version", val=False))
@@ -52,6 +53,7 @@ def pkg_init_maica_http():
         app.add_url_rule("/preferences/reset", methods=['POST'], view_func=ShortConnHandler.as_view("reset_preferences"))
         app.add_url_rule("/register", methods=['GET'], view_func=ShortConnHandler.as_view("download_token", val=False))
         app.add_url_rule("/legality", methods=['GET'], view_func=ShortConnHandler.as_view("check_legality"))
+        app.add_url_rule("/emotion", methods=['GET'], view_func=ShortConnHandler.as_view("normalize_emo"))
         app.add_url_rule("/servers", methods=['GET'], view_func=ShortConnHandler.as_view("get_servers", val=False))
         app.add_url_rule("/accessibility", methods=['GET'], view_func=ShortConnHandler.as_view("get_accessibility", val=False))
         app.add_url_rule("/version", methods=['GET'], view_func=ShortConnHandler.as_view("get_version", val=False))
@@ -352,6 +354,24 @@ class ShortConnHandler(View):
         valid_data = await self._validate_http(json_data, must=['access_token'])
         content = self.settings.verification.username
         return jsonify({"success": True, "exception": None, "content": content})
+
+    async def normalize_emo(self):
+        """GET"""
+        json_data = request.args.to_dict(flat=True)
+        valid_data = await self._validate_http(json_data, must=['access_token', 'content'])
+
+        content = json.loads(valid_data.get('content'))
+
+        proc_type: Literal['norm', 'add'] = content.get('type') or 'norm'
+        proc_lang: Literal['zh', 'en'] = content.get('target_lang') or 'zh'
+        emo = content.get('text')
+        
+        if proc_type == 'norm':
+            result = emo_proc(emo, proc_lang)
+        else:
+            raise NotImplementedError("add is not implemented")
+
+        return jsonify({"success": True, "exception": None, "content": result})
 
     async def get_servers(self):
         """GET, val=False"""
