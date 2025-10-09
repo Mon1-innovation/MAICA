@@ -57,6 +57,9 @@ setuptools.setup(
     ],
     python_requires='>=3.12',
     install_requires=parse_requirements(),
+    extras_require={
+        "mtts": ["mi-mtts"],
+    },
     entry_points={
         'console_scripts': [
             'maica = maica.maica_starter:full_start',
