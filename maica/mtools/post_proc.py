@@ -84,7 +84,7 @@ def emo_proc(emo: str, target_lang: Literal['zh', 'en']='zh'):
 
     if len(emo_clean.encode()) >= 16:
         # This might be a sentence or what
-        res = emo_clean; cfd = 0.4
+        res = emo_clean; cfd = 0.6
     else:
         def match_by_z(emo):
             if has_words_in(emo, 'player', '玩家'):
