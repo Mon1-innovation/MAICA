@@ -178,15 +178,10 @@ class EventsCollection():
             corr_dict[event.identity].append(event)
 
     def _find_qing_ming(self, y) -> int:
-        """
-        This is only accurate in 20th and 21st century.
-        Fuck qm.
-        """
-        c = 4.81 if y >= 2001 else 5.59
-        ymod = y % 100
-        day = math.floor(ymod * 0.2422 + c) - math.floor(ymod / 4)
-        day = max(4, min(6, day))
-        return day
+        """Gets qm day."""
+        d = lunar_python.Lunar.fromSolar(lunar_python.Solar.fromYmd(y, 4, 5))
+        qm = d.getJieQiTable()['清明']
+        return qm.getDay()
     
     def _get_last_weekday(self, y, m, wd) -> int:
         """Gets the last target weekday of a month."""
