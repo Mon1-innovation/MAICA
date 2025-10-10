@@ -47,7 +47,7 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwar
 
     def init_parser():
         parser = argparse.ArgumentParser(description="Start MAICA Illuminator deployment or run self-maintenance functions")
-        parser.add_argument('target', choices=['chat', 'tts', 'all'], default='chat', help='Start maica chat server or mtts server')
+        parser.add_argument('target', choices=['chat', 'tts', 'all'], nargs='?', default='chat', help='Start maica chat server or mtts server')
         parser.add_argument('-e', '--envdir', help='Include external env file for running deployment, specify every time')
         parser.add_argument('-s', '--silent', action="store_true", help='Run without logging (unrecommended for deployment)')
         excluse_1 = parser.add_mutually_exclusive_group()
@@ -219,14 +219,18 @@ def check_warns():
 
 async def start_all(start_target: Literal['chat', 'tts', 'all']='chat'):
     auth_pool, maica_pool = await asyncio.gather(ConnUtils.auth_pool(), ConnUtils.maica_pool())
+    kwargs = {"auth_pool": auth_pool, "maica_pool": maica_pool}
 
     if start_target == 'chat':
-        await maica_start_all(auth_pool, maica_pool)
+        await maica_start_all(**kwargs)
     elif start_target == 'tts':
-        await mtts_start_all(auth_pool, maica_pool)
+        await mtts_start_all(**kwargs)
     else:
+        task_chat = asyncio.create_task(maica_start_all(**kwargs))
+        task_tts = asyncio.create_task(mtts_start_all(**kwargs))
         res = await asyncio.wait([
-            maica_start_all(auth_pool, maica_pool), mtts_start_all(auth_pool, maica_pool)
+            task_chat,
+            task_tts,
             ], return_when=asyncio.FIRST_COMPLETED)
         await messenger(info="First overall quit collected, quitting other tasks...", type=MsgType.DEBUG)
         for pending in res[1]:
