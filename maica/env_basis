@@ -8,7 +8,7 @@
 MAICA_IS_REAL_ENV = '0'
 
 # Current backend version
-MAICA_CURR_VERSION = '1.1.006'
+MAICA_CURR_VERSION = '1.1.007.rc1'
 
 
 # Model endpoint settings
@@ -24,8 +24,7 @@ MAICA_MCORE_CHOICE = ''
 MAICA_MCORE_EXTRA = '
     {
         "extra_body": {
-            "repetition_penalty": 1.0,
-            "length_penalty": 1.0
+            "repetition_penalty": 1.0
         }
     }
 '
@@ -42,8 +41,7 @@ MAICA_MFOCUS_EXTRA = '
         "temperature": 0.2,
         "seed": 42,
         "extra_body": {
-            "repetition_penalty": 1.05,
-            "length_penalty": 1.15
+            "repetition_penalty": 1.05
         }
     }
 '
@@ -58,7 +56,6 @@ MAICA_MVISTA_CHOICE = ''
 MAICA_MVISTA_EXTRA = '
     {
         "extra_body": {
-        
         }
     }
 '
@@ -138,7 +135,7 @@ MAICA_SERVERS_LIST = '
     {
         "isMaicaNameServer": true,
         "servers": [
-            {"id": 0, "name": "Local MAICA Instance", "description": "Used for conveniently connecting to a local deployed MAICA instance", "isOfficial": false, "portalPage":"http://127.0.0.1", "servingModel": "UNKNOWN", "modelLink": "UNKNOWN", "wsInterface": "ws://127.0.0.1:5000", "httpInterface": "http://127.0.0.1:6000", "isFullRestful": true}
+            {"id": 0, "name": "Local MAICA Instance", "description": "Used for conveniently connecting to a local deployed MAICA instance", "isOfficial": false, "portalPage":"http://127.0.0.1", "servingModel": "UNKNOWN", "modelLink": "UNKNOWN", "wsInterface": "ws://127.0.0.1:5000", "httpInterface": "http://127.0.0.1:6000", "ttsInterface": "http://127.0.0.1:7000", "isFullRestful": true}
         ]
     }
 '
@@ -160,3 +157,32 @@ MAICA_WRITE_NVW = '0'
 # MAICA_MFOCUS_USER = ''# root
 # Password for SSH login
 # MAICA_MFOCUS_PWD = ''# 123456
+
+
+# MTTS specified settings
+
+# Current backend version
+# MTTS_CURR_VERSION = '1.0.000'
+# Oldest capable backend version
+# MTTS_VERSION_CONTROL = '1.0.000'
+# MTTS model endpoint
+MTTS_TTS_ADDR = ''# http://172.17.0.1:80/tts
+# Name of MTTS deployment device
+# MTTS_TTS_NODE = ''
+# Username to access nvidia-smi through SSH
+# MTTS_TTS_USER = ''
+# Password for SSH login
+# MTTS_TTS_PWD = ''
+
+# These fields of MAICA are used even for deploying MTTS only:
+# MAICA_IS_REAL_ENV (fill manually)
+# MAICA_DB_ADDR (fill manually)
+# MAICA_DB_USER (fill manually)
+# MAICA_DB_PASSWORD (fill manually)
+# MAICA_AUTH_DB (fill manually)
+# MAICA_DATA_DB (fill manually)
+# MAICA_F2B_COUNT
+# MAICA_F2B_TIME
+# MAICA_FULL_RESTFUL
+# MAICA_PRINT_VERBOSE
+# MAICA_NO_SEND_ERROR

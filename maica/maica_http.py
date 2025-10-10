@@ -73,8 +73,6 @@ app.config['JSON_AS_ASCII'] = False
 quart_logger = logging.getLogger('hypercorn.error')
 quart_logger.disabled = True
 
-workload_cache = {}
-
 class ShortConnHandler(View):
     """Flask initiates it on every request."""
 
@@ -86,10 +84,7 @@ class ShortConnHandler(View):
     mfocus_watcher: NvWatcher = None
 
     def __init__(self, val=True):
-        if val:
-            self.val = True
-        else:
-            self.val = False
+        self.val = val
 
     def msg_http(self, *args, **kwargs):
         if self.val:

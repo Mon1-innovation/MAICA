@@ -26,7 +26,7 @@ class NvWatcher(AsyncCreator):
         self.node_pwd = load_env(f'{prefix.upper()}_{node.upper()}_PWD')
         self.is_dead = False
         try:
-            self.node_addr = ReUtils.re_search_host_addr.search(load_env(f'MAICA_{node.upper()}_ADDR'))[1]
+            self.node_addr = ReUtils.re_search_host_addr.search(load_env(f'{prefix.upper()}_{node.upper()}_ADDR'))[1]
         except Exception:
             self.node_addr = None
 

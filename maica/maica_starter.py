@@ -1,5 +1,6 @@
 import os
 import sys
+from typing import *
 from pathlib import Path
 from dotenv import load_dotenv
 try:
@@ -9,6 +10,12 @@ except Exception:
     parent_dir = current_dir.parent
     if str(parent_dir) not in sys.path:
         sys.path.insert(0, str(parent_dir))
+
+try:
+    import mtts
+    mtts_installed = True
+except Exception:
+    mtts_installed = False
 
 import asyncio
 import argparse
@@ -27,16 +34,20 @@ def pkg_init_maica():
     pkg_init_maica_nows()
     pkg_init_maica_utils()
     pkg_init_mtools()
+    if mtts_installed:
+        mtts.mtts_http.pkg_init_mtts_http()
 
 colorama.init(autoreset=True)
 initialized = False
+start_target: Literal['chat', 'tts', 'all'] = 'chat'
 
 def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwargs):
     """This will only run once. Recalling will not take effect, except passing in extra kwargs."""
-    global initialized
+    global initialized, start_target
 
     def init_parser():
         parser = argparse.ArgumentParser(description="Start MAICA Illuminator deployment or run self-maintenance functions")
+        parser.add_argument('target', choices=['chat', 'tts', 'all'], default='chat', help='Start maica chat server or mtts server')
         parser.add_argument('-e', '--envdir', help='Include external env file for running deployment, specify every time')
         parser.add_argument('-s', '--silent', action="store_true", help='Run without logging (unrecommended for deployment)')
         excluse_1 = parser.add_mutually_exclusive_group()
@@ -47,6 +58,7 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwar
     
     parser = init_parser()
     args = parser.parse_args()
+    start_target = args.target
     envdir = envdir or args.envdir
     silent = silent or args.silent
     operate_keys = args.keys
@@ -79,12 +91,20 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwar
                     sync_messenger(info=f'[maica-env] Loading extra env file {realpath}...', type=MsgType.DEBUG)
                     load_dotenv(dotenv_path=realpath)
 
+        if mtts_installed:
+            realpath = mtts.mtts_utils.get_inner_path('mtts_env_basis')
+            sync_messenger(info=f'[maica-env] Loading mtts basis {realpath} to guarantee basic functions...', type=MsgType.DEBUG)
+            if os.path.isfile(realpath):
+                load_dotenv(dotenv_path=realpath)
+            else:
+                raise Exception('env basis lost')
+
         realpath = get_inner_path('env_basis')
-        sync_messenger(info=f'[maica-env] Loading env example {realpath} to guarantee basic functions...', type=MsgType.DEBUG)
+        sync_messenger(info=f'[maica-env] Loading maica basis {realpath} to guarantee basic functions...', type=MsgType.DEBUG)
         if os.path.isfile(realpath):
             load_dotenv(dotenv_path=realpath)
         else:
-            raise Exception('env template lost')
+            raise Exception('env basis lost')
 
     def get_templates():
         with open(get_inner_path('env_basis'), 'r', encoding='utf-8') as env_e:
@@ -197,9 +217,29 @@ def check_warns():
     if (load_env('MAICA_MCORE_NODE') and load_env('MAICA_MCORE_USER') and load_env('MAICA_MCORE_PWD')) or (load_env('MAICA_MFOCUS_NODE') and load_env('MAICA_MFOCUS_USER') and load_env('MAICA_MFOCUS_PWD')):
         sync_messenger(info='\nOne or more NVwatch nodes detected\nNVwatch of MAICA Illuminator will try to collect nvidia-smi outputs through SSH, which can fail the process if SSH not avaliable\nIf SSH of nodes are not accessable or not wanted to be used, delete X_NODE, X_USER, X_PWD accordingly', type=MsgType.DEBUG)
 
-async def start_all():
-
+async def start_all(start_target: Literal['chat', 'tts', 'all']='chat'):
     auth_pool, maica_pool = await asyncio.gather(ConnUtils.auth_pool(), ConnUtils.maica_pool())
+
+    if start_target == 'chat':
+        await maica_start_all(auth_pool, maica_pool)
+    elif start_target == 'tts':
+        await mtts_start_all(auth_pool, maica_pool)
+    else:
+        res = await asyncio.wait([
+            maica_start_all(auth_pool, maica_pool), mtts_start_all(auth_pool, maica_pool)
+            ], return_when=asyncio.FIRST_COMPLETED)
+        await messenger(info="First overall quit collected, quitting other tasks...", type=MsgType.DEBUG)
+        for pending in res[1]:
+            pending.cancel()
+            await pending
+
+    await messenger(info="All quits collected, doing final cleanup...", type=MsgType.DEBUG)
+    await asyncio.gather(auth_pool.close(), maica_pool.close(), return_exceptions=True)
+    await messenger(info="Everything done, bye", type=MsgType.DEBUG)
+    quit()
+
+async def maica_start_all(auth_pool, maica_pool):
+
     kwargs = {"auth_pool": auth_pool, "maica_pool": maica_pool}
     task_ws = asyncio.create_task(maica_ws.prepare_thread(**kwargs))
     task_http = asyncio.create_task(maica_http.prepare_thread(**kwargs))
@@ -210,21 +250,27 @@ async def start_all():
         task_http,
         task_schedule,
     ], return_when=asyncio.FIRST_COMPLETED)
-    await messenger(info="First quit collected, quitting other tasks...", type=MsgType.DEBUG)
+    await messenger(info="First chat quit collected, quitting other chat tasks...", type=MsgType.DEBUG)
     for pending in res[1]:
         pending.cancel()
         await pending
-    await messenger(info="All quits collected, doing final cleanup...", type=MsgType.DEBUG)
-    await asyncio.gather(auth_pool.close(), maica_pool.close(), return_exceptions=True)
-    await messenger(info="Everything done, bye", type=MsgType.DEBUG)
-    quit()
+    await messenger(info="All chat quits collected", type=MsgType.DEBUG)
+    return
+
+async def mtts_start_all(auth_pool, maica_pool):
+
+    assert mtts_installed, "Install with mi-mtts or .[mtts] to implement"
+    kwargs = {"auth_pool": auth_pool, "maica_pool": maica_pool}
+    await mtts.prepare_thread(**kwargs)
+    await messenger(info="First tts quit collected", type=MsgType.DEBUG)
+    return
 
 def full_start():
     check_params()
     check_env_init()
     check_data_init()
     check_warns()
-    asyncio.run(start_all())
+    asyncio.run(start_all(start_target))
 
 if __name__ == "__main__":
     full_start()
