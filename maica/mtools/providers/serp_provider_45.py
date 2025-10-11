@@ -8,6 +8,7 @@ import httpx
 import json
 
 from typing import *
+from maica.maica_utils import *
 from maica.mtools.api_keys import TpAPIKeys
 
 requires = ['SCRAPELESS_SERP']
@@ -32,7 +33,7 @@ async def asearch(query, target_lang: Literal['zh', 'en']='zh'):
         "waiting": True
     })
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(proxy=load_env('MAICA_PROXY_ADDR')) as client:
         response = await client.post(url, headers=headers, data=json_payload, timeout=30)
         response_json = response.json()
 

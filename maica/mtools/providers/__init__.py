@@ -43,7 +43,7 @@ def pkg_init_serp_provider():
             except:...
     sync_messenger(info=f"[maica-serp] Available SERP providers: {', '.join([str(i[0]) for i in available_list])}", type=MsgType.DEBUG)
 
-def get_asearch(avoid: Union[Literal['last'], int]=None, rand: bool=False):
+def get_asearch(avoid: Union[Literal['last'], int]=None, rand: bool=False) -> Callable:
     global last_used
 
     if avoid == 'last':

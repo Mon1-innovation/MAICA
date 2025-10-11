@@ -12,8 +12,8 @@ async def weather_api_get(location):
             "weather": None,
             "humidity": None,
         }
-        addr_code = (await get_json(f"https://restapi.amap.com/v3/geocode/geo?key={wkey}&address={location}"))['geocodes'][0]['adcode']
-        result = (await get_json(f"https://restapi.amap.com/v3/weather/weatherInfo?key={wkey}&city={addr_code}&extensions=base"))['lives'][0]
+        addr_code = (await dld_json(f"https://restapi.amap.com/v3/geocode/geo?key={wkey}&address={location}"))['geocodes'][0]['adcode']
+        result = (await dld_json(f"https://restapi.amap.com/v3/weather/weatherInfo?key={wkey}&city={addr_code}&extensions=base"))['lives'][0]
         d['temperature'], d['weather'], d['humidity'] = result['temperature'], result['weather'], result['humidity']
         return d
     

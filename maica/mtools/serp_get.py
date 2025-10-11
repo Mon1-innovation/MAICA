@@ -14,7 +14,7 @@ async def internet_search(fsc: FullSocketsContainer, query, original_query):
         try:
             results_sync = await (providers.get_asearch())(query, target_lang)
             assert len(results_sync), 'Search result is empty'
-
+            break
         except Exception:
             traceback.print_exc()
             if tries < 2:

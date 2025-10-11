@@ -6,7 +6,7 @@ from maica.maica_utils import *
  
 
 async def get_multi_json(*list_url):
-    list_resp = await asyncio.gather(*[get_json(u) for u in list_url])
+    list_resp = await asyncio.gather(*[dld_json(u) for u in list_url])
     return list_resp
 
 async def get_page(title=None, target_lang='zh'):
@@ -85,9 +85,9 @@ async def get_page(title=None, target_lang='zh'):
             case None:
                 page_list, cat_list = await get_multi_json(page_url, cat_url)
             case True:
-                page_list, cat_list = await get_json(page_url), {"batchcomplete":True,"query":{"searchinfo":{"totalhits":0},"search":[]}}
+                page_list, cat_list = await dld_json(page_url), {"batchcomplete":True,"query":{"searchinfo":{"totalhits":0},"search":[]}}
             case False:
-                page_list, cat_list = {"batchcomplete":True,"query":{"searchinfo":{"totalhits":0},"search":[]}}, await get_json(cat_url)
+                page_list, cat_list = {"batchcomplete":True,"query":{"searchinfo":{"totalhits":0},"search":[]}}, await dld_json(cat_url)
         page_list_r, cat_list_r = page_list['query']['search'], cat_list['query']['search']
         filter_regex = re.compile(r"(模板|模闆|template|消歧义|消歧義|disambiguation)", re.I)
         for cat in cat_list_r:
@@ -116,7 +116,7 @@ async def get_page(title=None, target_lang='zh'):
 
     finale_url = f"https://{target_lang}.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exsentences=15&exlimit=1&titles={next_title}&explaintext=1&formatversion=2"
     #print(finale_url)
-    summary_json = await get_json(finale_url)
+    summary_json = await dld_json(finale_url)
     title = zhconv.convert(summary_json['query']['pages'][0]['title'], 'zh-cn')
     summary_raw = summary_json['query']['pages'][0]['extract']
     summary = re.sub(r'(\n|\s)*\n(\n|\s)*', r'\n', re.sub(r'\n*=+(.*?)=+', r'\n\1:', zhconv.convert(summary_raw, 'zh-cn'), re.I|re.S))

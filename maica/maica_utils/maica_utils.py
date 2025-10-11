@@ -504,21 +504,21 @@ async def wrap_run_in_exc(loop, func, *args, **kwargs) -> any:
 def limit_length(col: list, limit: int) -> list:
     return random.sample(col, limit) if limit < len(col) else col
 
-async def get_json(url) -> json:
+async def dld_json(url, retries=2) -> json:
     """Get JSON context from an endpoint."""
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'}
     try:
-        for tries in range(0, 3):
+        for tries in range(0, retries + 1):
             try:
                 client = httpx.AsyncClient(proxy=load_env('MAICA_PROXY_ADDR'))
                 res = (await client.get(url, headers=headers)).json()
                 break
             except Exception as e:
-                if tries < 2:
-                    await messenger(info=f'Wikipedia temporary failure, retrying {str(tries + 1)} time(s)')
+                if tries < retries:
+                    await messenger(info=f'HTTP temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
-                    raise MaicaInternetWarning(f'Cannot get wiki result after {str(tries + 1)} times', '408')
+                    raise MaicaInternetWarning(f'Cannot get JSON response after {str(tries + 1)} times', '408')
     except Exception as e:
         raise e
     finally:
