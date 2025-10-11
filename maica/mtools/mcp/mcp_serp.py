@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 from mcp.client.stdio import stdio_client
 from mcp import ClientSession, StdioServerParameters
@@ -36,7 +37,8 @@ async def asearch(query, target_lang='zh'):
 
             # tools = await session.list_tools():
             response = await session.call_tool('search', {'queries': [query], "limit": 10, "locale": locale, "debug": False})
-            return response.content[0].text
+            response_json = json.loads(response.content[0].text)
+            return [{"title": it['title'], "text": it['snippet']} for it in response_json['searches'][0]['results']]
 
 if __name__ == '__main__':
     from maica import init

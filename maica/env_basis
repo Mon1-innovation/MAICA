@@ -8,7 +8,7 @@
 MAICA_IS_REAL_ENV = '0'
 
 # Current backend version
-MAICA_CURR_VERSION = '1.1.007.rc1'
+MAICA_CURR_VERSION = '1.1.007.rc2'
 
 
 # Model endpoint settings
@@ -81,8 +81,12 @@ MAICA_DB_PASSWORD = ''# 123456
 MAICA_AUTH_DB = ''# forum_flarum_db
 # MySQL/SQLite maica database name
 MAICA_DATA_DB = ''# maica
-# GaoDe weather API key
-MAICA_WEATHER_KEY = ''# thisisanapikey
+# Third party API keys, must be valid json
+MAICA_TP_APIS = '
+    {
+        "GAODE_WEATHER": ""
+    }
+'
 
 
 # Account level behavior settings

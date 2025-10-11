@@ -11,6 +11,7 @@ from maica.mfocus.mfocus_sfe import SfBoundCoroutine
 from maica.mtrigger.mtrigger_sfe import MtBoundCoroutine
 from maica.mfocus.agent_modules import AgentTools
 from maica.maica_utils import *
+from maica.mtools import providers
 
 class MFocusCoroutine(SideFunctionCoroutine):
     def __init__(self, fsc: FullSocketsContainer, sf_inst: SfBoundCoroutine, mt_inst: Optional[MtBoundCoroutine]=None):
@@ -122,7 +123,7 @@ class MFocusCoroutine(SideFunctionCoroutine):
             },
         ]
 
-        if load_env('MAICA_NO_SERP') != '1':
+        if providers.get_asearch():
             self.tools.append(
                 {
                     "name": "search_internet",

@@ -3,23 +3,20 @@ import json
 import asyncio
 import traceback
 import functools
+
 from maica.maica_utils import *
-from .mcp.mcp_serp import asearch
-from openai import AsyncOpenAI # type: ignore
+from . import providers
 
 async def internet_search(fsc: FullSocketsContainer, query, original_query):
     target_lang = fsc.maica_settings.basic.target_lang
 
     for tries in range(0, 3):
         try:
-
-            results = await asearch(query, target_lang)
-            results = json.loads(results)
-            results_sync = [{"title": it['title'], "text": it['snippet']} for it in results['searches'][0]['results']]
+            results_sync = await (providers.get_asearch())(query, target_lang)
             assert len(results_sync), 'Search result is empty'
-            # async for result_async in results_async:
-            #     results_sync.append({"title": result_async.title, "text": result_async.description})
+
         except Exception:
+            traceback.print_exc()
             if tries < 2:
                 await messenger(info=f'Search engine temporary failure, retrying {str(tries + 1)} time(s)')
                 await asyncio.sleep(0.5)

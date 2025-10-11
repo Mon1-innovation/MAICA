@@ -407,7 +407,6 @@ def callback_check_permit(future):
     pass
     
 # Main app driver
-
 async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn, online_dict):
     unique_lock = asyncio.Lock()
     async with unique_lock:
