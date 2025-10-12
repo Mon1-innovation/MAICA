@@ -96,7 +96,7 @@ class AgentTools():
                 content = json.dumps(weather, ensure_ascii=False)
                 weather_friendly = f"当前气温是{weather['temperature']}度, 当前天气是{weather['weather']}, 当前湿度是{weather['humidity']}%" if target_lang == 'zh' else f"Current temperature is {weather['temperature']} degrees celsius, current weather is {weather['weather']}, current humidity is {weather['humidity']} percent"
             except CommonMaicaException as ce:
-                await messenger(None, 'maica_mfocus_weather_failed', traceray_id=self.fsc.rsc.traceray_id, error=ce)
+                await messenger(self.fsc.rsc.websocket, 'maica_mfocus_weather_failed', traceray_id=self.fsc.rsc.traceray_id, error=ce, no_raise=True)
 
         if not weather:
             content = '天气未知' if target_lang == 'zh' else "Weather unknown"
