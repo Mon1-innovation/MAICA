@@ -548,7 +548,7 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
 
             端点: PUT /history
 
-            * 需要access_token, chat_session, 可选content
+            * 需要access_token, chat_session, content
 
                 其中content为含签名的对话历史, 即下载对话历史获取的content.
 
@@ -617,13 +617,19 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
 
             返回的content是加密后的令牌.
 
-        在线验证令牌:
+        在线执行验证:
 
             端点: GET /legality
 
-            * 需要access_token.
+            * 需要access_token, 可选content
 
-            该端点不会返回content.
+                其中content若存在, 则还验证对应内容的合法性, 否则只验证令牌合法性:
+
+                    {"object": "验证项目", "value": "待验证内容"}
+
+                    其中验证项目目前只可选geolocation, 会查询地理位置是否规范可用.
+
+            返回的content是对应条目结果, 若未传入content则返回用户名.
 
                 * 若令牌校验失败, 返回的success将为false, 且exception将提供原因.
 

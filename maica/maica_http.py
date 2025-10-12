@@ -14,7 +14,7 @@ from typing import *
 
 from maica.maica_ws import NoWsCoroutine, _onliners
 from maica.maica_utils import *
-from maica.mtools import emo_proc, zlist, elist, NvWatcher
+from maica.mtools import emo_proc, zlist, elist, weather_api_get, NvWatcher
 
 def pkg_init_maica_http():
     global MCORE_ADDR, MFOCUS_ADDR, FULL_RESTFUL, known_servers
@@ -347,8 +347,23 @@ class ShortConnHandler(View):
         """GET"""
         json_data = request.args.to_dict(flat=True)
         valid_data = await self._validate_http(json_data, must=['access_token'])
-        content = self.settings.verification.username
-        return jsonify({"success": True, "exception": None, "content": content})
+
+        content = json.loads(valid_data.get('content'))
+        if not content:
+            result = self.settings.verification.username
+        else:
+            object = content.get('object')
+            value = content.get('value')
+            assert object and value, 'Empty in input'
+            match object:
+                case 'geolocation':
+                    res = await weather_api_get(value)
+                    result = res
+
+                case _:
+                    raise MaicaInputWarning(f"'{object}' is not valid object")
+
+        return jsonify({"success": True, "exception": None, "content": result})
 
     async def normalize_emo(self):
         """GET"""
