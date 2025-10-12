@@ -348,7 +348,11 @@ class ShortConnHandler(View):
         json_data = request.args.to_dict(flat=True)
         valid_data = await self._validate_http(json_data, must=['access_token'])
 
-        content = json.loads(valid_data.get('content'))
+        try:
+            content = json.loads(valid_data.get('content'))
+        except:
+            content = None
+            
         if not content:
             result = self.settings.verification.username
         else:
