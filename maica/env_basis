@@ -59,6 +59,20 @@ MAICA_MVISTA_EXTRA = '
         }
     }
 '
+# MNerve VL model endpoint
+MAICA_MNERVE_ADDR = ''
+# MNerve VL model key
+MAICA_MNERVE_KEY = ''
+# MNerve VL model choice, leave empty for first
+MAICA_MNERVE_CHOICE = ''
+# MNerve model completion extra params, must be valid json
+# Not a part of OpenAI standard, so only useful for vllm-like deployments
+MAICA_MNERVE_EXTRA = '
+    {
+        "extra_body": {
+        }
+    }
+'
 # 0 = ms-swift, 1 = modern openai
 MAICA_ALT_TOOLCALL = '1'
 # MFocus model no think postfix, leave empty to enforce thinking
