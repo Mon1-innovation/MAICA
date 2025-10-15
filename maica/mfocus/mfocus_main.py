@@ -138,7 +138,7 @@ class MFocusCoroutine(SideFunctionCoroutine):
                             },
                             "location_req": {
                                 "type": "boolean",
-                                "description": "该问题是否与用户的地理位置有关, 若有关则工具会自动补充." if self.settings.basic.target_lang == 'zh' else "The question is related with user's location or not, the tool will implement automatically if true given.",
+                                "description": "该问题是否与用户所处的地理位置有关, 若有关则工具会自动补充." if self.settings.basic.target_lang == 'zh' else "The question is related with user's current location or not, the tool will add it to query automatically if true given.",
                                 "example_value": "true"
                             }
                         },
