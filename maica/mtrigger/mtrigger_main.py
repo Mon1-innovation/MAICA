@@ -174,7 +174,7 @@ class MTriggerCoroutine(SideFunctionCoroutine):
 
             # This is a little bit special
             self.serial_messages.extend([{'role': 'user', 'content': input}, {'role': 'assistant', 'content': output}])
-            user_instruct_input = f'观察以上对话历史记录, 依据上一轮对话调用工具. 除{self._aff_name}和agent_finished外, 不要调用任何没有明确指示的工具, 每个工具最多调用一次.' if self.settings.basic.target_lang == 'zh' else f'Observe the chat history and make tool calls according to last round of conversation. Do not use any tool except {self._aff_name} and agent_finished, unless requested directly. Each tool can only be used once at most.'
+            user_instruct_input = f'观察以上对话历史记录, 依据上一轮对话调用工具. 除{self._aff_name + "和" if self._aff_name else ""}agent_finished外的工具只有明确指示才能调用. 每个工具最多调用一次.' if self.settings.basic.target_lang == 'zh' else f'Observe the chat history and make tool calls according to last round of conversation. Tools except {self._aff_name + " and " if self._aff_name else ""} agent_finished can only be used if requested directly. Each tool can only be used once at most.'
             await self._construct_query(user_input=user_instruct_input)
 
             cycle = 0; ending = False
@@ -209,7 +209,7 @@ class MTriggerCoroutine(SideFunctionCoroutine):
                     ending = True
                     
                 await messenger(self.websocket, 'maica_mtrigger_round_finish', f'MTrigger toolchain {cycle} round finished, ending is {str(ending)}', '200', type=MsgType.INFO, color=colorama.Fore.BLUE)
-            
+            # This goes -1 if agent_finished not called, but I decide to leave it be
             await messenger(self.websocket, 'maica_mtrigger_done', f'MTrigger ended with {all_tool_count - 1} triggers sent', '1001', color=colorama.Fore.LIGHTBLUE_EX)
 
         except CommonMaicaException as ce:

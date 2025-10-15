@@ -24,7 +24,6 @@ MAICA_MCORE_CHOICE = ''
 MAICA_MCORE_EXTRA = '
     {
         "extra_body": {
-            "repetition_penalty": 1.0
         }
     }
 '
@@ -40,7 +39,6 @@ MAICA_MFOCUS_EXTRA = '
     {
         "seed": 42,
         "extra_body": {
-            "repetition_penalty": 1.05
         }
     }
 '
