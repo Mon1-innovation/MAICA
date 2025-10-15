@@ -133,12 +133,12 @@ class MFocusCoroutine(SideFunctionCoroutine):
                         "properties": {
                             "query": {
                                 "type": "string",
-                                "description": "需要在搜索引擎中搜索的问题, 应当是一个简洁的句子." if self.settings.basic.target_lang == 'zh' else "The question needs to be searched on Google, which should be a simple sentence.",
+                                "description": "需要在搜索引擎中搜索的问题, 应当简洁明确." if self.settings.basic.target_lang == 'zh' else "The question needs to be searched on Google, which should be brief and clear.",
                                 "example_value": "附近的餐馆" if self.settings.basic.target_lang == 'zh' else "Nearby restaurants"
                             },
                             "location_req": {
                                 "type": "boolean",
-                                "description": "该问题是否与用户所处的地理位置有关, 若有关则工具会自动补充." if self.settings.basic.target_lang == 'zh' else "The question is related with user's current location or not, the tool will add it to query automatically if true given.",
+                                "description": "仅当问题关于用户所处的地理位置时设为true." if self.settings.basic.target_lang == 'zh' else "Set to true only if the query is associated with the user's current location.",
                                 "example_value": "true"
                             }
                         },

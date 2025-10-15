@@ -14,6 +14,7 @@ import random
 import traceback
 from typing import *
 from dataclasses import dataclass
+from abc import ABC, abstractmethod
 from urllib.parse import urlparse
 from .locater import *
 """Import layer 1"""
@@ -106,8 +107,9 @@ class FscPlain():
         self.mcore_conn = mcore_conn
         self.mfocus_conn = mfocus_conn
 
-class AsyncCreator():
+class AsyncCreator(ABC):
     """Inherit this for async init."""
+    @abstractmethod
     async def _ainit(self):
         """Placeholder."""
 
