@@ -276,7 +276,7 @@ class AiConnCoroutine(AsyncCreator):
         self.websocket, self.traceray_id = rsc.websocket, rsc.traceray_id
 
     def default_params(self, **kwargs):
-        """These params will always be applied to generations. Overwritting."""
+        """These params will always be applied to generations. Overwritten."""
         self.gen_kwargs = kwargs
 
     async def keep_alive(self):
