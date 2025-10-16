@@ -1,6 +1,6 @@
 # Exclude this line in your env configuration
 # Current backend version
-MAICA_CURR_VERSION = '1.1.007.post3'
+MAICA_CURR_VERSION = '1.2.000.rc1'
 
 # cp ./env_basis ./.env
 # vim .env

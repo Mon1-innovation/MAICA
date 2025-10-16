@@ -12,18 +12,33 @@ from .locater import *
 """Import layer 3"""
 
 def pkg_init_connection_utils():
-    global DB_ADDR, DB_USER, DB_PASSWORD, AUTH_DB, MAICA_DB, MCORE_ADDR, MCORE_KEY, MCORE_CHOICE, MFOCUS_ADDR, MFOCUS_KEY, MFOCUS_CHOICE, THINK_POSTFIX, NOTHINK_POSTFIX, ConnUtils
+    global DB_ADDR, DB_USER, DB_PASSWORD, AUTH_DB, MAICA_DB, MCORE_ADDR, MCORE_KEY
+    global MCORE_CHOICE, MFOCUS_ADDR, MFOCUS_KEY, MFOCUS_CHOICE, MVISTA_ADDR, MVISTA_KEY
+    global MVISTA_CHOICE, MNERVE_ADDR, MNERVE_KEY, MNERVE_CHOICE, THINK_POSTFIX
+    global NOTHINK_POSTFIX, ConnUtils
+
     DB_ADDR = load_env('MAICA_DB_ADDR')
     DB_USER = load_env('MAICA_DB_USER')
     DB_PASSWORD = load_env('MAICA_DB_PASSWORD')
     AUTH_DB = load_env('MAICA_AUTH_DB')
     MAICA_DB = load_env('MAICA_DATA_DB')
+
     MCORE_ADDR = load_env('MAICA_MCORE_ADDR')
     MCORE_KEY = load_env('MAICA_MCORE_KEY')
     MCORE_CHOICE = load_env('MAICA_MCORE_CHOICE')
+
     MFOCUS_ADDR = load_env('MAICA_MFOCUS_ADDR')
     MFOCUS_KEY = load_env('MAICA_MFOCUS_KEY')
     MFOCUS_CHOICE = load_env('MAICA_MFOCUS_CHOICE')
+
+    MVISTA_ADDR = load_env('MAICA_MVISTA_ADDR')
+    MVISTA_KEY = load_env('MAICA_MVISTA_KEY')
+    MVISTA_CHOICE = load_env('MAICA_MVISTA_CHOICE')
+
+    MNERVE_ADDR = load_env('MAICA_MNERVE_ADDR')
+    MNERVE_KEY = load_env('MAICA_MNERVE_KEY')
+    MNERVE_CHOICE = load_env('MAICA_MNERVE_CHOICE')
+
     THINK_POSTFIX = load_env('MAICA_MFOCUS_THINK')
     NOTHINK_POSTFIX = load_env('MAICA_MFOCUS_NOTHINK')
 
@@ -274,7 +289,7 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
 
 class AiConnCoroutine(AsyncCreator):
     """Maintain an AI connection so you don't have to."""
-    def __init__(self, api_key, base_url, name='mcore_cli', model: Union[int, str]=0):
+    def __init__(self, api_key, base_url, name='mcore_conn', model: Union[int, str]=0):
         self.test = False
         self.api_key, self.base_url, self.name, self.model = api_key, base_url, name, model
         self.websocket = None
@@ -350,11 +365,12 @@ class ConnUtils():
         """Dummy."""
     async def basic_pool(ro=False) -> DbPoolCoroutine:
         """Dummy."""
+
     async def mcore_conn():
         conn = await AiConnCoroutine.async_create(
             api_key=MCORE_KEY,
             base_url=MCORE_ADDR,
-            name='mcore_cli',
+            name='mcore_conn',
             model=MCORE_CHOICE if MCORE_CHOICE else 0,
         )
         conn.default_params(**json.loads(load_env('MAICA_MCORE_EXTRA')))
@@ -364,10 +380,30 @@ class ConnUtils():
         conn = await AiConnCoroutine.async_create(
             api_key=MFOCUS_KEY,
             base_url=MFOCUS_ADDR,
-            name='mfocus_cli',
+            name='mfocus_conn',
             model=MFOCUS_CHOICE if MFOCUS_CHOICE else 0,
         )
         conn.default_params(**json.loads(load_env('MAICA_MFOCUS_EXTRA')))
+        return conn
+    
+    async def mvista_conn():
+        conn = await AiConnCoroutine.async_create(
+            api_key=MVISTA_KEY,
+            base_url=MVISTA_ADDR,
+            name='mvista_conn',
+            model=MVISTA_CHOICE if MVISTA_CHOICE else 0,
+        )
+        conn.default_params(**json.loads(load_env('MAICA_MVISTA_EXTRA')))
+        return conn
+
+    async def mnerve_conn():
+        conn = await AiConnCoroutine.async_create(
+            api_key=MNERVE_KEY,
+            base_url=MNERVE_ADDR,
+            name='mnerve_conn',
+            model=MNERVE_CHOICE if MNERVE_CHOICE else 0,
+        )
+        conn.default_params(**json.loads(load_env('MAICA_MNERVE_EXTRA')))
         return conn
 
 async def validate_input(input: Union[str, dict, list], limit: int=4096, rsc: Optional[FscPlain.RealtimeSocketsContainer]=None, must: Optional[list]=None, warn: Optional[list]=None) -> Union[dict, list]:

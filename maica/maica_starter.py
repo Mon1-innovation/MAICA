@@ -1,5 +1,6 @@
 import os
 import sys
+import traceback
 from typing import *
 from pathlib import Path
 from dotenv import load_dotenv
@@ -188,6 +189,7 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwar
             pkg_init_maica()
             initialized = True
         except Exception as e:
+            traceback.print_exc()
             sync_messenger(info=f'[maica-init] Error: {str(e)}, quitting...', type=MsgType.ERROR)
             exit(1)
 
