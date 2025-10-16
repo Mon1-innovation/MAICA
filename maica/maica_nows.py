@@ -78,14 +78,14 @@ class NoWsCoroutine(AsyncCreator):
             content_json.pop(1)
         return content_json
 
-    async def _chop_session(self, chat_session_id, content) -> tuple[int, str]:
+    async def _crop_session(self, chat_session_id, content) -> tuple[int, str]:
         max_length_ascii = self.settings.basic.max_length * 3
         warn_length_ascii = int(max_length_ascii * (2/3))
         len_content_actual = len(content.encode()) - len(json.loads(f'[{content}]')) * 31
         if len_content_actual >= max_length_ascii:
 
             # First we check if there is a cchop avaliable
-            sql_expression_1 = 'SELECT archive_id, content FROM cchop_archived WHERE chat_session_id = %s AND archived = 0'
+            sql_expression_1 = 'SELECT archive_id, content FROM crop_archived WHERE chat_session_id = %s AND archived = 0'
             result = await self.maica_pool.query_get(expression=sql_expression_1, values=(chat_session_id, ))
             if result:
                 archive_id, archive_content = result
@@ -103,10 +103,10 @@ class NoWsCoroutine(AsyncCreator):
             content = self._flattern_chat_session(cutting_mat)
 
             if archive_id:
-                sql_expression_2 = "UPDATE cchop_archived SET content = %s WHERE archive_id = %s" if len(archive_content) <= 100000 else "UPDATE cchop_archived SET content = %s, archived = 1 WHERE archive_id = %s"
+                sql_expression_2 = "UPDATE crop_archived SET content = %s WHERE archive_id = %s" if len(archive_content) <= 100000 else "UPDATE crop_archived SET content = %s, archived = 1 WHERE archive_id = %s"
                 await self.maica_pool.query_modify(expression=sql_expression_2, values=(archive_content, archive_id))
             else:
-                sql_expression_2 = "INSERT INTO cchop_archived (chat_session_id, content, archived) VALUES (%s, %s, 0)" if len(archive_content) <= 100000 else "INSERT INTO cchop_archived (chat_session_id, content, archived) VALUES (%s, %s, 1)"
+                sql_expression_2 = "INSERT INTO crop_archived (chat_session_id, content, archived) VALUES (%s, %s, 0)" if len(archive_content) <= 100000 else "INSERT INTO crop_archived (chat_session_id, content, archived) VALUES (%s, %s, 1)"
                 await self.maica_pool.query_modify(expression=sql_expression_2, values=(chat_session_id, archive_content))
 
             cut_status = 1
@@ -180,7 +180,7 @@ class NoWsCoroutine(AsyncCreator):
             return chat_session_id, 0
 
         elif irwa == 'a':
-            cut_status, content_finale = await self._chop_session(chat_session_id, content_finale)
+            cut_status, content_finale = await self._crop_session(chat_session_id, content_finale)
             if not chat_session_id:
                 chat_session_id = await self._create_session(content=content_finale, chat_session_num=chat_session_num)
             else:
@@ -280,11 +280,11 @@ class NoWsCoroutine(AsyncCreator):
             new_system += f" 以下是一些相关信息, 你可以参考其中有价值的部分, 并用你自己的语言方式作答: {known_info}" if self.settings.basic.target_lang == 'zh' else f" Here are some information you can refer to, then make your answer in your own way: {known_info}"
         return new_system
     
-    async def populate_auxiliary_inst(self):
+    async def populate_auxiliary_inst(self) -> None:
         self.sf_inst, self.mt_inst = await asyncio.gather(SfBoundCoroutine.async_create(self.fsc), MtBoundCoroutine.async_create(self.fsc))
         self.mfocus_coro, self.mtrigger_coro = await asyncio.gather(MFocusCoroutine.async_create(self.fsc, self.sf_inst, self.mt_inst), MTriggerCoroutine.async_create(self.fsc, self.mt_inst, self.sf_inst))
 
-    async def reset_auxiliary_inst(self):
+    async def reset_auxiliary_inst(self) -> None:
         sb_list = []
         for sb_name in ['sf_inst', 'mt_inst', 'mfocus_coro', 'mtrigger_coro']:
             sb = getattr(self, sb_name)

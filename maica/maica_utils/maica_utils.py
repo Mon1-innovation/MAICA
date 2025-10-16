@@ -86,6 +86,9 @@ class MaicaPermissionWarning(CommonMaicaWarning):
 class MaicaInputWarning(CommonMaicaWarning):
     """This suggests the input is not processable."""
 
+class MaicaDbWarning(CommonMaicaWarning):
+    """This suggests the DB query gave an warning."""
+
 class MaicaConnectionWarning(CommonMaicaWarning):
     """This suggests the connection is not behaving normal."""
 

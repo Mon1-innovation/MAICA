@@ -70,7 +70,7 @@ PRIMARY KEY (`user_id`)
 )
 """,
 """
-CREATE TABLE IF NOT EXISTS `cchop_archived` (
+CREATE TABLE IF NOT EXISTS `crop_archived` (
 `archive_id` int(11) NOT NULL AUTO_INCREMENT,
 `chat_session_id` int(11) NOT NULL,
 `content` longtext DEFAULT NULL,
@@ -133,7 +133,7 @@ CREATE TABLE IF NOT EXISTS account_status (
 )
 """,
 """
-CREATE TABLE IF NOT EXISTS cchop_archived (
+CREATE TABLE IF NOT EXISTS crop_archived (
     archive_id INTEGER PRIMARY KEY AUTOINCREMENT,
     chat_session_id INTEGER NOT NULL,
     content TEXT DEFAULT NULL,

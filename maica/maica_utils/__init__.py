@@ -11,6 +11,7 @@ from .maica_utils import (
     MaicaDbError,
     MaicaPermissionWarning,
     MaicaInputWarning,
+    MaicaDbWarning,
     MaicaConnectionWarning,
     MaicaInternetWarning,
     FscPlain,
@@ -50,7 +51,7 @@ from .maica_utils import (
 )
 from .connection_utils import DbPoolCoroutine, SqliteDbPoolCoroutine, ConnUtils, AiConnCoroutine, validate_input, apply_postfix
 from .setting_utils import MaicaSettings
-from .account_utils import AccountCursor, encrypt_token, sign_message, verify_message, sort_message
+from .account_utils import AccountCursor, encrypt_token, sign_message, verify_message
 from .container_utils import FullSocketsContainer
 from .sb_utils import SideBoundCoroutine, SideFunctionCoroutine
 from .get_a_sentence import SentenceOfTheDay
@@ -68,6 +69,7 @@ __all__ = [
     'MaicaDbError',
     'MaicaPermissionWarning',
     'MaicaInputWarning',
+    'MaicaDbWarning',
     'MaicaConnectionWarning',
     'MaicaInternetWarning',
     'FscPlain',
@@ -118,7 +120,6 @@ __all__ = [
     'encrypt_token',
     'sign_message',
     'verify_message',
-    'sort_message',
     'SentenceOfTheDay',
     'locater',
     'get_inner_path',

@@ -25,6 +25,7 @@ def pkg_init_account_utils():
     AUTH_DB = load_env('MAICA_AUTH_DB')
     MAICA_DB = load_env('MAICA_DATA_DB')
     encryptor = decryptor = verifier = signer = None
+    _check_keys()
 
 def _get_keys() -> tuple[PKCS1_OAEP.PKCS1OAEP_Cipher, PKCS1_OAEP.PKCS1OAEP_Cipher, PSS_SigScheme, PSS_SigScheme]:
     prv_path = get_inner_path('keys/prv.key')
@@ -53,7 +54,6 @@ class AccountCursor(AsyncCreator):
     def __init__(self, settings: MaicaSettings, auth_pool=None, maica_pool=None):
         self.settings = settings
         self.auth_pool, self.maica_pool = auth_pool, maica_pool
-        _check_keys()
         
     async def _ainit(self):
         if not self.auth_pool:
@@ -61,7 +61,7 @@ class AccountCursor(AsyncCreator):
         if not self.maica_pool:
             self.maica_pool = await ConnUtils.maica_pool()
 
-    async def check_user_status(self, pref=False, *args) -> Union[list, dict]:
+    async def check_user_status(self, pref=False, *args) -> Union[dict, tuple]:
         status = "status" if not pref else "preferences"
         l = []
         user_id = self.settings.identity.user_id
@@ -75,7 +75,7 @@ class AccountCursor(AsyncCreator):
             else:
                 for k in args:
                     l.append(stats_json.get(k))
-                return l
+                return tuple(l)
 
         except Exception as e:
             raise MaicaDbError(str(e), '502', f'user_{status}_read_failed') from e
@@ -186,14 +186,12 @@ class AccountCursor(AsyncCreator):
     
 def encrypt_token(cridential: str) -> str:
     """Generates an encrypted token. It does not care validity."""
-    _check_keys()
     encoded_token = cridential.encode('utf-8')
     encrypted_token = encryptor.encrypt(encoded_token)
     decoded_token = base64.b64encode(encrypted_token).decode('utf-8')
     return decoded_token
 
 def sign_message(message):
-    _check_keys()
     message = message.encode("utf-8")
     h = SHA256.new()
     h.update(message)
@@ -202,7 +200,6 @@ def sign_message(message):
     return sigb64
 
 def verify_message(message, sigb64):
-    _check_keys()
     message = message.encode("utf-8")
     signature = base64.b64decode(sigb64.encode("utf-8"))
     h = SHA256.new()
@@ -211,16 +208,6 @@ def verify_message(message, sigb64):
         return True
     else:
         return False
-
-def sort_message(message):
-    _check_keys()
-    message = list(message)
-    message_new = []
-    for line in message:
-        line = dict(line)
-        line_new = {"role": line['role'], "content": line['content']}
-        message_new.append(line_new)
-    return message_new
 
 if __name__ == '__main__':
     from maica import init

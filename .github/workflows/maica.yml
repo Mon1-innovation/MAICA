@@ -121,7 +121,7 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         tag_name: v${{ steps.get_version.outputs.version }}
-        name: Release v${{ steps.get_version.outputs.version }}
+        name: ${{ steps.get_version.outputs.version }}
         body: Automated release for MAICA version ${{ steps.get_version.outputs.version }}
         files: dist/*
       env:

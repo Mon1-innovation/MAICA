@@ -344,11 +344,11 @@ class AiConnCoroutine(AsyncCreator):
 
 class ConnUtils():
     """Just a wrapping for functions."""
-    async def auth_pool(ro=True):
+    async def auth_pool(ro=True) -> DbPoolCoroutine:
         """Dummy."""
-    async def maica_pool(ro=False):
+    async def maica_pool(ro=False) -> DbPoolCoroutine:
         """Dummy."""
-    async def basic_pool(ro=False):
+    async def basic_pool(ro=False) -> DbPoolCoroutine:
         """Dummy."""
     async def mcore_conn():
         conn = await AiConnCoroutine.async_create(

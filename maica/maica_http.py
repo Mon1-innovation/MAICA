@@ -228,7 +228,7 @@ class ShortConnHandler(View):
                         history_final_json = [history_json[0]] + history_json[(2 * i):]
                     case _:
                         history_final_json = history_json
-            history_final_str = json.dumps(history_final_json, ensure_ascii=False)
+            history_final_str = json.dumps(history_final_json, ensure_ascii=False, sort_keys=True)
             sigb64 = await wrap_run_in_exc(None, sign_message, history_final_str)
             return jsonify({"success": True, "exception": None, "content": [sigb64, history_final_json]})
         else:
@@ -244,9 +244,8 @@ class ShortConnHandler(View):
         content = valid_data.get('content')
 
         sigb64, history_json = content
-        history_json_sorted = sort_message(history_json)
-        assert (await wrap_run_in_exc(None, verify_message, json.dumps(history_json_sorted, ensure_ascii=False), sigb64)), "Signature mismatch"
-        await self.stem_inst.restore_chat_session(history_json_sorted, chat_session)
+        assert (await wrap_run_in_exc(None, verify_message, json.dumps(history_json, ensure_ascii=False, sort_keys=True), sigb64)), "Signature mismatch"
+        await self.stem_inst.restore_chat_session(history_json, chat_session)
 
         return jsonify({"success": True, "exception": None})
 
@@ -352,7 +351,7 @@ class ShortConnHandler(View):
             content = json.loads(valid_data.get('content'))
         except:
             content = None
-            
+
         if not content:
             result = self.settings.verification.username
         else:

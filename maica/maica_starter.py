@@ -25,11 +25,13 @@ from maica import maica_ws, maica_http, common_schedule, silent as _silent
 from maica.maica_utils import *
 from maica.initializer import *
 
+from maica.initializer import pkg_init_initializer
 from maica.maica_http import pkg_init_maica_http
 from maica.maica_nows import pkg_init_maica_nows
 from maica.maica_utils import pkg_init_maica_utils
 from maica.mtools import pkg_init_mtools
 def pkg_init_maica():
+    pkg_init_initializer()
     pkg_init_maica_http()
     pkg_init_maica_nows()
     pkg_init_maica_utils()
@@ -205,13 +207,17 @@ Quitting...'''
         quit(0)
 
 def check_data_init():
-    if not check_marking():
+    last_version = check_marking()
+    if not last_version:
         generate_rsa_keys()
         asyncio.run(create_tables())
         create_marking()
         sync_messenger(info="MAICA Illuminator initialization finished", type=MsgType.PRIM_SYS)
     else:
         sync_messenger(info="Initiated marking detected, skipping initialization", type=MsgType.DEBUG)
+    migrated = migrate(last_version)
+    if migrated:
+        create_marking()
 
 def check_warns():
     if load_env('MAICA_DB_ADDR') == 'sqlite':
