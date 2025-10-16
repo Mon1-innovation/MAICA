@@ -144,43 +144,55 @@ class SideFunctionCoroutine(AsyncCreator):
 
         if user_input:
 
-            # Having user input here suggests the last tool calls are over.
-            # So we have to cleanup the thinking part and toolcalls.
-            self.serial_messages = [msg for msg in self.serial_messages if msg.get('role') != 'tool']
+            # # Having user input here suggests the last tool calls are over.
+            # # So we have to cleanup the thinking part and toolcalls.
+            # self.serial_messages = [msg for msg in self.serial_messages if msg.get('role') != 'tool']
+            # assistant_last_msg = ''
+            # for msg in self.serial_messages[::-1]:
+            #     if isinstance(msg, ChatCompletionMessage):
+            #         assistant_last_msg = msg.content + assistant_last_msg
+            #         self.serial_messages.pop()
+            #     elif msg.get('role') == 'assistant':
+            #         assistant_last_msg = msg.get('content') + assistant_last_msg
+            #         self.serial_messages.pop()
+            #     else:
+            #         break
+
+            # # Then we peal off the thinking part
+            # assistant_last_msg = proceed_agent_response(assistant_last_msg)
+
+            # if assistant_last_msg:
+            #     self.serial_messages.append({'role': 'assistant', 'content': assistant_last_msg})
+
+            # The new OpenAI standard fucked all previous procedures
             assistant_last_msg = ''
+
             for msg in self.serial_messages[::-1]:
-                if isinstance(msg, ChatCompletionMessage):
-                    assistant_last_msg = msg.content + assistant_last_msg
-                    self.serial_messages.pop()
-                elif msg.get('role') == 'assistant':
-                    assistant_last_msg = msg.get('content') + assistant_last_msg
-                    self.serial_messages.pop()
-                else:
+                if msg.get('role') == 'user':
                     break
-
-            # Then we peal off the thinking part
-            assistant_last_msg = proceed_agent_response(assistant_last_msg)
-
-            if assistant_last_msg:
-                self.serial_messages.append({'role': 'assistant', 'content': assistant_last_msg})
+                elif isinstance(msg, ChatCompletionMessage):
+                    ind = self.serial_messages.index(msg)
+                    self.serial_messages[ind] = msg.model_dump(exclude=['reasoning_content'])
 
             self.serial_messages.append({'role': 'user', 'content': user_input})
 
         elif tool_input:
             self.serial_messages.append({'role': 'tool', 'tool_call_id': tool_id, 'content': tool_input})
 
-    async def _send_query(self) -> tuple[str, list]:
+    async def _send_query(self, thinking: Literal[True, False, None]=True) -> tuple[str, list]:
+        self.serial_messages = apply_postfix(self.serial_messages, thinking)
+        
         completion_args = {
             "messages": self.serial_messages,
             "tools": self.tools,
         }
 
         resp = await self.mfocus_conn.make_completion(**completion_args)
-        content, tool_calls = resp.choices[0].message.content, resp.choices[0].message.tool_calls
+        content, rcontent, tool_calls = resp.choices[0].message.content, getattr(resp.choices[0].message, 'reasoning_content', None), resp.choices[0].message.tool_calls
 
         if load_env('MAICA_ALT_TOOLCALL') != '0':
             self.serial_messages.append(resp.choices[0].message)
         else:
             self.serial_messages.append({"role": "assistant", "content": content})
 
-        return content, tool_calls
+        return content, rcontent, tool_calls

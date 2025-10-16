@@ -12,7 +12,7 @@ from .locater import *
 """Import layer 3"""
 
 def pkg_init_connection_utils():
-    global DB_ADDR, DB_USER, DB_PASSWORD, AUTH_DB, MAICA_DB, MCORE_ADDR, MCORE_KEY, MCORE_CHOICE, MFOCUS_ADDR, MFOCUS_KEY, MFOCUS_CHOICE, ConnUtils
+    global DB_ADDR, DB_USER, DB_PASSWORD, AUTH_DB, MAICA_DB, MCORE_ADDR, MCORE_KEY, MCORE_CHOICE, MFOCUS_ADDR, MFOCUS_KEY, MFOCUS_CHOICE, THINK_POSTFIX, NOTHINK_POSTFIX, ConnUtils
     DB_ADDR = load_env('MAICA_DB_ADDR')
     DB_USER = load_env('MAICA_DB_USER')
     DB_PASSWORD = load_env('MAICA_DB_PASSWORD')
@@ -24,6 +24,8 @@ def pkg_init_connection_utils():
     MFOCUS_ADDR = load_env('MAICA_MFOCUS_ADDR')
     MFOCUS_KEY = load_env('MAICA_MFOCUS_KEY')
     MFOCUS_CHOICE = load_env('MAICA_MFOCUS_CHOICE')
+    THINK_POSTFIX = load_env('MAICA_MFOCUS_THINK')
+    NOTHINK_POSTFIX = load_env('MAICA_MFOCUS_NOTHINK')
 
     if DB_ADDR != "sqlite":
         """We suppose we're using MySQL."""
@@ -83,6 +85,29 @@ def test_logger(func):
         print(f'Result: {result}')
         return result
     return wrapper
+
+def apply_postfix(messages, thinking: Literal[True, False, None]=None):
+    last_msg: dict = messages[-1]
+    if last_msg.get('role') == 'user':
+        if isinstance(last_msg.get('content'), str):
+            match thinking:
+                case True:
+                    last_msg['content'] += THINK_POSTFIX
+                case False:
+                    last_msg['content'] += NOTHINK_POSTFIX
+        elif isinstance(last_msg.get('content'), list):
+            d: dict
+            for d in last_msg['content']:
+                if d.get('type') == 'text' and isinstance(d.get('text'), str):
+                    match thinking:
+                        case True:
+                            d['text'] += THINK_POSTFIX
+                        case False:
+                            d['text'] += NOTHINK_POSTFIX
+                    break
+        else:
+            raise MaicaInputError('Context schedule not recognizable')
+    return messages
 
 class DbPoolCoroutine(AsyncCreator):
     """Maintain a database connection pool so you don't have to."""

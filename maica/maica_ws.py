@@ -327,13 +327,13 @@ class WsCoroutine(NoWsCoroutine):
         if self.settings.temp.ic_prep:
             completion_args['presence_penalty'] = 1.0 - (1.0 - completion_args['presence_penalty']) * (2/3)
 
+        # Add context log
         previous_rnds = messages[1:-1]
         previous_rnds_len = int(len(previous_rnds) / 2)
         previous_rnds_ellipsed = previous_rnds[-6:]
         previous_rnds_str = '\n'.join([(('Q: ' if d['role'] == 'user' else 'A: ') + d['content']) for d in previous_rnds_ellipsed])
         if previous_rnds_len > 3:
             previous_rnds_str = '... ...\n' + previous_rnds_str
-
         if previous_rnds_len:
             await messenger(info=f'\nQuery has {previous_rnds_len} rounds of history:\n{previous_rnds_str}\nEnd of query history', type=MsgType.RECV)
 

@@ -108,7 +108,13 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwar
 
     def get_templates():
         with open(get_inner_path('env_basis'), 'r', encoding='utf-8') as env_e:
-            env_c = env_e.read()
+            env_c = env_e.readlines()
+        i = 0
+        for l in env_c:
+            i += 1
+            if len(l) <= 5:
+                break
+        env_c = ''.join(env_c[i:])
         return env_c
     
     def separate_line(title: str):

@@ -1,3 +1,7 @@
+# Exclude this line in your env configuration
+# Current backend version
+MAICA_CURR_VERSION = '1.1.007.post1'
+
 # cp ./env_basis ./.env
 # vim .env
 # Do not mv, rm or edit examples! They're required as default templates.
@@ -6,9 +10,6 @@
 
 # If this env is manually configured
 MAICA_IS_REAL_ENV = '0'
-
-# Current backend version
-MAICA_CURR_VERSION = '1.1.007'
 
 
 # Model endpoint settings
@@ -75,7 +76,9 @@ MAICA_MNERVE_EXTRA = '
 '
 # 0 = ms-swift, 1 = modern openai
 MAICA_ALT_TOOLCALL = '1'
-# MFocus model no think postfix, leave empty to enforce thinking
+# MFocus model think postfix, for hybrid thinking models only
+MAICA_MFOCUS_THINK = ''# /think
+# MFocus model no think postfix, for hybrid thinking models only
 MAICA_MFOCUS_NOTHINK = ''# /nothink
 # MFocus provide trained data or not
 MAICA_BASIC_MFOCUS = '0'

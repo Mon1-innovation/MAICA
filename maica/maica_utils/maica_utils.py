@@ -209,6 +209,7 @@ class ReUtils():
     re_sub_sqlite_escape = re.compile(r'%s')
     re_sub_replacement_chr = re.compile(r'[\uFFF9-\uFFFF]')
     re_sub_serp_datetime = re.compile(r'.{1,10}?,.{1,10}?-\s*')
+    re_sub_clear_text = re.compile(r'^[\n\s]*(.*?)[\n\s]*$', re.S)
 
 class Decos():
     """Do not initialize."""
@@ -293,19 +294,6 @@ def ellipsis_str(input: any, limit=80) -> str:
         text = text[:limit] + '...'
     return text
 
-def fuzzy_match(pattern: str, text):
-    """Mostly used in agent things."""
-    if pattern == text:
-        return True
-    
-    # So they only compile once. Better than nothing
-    compiled_expression: Optional[Pattern] = getattr(ReUtils, f're_match_{pattern}')
-    if compiled_expression:
-        return compiled_expression.match(text)
-    else:
-        expression = pattern.replace('_', r'.*')
-        return re.match(expression, text, re.I | re.S)
-
 def mstuff_words_upper(text: str) -> str:
     """Overkill..."""
     def u_upper(c: re.Match):
@@ -338,7 +326,7 @@ def maica_assert(condition, kwd='param'):
 def has_valid_content(text: Union[str, list, dict]):
     """If the LLM actually gave anything."""
     text = str(text)
-    text_proc = text.lower().strip()
+    text_proc = text.lower().replace(' ', '').replace('\n', '')
     if (not text_proc) or text_proc in ['false', 'null', 'none']:
         return False
     else:
@@ -567,9 +555,11 @@ def add_seq_suffix(seq: int) -> str:
     return f'{str(seq)} {st}'
 
 def clean_text(text: str) -> str:
-    """Clean a text phrase, mostly for internet search."""
-    text = text.strip()
-    text = text.replace('\n', ' ')
+    """
+    Clean a text phrase, mostly for internet search.
+    After adapting to the OpenAI reasoning schema, we also use it for LLM outputs.
+    """
+    text = ReUtils.re_sub_clear_text.sub(r'\1', text)
     return text
 
 def try_load_json(sj: str) -> dict:
