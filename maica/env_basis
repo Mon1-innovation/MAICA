@@ -24,6 +24,7 @@ MAICA_MCORE_CHOICE = ''
 MAICA_MCORE_EXTRA = '
     {
         "extra_body": {
+            "repetition_penalty": 1.0
         }
     }
 '
@@ -37,8 +38,10 @@ MAICA_MFOCUS_CHOICE = ''
 # Not a part of OpenAI standard, so only useful for vllm-like deployments
 MAICA_MFOCUS_EXTRA = '
     {
+        "temperature": 0.2,
         "seed": 42,
         "extra_body": {
+            "repetition_penalty": 1.05
         }
     }
 '

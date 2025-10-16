@@ -78,7 +78,7 @@ class AccountCursor(AsyncCreator):
                 return l
 
         except Exception as e:
-            raise MaicaDbError(str(e), '502', f'user_{status}_read_failed')
+            raise MaicaDbError(str(e), '502', f'user_{status}_read_failed') from e
 
     async def write_user_status(self, enforce=False, pref=False, **kwargs) -> None:
         status = "status" if not pref else "preferences"
@@ -101,8 +101,7 @@ class AccountCursor(AsyncCreator):
             await self.maica_pool.query_modify(expression=sql_expression, values=sql_args)
 
         except Exception as e:
-            traceback.print_exc()
-            raise MaicaDbError(e, '502', f'user_{status}_write_failed')
+            raise MaicaDbError(e, '502', f'user_{status}_write_failed') from e
 
     async def _account_pwd_verify(self, identity, is_email, password) -> tuple[bool, Union[str, dict, None]]:
         sql_expression = 'SELECT id, username, nickname, email, is_email_confirmed, password FROM users WHERE email = %s' if is_email else 'SELECT id, username, nickname, email, is_email_confirmed, password FROM users WHERE username = %s'

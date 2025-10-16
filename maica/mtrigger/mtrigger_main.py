@@ -216,7 +216,7 @@ class MTriggerCoroutine(SideFunctionCoroutine):
             raise ce
         
         except websockets.WebSocketException as we:
-            raise MaicaConnectionWarning(str(we), '408')
+            raise MaicaConnectionWarning(str(we), '408') from we
 
         except Exception as e:
-            raise CommonMaicaError(str(e), '500', 'maica_mtrigger_critical')
+            raise CommonMaicaError(str(e), '500', 'maica_mtrigger_critical') from e

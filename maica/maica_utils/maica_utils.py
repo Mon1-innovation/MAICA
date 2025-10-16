@@ -227,9 +227,7 @@ class Decos():
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                if not str(e):
-                    e = 'Assertion'
-                raise MaicaInputWarning(f'Acquired persistent not acceptable:{str(e)}', '405', 'maica_agent_persistent_bad')
+                raise MaicaInputWarning(f'Acquired persistent not acceptable: {str(e) if str(e) else "Assertion"}', '405', 'maica_agent_persistent_bad') from e
         return wrapper
 
     def report_reading_error(func):
@@ -239,9 +237,7 @@ class Decos():
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                if not str(e):
-                    e = 'Assertion'
-                raise MaicaInputError(f'Access before necessary assignment: {str(e)}', '500', 'maica_settings_read_rejected')
+                raise MaicaInputError(f'Access before necessary assignment: {str(e) if str(e) else "Assertion"}', '500', 'maica_settings_read_rejected') from e
         return wrapper
 
     def report_limit_warning(func):
@@ -251,9 +247,7 @@ class Decos():
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                if not str(e):
-                    e = 'Assertion'
-                raise MaicaInputWarning(f'Input param not acceptable: {str(e)}', '422', 'maica_settings_param_rejected')
+                raise MaicaInputWarning(f'Input param not acceptable: {str(e) if str(e) else "Assertion"}', '422', 'maica_settings_param_rejected') from e
         return wrapper
 
     def report_limit_error(func):
@@ -264,9 +258,7 @@ class Decos():
                 assert not getattr(self, '_lock', None)
                 return func(self, *args, **kwargs)
             except Exception as e:
-                if not str(e):
-                    e = 'Assertion'
-                raise MaicaInputError(f'Input param not acceptable: {str(e)}', '500', 'maica_settings_param_rejected')
+                raise MaicaInputError(f'Input param not acceptable: {str(e) if str(e) else "Assertion"}', '500', 'maica_settings_param_rejected') from e
         return wrapper
 
 @dataclass
@@ -520,7 +512,7 @@ async def dld_json(url, retries=2) -> json:
                     await messenger(info=f'HTTP temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
-                    raise MaicaInternetWarning(f'Cannot get JSON response after {str(tries + 1)} times', '408')
+                    raise MaicaInternetWarning(f'Cannot get JSON response after {str(tries + 1)} times', '408') from e
     except Exception as e:
         raise e
     finally:

@@ -160,7 +160,7 @@ class WsCoroutine(NoWsCoroutine):
         # Handle input errors here
         except Exception as e:
             if not isinstance(e, CommonMaicaException):
-                raise MaicaInputWarning(str(e), '405', 'maica_params_denied')
+                raise MaicaInputWarning(str(e), '405', 'maica_params_denied') from e
             else:
                 raise e
 
@@ -286,8 +286,8 @@ class WsCoroutine(NoWsCoroutine):
                     query_in = messages[-1]['text']
                     if len(messages) > 10:
                         raise MaicaInputWarning('Sequence exceeded 10 rounds for chat_session -1', '413', 'maica_sequence_rounds_exceeded')
-                except Exception as excepted:
-                    raise MaicaInputWarning('Sequence is not JSON for chat_session -1', '406', 'maica_sequence_not_json')
+                except Exception as e:
+                    raise MaicaInputWarning('Sequence is not JSON for chat_session -1', '406', 'maica_sequence_not_json') from e
 
             case i if 0 <= i < 10:
 

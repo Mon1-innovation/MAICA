@@ -102,8 +102,8 @@ class DbPoolCoroutine(AsyncCreator):
             try:
                 self.pool.close()
                 await self._ainit()
-            except Exception:
-                raise MaicaDbError(f'Failure when trying reconnecting to {self.db}', '502', 'db_connection_failed')
+            except Exception as e:
+                raise MaicaDbError(f'Failure when trying reconnecting to {self.db}', '502', 'db_connection_failed') from e
 
     # @test_logger
     async def query_get(self, expression, values=None, fetchall=False) -> list:
@@ -128,7 +128,7 @@ class DbPoolCoroutine(AsyncCreator):
                     await messenger(info=f'DB temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
-                    raise MaicaDbError(f'DB get query failure after {str(tries + 1)} times: {str(e)}', '502', 'db_get_failed')
+                    raise MaicaDbError(f'DB get query failure after {str(tries + 1)} times: {str(e)}', '502', 'db_get_failed') from e
         return results
 
     # @test_logger
@@ -153,7 +153,7 @@ class DbPoolCoroutine(AsyncCreator):
                     await messenger(info=f'DB temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
-                    raise MaicaDbError(f'DB modify query failure after {str(tries + 1)} times: {str(e)}', '502', 'db_modify_failed')
+                    raise MaicaDbError(f'DB modify query failure after {str(tries + 1)} times: {str(e)}', '502', 'db_modify_failed') from e
         return lrid
     
     async def close(self):
@@ -177,7 +177,7 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
             if self.ro:
                 await self.pool.execute("PRAGMA query_only = ON")
         except Exception as e:
-            raise MaicaDbError(f'Failed to initialize SQLite connection: {str(e)}', '502', 'sqlite_init_failed')
+            raise MaicaDbError(f'Failed to initialize SQLite connection: {str(e)}', '502', 'sqlite_init_failed') from e
 
     async def keep_alive(self):
         """Check and maintain SQLite connection."""
@@ -189,8 +189,8 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
                 if self.pool:
                     await self.pool.close()
                 await self._ainit()
-            except Exception:
-                raise MaicaDbError(f'Failure when trying reconnecting to {self.db}', '502', 'db_connection_failed')
+            except Exception as e:
+                raise MaicaDbError(f'Failure when trying reconnecting to {self.db}', '502', 'db_connection_failed') from e
 
     @Decos.escape_sqlite_expression
     # @test_logger
@@ -213,7 +213,7 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
                     await messenger(info=f'SQLite temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
-                    raise MaicaDbError(f'SQLite get query failure after {str(tries + 1)} times: {str(e)}', '502', 'sqlite_get_failed')
+                    raise MaicaDbError(f'SQLite get query failure after {str(tries + 1)} times: {str(e)}', '502', 'sqlite_get_failed') from e
         return results
 
     @Decos.escape_sqlite_expression
@@ -239,7 +239,7 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
                     await messenger(info=f'SQLite temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
-                    raise MaicaDbError(f'SQLite modify query failure after {str(tries + 1)} times: {str(e)}', '502', 'sqlite_modify_failed')
+                    raise MaicaDbError(f'SQLite modify query failure after {str(tries + 1)} times: {str(e)}', '502', 'sqlite_modify_failed') from e
         return lrid
 
     async def close(self):
@@ -295,8 +295,8 @@ class AiConnCoroutine(AsyncCreator):
                 except Exception:
                     pass
                 self._open_socket()
-            except Exception:
-                raise MaicaResponseError(f'Failure when trying reconnecting to {self.name}', '502', f'{self.name}_connection_failed')
+            except Exception as e:
+                raise MaicaResponseError(f'Failure when trying reconnecting to {self.name}', '502', f'{self.name}_connection_failed') from e
             
     async def make_completion(self, **kwargs) -> ChatCompletion:
         kwargs.update(
@@ -315,7 +315,7 @@ class AiConnCoroutine(AsyncCreator):
                     await messenger(info=f'Model temporary failure, retrying {str(tries + 1)} time(s)')
                     await asyncio.sleep(0.5)
                 else:
-                    raise MaicaResponseError(f'{self.name} AI query failure after {str(tries + 1)} times: {str(e)}', '502', f'{self.name}_query_failed')
+                    raise MaicaResponseError(f'{self.name} AI query failure after {str(tries + 1)} times: {str(e)}', '502', f'{self.name}_query_failed') from e
 
 class ConnUtils():
     """Just a wrapping for functions."""
@@ -359,8 +359,8 @@ async def validate_input(input: Union[str, dict, list], limit: int=4096, rsc: Op
             raise MaicaInputWarning('Input length exceeded', '413', 'maica_input_length_exceeded')
         try:
             input_json = json.loads(input)
-        except Exception:
-            raise MaicaInputWarning('Request body not JSON', '400', 'maica_input_not_json')
+        except Exception as e:
+            raise MaicaInputWarning('Request body not JSON', '400', 'maica_input_not_json') from e
     elif isinstance(input, dict | list):
         if len(str(input)) > limit:
             raise MaicaInputWarning('Input length exceeded', '413', 'maica_input_length_exceeded')

@@ -15,13 +15,12 @@ async def internet_search(fsc: FullSocketsContainer, query, original_query):
             results_sync = await (providers.get_asearch())(query, target_lang)
             assert len(results_sync), 'Search result is empty'
             break
-        except Exception:
-            traceback.print_exc()
+        except Exception as e:
             if tries < 2:
                 await messenger(info=f'Search engine temporary failure, retrying {str(tries + 1)} time(s)')
                 await asyncio.sleep(0.5)
             else:
-                raise MaicaInternetWarning(f'Cannot get search result after {str(tries + 1)} times', '408')
+                raise MaicaInternetWarning(f'Cannot get search result after {str(tries + 1)} times', '408') from e
 
     results_full = []
     results_short = []

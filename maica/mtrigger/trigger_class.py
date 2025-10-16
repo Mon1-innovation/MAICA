@@ -60,7 +60,7 @@ class CommonSwitchTrigger(CommonTrigger):
             self.exprop = _exprop(**kwargs.get('exprop'))
             assert self.exprop.item_list, 'No item list provided for switch'
         except Exception as e:
-            raise MaicaInputWarning(f'Trigger {self.name} not intact: {str(e)}')
+            raise MaicaInputWarning(f'Trigger {self.name} not intact: {str(e)}') from e
         
 class CommonMeterTrigger(CommonTrigger):
     template = 'common_meter_template'
@@ -70,7 +70,7 @@ class CommonMeterTrigger(CommonTrigger):
             self.exprop = _exprop(**kwargs.get('exprop'))
             assert self.exprop.value_limits
         except Exception as e:
-            raise MaicaInputWarning(f'Trigger {self.name} not intact: {str(e)}')
+            raise MaicaInputWarning(f'Trigger {self.name} not intact: {str(e)}') from e
 
 class CustomizedTrigger(CommonTrigger):
     template = 'customized'
@@ -79,4 +79,4 @@ class CustomizedTrigger(CommonTrigger):
         try:
             self.exprop = _exprop(**kwargs.get('exprop'))
         except Exception as e:
-            raise MaicaInputWarning(f'Trigger {self.name} not intact: {str(e)}')
+            raise MaicaInputWarning(f'Trigger {self.name} not intact: {str(e)}') from e

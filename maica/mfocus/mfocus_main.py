@@ -405,7 +405,7 @@ class MFocusCoroutine(SideFunctionCoroutine):
             raise ce
         
         except websockets.WebSocketException as we:
-            raise MaicaConnectionWarning(str(we), '408')
+            raise MaicaConnectionWarning(str(we), '408') from we
 
         except Exception as e:
-            raise CommonMaicaError(str(e), '500', 'maica_mfocus_critical')
+            raise CommonMaicaError(str(e), '500', 'maica_mfocus_critical') from e

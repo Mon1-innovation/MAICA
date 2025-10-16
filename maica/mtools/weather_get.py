@@ -22,7 +22,7 @@ async def weather_api_get(location):
         raise ce
     
     except Exception as e:
-        raise MaicaInternetWarning(f'Weather API failed: {str(e)}', '406')
+        raise MaicaInternetWarning(f'Weather API failed: {str(e)}', '406') from e
 
 if __name__ == '__main__':
     from maica import init
