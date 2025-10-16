@@ -193,27 +193,23 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwar
             sync_messenger(info=f'[maica-init] Error: {str(e)}, quitting...', type=MsgType.ERROR)
             exit(1)
 
-def check_env_init():
-    """We run this only if called to serve. No env is basically not a problem for working as module."""
-    if load_env('MAICA_IS_REAL_ENV') == '1':
-        return
-    else:
-        print('''No real env detected, is this workflow?
+def check_data_init():
+    last_version = check_marking()
+    if not last_version:
+        generate_rsa_keys()
+        pkg_init_maica()
+        if load_env('MAICA_IS_REAL_ENV') == '1':
+            asyncio.run(create_tables())
+        else:
+            print('''No real env detected, is this workflow?
 If it is, at least the imports and grammar are good if you see this.
 If not:
     If you're running MAICA for deployment, pass in "--envdir path/to/.env".
     If you're developing with MAICA as dependency, call maica.init() after import.
     Or, you can manually set the necessary env vars.
 Quitting...'''
-              )
-        quit(0)
-
-def check_data_init():
-    last_version = check_marking()
-    if not last_version:
-        generate_rsa_keys()
-        pkg_init_maica()
-        asyncio.run(create_tables())
+                )
+            quit(0)
         create_marking()
         sync_messenger(info="MAICA Illuminator initialization finished", type=MsgType.PRIM_SYS)
     else:
@@ -288,7 +284,6 @@ async def mtts_start_all(auth_pool, maica_pool):
 def full_start():
     check_params()
     check_data_init()
-    check_env_init()
     check_warns()
     asyncio.run(start_all(start_target))
 
