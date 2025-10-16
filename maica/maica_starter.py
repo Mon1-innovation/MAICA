@@ -71,6 +71,7 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwar
     _silent(silent)
 
     def dest_env(envdir: str=None, extra_envdir: list=None):
+        """This part we load all static env vars."""
         if not envdir:
             realpath = get_inner_path('.env')
             sync_messenger(info=f'[maica-env] No env file designated, defaulting to {realpath}...', type=MsgType.DEBUG)
@@ -153,6 +154,7 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwar
         sync_messenger(info='[maica-cli] Creation succeeded, edit them yourself and then start with "maica -c .env"', type=MsgType.LOG)
 
     if kwargs:
+        # Load extra env vars
         for k, v in kwargs.items():
             os.environ[k] = v
         sync_messenger(info=f'[maica-env] Added {len(kwargs)} vars to environ.', type=MsgType.DEBUG)
@@ -186,10 +188,8 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwar
                         sync_messenger(info='\n[maica-cli] Function yet not supported, do it manually.\nNever ask why we made this.', type=MsgType.LOG)
                 exit()
 
-            pkg_init_maica()
             initialized = True
         except Exception as e:
-            traceback.print_exc()
             sync_messenger(info=f'[maica-init] Error: {str(e)}, quitting...', type=MsgType.ERROR)
             exit(1)
 
@@ -212,10 +212,12 @@ def check_data_init():
     last_version = check_marking()
     if not last_version:
         generate_rsa_keys()
+        pkg_init_maica()
         asyncio.run(create_tables())
         create_marking()
         sync_messenger(info="MAICA Illuminator initialization finished", type=MsgType.PRIM_SYS)
     else:
+        pkg_init_maica()
         sync_messenger(info="Initiated marking detected, skipping initialization", type=MsgType.DEBUG)
     migrated = migrate(last_version)
     if migrated:
@@ -285,8 +287,8 @@ async def mtts_start_all(auth_pool, maica_pool):
 
 def full_start():
     check_params()
-    check_env_init()
     check_data_init()
+    check_env_init()
     check_warns()
     asyncio.run(start_all(start_target))
 
