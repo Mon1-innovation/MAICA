@@ -1,4 +1,4 @@
-name: Python CI
+name: MAICA workflow
 
 on:
   push:
@@ -7,13 +7,8 @@ on:
     branches: [ main ]
 
 jobs:
-  test-and-publish:
+  test:
     runs-on: ubuntu-latest
-    # Specifying a GitHub environment is optional, but strongly encouraged
-    environment: pypi
-    permissions:
-      # IMPORTANT: this permission is mandatory for Trusted Publishing
-      id-token: write
     steps:
     - uses: actions/checkout@v4
     
@@ -30,21 +25,102 @@ jobs:
         python -m pip install --upgrade pip
         pip install setuptools wheel twine
         pip install -r requirements.txt
-
-    # - name: Initialize basic env
-    #   run: |
-    #     cp maica/env_basis maica/.env
-    #     cp maica/servers_example maica/.servers
-    #   shell: bash
         
     - name: Run tests
       run: |
         python -m maica.maica_starter
 
     - name: Build package
-      run:
+      run: |
         python setup.py sdist bdist_wheel
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-dist
+        path: dist/
+        retention-days: 1
 
+  publish-pypi:
+    runs-on: ubuntu-latest
+    needs: test
+    environment: pypi
+    permissions:
+      id-token: write
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-dist
+        path: dist/
+        
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        
+    - name: Install publishing tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install twine
+        
     - name: Publish package distributions to PyPI
       continue-on-error: true
       uses: pypa/gh-action-pypi-publish@release/v1
+
+  publish-release:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # 获取完整的git历史记录，用于检查tag
+        
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-dist
+        path: dist/
+        
+    - name: Extract version from maica/env_basis
+      id: get_version
+      run: |
+        VERSION=$(grep "MAICA_CURR_VERSION" maica/env_basis | cut -d "'" -f2)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Extracted version: $VERSION"
+        
+    - name: Check if tag already exists
+      id: check_tag
+      run: |
+        if git rev-parse "v${{ steps.get_version.outputs.version }}" >/dev/null 2>&1; then
+          echo "tag_exists=true" >> $GITHUB_OUTPUT
+          echo "Tag v${{ steps.get_version.outputs.version }} already exists, skipping release."
+        else
+          echo "tag_exists=false" >> $GITHUB_OUTPUT
+          echo "Tag v${{ steps.get_version.outputs.version }} does not exist, will create release."
+        fi
+        
+    - name: Create Git tag
+      if: steps.check_tag.outputs.tag_exists == 'false'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git tag -a "v${{ steps.get_version.outputs.version }}" -m "Release v${{ steps.get_version.outputs.version }}"
+        git push origin "v${{ steps.get_version.outputs.version }}"
+        
+    - name: Create GitHub Release
+      if: steps.check_tag.outputs.tag_exists == 'false'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ steps.get_version.outputs.version }}
+        name: Release v${{ steps.get_version.outputs.version }}
+        body: Automated release for MAICA version ${{ steps.get_version.outputs.version }}
+        files: dist/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
