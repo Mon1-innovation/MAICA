@@ -1,8 +1,8 @@
+"""Import layer 5"""
 from openai.types.chat import ChatCompletionMessage
 from .connection_utils import *
 from .container_utils import *
 from maica.maica_utils import *
-"""Import layer 5"""
 
 class SideBoundCoroutine(AsyncCreator):
     """This is just a template. Do not initialize!"""
@@ -47,7 +47,7 @@ class SideBoundCoroutine(AsyncCreator):
     async def _find_session_or_default(self) -> int:
         sql_expression = f'SELECT {self.PRIM_KEY} FROM {self.DB_NAME} WHERE user_id = %s AND chat_session_num = %s'
         if not await self.maica_pool.query_get(sql_expression, (self.settings.verification.user_id, self.settings.temp.chat_session)):
-            return 1
+            return 0
         else:
             return self.settings.temp.chat_session
 

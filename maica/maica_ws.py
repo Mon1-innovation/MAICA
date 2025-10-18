@@ -8,13 +8,13 @@ import traceback
 import colorama
 
 from typing import *
+from dataclasses import asdict
 
 from maica import mtools
 from maica.maica_nows import NoWsCoroutine
 from maica.maica_utils import *
 
-# For imports
-_onliners = {}
+_CONNS_LIST = ['auth_pool', 'maica_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn']
 
 class WsCoroutine(NoWsCoroutine):
     """
@@ -22,28 +22,25 @@ class WsCoroutine(NoWsCoroutine):
     Also has AI sockets.
     """
 
-    def __init__(self, websocket, auth_pool: DbPoolCoroutine, maica_pool: DbPoolCoroutine, mcore_conn: AiConnCoroutine, mfocus_conn: AiConnCoroutine, online_dict: dict):
-        super().__init__(auth_pool=auth_pool, maica_pool=maica_pool, websocket=websocket)
-        self.online_dict = online_dict
-
-        self.fsc.rsc.websocket = websocket
-        if mcore_conn and mfocus_conn:
-            mcore_conn.init_rsc(self.fsc.rsc); mfocus_conn.init_rsc(self.fsc.rsc)
-        self.mcore_conn, self.mfocus_conn = mcore_conn, mfocus_conn
-        self.fsc.mcore_conn, self.fsc.mfocus_conn = mcore_conn, mfocus_conn
+    def __init__(
+            self,
+            fsc: FullSocketsContainer,
+        ):
+        super().__init__(fsc=fsc)
+        self.fsc = fsc
 
     # Stage 1 permission check
     async def check_permit(self):
         websocket = self.websocket
         await messenger(info='An anonymous connection initiated', type=MsgType.PRIM_LOG)
-        await messenger(info=f'Current online users: {list(self.online_dict.keys())}', type=MsgType.DEBUG)
+        await messenger(info=f'Current online users: {list(online_dict.keys())}', type=MsgType.DEBUG)
 
         # Starting loop from here
         while True:
             try:
 
                 # Initiation
-                self.flush_traceray()
+                self.traceray_id.rotate()
                 self.settings.identity.reset()
                 self.settings.verification.reset()
 
@@ -78,23 +75,15 @@ class WsCoroutine(NoWsCoroutine):
     
     # Stage 2 function router
     async def function_switch(self):
-
-        # Initiation
-        websocket, mcore_conn = self.websocket, self.mcore_conn
-
+        websocket = self.websocket
         await messenger(websocket, "maica_connection_established", "MAICA connection established", "201", type=MsgType.INFO, no_print=True)
         await messenger(websocket, "maica_provider_anno", f"Current service provider is {load_env('MAICA_DEV_IDENTITY') or 'UNKNOWN'}", "200", type=MsgType.INFO, no_print=True)
-        await messenger(websocket, "maica_model_anno", f"Main model is {self.mcore_conn.model_actual}, MFocus model is {self.mfocus_conn.model_actual}", "200", type=MsgType.INFO, no_print=True)
+        await messenger(websocket, "maica_model_anno", f"Main model is {self.fsc.mcore_conn.model_actual}, MFocus model is {self.fsc.mfocus_conn.model_actual}", "200", type=MsgType.INFO, no_print=True)
 
         # Starting loop from here
         while True:
             try:
-
-                # Initiation
-                self.flush_traceray()
-                return_status = 0
-
-                # Resets
+                self.traceray_id.rotate()
                 self.settings.temp.reset()
 
                 # Context security check first
@@ -125,14 +114,14 @@ class WsCoroutine(NoWsCoroutine):
                     case 'ping':
                         await messenger(websocket, "pong", f"Ping recieved from {self.settings.verification.username} and responded", "200")
                     case 'params':
-                        return_status = await self.def_model(recv_loaded_json)
+                        await self.def_model(recv_loaded_json)
                     case 'query':
-                        return_status = await self.do_communicate(recv_loaded_json)
+                        await self.do_communicate(recv_loaded_json)
                         await self.reset_auxiliary_inst()
                     case placeholder if "chat_params" in recv_loaded_json:
-                        return_status = await self.def_model(recv_loaded_json)
+                        await self.def_model(recv_loaded_json)
                     case placeholder if "chat_session" in recv_loaded_json:
-                        return_status = await self.do_communicate(recv_loaded_json)
+                        await self.do_communicate(recv_loaded_json)
                         await self.reset_auxiliary_inst()
                     case _:
                         raise MaicaInputWarning('Type cannot be determined', '422', 'maica_request_type_unknown')
@@ -315,7 +304,7 @@ class WsCoroutine(NoWsCoroutine):
         }
         
         if not self.settings.temp.bypass_sup:
-            completion_args.update(self.settings.super())
+            completion_args.update(dict(self.settings.super))
         else:
             completion_args.update(self.settings.super.default())
             self.settings.temp.update(bypass_sup=False)
@@ -342,7 +331,7 @@ class WsCoroutine(NoWsCoroutine):
         if not self.settings.temp.bypass_gen or not replace_generation: # They should present together
 
             # Generation here
-            resp = await self.mcore_conn.make_completion(**completion_args)
+            resp = await self.fsc.mcore_conn.make_completion(**completion_args)
 
             if completion_args['stream']:
                 reply_appended = ''
@@ -405,16 +394,25 @@ def callback_func_switch(future):
     pass
 def callback_check_permit(future):
     pass
-    
+
 # Main app driver
-async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn, online_dict):
+async def main_logic(
+        websocket: websockets.ServerConnection,
+        root_csc: ConnSocketsContainer,
+    ):
+    rsc = RealtimeSocketsContainer(websocket)
+    csc = root_csc.spawn_sub(rsc)
+    fsc = FullSocketsContainer(rsc, csc)
+    
     unique_lock = asyncio.Lock()
     async with unique_lock:
         try:
             sentence_of_the_day = SentenceOfTheDay().get_sentence()
             await messenger(websocket, 'maica_connection_initiated', sentence_of_the_day, '200', type=MsgType.INFO, no_print=True)
 
-            thread_instance = await WsCoroutine.async_create(websocket, auth_pool=auth_pool, maica_pool=maica_pool, mcore_conn=mcore_conn, mfocus_conn=mfocus_conn, online_dict=online_dict)
+            thread_instance = await WsCoroutine.async_create(
+                fsc,
+            )
 
             permit = await thread_instance.check_permit()
             assert isinstance(permit, dict) and permit['id'], permit
@@ -453,54 +451,52 @@ async def main_logic(websocket, auth_pool, maica_pool, mcore_conn, mfocus_conn, 
             await messenger(info=f"Closing connection gracefully", type=MsgType.DEBUG)
 
 async def prepare_thread(**kwargs):
-    online_dict = _onliners; auth_created = False; maica_created = False
 
-    if kwargs.get('auth_pool'):
-        auth_pool = kwargs.get('auth_pool')
-    else:
-        auth_pool = await ConnUtils.auth_pool()
-        auth_created = True
-    if kwargs.get('maica_pool'):
-        maica_pool = kwargs.get('maica_pool')
-    else:
-        maica_pool = await ConnUtils.maica_pool()
-        maica_created = True
-
-    try:
-        mcore_conn: AiConnCoroutine = default(kwargs.get('mcore_conn'), await ConnUtils.mcore_conn())
-        mfocus_conn: AiConnCoroutine = default(kwargs.get('mfocus_conn'), await ConnUtils.mfocus_conn())
-    except Exception:
-        mcore_conn = mfocus_conn = None
+    # Construct csc first
+    root_csc_kwargs = {k: kwargs.get(k) for k in _CONNS_LIST}
+    root_csc = ConnSocketsContainer(**root_csc_kwargs)
 
     await messenger(info='MAICA WS server started!' if load_env('MAICA_DEV_STATUS') == 'serving' else 'MAICA WS server started in development mode!', type=MsgType.PRIM_SYS)
-
     try:
-        await messenger(info=f"Main model is {mcore_conn.model_actual}, MFocus model is {mfocus_conn.model_actual}", type=MsgType.SYS)
+        await messenger(info=f"Main model is {root_csc.mcore_conn.model_actual}, MFocus model is {root_csc.mfocus_conn.model_actual}", type=MsgType.SYS)
     except Exception:
-        await messenger(info=f"Model deployment cannot be reached -- running in minimal testing mode", type=MsgType.SYS)
+        await messenger(info=f"Major model deployment cannot be reached -- running in minimal testing mode", type=MsgType.SYS)
     
     try:
-        server = await websockets.serve(functools.partial(main_logic, auth_pool=auth_pool, maica_pool=maica_pool, mcore_conn=mcore_conn, mfocus_conn=mfocus_conn, online_dict=online_dict), '0.0.0.0', 5000)
+        server = await websockets.serve(functools.partial(
+            main_logic,
+            root_csc=root_csc,
+        ), '0.0.0.0', 5000)
         await server.wait_closed()
     except BaseException as be:
         if isinstance(be, Exception):
             error = CommonMaicaError(str(be), '504')
             await messenger(error=error, no_raise=True)
     finally:
-        close_list = []
-        if auth_created:
-            close_list.append(auth_pool.close())
-        if maica_created:
-            close_list.append(maica_pool.close())
-
-        await asyncio.gather(*close_list, return_exceptions=True)
-
         await messenger(info='MAICA WS server stopped!', type=MsgType.PRIM_SYS)
 
-def run_ws(**kwargs):
-    
-    asyncio.run(prepare_thread(**kwargs))
+async def _run_ws():
+    """
+    Notice: these only happen running individually!
+    Use prepare_thread() for lower level control.
+    """
+    from maica import init
+    init()
+    _root_csc_items = [getattr(ConnUtils, k)() for k in _CONNS_LIST]
+    root_csc_items = await asyncio.gather(*_root_csc_items)
+    root_csc_kwargs = dict(zip(_CONNS_LIST, root_csc_items))
+
+    task = asyncio.create_task(prepare_thread(**root_csc_kwargs))
+    await task
+
+    close_list = []
+    for conn in root_csc_items:
+        close_list.append(conn.close())
+    await asyncio.gather(*close_list)
+    await messenger(info='Individual MAICA WS server cleaning done', type=MsgType.DEBUG)
+
+def run_ws():
+    asyncio.run(_run_ws())
 
 if __name__ == '__main__':
-
     run_ws()

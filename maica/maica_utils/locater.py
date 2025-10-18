@@ -1,7 +1,7 @@
+"""Import layer 0"""
 import sys
 import os
 import inspect
-"""Import layer 0"""
 
 def locater():
     """

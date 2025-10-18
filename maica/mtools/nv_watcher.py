@@ -25,18 +25,16 @@ class NvWatcher(AsyncCreator):
         self.node_user = load_env(f'{prefix.upper()}_{node.upper()}_USER')
         self.node_pwd = load_env(f'{prefix.upper()}_{node.upper()}_PWD')
         self.is_dead = False
-        try:
-            self.node_addr = ReUtils.re_search_host_addr.search(load_env(f'{prefix.upper()}_{node.upper()}_ADDR'))[1]
-        except Exception:
-            self.node_addr = None
+
+        self.node_addr = get_host(load_env(f'{prefix.upper()}_{node.upper()}_ADDR'))
 
     async def _ainit(self):
-        """Must run in the action loop."""
-        try:
-            await self._connect_remotes()
-            await self._initiate_db()
-        except Exception:
-            self.is_dead = True
+        if self.is_active:
+            try:
+                await self._connect_remotes()
+                await self._initiate_db()
+            except Exception:
+                self.is_dead = True
 
     @property
     def is_active(self):

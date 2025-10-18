@@ -1,3 +1,5 @@
+"""Import layer 1"""
+import logging
 import asyncio
 import httpx
 import functools
@@ -17,10 +19,46 @@ from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from urllib.parse import urlparse
 from .locater import *
-"""Import layer 1"""
 
 colorama.init(autoreset=True)
+
+logger = logging.getLogger('maica')
+logger.setLevel(logging.DEBUG)
+logger.handlers.clear()
+
+main_handler = logging.StreamHandler(sys.stdout)
+main_handler.setLevel(logging.DEBUG)
+main_handler.addFilter(lambda record: record.levelno <= logging.WARNING)
+err_handler = logging.StreamHandler(sys.stderr)
+err_handler.setLevel(logging.ERROR)
+
+logger.addHandler(main_handler)
+logger.addHandler(err_handler)
+
+def silent(tf: bool=True) -> None:
+    global _silent, logger
+    _silent = tf
 _silent = False
+
+class _lmlogger():
+    """
+    Python logging does not support stream output, so I made this.
+    Redirect 'stream-maica' output to log file if needed.
+    """
+    def __init__(self, name='stream-maica'):
+        self._logger = logging.getLogger(name)
+        self._logger.setLevel(logging.DEBUG)
+        self._logger.handlers.clear()
+        self._buffer = ''
+    
+    def buff(self, text):
+        self._buffer += text
+
+    def flush(self):
+        self._logger.info(self._buffer)
+        self._buffer = ''
+
+lmlogger = _lmlogger()
 
 class MsgType():
     """For convenience."""
@@ -94,21 +132,6 @@ class MaicaConnectionWarning(CommonMaicaWarning):
 
 class MaicaInternetWarning(CommonMaicaWarning):
     """This suggests the backend request action is not behaving normal."""
-
-class FscPlain():
-    """Loop importing prevention."""
-    class RealtimeSocketsContainer():
-        """For no-setting usage."""
-        def __init__(self, websocket=None, traceray_id=''):
-            self.websocket, self.traceray_id = websocket, traceray_id
-    
-    def __init__(self, websocket=None, traceray_id='', maica_settings=None, auth_pool=None, maica_pool=None, mcore_conn=None, mfocus_conn=None):
-        self.rsc = self.RealtimeSocketsContainer(websocket, traceray_id)
-        self.maica_settings = maica_settings() if not maica_settings else maica_settings
-        self.auth_pool = auth_pool
-        self.maica_pool = maica_pool
-        self.mcore_conn = mcore_conn
-        self.mfocus_conn = mfocus_conn
 
 class AsyncCreator(ABC):
     """Inherit this for async init."""
@@ -216,6 +239,20 @@ class ReUtils():
 
 class Decos():
     """Do not initialize."""
+    def catch_exceptions(func):
+        """Used for connection_utils."""
+        async def wrapper(self, *args, **kwargs):
+            name = getattr(self, 'name', 'anon_conn')
+            try:
+                return await func(self, *args, **kwargs)
+            except CommonMaicaException as ce:
+                raise ce
+            except Exception as e:
+                exception_cls = MaicaDbError if hasattr(self, 'db') else MaicaResponseError
+                conn_type = 'db_conn' if hasattr(self, 'db') else 'ai_conn'
+                raise exception_cls(f'{name} operation failed: {str(e)}', '502', f'{conn_type}_failed') from e
+        return wrapper
+
     def escape_sqlite_expression(func):
         """Used to transform a MySQL expression to SQLite one."""
         @functools.wraps(func)
@@ -297,11 +334,20 @@ def ellipsis_str(input: any, limit=80) -> str:
         text = text[:limit] + '...'
     return text
 
-def mstuff_words_upper(text: str) -> str:
+def uscore_words_upper(text: str) -> str:
     """Overkill..."""
     def u_upper(c: re.Match):
         return f'{c[1]}{c[2].upper()}'
     return ReUtils.re_sub_capt_status.sub(u_upper, text)
+
+def mstuff_words_upper(text: str) -> str:
+    """Even more overkill..."""
+    if len(text) == 0:
+        return ""
+    elif len(text) == 1:
+        return text.upper()
+    else:
+        return text[:2].upper() + text[2:]
 
 async def sleep_forever() -> None:
     """Make a coroutine sleep to the end of the world."""
@@ -363,7 +409,7 @@ def proceed_agent_response(text: str, is_json=False) -> Union[str, list, dict]:
     return answer_fin
 
 @overload
-async def messenger(websocket=None, status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaException]=None, prefix='', type='', color='', add_time=True, no_print=False, no_raise=False) -> None: ...
+async def messenger(websocket=None, status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaException]=None, type='', color='', add_time=True, no_print=False, no_raise=False) -> None: ...
 
 async def messenger(websocket=None, *args, **kwargs) -> None:
     """Together with websocket.send()."""
@@ -371,7 +417,7 @@ async def messenger(websocket=None, *args, **kwargs) -> None:
     if websocket and ws_tuple:
         await websocket.send(wrap_ws_formatter(*ws_tuple))
 
-def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaException]=None, prefix='', type='', color='', add_time=True, no_print=False, no_raise=False) -> list:
+def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaException]=None, type='', color='', add_time=True, no_print=False, no_raise=False) -> list:
     """It could handle most log printing and exception raising jobs pretty automatically."""
     try:
         term_v = os.get_terminal_size().columns
@@ -399,15 +445,9 @@ def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional
             case x if 500 <= x < 1000:
                 type = "error"
 
-    if type and not prefix and not 100 <= int(code) < 200:
-        prefix = mstuff_words_upper(type)
+    prefix = uscore_words_upper(type)
 
-    # This is especially for streaming output
-    if not prefix and type == "carriage":
-        msg_print = str(info)
-        msg_send = info
-
-    elif type == "plain":
+    if 100 <= int(code) < 200 or type == "plain":
         msg_print = str(info)
         msg_send = info
         
@@ -424,9 +464,7 @@ def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional
         if traceray_id and isinstance(info, str):
             msg_send += f" -- your traceray ID is {traceray_id}"
 
-    frametrack_dict = {"error": 99}
-    if not load_env('MAICA_PRINT_VERBOSE') == "0":
-        frametrack_dict['warn'] = 0
+    frametrack_dict = {"error": 99, "warn": 0}
     if type in frametrack_dict:
         stack = inspect.stack()
         stack.pop(0)
@@ -435,39 +473,41 @@ def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional
     if (not no_print) and (not _silent):
         match type:
             case "plain":
-                print((color or '') + msg_print, end='')
+                print((color or '') + msg_print, end='', flush=True)
+                lmlogger.buff(msg_print)
+                lmlogger.flush()
             case "carriage":
                 if 100 <= int(code) < 200:
                     print((color or colorama.Fore.LIGHTGREEN_EX) + msg_print, end='', flush=True)
+                    lmlogger.buff(msg_print)
                 else:
-                    print((color or colorama.Fore.LIGHTGREEN_EX) + msg_print)
+                    logger.info((color or colorama.Fore.LIGHTGREEN_EX) + msg_print)
             case "debug":
-                if not load_env('MAICA_PRINT_VERBOSE') == "0":
-                    print((color or colorama.Fore.LIGHTBLACK_EX) + msg_print)
+                logger.debug((color or colorama.Fore.LIGHTBLACK_EX) + msg_print)
             case "info":
-                print((color or colorama.Fore.GREEN) + msg_print)
+                logger.info((color or colorama.Fore.GREEN) + msg_print)
             case "log":
-                print((color or colorama.Fore.BLUE) + msg_print)
+                logger.info((color or colorama.Fore.BLUE) + msg_print)
             case "prim_log":
-                print((color or colorama.Fore.LIGHTBLUE_EX) + msg_print)
+                logger.info((color or colorama.Fore.LIGHTBLUE_EX) + msg_print)
             case "sys":
-                print((color or colorama.Fore.MAGENTA) + msg_print)
+                logger.info((color or colorama.Fore.MAGENTA) + msg_print)
             case "prim_sys":
-                print((color or colorama.Fore.LIGHTMAGENTA_EX) + msg_print)
+                logger.info((color or colorama.Fore.LIGHTMAGENTA_EX) + msg_print)
             case "recv":
-                print((color or colorama.Fore.CYAN) + msg_print)
+                logger.info((color or colorama.Fore.CYAN) + msg_print)
             case "prim_recv":
-                print((color or colorama.Fore.LIGHTCYAN_EX) + msg_print)
+                logger.info((color or colorama.Fore.LIGHTCYAN_EX) + msg_print)
             case "warn":
                 if 'warn' in frametrack_dict:
                     for stack_layer in stack[frametrack_dict['warn']::-1]:
-                        print(color or colorama.Fore.YELLOW + f"• WARN happened when executing {stack_layer.function} at {stack_layer.filename}#{stack_layer.lineno}:")
-                print((color or colorama.Fore.LIGHTYELLOW_EX) + msg_print)
+                        logger.warning(color or colorama.Fore.YELLOW + f"• WARN happened when executing {stack_layer.function} at {stack_layer.filename}#{stack_layer.lineno}:")
+                logger.warning((color or colorama.Fore.LIGHTYELLOW_EX) + msg_print)
             case "error":
                 if 'error' in frametrack_dict:
                     for stack_layer in stack[frametrack_dict['error']::-1]:
-                        print((color or colorama.Fore.RED) + f"! ERROR happened when executing {stack_layer.function} at {stack_layer.filename}#{stack_layer.lineno}:")
-                print((color or colorama.Fore.LIGHTRED_EX) + msg_print)
+                        logger.error((color or colorama.Fore.RED) + f"! ERROR happened when executing {stack_layer.function} at {stack_layer.filename}#{stack_layer.lineno}:")
+                logger.error((color or colorama.Fore.LIGHTRED_EX) + msg_print)
     if error and not no_raise:
         raise error
     if error and error.send is False:

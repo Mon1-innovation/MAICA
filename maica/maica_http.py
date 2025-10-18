@@ -12,14 +12,21 @@ from hypercorn.config import Config
 from hypercorn.asyncio import serve
 from typing import *
 
-from maica.maica_ws import NoWsCoroutine, _onliners
+from maica.maica_ws import NoWsCoroutine
 from maica.maica_utils import *
 from maica.mtools import emo_proc, zlist, elist, weather_api_get, NvWatcher
 
+_CONNS_LIST = ['auth_pool', 'maica_pool', 'mnerve_conn']
+_WATCHES_DICT = {
+    "mcore": "MCORE_ADDR",
+    "mfocus": "MFOCUS_ADDR",
+    "mvista": "MVISTA_ADDR",
+    "mnerve": "MNERVE_ADDR",
+}
+
 def pkg_init_maica_http():
-    global MCORE_ADDR, MFOCUS_ADDR, FULL_RESTFUL, known_servers
-    MCORE_ADDR = load_env('MAICA_MCORE_ADDR')
-    MFOCUS_ADDR = load_env('MAICA_MFOCUS_ADDR')
+    global MCORE_ADDR, MFOCUS_ADDR, MVISTA_ADDR, MNERVE_ADDR, FULL_RESTFUL, known_servers
+    from maica.maica_utils.connection_utils import MCORE_ADDR, MFOCUS_ADDR, MVISTA_ADDR, MNERVE_ADDR
     FULL_RESTFUL = load_env('MAICA_FULL_RESTFUL')
     if FULL_RESTFUL == '1':
         app.add_url_rule("/savefile", methods=['POST'], view_func=ShortConnHandler.as_view("upload_savefile"))
@@ -75,16 +82,21 @@ quart_logger.disabled = True
 
 class ShortConnHandler(View):
     """Flask initiates it on every request."""
+    init_every_request = True
 
-    auth_pool: DbPoolCoroutine = None
+    root_csc: ConnSocketsContainer = None
     """Don't forget to implement at first!"""
-    maica_pool: DbPoolCoroutine = None
-    """Don't forget to implement at first!"""
-    mcore_watcher: NvWatcher = None
-    mfocus_watcher: NvWatcher = None
+
+    nvwatchers: list[NvWatcher] = []
 
     def __init__(self, val=True):
         self.val = val
+        if val:
+            rsc = RealtimeSocketsContainer()
+            csc = self.__class__.root_csc.spawn_sub(rsc)
+            self.fsc = FullSocketsContainer(rsc, csc)
+            
+            self.maica_pool = self.fsc.maica_pool
 
     def msg_http(self, *args, **kwargs):
         if self.val:
@@ -93,8 +105,8 @@ class ShortConnHandler(View):
     async def dispatch_request(self, **kwargs):
         try:
             if self.val:
-                self.stem_inst = await NoWsCoroutine.async_create(self.auth_pool, self.maica_pool, None)
-                self.settings = self.stem_inst.settings
+                self.stem_inst = await NoWsCoroutine.async_create(self.fsc)
+                self.settings = self.fsc.maica_settings
             else:
                 self.stem_inst = None
                 self.settings = None
@@ -402,12 +414,11 @@ class ShortConnHandler(View):
 
     async def get_workload(self):
         """GET, val=False"""
-        content = self.mcore_watcher.get_statics_inside()
-        content_2 = self.mfocus_watcher.get_statics_inside()
-        if isinstance(content_2, dict):
-            content.update(content_2)
-        content.update({"onliners": len(_onliners)})
+        content = {}
+        for watcher in self.__class__.nvwatchers:
+            content |= watcher.get_statics_inside()
 
+        content.update({"onliners": len(online_dict)})
         return jsonify({"success": True, "exception": None, "content": content})
     
     async def get_defaults(self):
@@ -425,57 +436,38 @@ class ShortConnHandler(View):
         return jsonify({"success": False, "exception": 'Unknown request endpoint or method'}), 404
 
 async def prepare_thread(**kwargs):
-    auth_created = False; maica_created = False
 
-    if kwargs.get('auth_pool'):
-        ShortConnHandler.auth_pool = kwargs.get('auth_pool')
-    else:
-        ShortConnHandler.auth_pool = await ConnUtils.auth_pool()
-        auth_created = True
-    if kwargs.get('maica_pool'):
-        ShortConnHandler.maica_pool = kwargs.get('maica_pool')
-    else:
-        ShortConnHandler.maica_pool = await ConnUtils.maica_pool()
-        maica_created = True
-
-    if get_host(MCORE_ADDR) != get_host(MFOCUS_ADDR):
-
-        ShortConnHandler.mcore_watcher = await NvWatcher.async_create('mcore', 'maica')
-        ShortConnHandler.mfocus_watcher = await NvWatcher.async_create('mfocus', 'maica')
-        mcore_task = asyncio.create_task(ShortConnHandler.mcore_watcher.wrapped_main_watcher())
-        mfocus_task = asyncio.create_task(ShortConnHandler.mfocus_watcher.wrapped_main_watcher())
-
-    else:
-
-        ShortConnHandler.mcore_watcher = await NvWatcher.async_create('mcore', 'maica')
-        mcore_task = asyncio.create_task(ShortConnHandler.mcore_watcher.wrapped_main_watcher())
-        mfocus_task = None
-
-    config = Config()
-    config.bind = ['0.0.0.0:6000']
-
-    main_task = asyncio.create_task(serve(app, config))
-    task_list = [main_task, mcore_task]
-    if mfocus_task:
-        task_list.append(mfocus_task)
+    # Construct csc first
+    root_csc_kwargs = {k: kwargs.get(k) for k in _CONNS_LIST}
+    root_csc = ConnSocketsContainer(**root_csc_kwargs)
+    ShortConnHandler.root_csc = root_csc
 
     await messenger(info='MAICA HTTP server started!', type=MsgType.PRIM_SYS)
 
-    try:
-        await asyncio.wait(task_list, return_when=asyncio.FIRST_COMPLETED)
+    # Construct watchers
+    watch_addrs = {}
+    for k, v in _WATCHES_DICT.items():
+        host = get_host(globals().get(v))
+        if host and not k in watch_addrs:
+            watch_addrs[k] = host
+            
+    _watch_start_list = []
+    for k, _ in watch_addrs.items():
+        watcher = await NvWatcher.async_create(k, 'maica')
+        ShortConnHandler.nvwatchers.append(watcher)
+        _watch_start_list.append(asyncio.create_task(watcher.wrapped_main_watcher()))
 
+    try:
+        config = Config()
+        config.bind = ['0.0.0.0:6000']
+        task = asyncio.create_task(serve(app, config))
+        task_list = [task] + _watch_start_list
+        await asyncio.wait(task_list, return_when=asyncio.FIRST_COMPLETED)
     except BaseException as be:
         if isinstance(be, Exception):
             error = CommonMaicaError(str(be), '504')
             await messenger(error=error, no_raise=True)
     finally:
-        close_list = []
-        if auth_created:
-            close_list.append(ShortConnHandler.auth_pool.close())
-        if maica_created:
-            close_list.append(ShortConnHandler.maica_pool.close())
-
-        await asyncio.gather(*close_list, return_exceptions=True)
 
         # Normally maica_http should be the first one (possibly only one) to
         # respond to the original SIGINT.
@@ -485,10 +477,25 @@ async def prepare_thread(**kwargs):
         await messenger(info='\n', type=MsgType.PLAIN)
         await messenger(info='MAICA HTTP server stopped!', type=MsgType.PRIM_SYS)
 
-def run_http(**kwargs):
+async def _run_http():
+    from maica import init
+    init()
+    pkg_init_maica_http()
+    _root_csc_items = [getattr(ConnUtils, k)() for k in _CONNS_LIST]
+    root_csc_items = await asyncio.gather(*_root_csc_items)
+    root_csc_kwargs = dict(zip(_CONNS_LIST, root_csc_items))
 
-    asyncio.run(prepare_thread(**kwargs))
+    task = asyncio.create_task(prepare_thread(**root_csc_kwargs))
+    await task
+
+    close_list = []
+    for conn in root_csc_items:
+        close_list.append(conn.close())
+    await asyncio.gather(*close_list)
+    await messenger(info='Individual MAICA HTTP server cleaning done', type=MsgType.DEBUG)
+
+def run_http(**kwargs):
+    asyncio.run(_run_http())
 
 if __name__ == '__main__':
-
     run_http()

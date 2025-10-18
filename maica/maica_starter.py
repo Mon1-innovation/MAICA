@@ -26,6 +26,8 @@ from maica import maica_ws, maica_http, common_schedule, silent as _silent
 from maica.maica_utils import *
 from maica.initializer import *
 
+_CONNS_LIST = ['auth_pool', 'maica_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn']
+
 from maica.initializer import pkg_init_initializer
 from maica.maica_http import pkg_init_maica_http
 from maica.maica_nows import pkg_init_maica_nows
@@ -33,9 +35,9 @@ from maica.maica_utils import pkg_init_maica_utils
 from maica.mtools import pkg_init_mtools
 def pkg_init_maica():
     pkg_init_initializer()
+    pkg_init_maica_utils()
     pkg_init_maica_http()
     pkg_init_maica_nows()
-    pkg_init_maica_utils()
     pkg_init_mtools()
     if mtts_installed:
         mtts.mtts_http.pkg_init_mtts_http()
@@ -205,16 +207,17 @@ def check_data_init():
 If it is, at least the imports and grammar are good if you see this.
 If not:
     If you're running MAICA for deployment, pass in "--envdir path/to/.env".
-    If you're developing with MAICA as dependency, call maica.init() after import.
+    If you're developing with MAICA as dependency, call maica.init(envdir='path/to/.env') after import.
+    If you really want to use without manual configuration, call maica.init(ignore_envc=True) after import.
     Or, you can manually set the necessary env vars.
 Quitting...'''
                 )
             quit(0)
         create_marking()
-        sync_messenger(info="MAICA Illuminator initialization finished", type=MsgType.PRIM_SYS)
+        sync_messenger(info="[maica-init] MAICA Illuminator initialization finished", type=MsgType.PRIM_SYS)
     else:
         pkg_init_maica()
-        sync_messenger(info="Initiated marking detected, skipping initialization", type=MsgType.DEBUG)
+        sync_messenger(info="[maica-init] Initiated marking detected, checking migrations...", type=MsgType.DEBUG)
     migrated = migrate(last_version)
     if migrated:
         create_marking()
@@ -230,16 +233,17 @@ def check_warns():
         sync_messenger(info='\nOne or more NVwatch nodes detected\nNVwatch of MAICA Illuminator will try to collect nvidia-smi outputs through SSH, which can fail the process if SSH not avaliable\nIf SSH of nodes are not accessable or not wanted to be used, delete X_NODE, X_USER, X_PWD accordingly', type=MsgType.DEBUG)
 
 async def start_all(start_target: Literal['chat', 'tts', 'all']='chat'):
-    auth_pool, maica_pool = await asyncio.gather(ConnUtils.auth_pool(), ConnUtils.maica_pool())
-    kwargs = {"auth_pool": auth_pool, "maica_pool": maica_pool}
+    _root_csc_items = [getattr(ConnUtils, k)() for k in _CONNS_LIST]
+    root_csc_items = await asyncio.gather(*_root_csc_items)
+    root_csc_kwargs = dict(zip(_CONNS_LIST, root_csc_items))
 
     if start_target == 'chat':
-        await maica_start_all(**kwargs)
+        await maica_start_all(**root_csc_kwargs)
     elif start_target == 'tts':
-        await mtts_start_all(**kwargs)
+        await mtts_start_all(**root_csc_kwargs)
     else:
-        task_chat = asyncio.create_task(maica_start_all(**kwargs))
-        task_tts = asyncio.create_task(mtts_start_all(**kwargs))
+        task_chat = asyncio.create_task(maica_start_all(**root_csc_kwargs))
+        task_tts = asyncio.create_task(mtts_start_all(**root_csc_kwargs))
         res = await asyncio.wait([
             task_chat,
             task_tts,
@@ -250,13 +254,17 @@ async def start_all(start_target: Literal['chat', 'tts', 'all']='chat'):
             await pending
 
     await messenger(info="All quits collected, doing final cleanup...", type=MsgType.DEBUG)
-    await asyncio.gather(auth_pool.close(), maica_pool.close(), return_exceptions=True)
+
+    close_list = []
+    for conn in root_csc_items:
+        close_list.append(conn.close())
+    await asyncio.gather(*close_list)
+
     await messenger(info="Everything done, bye", type=MsgType.DEBUG)
     quit()
 
-async def maica_start_all(auth_pool, maica_pool):
+async def maica_start_all(**kwargs):
 
-    kwargs = {"auth_pool": auth_pool, "maica_pool": maica_pool}
     task_ws = asyncio.create_task(maica_ws.prepare_thread(**kwargs))
     task_http = asyncio.create_task(maica_http.prepare_thread(**kwargs))
     task_schedule = asyncio.create_task(common_schedule.schedule_rotate_cache(**kwargs))
@@ -273,10 +281,9 @@ async def maica_start_all(auth_pool, maica_pool):
     await messenger(info="All chat quits collected", type=MsgType.DEBUG)
     return
 
-async def mtts_start_all(auth_pool, maica_pool):
+async def mtts_start_all(**kwargs):
 
     assert mtts_installed, "Install with mi-mtts or .[mtts] to implement"
-    kwargs = {"auth_pool": auth_pool, "maica_pool": maica_pool}
     await mtts.prepare_thread(**kwargs)
     await messenger(info="First tts quit collected", type=MsgType.DEBUG)
     return

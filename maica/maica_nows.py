@@ -2,7 +2,7 @@ import asyncio
 import json
 
 from typing import *
-from Crypto.Random import random as CRANDOM
+from Crypto.Random import random as crandom
 
 from maica.mfocus import MFocusCoroutine, SfBoundCoroutine
 from maica.mtrigger import MTriggerCoroutine, MtBoundCoroutine
@@ -29,11 +29,15 @@ class NoWsCoroutine(AsyncCreator):
 
     # Initialization
 
-    def __init__(self, auth_pool: DbPoolCoroutine, maica_pool: DbPoolCoroutine, websocket=None, online_dict = {}):
-        self.auth_pool, self.maica_pool, self.websocket, self.online_dict = auth_pool, maica_pool, websocket, online_dict
-        self.traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
-        self.settings = MaicaSettings()
-        self.fsc = FullSocketsContainer(self.websocket, self.traceray_id, self.settings, self.auth_pool, self.maica_pool)
+    def __init__(
+            self,
+            fsc: FullSocketsContainer
+        ):
+        self.auth_pool = fsc.auth_pool
+        self.maica_pool = fsc.maica_pool
+        self.websocket = fsc.websocket
+        self.traceray_id = fsc.traceray_id
+        self.settings = fsc.maica_settings
 
     async def _ainit(self):
         self.hasher = await AccountCursor.async_create(self.settings, self.auth_pool, self.maica_pool)
@@ -41,11 +45,6 @@ class NoWsCoroutine(AsyncCreator):
     def _check_essentials(self) -> None:
         if not self.settings.verification.user_id:
             raise MaicaPermissionError('Essentials not implemented', '403', 'common_essentials_missing')
-
-    def flush_traceray(self) -> None:
-        """Generates a new traceray_id for this instance."""
-        self.traceray_id = str(CRANDOM.randint(0,9999999999)).zfill(10)
-        self.fsc.rsc.traceray_id = self.traceray_id
 
     async def _create_session(self, user_id=None, chat_session_num=None, content=None) -> int:
         user_id = self.settings.verification.user_id if not user_id else user_id
@@ -307,20 +306,20 @@ class NoWsCoroutine(AsyncCreator):
 
             # Cridential correct and not banned
             if check_online and not logged_in_already:
-                if self.settings.verification.user_id in self.online_dict:
+                if self.settings.verification.user_id in online_dict:
                     if load_env('MAICA_KICK_STALE_CONNS') == "0":
                         self.settings.verification.reset()
                         raise MaicaConnectionWarning('A connection was established already and kicking not enabled', '406', 'maica_connection_reuse_denied')
                     else:
                         await messenger(self.websocket, "maica_connection_reuse_attempt", "A connection was established already", "300", self.traceray_id)
-                        stale_fsc, stale_lock = self.online_dict[self.settings.verification.user_id]
+                        stale_fsc, stale_lock = online_dict[self.settings.verification.user_id]
                         try:
                             await messenger(stale_fsc.rsc.websocket, 'maica_connection_reuse_stale', 'A new connection has been established', '300', stale_fsc.rsc.traceray_id)
                             await stale_fsc.rsc.websocket.close(1000, 'Displaced as stale')
                         except Exception:
                             await messenger(None, 'maica_connection_stale_dead', 'The stale connection has died already', '204')
                         try:
-                            self.online_dict.pop(self.settings.verification.user_id)
+                            online_dict.pop(self.settings.verification.user_id)
                         except Exception:
                             pass
                         async with stale_lock:

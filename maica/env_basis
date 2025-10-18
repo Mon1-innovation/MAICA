@@ -1,6 +1,6 @@
 # Exclude this line in your env configuration
 # Current backend version
-MAICA_CURR_VERSION = '1.2.000.rc1'
+MAICA_CURR_VERSION = '1.2.000.rc2'
 
 # cp ./env_basis ./.env
 # vim .env
@@ -122,8 +122,6 @@ MAICA_F2B_TIME = '600'
 MAICA_FULL_RESTFUL = '1'
 # Rotate MSpire cache every [] hours or not
 MAICA_ROTATE_MSCACHE = '0'
-# Print more details on console or not
-MAICA_PRINT_VERBOSE = '1'
 # Enable MAICA X11 forwarding for special cases or not
 MAICA_ENABLE_X11 = '1'
 # No use online searching tool or do
@@ -205,5 +203,4 @@ MTTS_TTS_ADDR = ''# http://172.17.0.1:80/tts
 # MAICA_F2B_COUNT
 # MAICA_F2B_TIME
 # MAICA_FULL_RESTFUL
-# MAICA_PRINT_VERBOSE
 # MAICA_NO_SEND_ERROR
