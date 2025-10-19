@@ -24,7 +24,6 @@ colorama.init(autoreset=True)
 
 logger = logging.getLogger('maica')
 logger.setLevel(logging.DEBUG)
-logger.handlers.clear()
 
 main_handler = logging.StreamHandler(sys.stdout)
 main_handler.setLevel(logging.DEBUG)
@@ -48,7 +47,6 @@ class _lmlogger():
     def __init__(self, name='stream-maica'):
         self._logger = logging.getLogger(name)
         self._logger.setLevel(logging.DEBUG)
-        self._logger.handlers.clear()
         self._buffer = ''
     
     def buff(self, text):
