@@ -11,7 +11,7 @@ from typing import *
 from maica.maica_utils import *
 from maica.mtools.api_keys import TpAPIKeys
 
-requires = ['SCRAPELESS_SERP']
+requires = ['SERPER_SERP']
 async def asearch(query, target_lang: Literal['zh', 'en']='zh'):
     host = "google.serper.dev"
     url = f"https://{host}/search"
