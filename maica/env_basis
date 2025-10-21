@@ -1,12 +1,15 @@
-# Exclude this line in your env configuration
+# Exclude these lines in your env configuration
 # Current backend version
-MAICA_CURR_VERSION = '1.2.000.rc2'
+MAICA_CURR_VERSION = '1.2.000.rc4'
+# Oldest capable backend version
+MAICA_LEGC_VERSION = '1.1.006'
+
 
 # cp ./env_basis ./.env
 # vim .env
-# Do not mv, rm or edit examples! They're required as default templates.
+# Do not mv, rm or edit basis! They're required as default templates.
 
-# All envs of MAICA are under namespace MAICA_. Please don't violate.
+# All envs of MAICA are under namespace MAICA_, and MTTS' under MTTS_. Please don't violate.
 
 # If this env is manually configured
 MAICA_IS_REAL_ENV = '0'
@@ -122,6 +125,10 @@ MAICA_F2B_TIME = '600'
 MAICA_FULL_RESTFUL = '1'
 # Rotate MSpire cache every [] hours or not
 MAICA_ROTATE_MSCACHE = '0'
+# Keep [] MVista imgs per user at most
+MAICA_KEEP_MVISTA = '3'
+# Delete each MVista img after [] hours or not
+MAICA_ROTATE_MVISTA = '8'
 # Enable MAICA X11 forwarding for special cases or not
 MAICA_ENABLE_X11 = '1'
 # No use online searching tool or do
@@ -147,8 +154,6 @@ MAICA_SESSION_MAX_LENGTH = '28672'
 MAICA_DEV_IDENTITY = ''# Evan & Clifford
 # "serving" / "testing"
 MAICA_DEV_STATUS = 'serving'
-# Oldest capable backend version
-MAICA_VERSION_CONTROL = '1.1.006'
 # Servers announcement, must be valid json
 MAICA_SERVERS_LIST = '
     {
@@ -180,10 +185,6 @@ MAICA_WRITE_NVW = '0'
 
 # MTTS specified settings
 
-# Current backend version
-# MTTS_CURR_VERSION = '1.0.000'
-# Oldest capable backend version
-# MTTS_VERSION_CONTROL = '1.0.000'
 # MTTS model endpoint
 MTTS_TTS_ADDR = ''# http://172.17.0.1:80/tts
 # Name of MTTS deployment device

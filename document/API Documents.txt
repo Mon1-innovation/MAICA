@@ -647,11 +647,46 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
 
                         target_lang: 目标语言, 可选"zh"或"en".
 
-                    返回的content:
+            返回的content:
 
-                        ["表情", 置信度]
+                ["表情", 置信度]
 
-                            其中置信度为float, 取值范围0.0-1.0.
+                    其中置信度为float, 取值范围0.0-1.0.
+
+        上传MVista图片:
+
+            端点: POST /vista
+
+            * 注意: 该端点采用multipart/form-data形式, 以上传文件. 其中文件必须标为"file"类型.
+            * 需要access_token, content
+
+                其中content是文件形式的上传图片, 尺寸不能超过32MB. 后端会自动执行进一步压缩.
+
+            返回的content是图片被分配的uuid.
+
+        删除MVista图片:
+
+            端点: DELETE /vista
+
+            * 需要access_token, content
+
+                其中content为str或int, 代表需删除图片的uuid或序号(从0开始, 由新到旧).
+
+            该端点不会返回content.
+
+        下载MVista图片:
+
+            端点: GET /vista
+
+            * 需要content或access_token
+            * 注意: 为兼容OpenAI VLM调用, 该端点下载功能无法设置鉴权. 任何知晓对应uuid的用户都可以下载图片.
+            * 注意: 单个用户可留存的图片数量和存在时间都是有限的, 会由后端自动处理. 截至文档编纂时为止, 单个用户默认留存3张照片, 每张超过8小时即清理.
+            * 警告: MVista相关端点仅辅助MVista多模态功能使用, 任何滥用行为将受处分.
+
+                其中content存在时是str形式的uuid, 对应要下载的图片.
+                此时若请求成功, 端点仅返回一张图片. 否则端点正常返回json.
+
+                content不存在时, access_token必须存在. 返回的content是一个list, 包含用户可用图片的uuid.
 
         获取服务器声明表:
 

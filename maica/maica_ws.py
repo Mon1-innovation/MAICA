@@ -77,7 +77,7 @@ class WsCoroutine(NoWsCoroutine):
     async def function_switch(self):
         websocket = self.websocket
         await messenger(websocket, "maica_connection_established", "MAICA connection established", "201", type=MsgType.INFO, no_print=True)
-        await messenger(websocket, "maica_provider_anno", f"Current service provider is {load_env('MAICA_DEV_IDENTITY') or 'UNKNOWN'}", "200", type=MsgType.INFO, no_print=True)
+        await messenger(websocket, "maica_provider_anno", f"Current service provider is {G.A.DEV_IDENTITY or 'UNKNOWN'}", "200", type=MsgType.INFO, no_print=True)
         await messenger(websocket, "maica_model_anno", f"Main model is {self.fsc.mcore_conn.model_actual}, MFocus model is {self.fsc.mfocus_conn.model_actual}", "200", type=MsgType.INFO, no_print=True)
 
         # Starting loop from here
@@ -131,6 +131,7 @@ class WsCoroutine(NoWsCoroutine):
                 if ce.is_critical or ce.is_breaking:
                     raise ce
                 else:
+                    traceback.print_exc()
                     await messenger(websocket, error=ce, no_raise=True)
                     await messenger(websocket, 'maica_loop_warn_finished', 'Loop hit a user level exception, stopped and reset', '304')
                     continue
@@ -456,7 +457,7 @@ async def prepare_thread(**kwargs):
     root_csc_kwargs = {k: kwargs.get(k) for k in _CONNS_LIST}
     root_csc = ConnSocketsContainer(**root_csc_kwargs)
 
-    await messenger(info='MAICA WS server started!' if load_env('MAICA_DEV_STATUS') == 'serving' else 'MAICA WS server started in development mode!', type=MsgType.PRIM_SYS)
+    await messenger(info='MAICA WS server started!' if G.A.DEV_STATUS == 'serving' else 'MAICA WS server started in development mode!', type=MsgType.PRIM_SYS)
     try:
         await messenger(info=f"Main model is {root_csc.mcore_conn.model_actual}, MFocus model is {root_csc.mfocus_conn.model_actual}", type=MsgType.SYS)
     except Exception:

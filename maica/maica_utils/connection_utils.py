@@ -5,14 +5,17 @@ import asyncio
 import traceback
 import json
 import openai
+import functools
+import wrapt
 from tenacity import *
 from typing import *
 from typing_extensions import deprecated
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion
-from maica.maica_utils import *
+from .gvars import *
+from .maica_utils import *
 from .setting_utils import *
-from .container_early import *
+from .fsc_early import *
 from .locater import *
 
 RETRYABLE_EXCEPTIONS = (
@@ -39,6 +42,7 @@ def conn_retryer_factory(
             websocket = rsc.websocket if rsc else None; traceray_id = rsc.traceray_id if rsc else ''
             await messenger(websocket=websocket, status=f'{name}_temp_failure', info=f'{name} temporary failure, retrying...', code='304', traceray_id=traceray_id, type=MsgType.WARN)
 
+        @functools.wraps(func)
         @retry(
             stop=stop_after_attempt(max_attempts),
             wait=wait_exponential(multiplier=1, min=min_wait, max=max_wait),
@@ -52,74 +56,46 @@ def conn_retryer_factory(
     return decorator
 
 def pkg_init_connection_utils():
-    global DB_ADDR, DB_USER, DB_PASSWORD, AUTH_DB, MAICA_DB, MCORE_ADDR, MCORE_KEY
-    global MCORE_CHOICE, MFOCUS_ADDR, MFOCUS_KEY, MFOCUS_CHOICE, MVISTA_ADDR, MVISTA_KEY
-    global MVISTA_CHOICE, MNERVE_ADDR, MNERVE_KEY, MNERVE_CHOICE, THINK_POSTFIX
-    global NOTHINK_POSTFIX, ConnUtils
+    global ConnUtils
 
-    DB_ADDR = load_env('MAICA_DB_ADDR')
-    DB_USER = load_env('MAICA_DB_USER')
-    DB_PASSWORD = load_env('MAICA_DB_PASSWORD')
-    AUTH_DB = load_env('MAICA_AUTH_DB')
-    MAICA_DB = load_env('MAICA_DATA_DB')
-
-    MCORE_ADDR = load_env('MAICA_MCORE_ADDR')
-    MCORE_KEY = load_env('MAICA_MCORE_KEY')
-    MCORE_CHOICE = load_env('MAICA_MCORE_CHOICE')
-
-    MFOCUS_ADDR = load_env('MAICA_MFOCUS_ADDR')
-    MFOCUS_KEY = load_env('MAICA_MFOCUS_KEY')
-    MFOCUS_CHOICE = load_env('MAICA_MFOCUS_CHOICE')
-
-    MVISTA_ADDR = load_env('MAICA_MVISTA_ADDR')
-    MVISTA_KEY = load_env('MAICA_MVISTA_KEY')
-    MVISTA_CHOICE = load_env('MAICA_MVISTA_CHOICE')
-
-    MNERVE_ADDR = load_env('MAICA_MNERVE_ADDR')
-    MNERVE_KEY = load_env('MAICA_MNERVE_KEY')
-    MNERVE_CHOICE = load_env('MAICA_MNERVE_CHOICE')
-
-    THINK_POSTFIX = load_env('MAICA_MFOCUS_THINK')
-    NOTHINK_POSTFIX = load_env('MAICA_MFOCUS_NOTHINK')
-
-    if DB_ADDR != "sqlite":
+    if G.A.DB_ADDR != "sqlite":
         """We suppose we're using MySQL."""
         async def auth_pool(ro=True):
             return await DbPoolCoroutine.async_create(
-                host=DB_ADDR,
-                db=AUTH_DB,
-                user=DB_USER,
-                password=DB_PASSWORD,
+                host=G.A.DB_ADDR,
+                db=G.A.AUTH_DB,
+                user=G.A.DB_USER,
+                password=G.A.DB_PASSWORD,
                 ro=ro,
             )
 
         async def maica_pool(ro=False):
             return await DbPoolCoroutine.async_create(
-                host=DB_ADDR,
-                db=MAICA_DB,
-                user=DB_USER,
-                password=DB_PASSWORD,
+                host=G.A.DB_ADDR,
+                db=G.A.DATA_DB,
+                user=G.A.DB_USER,
+                password=G.A.DB_PASSWORD,
                 ro=ro,
             )
         
         async def basic_pool(ro=False):
             return await DbPoolCoroutine.async_create(
-                host=DB_ADDR,
+                host=G.A.DB_ADDR,
                 db=None,
-                user=DB_USER,
-                password=DB_PASSWORD,
+                user=G.A.DB_USER,
+                password=G.A.DB_PASSWORD,
                 ro=ro,
             )
     else:
         """We suppose we're using SQLite."""
         async def auth_pool(ro=True):
             return await SqliteDbPoolCoroutine.async_create(
-                db=get_inner_path(AUTH_DB)
+                db=get_inner_path(G.A.AUTH_DB)
             )
         
         async def maica_pool(ro=False):
             return await SqliteDbPoolCoroutine.async_create(
-                db=get_inner_path(MAICA_DB)
+                db=get_inner_path(G.A.DATA_DB)
             )
         
         async def basic_pool(ro=False):
@@ -145,18 +121,18 @@ def apply_postfix(messages, thinking: Literal[True, False, None]=None):
         if isinstance(last_msg.get('content'), str):
             match thinking:
                 case True:
-                    last_msg['content'] += THINK_POSTFIX
+                    last_msg['content'] += G.A.MFOCUS_THINK
                 case False:
-                    last_msg['content'] += NOTHINK_POSTFIX
+                    last_msg['content'] += G.A.MFOCUS_NOTHINK
         elif isinstance(last_msg.get('content'), list):
             d: dict
             for d in last_msg['content']:
                 if d.get('type') == 'text' and isinstance(d.get('text'), str):
                     match thinking:
                         case True:
-                            d['text'] += THINK_POSTFIX
+                            d['text'] += G.A.MFOCUS_THINK
                         case False:
-                            d['text'] += NOTHINK_POSTFIX
+                            d['text'] += G.A.MFOCUS_NOTHINK
                     break
         else:
             raise MaicaInputError('Context schedule not recognizable')
@@ -165,7 +141,7 @@ def apply_postfix(messages, thinking: Literal[True, False, None]=None):
 class DbPoolCoroutine(AsyncCreator):
     """Maintain a database connection pool so you don't have to."""
 
-    db_type = 'mysql'
+    db_type: Literal['mysql', 'sqlite'] = 'mysql'
 
     def __init__(self, db, host, user, password, ro=False):
         self.db, self.host, self.user, self.password, self.ro = db, host, user, password, ro
@@ -190,11 +166,15 @@ class DbPoolCoroutine(AsyncCreator):
             except Exception:...
             await self._ainit()
 
+    @overload
+    async def query_get(self, expression: str, values: Optional[tuple]=None, fetchall: bool=False, inherit_conn: Optional[aiomysql.Connection]=None) -> list:
+        """Execute SELECT query on MySQL database."""
+
     # @test_logger
     @Decos.catch_exceptions
+    @Decos.ro_expression
     @conn_retryer_factory()
     async def query_get(self, expression, values=None, fetchall=False, inherit_conn: Optional[aiomysql.Connection]=None) -> list:
-        """Execute SELECT query on MySQL database."""
         async def _query_get(cur, expression, values, fetchall) -> list:
             if not values:
                 await cur.execute(expression)
@@ -221,11 +201,15 @@ class DbPoolCoroutine(AsyncCreator):
 
         return results
 
+    @overload
+    async def query_modify(self, expression: str, values: Optional[tuple]=None, fetchall: bool=False, inherit_conn: Optional[aiomysql.Connection]=None) -> int:
+        """Execute INSERT/UPDATE/DELETE query on MySQL database."""
+
     # @test_logger
     @Decos.catch_exceptions
+    @Decos.wo_expression
     @conn_retryer_factory()
     async def query_modify(self, expression, values=None, fetchall=False, inherit_conn: Optional[aiomysql.Connection]=None) -> int:
-        """Execute INSERT/UPDATE/DELETE query on MySQL database."""
         if self.ro:
             raise MaicaDbError(f'DB marked as ro, no modification permitted', '511', 'db_modification_denied')
         
@@ -287,7 +271,7 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
     now. 
     """
 
-    db_type = 'sqlite'
+    db_type: Literal['mysql', 'sqlite'] = 'sqlite'
 
     def __init__(self, db, host=None, user=None, password=None, ro=False):
         self.db_path = db
@@ -319,12 +303,16 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
             except Exception:...
             await self._ainit()
 
+    @overload
+    async def query_get(self, expression: str, values: Optional[tuple]=None, fetchall: bool=False) -> list:
+        """Execute SELECT query on SQLite database."""
+
     # @test_logger
     @Decos.catch_exceptions
+    @Decos.ro_expression
     @Decos.escape_sqlite_expression
     @conn_retryer_factory()
     async def query_get(self, expression, values=None, fetchall=False) -> list:
-        """Execute SELECT query on SQLite database."""
         results = None
         await self.keep_alive()
 
@@ -337,12 +325,16 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
 
         return results
 
+    @overload
+    async def query_modify(self, expression: str, values: Optional[tuple]=None, fetchall: bool=False) -> int:
+        """Execute INSERT/UPDATE/DELETE query on SQLite database."""
+
     # @test_logger
     @Decos.catch_exceptions
+    @Decos.wo_expression
     @Decos.escape_sqlite_expression
     @conn_retryer_factory()
     async def query_modify(self, expression, values=None, fetchall=False) -> int:
-        """Execute INSERT/UPDATE/DELETE query on SQLite database."""
         if self.ro:
             raise MaicaDbError(f'DB marked as ro, no modification permitted', '511', 'sqlite_modification_denied')
         lrid = None
@@ -418,10 +410,15 @@ class AiConnCoroutine(AsyncCreator):
 
     @Decos.catch_exceptions
     async def keep_alive(self):
+        """Check and maintain OpenAI connection."""
         if self.socket.is_closed():
             self._open_socket()
             await self._select_model()
             
+    @overload
+    async def make_completion(self, **kwargs) -> ChatCompletion:
+        """Makes completion with arguments."""
+
     @Decos.catch_exceptions
     @conn_retryer_factory()
     async def make_completion(self, **kwargs) -> ChatCompletion:
@@ -473,48 +470,48 @@ class ConnUtils():
 
     async def mcore_conn():
         conn = await AiConnCoroutine.async_create(
-            api_key=MCORE_KEY,
-            base_url=MCORE_ADDR,
+            api_key=G.A.MCORE_KEY,
+            base_url=G.A.MCORE_ADDR,
             name='mcore_conn',
-            model=MCORE_CHOICE if MCORE_CHOICE else 0,
+            model=G.A.MCORE_CHOICE if G.A.MCORE_CHOICE else 0,
         )
-        conn.default_params(**json.loads(load_env('MAICA_MCORE_EXTRA')))
+        conn.default_params(**json.loads(G.A.MCORE_EXTRA))
         return conn
 
     async def mfocus_conn():
         conn = await AiConnCoroutine.async_create(
-            api_key=MFOCUS_KEY,
-            base_url=MFOCUS_ADDR,
+            api_key=G.A.MFOCUS_KEY,
+            base_url=G.A.MFOCUS_ADDR,
             name='mfocus_conn',
-            model=MFOCUS_CHOICE if MFOCUS_CHOICE else 0,
+            model=G.A.MFOCUS_CHOICE if G.A.MFOCUS_CHOICE else 0,
         )
-        conn.default_params(**json.loads(load_env('MAICA_MFOCUS_EXTRA')))
+        conn.default_params(**json.loads(G.A.MFOCUS_EXTRA))
         return conn
     
     async def mvista_conn():
         """Disable if no addr provided."""
-        if MVISTA_ADDR:
+        if G.A.MVISTA_ADDR:
             conn = await AiConnCoroutine.async_create(
-                api_key=MVISTA_KEY,
-                base_url=MVISTA_ADDR,
+                api_key=G.A.MVISTA_KEY,
+                base_url=G.A.MVISTA_ADDR,
                 name='mvista_conn',
-                model=MVISTA_CHOICE if MVISTA_CHOICE else 0,
+                model=G.A.MVISTA_CHOICE if G.A.MVISTA_CHOICE else 0,
             )
-            conn.default_params(**json.loads(load_env('MAICA_MVISTA_EXTRA')))
+            conn.default_params(**json.loads(G.A.MVISTA_EXTRA))
             return conn
         else:
             return None
 
     async def mnerve_conn():
         """Disable if no addr provided."""
-        if MNERVE_ADDR:
+        if G.A.MNERVE_ADDR:
             conn = await AiConnCoroutine.async_create(
-                api_key=MNERVE_KEY,
-                base_url=MNERVE_ADDR,
+                api_key=G.A.MNERVE_KEY,
+                base_url=G.A.MNERVE_ADDR,
                 name='mnerve_conn',
-                model=MNERVE_CHOICE if MNERVE_CHOICE else 0,
+                model=G.A.MNERVE_CHOICE if G.A.MNERVE_CHOICE else 0,
             )
-            conn.default_params(**json.loads(load_env('MAICA_MNERVE_EXTRA')))
+            conn.default_params(**json.loads(G.A.MNERVE_EXTRA))
             return conn
         else:
             return None

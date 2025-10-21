@@ -64,8 +64,8 @@ CREATE TABLE IF NOT EXISTS users (
 """
 CREATE TABLE IF NOT EXISTS `account_status` (
 `user_id` int(11) NOT NULL,
-`status` longtext DEFAULT NULL,
-`preferences` longtext DEFAULT NULL,
+`status` text DEFAULT NULL,
+`preferences` text DEFAULT NULL,
 PRIMARY KEY (`user_id`)
 )
 """,
@@ -118,8 +118,8 @@ PRIMARY KEY (`trigger_id`)
 """
 CREATE TABLE IF NOT EXISTS `ms_cache` (
 `spire_id` int(11) NOT NULL AUTO_INCREMENT,
-`hash` longtext NOT NULL,
-`content` longtext DEFAULT NULL,
+`hash` text NOT NULL,
+`content` text DEFAULT NULL,
 `timestamp` datetime on update CURRENT_TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 PRIMARY KEY (`spire_id`)
 )

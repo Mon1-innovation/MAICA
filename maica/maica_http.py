@@ -1,20 +1,22 @@
-from quart import Quart, request, jsonify, Response
+from quart import Quart, request, jsonify, send_file, Response
 from quart.views import View
 import os
 import asyncio
 import json
 import traceback
 import time
+import uuid
 import colorama
 import logging
 
+from werkzeug.datastructures import FileStorage
 from hypercorn.config import Config
 from hypercorn.asyncio import serve
 from typing import *
 
 from maica.maica_ws import NoWsCoroutine
 from maica.maica_utils import *
-from maica.mtools import emo_proc, zlist, elist, weather_api_get, NvWatcher
+from maica.mtools import emo_proc, zlist, elist, weather_api_get, NvWatcher, ProcessingImg
 
 _CONNS_LIST = ['auth_pool', 'maica_pool', 'mnerve_conn']
 _WATCHES_DICT = {
@@ -25,10 +27,8 @@ _WATCHES_DICT = {
 }
 
 def pkg_init_maica_http():
-    global MCORE_ADDR, MFOCUS_ADDR, MVISTA_ADDR, MNERVE_ADDR, FULL_RESTFUL, known_servers
-    from maica.maica_utils.connection_utils import MCORE_ADDR, MFOCUS_ADDR, MVISTA_ADDR, MNERVE_ADDR
-    FULL_RESTFUL = load_env('MAICA_FULL_RESTFUL')
-    if FULL_RESTFUL == '1':
+    global KNOWN_SERVERS
+    if G.A.FULL_RESTFUL == '1':
         app.add_url_rule("/savefile", methods=['POST'], view_func=ShortConnHandler.as_view("upload_savefile"))
         app.add_url_rule("/savefile", methods=['DELETE'], view_func=ShortConnHandler.as_view("delete_savefile"))
         app.add_url_rule("/trigger", methods=['POST'], view_func=ShortConnHandler.as_view("upload_trigger"))
@@ -42,6 +42,9 @@ def pkg_init_maica_http():
         app.add_url_rule("/register", methods=['GET'], view_func=ShortConnHandler.as_view("download_token", val=False))
         app.add_url_rule("/legality", methods=['GET'], view_func=ShortConnHandler.as_view("check_legality"))
         app.add_url_rule("/emotion", methods=['GET'], view_func=ShortConnHandler.as_view("normalize_emo"))
+        app.add_url_rule("/vista", methods=['POST'], view_func=ShortConnHandler.as_view("upload_vista"))
+        app.add_url_rule("/vista", methods=['DELETE'], view_func=ShortConnHandler.as_view("delete_vista"))
+        app.add_url_rule("/vista", methods=['GET'], view_func=ShortConnHandler.as_view("download_vista"))
         app.add_url_rule("/servers", methods=['GET'], view_func=ShortConnHandler.as_view("get_servers", val=False))
         app.add_url_rule("/accessibility", methods=['GET'], view_func=ShortConnHandler.as_view("get_accessibility", val=False))
         app.add_url_rule("/version", methods=['GET'], view_func=ShortConnHandler.as_view("get_version", val=False))
@@ -61,6 +64,9 @@ def pkg_init_maica_http():
         app.add_url_rule("/register", methods=['GET'], view_func=ShortConnHandler.as_view("download_token", val=False))
         app.add_url_rule("/legality", methods=['GET'], view_func=ShortConnHandler.as_view("check_legality"))
         app.add_url_rule("/emotion", methods=['GET'], view_func=ShortConnHandler.as_view("normalize_emo"))
+        app.add_url_rule("/vista", methods=['POST'], view_func=ShortConnHandler.as_view("upload_vista"))
+        app.add_url_rule("/vista/delete", methods=['POST'], view_func=ShortConnHandler.as_view("delete_vista"))
+        app.add_url_rule("/vista", methods=['GET'], view_func=ShortConnHandler.as_view("download_vista"))
         app.add_url_rule("/servers", methods=['GET'], view_func=ShortConnHandler.as_view("get_servers", val=False))
         app.add_url_rule("/accessibility", methods=['GET'], view_func=ShortConnHandler.as_view("get_accessibility", val=False))
         app.add_url_rule("/version", methods=['GET'], view_func=ShortConnHandler.as_view("get_version", val=False))
@@ -69,13 +75,14 @@ def pkg_init_maica_http():
     app.add_url_rule("/<path>", methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], view_func=ShortConnHandler.as_view("any_unknown", val=False))
 
     try:
-        known_servers = json.loads(load_env('MAICA_SERVERS_LIST'))
+        KNOWN_SERVERS = json.loads(G.A.SERVERS_LIST)
     except Exception as e:
         sync_messenger(info=f'Loading servers list failed: {str(e)}', type=MsgType.ERROR)
-        known_servers = False
+        KNOWN_SERVERS = False
 
 app = Quart(import_name=__name__)
 app.config['JSON_AS_ASCII'] = False
+app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024
 
 quart_logger = logging.getLogger('hypercorn.error')
 quart_logger.disabled = True
@@ -83,6 +90,7 @@ quart_logger.disabled = True
 class ShortConnHandler(View):
     """Flask initiates it on every request."""
     init_every_request = True
+    stem_inst: Optional[NoWsCoroutine]
 
     root_csc: ConnSocketsContainer = None
     """Don't forget to implement at first!"""
@@ -102,6 +110,14 @@ class ShortConnHandler(View):
         if self.val:
             sync_messenger(*args, **kwargs)
 
+    @staticmethod
+    def jfy_res(content=None):
+        """I mean jsonify result."""
+        d = {"success": True, "exception": None}
+        if content:
+            d['content'] = content
+        return jsonify(d)
+
     async def dispatch_request(self, **kwargs):
         try:
             if self.val:
@@ -118,10 +134,13 @@ class ShortConnHandler(View):
 
             if isinstance(result, Response):
                 result_json = await result.get_json()
-                d = {"success": result_json.get('success'), "exception": result_json.get('exception')}
-                if "content" in result_json:
-                    d["content"] = ellipsis_str(result_json.get('content'), limit=70)
-                self.msg_http(info=f'Return value: {str(d)}', type=MsgType.SYS)
+                if result_json:
+                    d = {"success": result_json.get('success'), "exception": result_json.get('exception')}
+                    if "content" in result_json:
+                        d["content"] = ellipsis_str(result_json.get('content'), limit=70)
+                    self.msg_http(info=f'Return value: {str(d)}', type=MsgType.SYS)
+                else:
+                    self.msg_http(info='A non-json response has been made', type=MsgType.SYS)
 
             return result
 
@@ -135,7 +154,7 @@ class ShortConnHandler(View):
             await messenger(info=f'Handler hit an exception: {str(e)}', type=MsgType.WARN)
             return jsonify({"success": False, "exception": str(e)})
 
-    async def _validate_http(self, raw_data: Union[str, dict], must: Optional[list]=None) -> dict:
+    async def validate_http(self, raw_data: Union[str, dict], must: Optional[list]=None) -> dict:
         must = must if must else []
         data_json = await validate_input(raw_data, 100000, None, must=must)
         if self.val and 'access_token' in must:
@@ -153,7 +172,7 @@ class ShortConnHandler(View):
     async def upload_savefile(self):
         """POST"""
         json_data = await request.get_json()
-        valid_data = await self._validate_http(json_data, must=['access_token', 'chat_session', 'content'])
+        valid_data = await self.validate_http(json_data, must=['access_token', 'chat_session', 'content'])
 
         chat_session = valid_data.get('chat_session')
         content = valid_data.get('content')
@@ -169,24 +188,24 @@ class ShortConnHandler(View):
             sql_expression_2 = "INSERT INTO persistents (user_id, chat_session_num, content) VALUES (%s, %s, %s)"
             await self.maica_pool.query_modify(sql_expression_2, (self.settings.verification.user_id, chat_session, content_str))
 
-        return jsonify({"success": True, "exception": None})
+        return self.jfy_res()
     
     async def delete_savefile(self):
         """DELETE"""
         json_data = await request.get_json()
-        valid_data = await self._validate_http(json_data, must=['access_token', 'chat_session'])
+        valid_data = await self.validate_http(json_data, must=['access_token', 'chat_session'])
 
         chat_session = valid_data.get('chat_session')
 
         sql_expression_1 = "DELETE FROM persistents WHERE user_id = %s AND chat_session_num = %s"
         result = await self.maica_pool.query_modify(sql_expression_1, (self.settings.verification.user_id, chat_session))
 
-        return jsonify({"success": True, "exception": None})
+        return self.jfy_res()
         
     async def upload_trigger(self):
         """POST"""
         json_data = await request.get_json()
-        valid_data = await self._validate_http(json_data, must=['access_token', 'chat_session', 'content'])
+        valid_data = await self.validate_http(json_data, must=['access_token', 'chat_session', 'content'])
 
         chat_session = valid_data.get('chat_session')
         content = valid_data.get('content')
@@ -202,24 +221,24 @@ class ShortConnHandler(View):
             sql_expression_2 = "INSERT INTO triggers (user_id, chat_session_num, content) VALUES (%s, %s, %s)"
             await self.maica_pool.query_modify(sql_expression_2, (self.settings.verification.user_id, chat_session, content_str))
 
-        return jsonify({"success": True, "exception": None})
+        return self.jfy_res()
     
     async def delete_trigger(self):
         """DELETE"""
         json_data = await request.get_json()
-        valid_data = await self._validate_http(json_data, must=['access_token', 'chat_session'])
+        valid_data = await self.validate_http(json_data, must=['access_token', 'chat_session'])
 
         chat_session = valid_data.get('chat_session')
 
         sql_expression_1 = "DELETE FROM triggers WHERE user_id = %s AND chat_session_num = %s"
         result = await self.maica_pool.query_modify(sql_expression_1, (self.settings.verification.user_id, chat_session))
 
-        return jsonify({"success": True, "exception": None})
+        return self.jfy_res()
    
     async def download_history(self):
         """GET"""
         json_data = request.args.to_dict(flat=True)
-        valid_data = await self._validate_http(json_data, must=['access_token', 'chat_session'])
+        valid_data = await self.validate_http(json_data, must=['access_token', 'chat_session'])
 
         chat_session = valid_data.get('chat_session')
         assert 1 <= chat_session < 10, "chat_session out of bound"
@@ -242,14 +261,14 @@ class ShortConnHandler(View):
                         history_final_json = history_json
             history_final_str = json.dumps(history_final_json, ensure_ascii=False, sort_keys=True)
             sigb64 = await wrap_run_in_exc(None, sign_message, history_final_str)
-            return jsonify({"success": True, "exception": None, "content": [sigb64, history_final_json]})
+            return self.jfy_res([sigb64, history_final_json])
         else:
-            return jsonify({"success": True, "exception": None, "content": []})
+            return self.jfy_res([])
 
     async def restore_history(self):
         """PUT"""
         json_data = await request.get_json()
-        valid_data = await self._validate_http(json_data, must=['access_token', 'chat_session', 'content'])
+        valid_data = await self.validate_http(json_data, must=['access_token', 'chat_session', 'content'])
 
         chat_session = valid_data.get('chat_session')
         assert 1 <= chat_session < 10, "chat_session out of bound"
@@ -259,36 +278,36 @@ class ShortConnHandler(View):
         assert (await wrap_run_in_exc(None, verify_message, json.dumps(history_json, ensure_ascii=False, sort_keys=True), sigb64)), "Signature mismatch"
         await self.stem_inst.restore_chat_session(history_json, chat_session)
 
-        return jsonify({"success": True, "exception": None})
+        return self.jfy_res()
 
     async def download_preferences(self):
         """GET"""
         json_data = request.args.to_dict(flat=True)
-        valid_data = await self._validate_http(json_data, must=['access_token'])
+        valid_data = await self.validate_http(json_data, must=['access_token'])
 
         preferences_json = await self.stem_inst.hasher.check_user_status(pref=True)
 
-        return jsonify({"success": True, "exception": None, "content": preferences_json})
+        return self.jfy_res(preferences_json)
 
     async def edit_preferences(self):
         """PATCH"""
         json_data = await request.get_json()
-        valid_data = await self._validate_http(json_data, must=['access_token', 'content'])
+        valid_data = await self.validate_http(json_data, must=['access_token', 'content'])
 
         preferences_json = await self.stem_inst.hasher.check_user_status(pref=True)
 
         content = valid_data.get('content')
         assert isinstance(content, dict), "Request content invalid" 
         preferences_json.update(content)
-        await self._validate_http(preferences_json)
+        await self.validate_http(preferences_json)
 
         await self.stem_inst.hasher.write_user_status(enforce=True, pref=True, **preferences_json)
-        return jsonify({"success": True, "exception": None})
+        return self.jfy_res()
 
     async def delete_preferences(self):
         """DELETE"""
         json_data = await request.get_json()
-        valid_data = await self._validate_http(json_data, must=['access_token', 'content'])
+        valid_data = await self.validate_http(json_data, must=['access_token', 'content'])
 
         preferences_json = await self.stem_inst.hasher.check_user_status(pref=True)
 
@@ -298,22 +317,22 @@ class ShortConnHandler(View):
             preferences_json.pop(key)
 
         await self.stem_inst.hasher.write_user_status(enforce=True, pref=True, **preferences_json)
-        return jsonify({"success": True, "exception": None})
+        return self.jfy_res()
 
     async def reset_preferences(self):
         """POST"""
         json_data = await request.get_json()
-        valid_data = await self._validate_http(json_data, must=['access_token'])
+        valid_data = await self.validate_http(json_data, must=['access_token'])
 
         await self.stem_inst.hasher.write_user_status(enforce=True, pref=True)
-        return jsonify({"success": True, "exception": None})
+        return self.jfy_res()
         
     # async def control_preferences(self):
     #     """read->GET, write->PATCH, delete->DELETE, reset->POST"""
     #     try:
     #         json_data = request.args.to_dict(flat=True) if request.method == 'GET' else await request.get_json()
     #         must = ['access_token'] if request.method in ['GET', 'POST'] else ['access_token', 'content']
-    #         valid_data = await self._validate_http(json_data, must=must)
+    #         valid_data = await self.validate_http(json_data, must=must)
 
     #         if request.method == 'POST':
     #             await self.stem_inst.hasher.write_user_status(True, True)
@@ -341,7 +360,7 @@ class ShortConnHandler(View):
     async def download_token(self):
         """GET, val=False"""
         json_data = request.args.to_dict(flat=True)
-        valid_data = await self._validate_http(json_data, must=['content'])
+        valid_data = await self.validate_http(json_data, must=['content'])
 
         content = json.loads(valid_data.get('content'))
 
@@ -352,12 +371,12 @@ class ShortConnHandler(View):
 
         unencrypted_token = json.dumps({cridential_type: cridential, "password": password}, ensure_ascii=False)
         encrypted_token = await wrap_run_in_exc(None, encrypt_token, unencrypted_token)
-        return jsonify({"success": True, "exception": None, "content": encrypted_token})
+        return self.jfy_res(encrypted_token)
 
     async def check_legality(self):
         """GET"""
         json_data = request.args.to_dict(flat=True)
-        valid_data = await self._validate_http(json_data, must=['access_token'])
+        valid_data = await self.validate_http(json_data, must=['access_token'])
 
         try:
             content = json.loads(valid_data.get('content'))
@@ -378,12 +397,12 @@ class ShortConnHandler(View):
                 case _:
                     raise MaicaInputWarning(f"'{object}' is not valid object")
 
-        return jsonify({"success": True, "exception": None, "content": result})
+        return self.jfy_res(result)
 
     async def normalize_emo(self):
         """GET"""
         json_data = request.args.to_dict(flat=True)
-        valid_data = await self._validate_http(json_data, must=['access_token', 'content'])
+        valid_data = await self.validate_http(json_data, must=['access_token', 'content'])
 
         content = json.loads(valid_data.get('content'))
 
@@ -396,21 +415,73 @@ class ShortConnHandler(View):
         else:
             raise NotImplementedError("add is not implemented")
 
-        return jsonify({"success": True, "exception": None, "content": result})
+        return self.jfy_res(result)
+
+    async def upload_vista(self):
+        """POST, multipart/form-data"""
+        json_data = (await request.form).to_dict()
+        valid_data = await self.validate_http(json_data, must=['access_token'])
+
+        file: FileStorage = (await request.files).get('content')
+
+        img_uuid = await self.stem_inst.store_mv(file.stream.read())
+
+        return self.jfy_res(img_uuid)
+    
+    async def delete_vista(self):
+        """DELETE"""
+        json_data = await request.get_json()
+        valid_data = await self.validate_http(json_data, must=['access_token'])
+
+        content = valid_data.get('content')
+
+        await self.stem_inst.delete_mv(content)
+        return self.jfy_res()
+    
+    async def download_vista(self):
+        """GET"""
+        json_data = request.args.to_dict(flat=True)
+        try:
+            # Predicted trying to download img
+            valid_data = await self.validate_http(json_data, must=['content'])
+            content = valid_data.get('content')
+
+            uuid: str = content
+            processing_img = ProcessingImg(uuid)
+
+            return_bio = processing_img.to_bio()
+            file_name = processing_img.file_name
+
+            return await send_file(
+                return_bio,
+                as_attachment=True,
+                attachment_filename=file_name
+            )
+        except Exception as e:
+            # Trying to get img list
+            try:
+                valid_data = await self.validate_http(json_data, must=['access_token'])
+                result = await self.stem_inst.list_user_mv()
+                return self.jfy_res(result)
+            except Exception as e2:
+                if isinstance(valid_data, dict) and valid_data.get('content'):
+                    raise e
+                else:
+                    raise e2
 
     async def get_servers(self):
         """GET, val=False"""
-        return jsonify({"success": True, "exception": None, "content": known_servers})
+        return self.jfy_res(KNOWN_SERVERS)
     
     async def get_accessibility(self):
         """GET, val=False"""
-        accessibility = load_env('MAICA_DEV_STATUS')
-        return jsonify({"success": True, "exception": None, "content": accessibility})
+        accessibility = G.A.DEV_STATUS
+        return self.jfy_res(accessibility)
     
     async def get_version(self):
         """GET, val=False"""
-        curr_version, legc_version = load_env('MAICA_CURR_VERSION'), load_env('MAICA_VERSION_CONTROL')
-        return jsonify({"success": True, "exception": None, "content": {"curr_version": curr_version, "legc_version": legc_version}})
+        curr_version, legc_version = G.A.CURR_VERSION, G.A.LEGC_VERSION
+        return self.jfy_res({"curr_version": curr_version, "legc_version": legc_version})
 
     async def get_workload(self):
         """GET, val=False"""
@@ -419,7 +490,7 @@ class ShortConnHandler(View):
             content |= watcher.get_statics_inside()
 
         content.update({"onliners": len(online_dict)})
-        return jsonify({"success": True, "exception": None, "content": content})
+        return self.jfy_res(content)
     
     async def get_defaults(self):
         """GET, val=False"""
@@ -428,7 +499,7 @@ class ShortConnHandler(View):
         content.update(settings.basic.default())
         content.update(settings.extra.default())
         content.update(settings.super.default())
-        return jsonify({"success": True, "exception": None, "content": content})
+        return self.jfy_res(content)
 
     async def any_unknown(self):
         """Handles any unknown endpoint"""
@@ -447,7 +518,7 @@ async def prepare_thread(**kwargs):
     # Construct watchers
     watch_addrs = {}
     for k, v in _WATCHES_DICT.items():
-        host = get_host(globals().get(v))
+        host = get_host(getattr(G.A, v))
         if host and not k in watch_addrs:
             watch_addrs[k] = host
             

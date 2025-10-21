@@ -15,15 +15,10 @@ from Crypto.Hash import SHA256
 from .connection_utils import *
 from maica.maica_utils import *
 from .setting_utils import *
-from .container_utils import *
+from .fsc_late import *
 
 def pkg_init_account_utils():
-    global DB_ADDR, DB_USER, DB_PASSWORD, AUTH_DB, MAICA_DB, encryptor, decryptor, verifier, signer
-    DB_ADDR = load_env('MAICA_DB_ADDR')
-    DB_USER = load_env('MAICA_DB_USER')
-    DB_PASSWORD = load_env('MAICA_DB_PASSWORD')
-    AUTH_DB = load_env('MAICA_AUTH_DB')
-    MAICA_DB = load_env('MAICA_DATA_DB')
+    global encryptor, decryptor, verifier, signer
     encryptor = decryptor = verifier = signer = None
     _check_keys()
 
@@ -92,7 +87,7 @@ class AccountCursor(AsyncCreator):
                 stats_json = kwargs
 
             stats_str = json.dumps(stats_json, ensure_ascii=False)
-            if DB_ADDR != "sqlite":
+            if self.maica_pool.db_type == 'mysql':
                 sql_expression = f"INSERT INTO account_status (user_id, {status}) VALUES (%s, %s) ON DUPLICATE KEY UPDATE {status} = %s"
             else:
                 sql_expression = f"INSERT INTO account_status (user_id, {status}) VALUES (%s, %s) ON CONFLICT(user_id) DO UPDATE SET {status} = %s"
@@ -120,9 +115,9 @@ class AccountCursor(AsyncCreator):
 
             if f2b_stamp:
                 # If there's possibility that the account is under F2B
-                if time.time() - f2b_stamp < float(load_env('MAICA_F2B_TIME')):
+                if time.time() - f2b_stamp < int(G.A.F2B_TIME):
                     # Waiting for F2B timeout
-                    e = {'f2b': int(float(load_env('MAICA_F2B_TIME'))+f2b_stamp-time.time())}
+                    e = {'f2b': int(int(G.A.F2B_TIME) + f2b_stamp - time.time())}
                     return False, e
                 else:
                     # Reset f2b_stamp since it has expired
@@ -145,7 +140,7 @@ class AccountCursor(AsyncCreator):
                 f2b_count += 1
                 # Adding to f2b_count
                 e = {'pwdw': f2b_count}
-                if f2b_count >= int(load_env('MAICA_F2B_COUNT')):
+                if f2b_count >= int(G.A.F2B_COUNT):
                     # Trigger F2B
                     await self.write_user_status(f2b_stamp=time.time())
                     f2b_count = 0

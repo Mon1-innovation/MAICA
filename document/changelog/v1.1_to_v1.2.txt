@@ -10,3 +10,9 @@ If you want to read in English, use a translator.
 + 现在使用logger替代(大多数)print
 
 - 弃用MAICA_PRINT_VERBOSE
+
+- MAICA_VERSION_CONTROL 改为 MAICA_LEGC_VERSION
+
++ 添加/vista端点, 作为mv图床
+
+= 改良了配置和环境变量的运作模式

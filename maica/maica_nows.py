@@ -4,16 +4,10 @@ import json
 from typing import *
 from Crypto.Random import random as crandom
 
+from maica.mtools import ProcessingImg
 from maica.mfocus import MFocusCoroutine, SfBoundCoroutine
 from maica.mtrigger import MTriggerCoroutine, MtBoundCoroutine
 from maica.maica_utils import *
-
-def pkg_init_maica_nows():
-    global PROMPT_ZC, PROMPT_ZW, PROMPT_EC, PROMPT_EW
-    PROMPT_ZC = load_env('MAICA_PROMPT_ZC')
-    PROMPT_ZW = load_env('MAICA_PROMPT_ZW')
-    PROMPT_EC = load_env('MAICA_PROMPT_EC')
-    PROMPT_EW = load_env('MAICA_PROMPT_EW')
 
 class NoWsCoroutine(AsyncCreator):
     """
@@ -44,7 +38,7 @@ class NoWsCoroutine(AsyncCreator):
 
     def _check_essentials(self) -> None:
         if not self.settings.verification.user_id:
-            raise MaicaPermissionError('Essentials not implemented', '403', 'common_essentials_missing')
+            raise MaicaPermissionError('Essentials not complete', '403', 'common_essentials_missing')
 
     async def _create_session(self, user_id=None, chat_session_num=None, content=None) -> int:
         user_id = self.settings.verification.user_id if not user_id else user_id
@@ -187,7 +181,7 @@ class NoWsCoroutine(AsyncCreator):
                 await self.maica_pool.query_modify(expression=sql_expression_2, values=(content_finale, chat_session_id))
             return chat_session_id, cut_status
 
-    async def reset_chat_session(self, chat_session_num=None, content_new=None) -> bool:
+    async def reset_chat_session(self, chat_session_num=None, content_new: Optional[str]=None) -> bool:
         """The difference between this and rw_chat_session is that this one archives."""
         self._check_essentials()
 
@@ -210,8 +204,8 @@ class NoWsCoroutine(AsyncCreator):
             chat_session_id = await self._create_session(chat_session_num=chat_session_num, content=content_new)
             return False
         
-    async def restore_chat_session(self, content_restore, chat_session_num=None) -> bool:
-        """Basically not necessary to exist but who knows..."""
+    async def restore_chat_session(self, content_restore: Union[str, list], chat_session_num=None) -> bool:
+        """Restores a chat session from string or list."""
         self._check_essentials()
 
         if not chat_session_num:
@@ -224,11 +218,11 @@ class NoWsCoroutine(AsyncCreator):
 
         return await self.reset_chat_session(chat_session_num=chat_session_num, content_new=content_restore)
 
-    async def find_ms_cache(self, hash_identity) -> Optional[str]:
+    async def find_ms_cache(self, hash: str) -> Optional[str]:
         """Find ms cache with corresponding prompt hash."""
 
         sql_expression_1 = "SELECT content FROM ms_cache WHERE hash = %s"
-        result = await self.maica_pool.query_get(expression=sql_expression_1, values=(hash_identity, ))
+        result = await self.maica_pool.query_get(expression=sql_expression_1, values=(hash, ))
         if result:
             await messenger(None, 'maica_spire_cache_hit', 'Hit a stored cache for MSpire', '200')
             return result[0]
@@ -236,27 +230,90 @@ class NoWsCoroutine(AsyncCreator):
             await messenger(None, 'maica_spire_cache_missed', 'No stored cache for MSpire', '200')
             return None
 
-    async def store_ms_cache(self, hash_identity, content) -> int:
+    async def store_ms_cache(self, hash: str, content: str) -> int:
         """Store ms cache with prompt hash."""
         self._check_essentials()
 
         sql_expression_1 = "INSERT INTO ms_cache (user_id, hash, content) VALUES (%s, %s, %s)"
-        spire_id = await self.maica_pool.query_modify(expression=sql_expression_1, values=(self.settings.verification.user_id, hash_identity, content))
+        spire_id = await self.maica_pool.query_modify(expression=sql_expression_1, values=(self.settings.verification.user_id, hash, content))
         await messenger(None, 'maica_spire_cache_stored', 'Stored a cache for MSpire', '200')
         return spire_id
+
+    @overload
+    async def delete_mv(self, input: str) -> None:
+        """Delete mv according to uuid."""
+
+    @overload
+    async def delete_mv(self, input: int) -> None:
+        """Delete mv according to per-user sequence (from 0)."""
+
+    async def delete_mv(self, input) -> None:
+        """Delete a mv meta and try to delete its file."""
+        self._check_essentials()
+        if isinstance(input, int):
+            assert input < int(G.A.KEEP_MVISTA), f"Sequence must be smaller than {G.A.KEEP_MVISTA}"
+            uuid = (await self.list_user_mv())[input]
+        else:
+            uuid = input
+        
+        processing_img = ProcessingImg()
+        processing_img.det_path(uuid)
+
+        sql_expression_1 = "SELECT vista_id FROM mv_meta WHERE user_id = %s AND uuid = %s"
+        result = await self.maica_pool.query_get(expression=sql_expression_1, values=(self.settings.verification.user_id, uuid))
+        if not result:
+            raise MaicaInputWarning(f'{uuid} not available for this account')
+        vista_id = result[0]
+
+        processing_img.delete()
+        sql_expression_2 = "DELETE FROM mv_meta WHERE vista_id = %s"
+        await self.maica_pool.query_modify(expression=sql_expression_2, values=(vista_id, ))
+        
+    async def store_mv(self, input: bytes) -> int:
+        """Register a mv meta and store as file."""
+
+        async def delete_mv_if_exceeds():
+            """Empties one slot for storage."""
+            nonlocal self
+            mvs = await self.list_user_mv()
+            mv_count = len(mvs)
+            if mv_count >= int(G.A.KEEP_MVISTA):
+                for i in mvs[int(G.A.KEEP_MVISTA) - 1:]:
+                    await self.delete_mv(i)
+
+        self._check_essentials()
+        await delete_mv_if_exceeds()
+
+        processing_img = ProcessingImg(input)
+        uuid = processing_img.det_path()
+        
+        sql_expression_1 = "INSERT INTO mv_meta (user_id, uuid) VALUES (%s, %s)"
+        vista_id = await self.maica_pool.query_modify(expression=sql_expression_1, values=(self.settings.verification.user_id, uuid))
+        processing_img.save()
+
+        return uuid
+    
+    async def list_user_mv(self) -> list[str]:
+        """List current user's available mvs."""
+        self._check_essentials()
+
+        sql_expression_1 = "SELECT uuid FROM mv_meta WHERE user_id = %s ORDER BY timestamp DESC"
+        result = await self.maica_pool.query_get(expression=sql_expression_1, values=(self.settings.verification.user_id, ), fetchall=True)
+        result_list = [l[0] for l in result]
+        return result_list
 
     async def gen_system_prompt(self, known_info=None, strict_conv=None) -> str:
         def _basic_gen_system(player_name, target_lang='zh', strict_conv=True):
             if target_lang == 'zh':
                 if strict_conv:
-                    system_init = PROMPT_ZC
+                    system_init = G.A.PROMPT_ZC
                 else:
-                    system_init = PROMPT_ZW
+                    system_init = G.A.PROMPT_ZW
             else:
                 if strict_conv:
-                    system_init = PROMPT_EC
+                    system_init = G.A.PROMPT_EC
                 else:
-                    system_init = PROMPT_EW
+                    system_init = G.A.PROMPT_EW
             system_init = system_init.format(player_name=player_name)
             return system_init
 
@@ -307,7 +364,7 @@ class NoWsCoroutine(AsyncCreator):
             # Cridential correct and not banned
             if check_online and not logged_in_already:
                 if self.settings.verification.user_id in online_dict:
-                    if load_env('MAICA_KICK_STALE_CONNS') == "0":
+                    if G.A.KICK_STALE_CONNS == "0":
                         self.settings.verification.reset()
                         raise MaicaConnectionWarning('A connection was established already and kicking not enabled', '406', 'maica_connection_reuse_denied')
                     else:

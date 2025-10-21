@@ -3,11 +3,8 @@ import asyncio
 from typing import *
 from typing_extensions import deprecated
 from dataclasses import dataclass
-from maica.maica_utils import *
-
-def pkg_init_setting_utils():
-    global MAX_LENGTH
-    MAX_LENGTH = int(load_env('MAICA_SESSION_MAX_LENGTH'))
+from .gvars import *
+from .maica_utils import *
 
 @dataclass
 class _common_funcs():
@@ -17,7 +14,7 @@ class _common_funcs():
         self.__init__()
 
     def _dict(self):
-        return {k.lstrip('_'): getattr(self, k.lstrip('_')) for k in vars(self).keys()}
+        return {k.removeprefix('_'): getattr(self, k.removeprefix('_')) for k in vars(self).keys()}
     
     def __iter__(self):
         return iter(self._dict().items())
@@ -97,9 +94,9 @@ def set_literal(self, n, v, valid: list[any], **kwargs):
 def set_range(self, n, v, lower: Union[int, float], upper: Union[int, float], **kwargs):
     """Value must in range on set."""
     if isinstance(lower, str):
-        lower = globals().get(lower)
+        lower = numeric(getattr(G.A, lower))
     if isinstance(upper, str):
-        upper = globals().get(upper)
+        upper = numeric(getattr(G.A, upper))
     if isinstance(lower, float) or isinstance(upper, float):
         v = float(v)
     else:
@@ -126,7 +123,6 @@ def set_spec_default(self, n, v, defaults: list=[None], **kwargs):
     if v in defaults:
         v = self.default(n)
     return v
-
 
 class MaicaSettings():
     """All the per-client settings for MAICA."""
@@ -181,7 +177,7 @@ class MaicaSettings():
         """Enable trigger extraction."""
         target_lang = create_prop('target_lang', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": ['zh', 'en']})
         """Target language."""
-        max_length = create_prop('max_length', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 512, "upper": 'MAX_LENGTH'})
+        max_length = create_prop('max_length', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 512, "upper": 'SESSION_MAX_LENGTH'})
         """Max session length."""
 
     @dataclass

@@ -31,7 +31,7 @@ def pkg_init_serp_provider():
     serp_provider = None; asearch = None; requires = None
     available_list = []
 
-    if load_env('MAICA_NO_SERP') != '1':
+    if G.A.NO_SERP != '1':
         for prio in range(0, 100):
             modname = f".serp_provider_{prio}"
             try:

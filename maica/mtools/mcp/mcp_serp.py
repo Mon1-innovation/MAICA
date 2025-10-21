@@ -7,9 +7,7 @@ from .mcp_middleware import prep_bin, _serp_bin
 from maica.maica_utils import *
 
 def pkg_init_mcp_serp():
-    global PROXY_ADDR, ENABLE_X11, SERP_BIN
-    PROXY_ADDR = load_env('MAICA_PROXY_ADDR')
-    ENABLE_X11 = load_env('MAICA_ENABLE_X11')
+    global SERP_BIN
     SERP_BIN = _serp_bin()
     prep_bin(SERP_BIN)
 
@@ -23,10 +21,10 @@ async def asearch(query, target_lang='zh'):
     serp_initiation_args = {
         "command": SERP_BIN,
         "args": [],
-        "env": {k: PROXY_ADDR for k in ['http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY']},
+        "env": {k: G.A.PROXY_ADDR for k in ['http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY']},
     }
     serp_initiation_args["env"].update({
-        "DISPLAY": (load_env("DISPLAY") or '') if ENABLE_X11 == '1' else ''
+        "DISPLAY": (load_env("DISPLAY") or '') if G.A.ENABLE_X11 == '1' else ''
     })
 
     serp_initiation = StdioServerParameters(**serp_initiation_args)

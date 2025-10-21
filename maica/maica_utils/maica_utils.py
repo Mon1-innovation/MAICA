@@ -19,6 +19,13 @@ from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from urllib.parse import urlparse
 from .locater import *
+from .gvars import *
+
+_READ_KWDS = {'select', 'show', 'explain', 'describe'}
+_WRITE_KWDS = {
+'insert', 'update', 'delete', 'create', 'alter', 
+'drop', 'truncate', 'replace', 'merge'
+}
 
 colorama.init(autoreset=True)
 
@@ -234,11 +241,13 @@ class ReUtils():
     re_sub_replacement_chr = re.compile(r'[\uFFF9-\uFFFF]')
     re_sub_serp_datetime = re.compile(r'.{1,10}?,.{1,10}?-\s*')
     re_sub_clear_text = re.compile(r'^[\n\s]*(.*?)[\n\s]*$', re.S)
+    re_match_secure_path = re.compile(r'^[a-zA-Z0-9_.-]+$')
 
 class Decos():
     """Do not initialize."""
     def catch_exceptions(func):
         """Used for connection_utils."""
+        @functools.wraps(func)
         async def wrapper(self, *args, **kwargs):
             name = getattr(self, 'name', 'anon_conn')
             try:
@@ -254,9 +263,25 @@ class Decos():
     def escape_sqlite_expression(func):
         """Used to transform a MySQL expression to SQLite one."""
         @functools.wraps(func)
-        def wrapper(self, expression, *args, **kwargs):
+        def wrapper(self, expression: str, *args, **kwargs):
             expression_new = ReUtils.re_sub_sqlite_escape.sub('?', expression)
             return func(self, expression_new, *args, **kwargs)
+        return wrapper
+    
+    def ro_expression(func):
+        """Used to keep DB query ro."""
+        @functools.wraps(func)
+        def wrapper(self, expression: str, *args, **kwargs):
+            assert not is_word_start(expression.lower(), *_WRITE_KWDS), f'query_get got write expression {expression}'
+            return func(self, expression, *args, **kwargs)
+        return wrapper
+    
+    def wo_expression(func):
+        """Used to keep DB query wo."""
+        @functools.wraps(func)
+        def wrapper(self, expression: str, *args, **kwargs):
+            assert not is_word_start(expression.lower(), *_READ_KWDS), f'query_modify got read expression {expression}'
+            return func(self, expression, *args, **kwargs)
         return wrapper
 
     def report_data_error(func):
@@ -354,7 +379,7 @@ async def sleep_forever() -> None:
 
 def alt_tools(tools: list) -> list:
     """If ALT_TOOLCALL"""
-    match load_env('MAICA_ALT_TOOLCALL'):
+    match G.A.ALT_TOOLCALL:
         case '0':
             return tools
         case '1':
@@ -383,6 +408,13 @@ def has_words_in(text: str, *args: str):
     """A rough matching mechanism."""
     for word in args:
         if word in text:
+            return True
+    return False
+
+def is_word_start(text: str, *args: str):
+    """Another rough matching mechanism."""
+    for word in args:
+        if text.startswith(word):
             return True
     return False
 
@@ -457,7 +489,7 @@ def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional
         msg_print += f": {str(info)}" if not str(info).startswith('\n') else f"{'-=' * rep1}{str(info)}\n{'-=' * rep2}"
         msg_print += f"; traceray ID {traceray_id}" if traceray_id else ''
         msg_send = info
-        if type == 'error' and load_env('MAICA_NO_SEND_ERROR') == '1':
+        if type == 'error' and G.A.NO_SEND_ERROR == '1':
             msg_send = "A critical exception happened serverside, contact administrator"
         if traceray_id and isinstance(info, str):
             msg_send += f" -- your traceray ID is {traceray_id}"
@@ -533,7 +565,7 @@ async def dld_json(url, retries=2) -> json:
     try:
         for tries in range(0, retries + 1):
             try:
-                client = httpx.AsyncClient(proxy=load_env('MAICA_PROXY_ADDR'))
+                client = httpx.AsyncClient(proxy=G.A.PROXY_ADDR)
                 res = (await client.get(url, headers=headers)).json()
                 break
             except Exception as e:
@@ -547,6 +579,12 @@ async def dld_json(url, retries=2) -> json:
     finally:
         await client.aclose()
     return res
+
+def numeric(num: str) -> Union[int, float]:
+    try:
+        return int(num)
+    except ValueError:
+        return float(num)
 
 def get_host(url: str) -> bool:
     """Try to get hostname from url."""

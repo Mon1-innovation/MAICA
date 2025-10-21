@@ -30,14 +30,14 @@ _CONNS_LIST = ['auth_pool', 'maica_pool', 'mcore_conn', 'mfocus_conn', 'mvista_c
 
 from maica.initializer import pkg_init_initializer
 from maica.maica_http import pkg_init_maica_http
-from maica.maica_nows import pkg_init_maica_nows
 from maica.maica_utils import pkg_init_maica_utils
 from maica.mtools import pkg_init_mtools
 def pkg_init_maica():
     pkg_init_initializer()
+    """Prio 0"""
     pkg_init_maica_utils()
+    """Prio 1"""
     pkg_init_maica_http()
-    pkg_init_maica_nows()
     pkg_init_mtools()
     if mtts_installed:
         mtts.mtts_http.pkg_init_mtts_http()
@@ -115,12 +115,14 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwar
     def get_templates():
         with open(get_inner_path('env_basis'), 'r', encoding='utf-8') as env_e:
             env_c = env_e.readlines()
-        i = 0
+        i = 0; j = 0
         for l in env_c:
             i += 1
             if len(l) <= 5:
+                j = 1
+            if j and len(l) > 5:
                 break
-        env_c = ''.join(env_c[i:])
+        env_c = ''.join(env_c[i - 1:])
         return env_c
     
     def separate_line(title: str):
@@ -267,7 +269,7 @@ async def maica_start_all(**kwargs):
 
     task_ws = asyncio.create_task(maica_ws.prepare_thread(**kwargs))
     task_http = asyncio.create_task(maica_http.prepare_thread(**kwargs))
-    task_schedule = asyncio.create_task(common_schedule.schedule_rotate_cache(**kwargs))
+    task_schedule = asyncio.create_task(common_schedule.prepare_thread(**kwargs))
 
     res = await asyncio.wait([
         task_ws,

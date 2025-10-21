@@ -8,7 +8,7 @@ from .mfocus_main import SfBoundCoroutine
 from maica.maica_utils import *
 
 class AgentTools():
-    """I didn't intend to make classes everywhere, but they're oh so convenient."""
+    """Packed so more convenient."""
     def __init__(self, fsc: FullSocketsContainer, sf_inst: SfBoundCoroutine):
         self.fsc, self.sf_inst = fsc, sf_inst
 

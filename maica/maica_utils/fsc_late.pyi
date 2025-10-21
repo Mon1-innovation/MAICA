@@ -3,9 +3,9 @@ from dataclasses import dataclass
 from websockets import ServerConnection
 from Crypto.Random import random as crandom
 from maica.maica_utils import *
-from .setting_utils import *
-from .container_early import *
-from .connection_utils import *
+from .setting_utils import MaicaSettings
+from .fsc_early import RealtimeSocketsContainer, TracerayId
+from .connection_utils import DbPoolCoroutine, AiConnCoroutine
 
 @dataclass
 class ConnSocketsContainer():
@@ -25,8 +25,8 @@ class FullSocketsContainer():
     websocket: ClassVar[Optional[ServerConnection]]
     traceray_id: ClassVar[TracerayId]
     maica_settings: ClassVar[MaicaSettings]
-    auth_pool: ClassVar[Optional[AiConnCoroutine]]
-    maica_pool: ClassVar[Optional[AiConnCoroutine]]
+    auth_pool: ClassVar[Optional[DbPoolCoroutine]]
+    maica_pool: ClassVar[Optional[DbPoolCoroutine]]
     mcore_conn: ClassVar[Optional[AiConnCoroutine]]
     mfocus_conn: ClassVar[Optional[AiConnCoroutine]]
     mvista_conn: ClassVar[Optional[AiConnCoroutine]]

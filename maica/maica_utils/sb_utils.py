@@ -1,7 +1,9 @@
 """Import layer 5"""
+import asyncio
+import json
 from openai.types.chat import ChatCompletionMessage
 from .connection_utils import *
-from .container_utils import *
+from .fsc_late import *
 from maica.maica_utils import *
 
 class SideBoundCoroutine(AsyncCreator):
@@ -190,7 +192,7 @@ class SideFunctionCoroutine(AsyncCreator):
         resp = await self.mfocus_conn.make_completion(**completion_args)
         content, rcontent, tool_calls = resp.choices[0].message.content, getattr(resp.choices[0].message, 'reasoning_content', None), resp.choices[0].message.tool_calls
 
-        if load_env('MAICA_ALT_TOOLCALL') != '0':
+        if G.A.ALT_TOOLCALL != '0':
             self.serial_messages.append(resp.choices[0].message)
         else:
             self.serial_messages.append({"role": "assistant", "content": content})

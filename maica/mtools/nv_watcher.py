@@ -18,15 +18,18 @@ class _FakeSQLiteConn():
     async def __aexit__(self, exc_type, exc_val, exc_tb):...
 
 class NvWatcher(AsyncCreator):
-    def __init__(self, node, prefix="maica"):
-        self.write_nvw = load_env('MAICA_WRITE_NVW') == '1'
+    def __init__(self, node: str, prefix="maica"):
+        self.write_nvw = G.A.WRITE_NVW == '1'
         self.node = node
-        self.node_name = load_env(f'{prefix.upper()}_{node.upper()}_NODE')
-        self.node_user = load_env(f'{prefix.upper()}_{node.upper()}_USER')
-        self.node_pwd = load_env(f'{prefix.upper()}_{node.upper()}_PWD')
+        subset_name = 'A' if prefix in ['maica', 'a'] else 'T'
+        subset = getattr(G, subset_name)
+
+        self.node_name = getattr(subset, f'{node.upper()}_NODE')
+        self.node_user = getattr(subset, f'{node.upper()}_USER')
+        self.node_pwd = getattr(subset, f'{node.upper()}_PWD')
         self.is_dead = False
 
-        self.node_addr = get_host(load_env(f'{prefix.upper()}_{node.upper()}_ADDR'))
+        self.node_addr = get_host(getattr(subset, f'{node.upper()}_ADDR'))
 
     async def _ainit(self):
         if self.is_active:

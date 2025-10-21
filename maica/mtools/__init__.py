@@ -8,6 +8,7 @@ from .serp_get import internet_search
 from .event_get import RegEvent, EventsCollection
 from .post_proc import emo_proc, post_proc, zlist, elist
 from .nv_watcher import NvWatcher
+from .mvista import ProcessingImg
 
 __all__ = [
     'TpAPIKeys',
@@ -22,6 +23,7 @@ __all__ = [
     'zlist',
     'elist',
     'NvWatcher',
+    'ProcessingImg',
     ]
 
 from .mcp import pkg_init_mcp

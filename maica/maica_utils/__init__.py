@@ -29,6 +29,7 @@ from .maica_utils import (
     maica_assert,
     has_valid_content,
     has_words_in,
+    is_word_start,
     proceed_agent_response,
     sync_messenger,
     messenger,
@@ -37,6 +38,7 @@ from .maica_utils import (
     limit_length,
     dld_json,
     get_host,
+    numeric,
     vali_url,
     vali_date,
     is_today,
@@ -52,13 +54,13 @@ from .maica_utils import (
 )
 from .connection_utils import DbPoolCoroutine, SqliteDbPoolCoroutine, ConnUtils, AiConnCoroutine, validate_input, apply_postfix
 from .setting_utils import MaicaSettings
-from .container_early import RealtimeSocketsContainer
+from .fsc_early import RealtimeSocketsContainer
 from .account_utils import AccountCursor, encrypt_token, sign_message, verify_message
-from .container_utils import ConnSocketsContainer, FullSocketsContainer
+from .fsc_late import ConnSocketsContainer, FullSocketsContainer
 from .sb_utils import SideBoundCoroutine, SideFunctionCoroutine
 from .get_a_sentence import SentenceOfTheDay
 from .locater import locater, get_inner_path, get_outer_path
-from .gvars import online_dict
+from .gvars import online_dict, G
 
 __all__ = [
     'silent',
@@ -92,6 +94,7 @@ __all__ = [
     'maica_assert',
     'has_valid_content',
     'has_words_in',
+    'is_word_start',
     'proceed_agent_response',
     'sync_messenger',
     'messenger',
@@ -102,6 +105,7 @@ __all__ = [
     'limit_length',
     'dld_json',
     'get_host',
+    'numeric',
     'vali_url',
     'vali_date',
     'is_today',
@@ -131,12 +135,13 @@ __all__ = [
     'get_inner_path',
     'get_outer_path',
     'online_dict',
+    'G',
 ]
 
-from .account_utils import pkg_init_account_utils
+from .gvars import pkg_init_gvars
 from .connection_utils import pkg_init_connection_utils
-from .setting_utils import pkg_init_setting_utils
+from .account_utils import pkg_init_account_utils
 def pkg_init_maica_utils():
-    pkg_init_account_utils()
+    pkg_init_gvars()
     pkg_init_connection_utils()
-    pkg_init_setting_utils()
+    pkg_init_account_utils()

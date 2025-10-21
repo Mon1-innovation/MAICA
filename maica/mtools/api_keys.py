@@ -7,7 +7,7 @@ from maica.maica_utils import *
 class TpAPIKeys():...
 
 def pkg_init_api_keys():
-    api_keys: dict = json.loads(load_env('MAICA_TP_APIS'))
+    api_keys: dict = json.loads(G.A.TP_APIS)
     for k, v in api_keys.items():
         setattr(TpAPIKeys, k, v)
 
