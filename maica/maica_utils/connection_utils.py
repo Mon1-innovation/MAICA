@@ -61,7 +61,7 @@ def pkg_init_connection_utils():
     if G.A.DB_ADDR != "sqlite":
         """We suppose we're using MySQL."""
         async def auth_pool(ro=True):
-            return await DbPoolCoroutine.async_create(
+            return await DbPoolManager.async_create(
                 host=G.A.DB_ADDR,
                 db=G.A.AUTH_DB,
                 user=G.A.DB_USER,
@@ -70,7 +70,7 @@ def pkg_init_connection_utils():
             )
 
         async def maica_pool(ro=False):
-            return await DbPoolCoroutine.async_create(
+            return await DbPoolManager.async_create(
                 host=G.A.DB_ADDR,
                 db=G.A.DATA_DB,
                 user=G.A.DB_USER,
@@ -79,7 +79,7 @@ def pkg_init_connection_utils():
             )
         
         async def basic_pool(ro=False):
-            return await DbPoolCoroutine.async_create(
+            return await DbPoolManager.async_create(
                 host=G.A.DB_ADDR,
                 db=None,
                 user=G.A.DB_USER,
@@ -89,12 +89,12 @@ def pkg_init_connection_utils():
     else:
         """We suppose we're using SQLite."""
         async def auth_pool(ro=True):
-            return await SqliteDbPoolCoroutine.async_create(
+            return await SqliteDbPoolManager.async_create(
                 db=get_inner_path(G.A.AUTH_DB)
             )
         
         async def maica_pool(ro=False):
-            return await SqliteDbPoolCoroutine.async_create(
+            return await SqliteDbPoolManager.async_create(
                 db=get_inner_path(G.A.DATA_DB)
             )
         
@@ -138,7 +138,7 @@ def apply_postfix(messages, thinking: Literal[True, False, None]=None):
             raise MaicaInputError('Context schedule not recognizable')
     return messages
 
-class DbPoolCoroutine(AsyncCreator):
+class DbPoolManager(AsyncCreator):
     """Maintain a database connection pool so you don't have to."""
 
     db_type: Literal['mysql', 'sqlite'] = 'mysql'
@@ -147,11 +147,22 @@ class DbPoolCoroutine(AsyncCreator):
         self.db, self.host, self.user, self.password, self.ro = db, host, user, password, ro
         self.name = self.db
         self.pool: aiomysql.Pool = None
+        self.pool_container: list[aiomysql.Pool] = []
+        """We use this thing to sync sub-instances' pools with mother instance."""
+        self.lock = asyncio.Lock()
+        """Pool affecting actions are performed with lock acquired."""
 
     @Decos.catch_exceptions
     async def _ainit(self):
         """Initialize MySQL connection pool."""
-        self.pool = await aiomysql.create_pool(host=self.host, user=self.user, password=self.password, db=self.db)
+        if not self.lock.locked():
+            async with self.lock:
+                await self.close()
+                self.pool = await aiomysql.create_pool(host=self.host, user=self.user, password=self.password, db=self.db)
+                self.pool_container.append(self.pool)
+        else:
+            async with self.lock:
+                return
 
     @Decos.catch_exceptions
     async def keep_alive(self):
@@ -162,8 +173,6 @@ class DbPoolCoroutine(AsyncCreator):
             return
         except Exception:
             await messenger(info=f"Recreating {self.name} pool since cannot acquire", type=MsgType.WARN)
-            try: self.pool.close()
-            except Exception:...
             await self._ainit()
 
     @overload
@@ -238,16 +247,20 @@ class DbPoolCoroutine(AsyncCreator):
     
     async def close(self):
         """Close before closing coroutine to avoid errors."""
-        self.pool.close()
-        await self.pool.wait_closed()
+        try:
+            self.pool.close()
+            await self.pool.wait_closed()
+        except Exception:...
+        finally:
+            self.pool_container.clear()
 
     def summon_sub(self, rsc: Optional[RealtimeSocketsContainer]=None):
         """Summons a per-user instance."""
-        return SubDbPoolCoroutine(self, rsc)
+        return SubDbPoolManager(self, rsc)
 
-class SubDbPoolCoroutine(DbPoolCoroutine):
-    """Per-user DbPoolCoroutine."""
-    def __init__(self, parent: DbPoolCoroutine, rsc: Optional[RealtimeSocketsContainer]=None):
+class SubDbPoolManager(DbPoolManager):
+    """Per-user DbPoolManager."""
+    def __init__(self, parent: DbPoolManager, rsc: Optional[RealtimeSocketsContainer]=None):
         """Must summon from a parent object."""
         for k, v in vars(parent).items():
             setattr(self, k, v)
@@ -260,10 +273,11 @@ class SubDbPoolCoroutine(DbPoolCoroutine):
     
     async def keep_alive(self):
         await self.parent.keep_alive()
+        self.pool = self.pool_container[0]
 
     async def close(self):...
 
-class SqliteDbPoolCoroutine(DbPoolCoroutine):
+class SqliteDbPoolManager(DbPoolManager):
     """
     SQLite-specific database pool coroutine.
     Notice: since SQLite only allow rollback for TRANSACTION which differs
@@ -278,6 +292,8 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
         self.name = self.db_path
         self.ro = ro
         self.pool: aiosqlite.Connection = None
+        self.pool_container: list[aiosqlite.Connection] = []
+        self.lock = asyncio.Lock()
 
     @Decos.catch_exceptions
     async def _ainit(self):
@@ -287,10 +303,17 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
         we're considering connections as pools to keep symmetry with
         the corresponding MySQL functions.
         """
-        self.pool = aiosqlite.connect(self.db_path)
-        await self.pool.__aenter__()
-        if self.ro:
-            await self.pool.execute("PRAGMA query_only = ON")
+        if not self.lock.locked():
+            async with self.lock:
+                await self.close()
+                self.pool = aiosqlite.connect(self.db_path)
+                await self.pool.__aenter__()
+                if self.ro:
+                    await self.pool.execute("PRAGMA query_only = ON")
+                self.pool_container.append(self.pool)
+        else:
+            async with self.lock:
+                return
 
     @Decos.catch_exceptions
     async def keep_alive(self):
@@ -299,8 +322,6 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
             await self.pool.execute("SELECT 1")
         except Exception:
             await messenger(info=f"Recreating {self.db} pool since cannot acquire", type=MsgType.WARN)
-            try: await self.pool.close()
-            except Exception:...
             await self._ainit()
 
     @overload
@@ -352,16 +373,19 @@ class SqliteDbPoolCoroutine(DbPoolCoroutine):
 
     async def close(self):
         """Close SQLite connection."""
-        if self.pool:
+        try:
             await self.pool.close()
+        except Exception:...
+        finally:
+            self.pool_container.clear()
 
     def summon_sub(self, rsc: Optional[RealtimeSocketsContainer]=None):
         """Summons a per-user instance."""
-        return SubSqliteDbPoolCoroutine(self, rsc)
+        return SubSqliteDbPoolManager(self, rsc)
 
-class SubSqliteDbPoolCoroutine(SqliteDbPoolCoroutine):
-    """Per-user SqliteDbPoolCoroutine."""
-    def __init__(self, parent: SqliteDbPoolCoroutine, rsc: Optional[RealtimeSocketsContainer]=None):
+class SubSqliteDbPoolManager(SqliteDbPoolManager):
+    """Per-user SqliteDbPoolManager."""
+    def __init__(self, parent: SqliteDbPoolManager, rsc: Optional[RealtimeSocketsContainer]=None):
         """Must summon from a parent object."""
         for k, v in vars(parent).items():
             setattr(self, k, v)
@@ -374,15 +398,20 @@ class SubSqliteDbPoolCoroutine(SqliteDbPoolCoroutine):
     
     async def keep_alive(self):
         await self.parent.keep_alive()
+        self.pool = self.pool_container[0]
 
     async def close(self):...
 
-class AiConnCoroutine(AsyncCreator):
+class AiConnectionManager(AsyncCreator):
     """Maintain an AI connection so you don't have to."""
     def __init__(self, api_key, base_url, name='ai_conn', model: Union[int, str]=0):
         self.test = False
         self.api_key, self.base_url, self.name, self.model = api_key, base_url, name, model
         self.gen_kwargs = {}
+        self.sock_container: list[AsyncOpenAI, str] = []
+        """We use this thing to sync sub-instances' socks with mother instance."""
+        self.lock = asyncio.Lock()
+        """Socket affecting actions are performed with lock acquired."""
 
     @Decos.catch_exceptions
     async def _ainit(self):
@@ -390,11 +419,18 @@ class AiConnCoroutine(AsyncCreator):
             self.test = True
             return
         else:
-            self._open_socket()
-            await self._select_model()
+            if not self.lock.locked():
+                async with self.lock:
+                    await self.close()
+                    self._open_socket()
+                    await self._select_model()
+            else:
+                async with self.lock:
+                    return
 
     def _open_socket(self):
         self.socket = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+        self.sock_container.append(self.socket)
 
     async def _select_model(self):
         model_list = await self.socket.models.list()
@@ -403,6 +439,7 @@ class AiConnCoroutine(AsyncCreator):
             self.model_actual = models[0].id
         else:
             self.model_actual = self.model
+        self.sock_container.append(self.model_actual)
 
     def default_params(self, **kwargs):
         """These params will always be applied to generations. Overwritten."""
@@ -412,8 +449,8 @@ class AiConnCoroutine(AsyncCreator):
     async def keep_alive(self):
         """Check and maintain OpenAI connection."""
         if self.socket.is_closed():
-            self._open_socket()
-            await self._select_model()
+            await messenger(info=f"Recreating {self.name} sock since is closed", type=MsgType.WARN)
+            await self._ainit()
             
     @overload
     async def make_completion(self, **kwargs) -> ChatCompletion:
@@ -430,20 +467,23 @@ class AiConnCoroutine(AsyncCreator):
 
         await self.keep_alive()
         task_stream_resp = asyncio.create_task(self.socket.chat.completions.create(**self.gen_kwargs, **kwargs))
-        await task_stream_resp
+        await asyncio.wait_for(task_stream_resp, timeout=int(G.A.OPENAI_TIMEOUT) if G.A.OPENAI_TIMEOUT != '0' else None)
         return task_stream_resp.result()
     
     async def close(self):
-        if self.socket:
+        try:
             await self.socket.close()
+        except Exception:...
+        finally:
+            self.sock_container.clear()
 
     def summon_sub(self, rsc: Optional[RealtimeSocketsContainer]=None):
         """Summons a per-user instance."""
-        return SubAiConnCoroutine(self, rsc)
+        return SubAiConnectionManager(self, rsc)
     
-class SubAiConnCoroutine(AiConnCoroutine):
-    """Per-user AiConnCoroutine."""
-    def __init__(self, parent: AiConnCoroutine, rsc: Optional[RealtimeSocketsContainer]=None):
+class SubAiConnectionManager(AiConnectionManager):
+    """Per-user AiConnectionManager."""
+    def __init__(self, parent: AiConnectionManager, rsc: Optional[RealtimeSocketsContainer]=None):
         """Must summon from a parent object."""
         for k, v in vars(parent).items():
             setattr(self, k, v)
@@ -454,22 +494,23 @@ class SubAiConnCoroutine(AiConnCoroutine):
         """Do not use async_create."""
         raise NotImplementedError
     
-    def _open_socket(self):
-        self.parent._open_socket()
+    async def keep_alive(self):
+        await self.parent.keep_alive()
+        self.socket, self.model_actual = self.parent.sock_container
 
     async def close(self):...
 
 class ConnUtils():
     """Just a wrapping for functions."""
-    async def auth_pool(ro=True) -> DbPoolCoroutine:
+    async def auth_pool(ro=True) -> DbPoolManager:
         """Dummy."""
-    async def maica_pool(ro=False) -> DbPoolCoroutine:
+    async def maica_pool(ro=False) -> DbPoolManager:
         """Dummy."""
-    async def basic_pool(ro=False) -> DbPoolCoroutine:
+    async def basic_pool(ro=False) -> DbPoolManager:
         """Dummy."""
 
     async def mcore_conn():
-        conn = await AiConnCoroutine.async_create(
+        conn = await AiConnectionManager.async_create(
             api_key=G.A.MCORE_KEY,
             base_url=G.A.MCORE_ADDR,
             name='mcore_conn',
@@ -479,7 +520,7 @@ class ConnUtils():
         return conn
 
     async def mfocus_conn():
-        conn = await AiConnCoroutine.async_create(
+        conn = await AiConnectionManager.async_create(
             api_key=G.A.MFOCUS_KEY,
             base_url=G.A.MFOCUS_ADDR,
             name='mfocus_conn',
@@ -491,7 +532,7 @@ class ConnUtils():
     async def mvista_conn():
         """Disable if no addr provided."""
         if G.A.MVISTA_ADDR:
-            conn = await AiConnCoroutine.async_create(
+            conn = await AiConnectionManager.async_create(
                 api_key=G.A.MVISTA_KEY,
                 base_url=G.A.MVISTA_ADDR,
                 name='mvista_conn',
@@ -505,7 +546,7 @@ class ConnUtils():
     async def mnerve_conn():
         """Disable if no addr provided."""
         if G.A.MNERVE_ADDR:
-            conn = await AiConnCoroutine.async_create(
+            conn = await AiConnectionManager.async_create(
                 api_key=G.A.MNERVE_KEY,
                 base_url=G.A.MNERVE_ADDR,
                 name='mnerve_conn',

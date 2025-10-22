@@ -30,7 +30,7 @@ from .maica_utils import (
     has_valid_content,
     has_words_in,
     is_word_start,
-    proceed_agent_response,
+    proceed_common_text,
     sync_messenger,
     messenger,
     load_env,
@@ -51,13 +51,14 @@ from .maica_utils import (
     sysstruct,
     Decos,
     Desc,
+    DummyClass,
 )
-from .connection_utils import DbPoolCoroutine, SqliteDbPoolCoroutine, ConnUtils, AiConnCoroutine, validate_input, apply_postfix
+from .connection_utils import DbPoolManager, SqliteDbPoolManager, ConnUtils, AiConnectionManager, validate_input, apply_postfix, conn_retryer_factory
 from .setting_utils import MaicaSettings
 from .fsc_early import RealtimeSocketsContainer
 from .account_utils import AccountCursor, encrypt_token, sign_message, verify_message
 from .fsc_late import ConnSocketsContainer, FullSocketsContainer
-from .sb_utils import SideBoundCoroutine, SideFunctionCoroutine
+from .sb_utils import PersistentManager, AgentContextManager
 from .get_a_sentence import SentenceOfTheDay
 from .locater import locater, get_inner_path, get_outer_path
 from .gvars import online_dict, G
@@ -95,11 +96,12 @@ __all__ = [
     'has_valid_content',
     'has_words_in',
     'is_word_start',
-    'proceed_agent_response',
+    'proceed_common_text',
     'sync_messenger',
     'messenger',
     'validate_input',
     'apply_postfix',
+    'conn_retryer_factory',
     'load_env',
     'wrap_run_in_exc',
     'limit_length',
@@ -118,12 +120,13 @@ __all__ = [
     'sysstruct',
     'Decos',
     'Desc',
-    'DbPoolCoroutine',
-    'SqliteDbPoolCoroutine',
+    'DummyClass',
+    'DbPoolManager',
+    'SqliteDbPoolManager',
     'ConnUtils',
-    'AiConnCoroutine',
-    'SideBoundCoroutine',
-    'SideFunctionCoroutine',
+    'AiConnectionManager',
+    'PersistentManager',
+    'AgentContextManager',
     'MaicaSettings',
     'RealtimeSocketsContainer',
     'AccountCursor',

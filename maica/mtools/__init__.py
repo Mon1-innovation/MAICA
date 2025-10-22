@@ -6,9 +6,9 @@ from .wiki_get import get_page
 from .weather_get import weather_api_get
 from .serp_get import internet_search
 from .event_get import RegEvent, EventsCollection
-from .post_proc import emo_proc, post_proc, zlist, elist
+from .post_proc import emo_proc, emo_proc_llm, emo_proc_auto, post_proc, zlist, elist
 from .nv_watcher import NvWatcher
-from .mvista import ProcessingImg
+from .mvista import ProcessingImg, query_vlm
 
 __all__ = [
     'TpAPIKeys',
@@ -19,11 +19,14 @@ __all__ = [
     'RegEvent',
     'EventsCollection',
     'emo_proc',
+    'emo_proc_llm',
+    'emo_proc_auto',
     'post_proc',
     'zlist',
     'elist',
     'NvWatcher',
     'ProcessingImg',
+    'query_vlm',
     ]
 
 from .mcp import pkg_init_mcp

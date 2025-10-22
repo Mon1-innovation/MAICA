@@ -16,7 +16,7 @@ from typing import *
 
 from maica.maica_ws import NoWsCoroutine
 from maica.maica_utils import *
-from maica.mtools import emo_proc, zlist, elist, weather_api_get, NvWatcher, ProcessingImg
+from maica.mtools import *
 
 _CONNS_LIST = ['auth_pool', 'maica_pool', 'mnerve_conn']
 _WATCHES_DICT = {
@@ -137,7 +137,7 @@ class ShortConnHandler(View):
                 if result_json:
                     d = {"success": result_json.get('success'), "exception": result_json.get('exception')}
                     if "content" in result_json:
-                        d["content"] = ellipsis_str(result_json.get('content'), limit=70)
+                        d["content"] = ellipsis_str(result_json.get('content'), limit=65)
                     self.msg_http(info=f'Return value: {str(d)}', type=MsgType.SYS)
                 else:
                     self.msg_http(info='A non-json response has been made', type=MsgType.SYS)
@@ -411,9 +411,9 @@ class ShortConnHandler(View):
         emo = content.get('text')
         
         if proc_type == 'norm':
-            result = emo_proc(emo, proc_lang)
+            result = await emo_proc_auto(emo, proc_lang, self.fsc.mnerve_conn)
         else:
-            raise NotImplementedError("add is not implemented")
+            result = await emo_proc_llm(emo, proc_lang, self.fsc.mnerve_conn)
 
         return self.jfy_res(result)
 

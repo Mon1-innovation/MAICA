@@ -103,6 +103,7 @@ class MaicaSettings:
         ic_prep: bool
         strict_conv: bool
         ms_cache: bool
+        mv_imgs: Optional[list]
 
     identity: _identity
     verification: _verification

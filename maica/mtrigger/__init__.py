@@ -1,5 +1,5 @@
 
-from .mtrigger_main import MTriggerCoroutine
-from .mtrigger_sfe import MtBoundCoroutine
+from .mtrigger_main import MTriggerManager
+from .mtrigger_sfe import MtPersistentManager
 
-__all__ = ['MTriggerCoroutine', 'MtBoundCoroutine']
+__all__ = ['MTriggerManager', 'MtPersistentManager']

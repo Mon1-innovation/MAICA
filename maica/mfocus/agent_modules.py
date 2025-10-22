@@ -3,13 +3,15 @@ import pytz
 import json
 import re
 import traceback
+
+from typing import *
 from maica.mtools import *
-from .mfocus_main import SfBoundCoroutine
+from .mfocus_main import SfPersistentManager
 from maica.maica_utils import *
 
 class AgentTools():
     """Packed so more convenient."""
-    def __init__(self, fsc: FullSocketsContainer, sf_inst: SfBoundCoroutine):
+    def __init__(self, fsc: FullSocketsContainer, sf_inst: SfPersistentManager):
         self.fsc, self.sf_inst = fsc, sf_inst
 
     def _time_tz(self, tz="zh"):
@@ -81,9 +83,8 @@ class AgentTools():
         content = f'{date.year}.{date.month}.{date.day}, {weekday}'
         return content, date_friendly
 
-    async def weather_acquire(self, *args: list[str], **kwargs: dict[str: str]) -> tuple[str, str]:
+    async def weather_acquire(self, location: Optional[str]=None, *args, **kwargs) -> tuple[str, str]:
         """Gets current weather. Requires fsc and (sf_inst or location)."""
-        location = args[0] if args else kwargs.get('location')
         target_lang = self.fsc.maica_settings.basic.target_lang
         weather = None
 
@@ -239,9 +240,8 @@ class AgentTools():
 
         return content, days_event
 
-    async def persistent_acquire(self, *args: list[str], **kwargs: dict[str: str]) -> tuple[str, str]:
+    async def persistent_acquire(self, query: str, *args, **kwargs) -> tuple[str, str]:
         """Gets value from persistent. Requires fsc and sf_inst and query."""
-        query = args[0] if args else kwargs.get('query')
         target_lang = self.fsc.maica_settings.basic.target_lang
         response_json = await self.sf_inst.mfocus_find_info(query)
         if response_json:
@@ -250,13 +250,8 @@ class AgentTools():
             content = '没有相关信息' if target_lang == 'zh' else "No related information found"
         return content, response_json
 
-    async def search_internet(self, *args: list[str], **kwargs: dict[str: str]) -> tuple[str, str]:
+    async def search_internet(self, query: str, original_query: str, location_req: Optional[str]=None, *args, **kwargs) -> tuple[str, str]:
         """Searches result from internet. Requires fsc and location_req and query and original_query, optional sf_inst."""
-        query = args[0] if args else kwargs.get('query')
-        location_req = args[1] if args else kwargs.get('location_req')
-        original_query = args[2] if args else kwargs.get('original_query')
-        target_lang = self.fsc.maica_settings.basic.target_lang
-
         if location_req:
             try:
                 geolocation = self.sf_inst.read_from_sf('mas_geolocation')
@@ -269,6 +264,14 @@ class AgentTools():
             original_query = geolocation + original_query
 
         return await internet_search(self.fsc, query, original_query)
+    
+    async def vista_acquire(self, img_list: list[str], query: Optional[str]=None, *args, **kwargs) -> tuple[str, str]:
+        """Gets information from image. Requires fsc and img_list and query."""
+        target_lang = self.fsc.maica_settings.basic.target_lang
+        if not query:
+            query = "简要地描述图片的整体内容" if target_lang == 'zh' else "Briefly summarize content of the pictures"
+
+        return await query_vlm(self.fsc, query, img_list)
 
 if __name__ == "__main__":
     import asyncio
@@ -282,7 +285,7 @@ if __name__ == "__main__":
         fsc.maica_pool = await ConnUtils.maica_pool()
         fsc.mfocus_conn = await ConnUtils.mfocus_conn()
         # fsc.maica_settings.update(esc_aggressive=False)
-        sf_inst = await SfBoundCoroutine.async_create(fsc)
+        sf_inst = await SfPersistentManager.async_create(fsc)
         at = AgentTools(fsc, sf_inst)
         time0 = time.time()
         # res_d = asyncio.run(at.date_acquire())

@@ -34,6 +34,7 @@ class CommonScheduler():
         )
         self.schedule.start()
 
+    @Decos.log_task
     async def rotate_ms_cache(self):
         """Deletes outdated mscache. We usually want to keep them for trainings."""
         keep_time = int(G.A.ROTATE_MSCACHE)
@@ -43,6 +44,7 @@ class CommonScheduler():
             sql_expression_1 = "DELETE FROM ms_cache WHERE timestamp < %s"
             await self.maica_pool.query_modify(expression=sql_expression_1, values=(earliest_timestamp, ))
 
+    @Decos.log_task
     async def rotate_mv_imgs(self):
         """Deletes outdated mv_img."""
         keep_time = int(G.A.ROTATE_MVISTA)

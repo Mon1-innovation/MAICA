@@ -6,7 +6,7 @@ from Crypto.Random import random as crandom
 from maica.maica_utils import *
 from .setting_utils import MaicaSettings
 from .fsc_early import RealtimeSocketsContainer, TracerayId
-from .connection_utils import DbPoolCoroutine, AiConnCoroutine
+from .connection_utils import DbPoolManager, AiConnectionManager
 
 def create_slink(name: str, inner: str):
     """Just like a symlink."""
@@ -19,12 +19,12 @@ def create_slink(name: str, inner: str):
 @dataclass
 class ConnSocketsContainer():
     """Why so many connections!!!"""
-    auth_pool: Optional[DbPoolCoroutine]=None
-    maica_pool: Optional[DbPoolCoroutine]=None
-    mcore_conn: Optional[AiConnCoroutine]=None
-    mfocus_conn: Optional[AiConnCoroutine]=None
-    mvista_conn: Optional[AiConnCoroutine]=None
-    mnerve_conn: Optional[AiConnCoroutine]=None
+    auth_pool: Optional[DbPoolManager]=None
+    maica_pool: Optional[DbPoolManager]=None
+    mcore_conn: Optional[AiConnectionManager]=None
+    mfocus_conn: Optional[AiConnectionManager]=None
+    mvista_conn: Optional[AiConnectionManager]=None
+    mnerve_conn: Optional[AiConnectionManager]=None
 
     def spawn_sub(self, rsc=None):
         """Spawns a per-user sub instance."""
@@ -43,12 +43,12 @@ class FullSocketsContainer():
     # websocket: ClassVar[Optional[ServerConnection]] = None
     # traceray_id: ClassVar[TracerayId] = None
     # maica_settings: ClassVar[MaicaSettings] = None
-    # auth_pool: ClassVar[Optional[AiConnCoroutine]] = None
-    # maica_pool: ClassVar[Optional[AiConnCoroutine]] = None
-    # mcore_conn: ClassVar[Optional[AiConnCoroutine]] = None
-    # mfocus_conn: ClassVar[Optional[AiConnCoroutine]] = None
-    # mvista_conn: ClassVar[Optional[AiConnCoroutine]] = None
-    # mnerve_conn: ClassVar[Optional[AiConnCoroutine]] = None
+    # auth_pool: ClassVar[Optional[AiConnectionManager]] = None
+    # maica_pool: ClassVar[Optional[AiConnectionManager]] = None
+    # mcore_conn: ClassVar[Optional[AiConnectionManager]] = None
+    # mfocus_conn: ClassVar[Optional[AiConnectionManager]] = None
+    # mvista_conn: ClassVar[Optional[AiConnectionManager]] = None
+    # mnerve_conn: ClassVar[Optional[AiConnectionManager]] = None
 
     def __getattr__(self, k):
         if k in self.rsc_proxied:

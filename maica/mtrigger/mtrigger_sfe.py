@@ -6,7 +6,7 @@ import traceback
 from .trigger_class import *
 from maica.maica_utils import *
 
-class MtBoundCoroutine(SideBoundCoroutine):
+class MtPersistentManager(PersistentManager):
     DB_NAME = 'triggers'
     PRIM_KEY = 'trigger_id'
     FUNC_NAME = 'mtrigger'

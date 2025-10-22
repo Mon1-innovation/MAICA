@@ -1,6 +1,10 @@
 I'm sorry for not offering an English ver of this document but it's just too much work for me.
 If you want to read in English, use a translator.
 
++ 添加了MVista功能, 用于从图像中提取信息
+
++ 添加了MNerve功能, 用于快速处理简单任务
+
 + 添加migration
 
 - 弃用了-1重置参数的功能
@@ -16,3 +20,5 @@ If you want to read in English, use a translator.
 + 添加/vista端点, 作为mv图床
 
 = 改良了配置和环境变量的运作模式
+
++ 添加环境变量MAICA_KEEP_MVISTA, MAICA_ROTATE_MVISTA, MAICA_OPENAI_TIMEOUT

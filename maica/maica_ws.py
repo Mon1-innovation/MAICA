@@ -220,8 +220,8 @@ class WsCoroutine(NoWsCoroutine):
                         self.settings.temp.update(bypass_stream=True)
                     if default(recv_loaded_json['postmail'].get('ic_prep'), True):
                         self.settings.temp.update(ic_prep=True)
-                    if default(recv_loaded_json['postmail'].get('strict_conv'), False):
-                        self.settings.temp.update(strict_conv=True)
+                    if not default(recv_loaded_json['postmail'].get('strict_conv'), False):
+                        self.settings.temp.update(strict_conv=False)
                 elif isinstance(recv_loaded_json['postmail'], str):
                     query_insp = await mtools.make_postmail(content=recv_loaded_json['postmail'], target_lang=self.settings.basic.target_lang)
                     self.settings.temp.update(bypass_stream=True, ic_prep=True, strict_conv=False)
@@ -229,15 +229,6 @@ class WsCoroutine(NoWsCoroutine):
                     maica_assert(False, "postmail")
                 
                 query_in = query_insp[2]
-
-        # This is future reserved for MVista
-
-        if 'vision' in recv_loaded_json and not query_in:
-            if recv_loaded_json['vision']:
-                if isinstance(recv_loaded_json['vision'], str):
-                    ...
-                else:
-                    ...
 
         if not query_in:
             maica_assert(recv_loaded_json.get('query'), 'query')
@@ -257,6 +248,13 @@ class WsCoroutine(NoWsCoroutine):
             else:
                 self.settings.temp.update(mt_extraction_once=True)
                 self.mt_inst.use_only(recv_loaded_json['trigger'])
+
+        if 'vision' in recv_loaded_json:
+            if recv_loaded_json['vision']:
+                if isinstance(recv_loaded_json['vision'], str):
+                    recv_loaded_json['vision'] = [recv_loaded_json['vision']]
+                if isinstance(recv_loaded_json['vision'], list):
+                    self.settings.temp.update(mv_imgs=recv_loaded_json['vision'])
 
         # Deprecated: The easter egg thing
 

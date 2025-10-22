@@ -7,7 +7,7 @@ from typing import *
 from random import sample
 from maica.maica_utils import *
 
-class SfBoundCoroutine(SideBoundCoroutine):
+class SfPersistentManager(PersistentManager):
     """Maintain a savefile for convenience of using."""
     DB_NAME = 'persistents'
     PRIM_KEY = 'persistent_id'
@@ -815,18 +815,16 @@ Begin!"""
         messages = apply_postfix(messages, thinking=False)
         completion_args = {
             "messages": messages,
+            "response_format": {"type": "json_object"},
         }
 
         resp = await self.mfocus_conn.make_completion(**completion_args)
-        resp_content, resp_reasoning = resp.choices[0].message.content, getattr(resp.choices[0].message, 'reasoning_content')
-        resp_content, resp_reasoning = clean_text(resp_content), clean_text(resp_reasoning)
-        if not has_valid_content(resp_content):
-            resp_content = None
-        if not has_valid_content(resp_reasoning):
-            resp_reasoning = None
+        resp_content, resp_reasoning = resp.choices[0].message.content, getattr(resp.choices[0].message, 'reasoning_content', None)
+        resp_content, resp_reasoning = proceed_common_text(resp_content), proceed_common_text(resp_reasoning)
+
         await messenger(None, 'mfocus_sfe_search', f"\nMFocus sfe searching persistent, response is:\nR: {resp_reasoning}\nA: {resp_content}\nEnd of MFocus sfe searching persistent", '201')
         
-        answer_fin_json = proceed_agent_response(resp_content, is_json=True)
+        answer_fin_json = proceed_common_text(resp_content, is_json=True)
         return answer_fin_json
 
     @Decos.report_data_error

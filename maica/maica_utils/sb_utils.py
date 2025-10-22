@@ -6,7 +6,7 @@ from .connection_utils import *
 from .fsc_late import *
 from maica.maica_utils import *
 
-class SideBoundCoroutine(AsyncCreator):
+class PersistentManager(AsyncCreator):
     """This is just a template. Do not initialize!"""
     DB_NAME = 'persistents'
     PRIM_KEY = 'persistent_id'
@@ -26,7 +26,7 @@ class SideBoundCoroutine(AsyncCreator):
 
     def __init__(self, fsc: FullSocketsContainer) -> None:
         self.settings: MaicaSettings = fsc.maica_settings
-        self.mfocus_conn: AiConnCoroutine = fsc.mfocus_conn
+        self.mfocus_conn: AiConnectionManager = fsc.mfocus_conn
         self.websocket, self.traceray_id = fsc.rsc.websocket, fsc.rsc.traceray_id
         self.maica_pool = fsc.maica_pool
         self.sf_forming_buffer = self.EMPTY()
@@ -89,7 +89,7 @@ class SideBoundCoroutine(AsyncCreator):
             self.sf_forming_buffer = self.EMPTY()
             self._add(self.sf_forming_buffer, self.sf_content)
 
-class SideFunctionCoroutine(AsyncCreator):
+class AgentContextManager(AsyncCreator):
     """This is just a template. Do not initialize!"""
     def __init__(self, fsc: FullSocketsContainer, sf_inst=None, mt_inst=None):
         self.settings = fsc.maica_settings
@@ -161,7 +161,7 @@ class SideFunctionCoroutine(AsyncCreator):
             #         break
 
             # # Then we peal off the thinking part
-            # assistant_last_msg = proceed_agent_response(assistant_last_msg)
+            # assistant_last_msg = proceed_common_text(assistant_last_msg)
 
             # if assistant_last_msg:
             #     self.serial_messages.append({'role': 'assistant', 'content': assistant_last_msg})

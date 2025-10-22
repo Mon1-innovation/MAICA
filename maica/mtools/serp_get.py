@@ -10,17 +10,13 @@ from . import providers
 async def internet_search(fsc: FullSocketsContainer, query, original_query):
     target_lang = fsc.maica_settings.basic.target_lang
 
-    for tries in range(0, 3):
-        try:
-            results_sync = await (providers.get_asearch())(query, target_lang)
-            assert len(results_sync), 'Search result is empty'
-            break
-        except Exception as e:
-            if tries < 2:
-                await messenger(info=f'Search engine temporary failure, retrying {str(tries + 1)} time(s)')
-                await asyncio.sleep(0.5)
-            else:
-                raise MaicaInternetWarning(f'Cannot get search result after {str(tries + 1)} times', '408') from e
+    @conn_retryer_factory()
+    async def _search(fake_self, query, target_lang):
+        results_sync = await (providers.get_asearch())(query, target_lang)
+        assert len(results_sync), 'Search result is empty'
+        return results_sync
+
+    results_sync = await _search(DummyClass(name="serp"), query, target_lang)
 
     results_full = []
     results_short = []
@@ -57,15 +53,12 @@ Begin!"""
     }
 
     resp = await fsc.mfocus_conn.make_completion(**completion_args)
-    resp_content, resp_reasoning = resp.choices[0].message.content, getattr(resp.choices[0].message, 'reasoning_content')
-    resp_content, resp_reasoning = clean_text(resp_content), clean_text(resp_reasoning)
-    if not has_valid_content(resp_content):
-        resp_content = None
-    if not has_valid_content(resp_reasoning):
-        resp_reasoning = None            
+    resp_content, resp_reasoning = resp.choices[0].message.content, getattr(resp.choices[0].message, 'reasoning_content', None)
+    resp_content, resp_reasoning = proceed_common_text(resp_content), proceed_common_text(resp_reasoning)
+        
     await messenger(None, 'mfocus_internet_search', f"\nMFocus toolchain searching internet, response is:\nR: {resp_reasoning}\nA: {resp_content}\nEnd of MFocus toolchain searching internet", '201')
     
-    answer_post_think = proceed_agent_response(resp_content)
+    answer_post_think = proceed_common_text(resp_content)
     return answer_post_think, answer_post_think
 
 if __name__ == '__main__':

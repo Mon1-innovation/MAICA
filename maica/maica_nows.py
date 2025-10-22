@@ -5,8 +5,8 @@ from typing import *
 from Crypto.Random import random as crandom
 
 from maica.mtools import ProcessingImg
-from maica.mfocus import MFocusCoroutine, SfBoundCoroutine
-from maica.mtrigger import MTriggerCoroutine, MtBoundCoroutine
+from maica.mfocus import MFocusManager, SfPersistentManager
+from maica.mtrigger import MTriggerManager, MtPersistentManager
 from maica.maica_utils import *
 
 class NoWsCoroutine(AsyncCreator):
@@ -337,8 +337,8 @@ class NoWsCoroutine(AsyncCreator):
         return new_system
     
     async def populate_auxiliary_inst(self) -> None:
-        self.sf_inst, self.mt_inst = await asyncio.gather(SfBoundCoroutine.async_create(self.fsc), MtBoundCoroutine.async_create(self.fsc))
-        self.mfocus_coro, self.mtrigger_coro = await asyncio.gather(MFocusCoroutine.async_create(self.fsc, self.sf_inst, self.mt_inst), MTriggerCoroutine.async_create(self.fsc, self.mt_inst, self.sf_inst))
+        self.sf_inst, self.mt_inst = await asyncio.gather(SfPersistentManager.async_create(self.fsc), MtPersistentManager.async_create(self.fsc))
+        self.mfocus_coro, self.mtrigger_coro = await asyncio.gather(MFocusManager.async_create(self.fsc, self.sf_inst, self.mt_inst), MTriggerManager.async_create(self.fsc, self.mt_inst, self.sf_inst))
 
     async def reset_auxiliary_inst(self) -> None:
         sb_list = []

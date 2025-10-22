@@ -17,6 +17,7 @@ import traceback
 from typing import *
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
+from typing_extensions import deprecated
 from urllib.parse import urlparse
 from .locater import *
 from .gvars import *
@@ -182,6 +183,7 @@ class LimitedList(list):
     def __repr__(self):
         return f"LimitedList(max_size={self.max_size}, {super().__repr__()})"
     
+@deprecated("Just use a tuple instead")
 class LoginResult():
     """
     A packed login result.
@@ -245,6 +247,17 @@ class ReUtils():
 
 class Decos():
     """Do not initialize."""
+    def log_task(func):
+        """Every~time you call my name~~~"""
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            func_name = func.__name__
+            sync_messenger(info=f"Running task {func_name} now", type=MsgType.PRIM_SYS)
+            result = await func(*args, **kwargs)
+            sync_messenger(info=f"Task {func_name} finished", type=MsgType.DEBUG)
+            return result
+        return wrapper
+
     def catch_exceptions(func):
         """Used for connection_utils."""
         @functools.wraps(func)
@@ -333,6 +346,12 @@ class Desc():
     def __str__(self):
         return self.desc
 
+class DummyClass():
+    """Yes, dummy class."""
+    def __init__(self, **kwargs):
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
 def default(exp, default, default_list: list=[None]) -> any:
     """If exp is in default list(normally None), use default."""
     return default if exp in default_list else exp
@@ -418,7 +437,7 @@ def is_word_start(text: str, *args: str):
             return True
     return False
 
-def proceed_agent_response(text: str, is_json=False) -> Union[str, list, dict]:
+def proceed_common_text(text: str, is_json=False) -> Union[str, list, dict]:
     """Proceeds thinking/nothinking."""
     try:
         answer_post_think = (ReUtils.re_search_post_think.search(text))[1]
@@ -428,14 +447,9 @@ def proceed_agent_response(text: str, is_json=False) -> Union[str, list, dict]:
         else:
             answer_post_think = None
     if answer_post_think and not ReUtils.re_search_answer_none.search(answer_post_think) and is_json:
-        try:
-            answer_fin = (ReUtils.re_search_answer_json.search(answer_post_think))[1]
-            answer_fin_json = json.loads(answer_fin)
-            return answer_fin_json
-        except Exception:
-            answer_fin = None
+        answer_fin = try_load_json(answer_post_think)
     else:
-        answer_fin = answer_post_think
+        answer_fin = clean_text(answer_post_think)
     return answer_fin
 
 @overload
@@ -638,15 +652,18 @@ def clean_text(text: str) -> str:
     Clean a text phrase, mostly for internet search.
     After adapting to the OpenAI reasoning schema, we also use it for LLM outputs.
     """
-    text = ReUtils.re_sub_clear_text.sub(r'\1', text)
-    return text
-
-def try_load_json(sj: str) -> dict:
-    """I'd basically trust the LLM here, they're far better than the earlier ones."""
-    if not has_valid_content(sj):
-        return {}
     try:
-        return json.loads(sj)
+        text = ReUtils.re_sub_clear_text.sub(r'\1', text)
+        return text
+    except Exception:
+        return ''
+
+def try_load_json(sj: str) -> Union[dict, list]:
+    """I'd basically trust the LLM here, they're far better than the earlier ones."""
+    try:
+        clean_sj = (ReUtils.re_search_answer_json.search(sj))[1]
+        j = json.loads(clean_sj)
+        return j
     except Exception:
         return {}
 

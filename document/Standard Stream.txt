@@ -44,3 +44,4 @@ v1.1.007.post3: 添加migration
 v1.2.000.rc1: 关于MVista的兼容工作
 v1.2.000.rc2: 进一步重构, 参见changelog
 v1.2.000.rc3-4: 重构继续, 参见changelog
+v1.2.000.rc5: 初步完成MVista

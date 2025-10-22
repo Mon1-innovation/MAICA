@@ -225,7 +225,7 @@ class MaicaSettings():
         _presence_penalty: float = 0.34
 
         max_tokens = create_prop('max_tokens', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 1, "upper": 2048})
-        seed = create_prop('seed', setter_ext=[set_instance], setter_kwargs={"types": [int]})
+        seed = create_prop('seed', setter_ext=[set_instance], setter_kwargs={"types": [int, None]})
         top_p = create_prop('top_p', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 0.1, "upper": 1.0})
         temperature = create_prop('temperature', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 0.0, "upper": 1.0})
         frequency_penalty = create_prop('frequency_penalty', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 0.0, "upper": 1.0})
@@ -246,6 +246,7 @@ class MaicaSettings():
         _ic_prep: bool=False
         _strict_conv: bool=True
         _ms_cache: bool=False
+        _mv_imgs: Optional[list]=None
 
         chat_session = create_prop('chat_session', setter_ext=[set_spec_default, set_instance, set_range], setter_kwargs={"types": [int], "lower": -1, "upper": 9})
         sf_extraction_once = create_prop('sf_extraction_once', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
@@ -268,6 +269,7 @@ class MaicaSettings():
         """Strict conversation prompt."""
         ms_cache = create_prop('ms_cache', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Cache the MSpire response."""
+        mv_imgs = create_prop('mv_imgs', setter_ext=[set_instance], setter_kwargs={"types": [list, None]})
 
     def __init__(self):
         self.identity, self.verification, self.basic, self.extra, self.super, self.temp = self._identity(), self._verification(), self._basic(), self._extra(), self._super(), self._temp()

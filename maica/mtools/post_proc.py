@@ -114,8 +114,36 @@ def emo_proc(emo: str, target_lang: Literal['zh', 'en']='zh'):
 
     return res, cfd
 
-def get_equal_len(str):
-    return len(str.encode('utf-8'))
+async def emo_proc_llm(emo: str, target_lang: Literal['zh', 'en']='zh', mnerve_conn: Optional[AiConnectionManager]=None):
+    
+    sync_messenger(info=f"Proceeding 'add' to phrase '{emo}'...", type=MsgType.PRIM_RECV)
+    
+    system_init = f"""你是一个人工智能助手, 你接下来会收到一个词或句子.
+以一个json字典的形式, 为其挑选最接近的表情, 并提供一个置信度. 你的输出应形如{{"res": 某个表情(str), "cfd": 置信度(float)}}.
+你只能从以下列表中选取一个表情, 不能改动, 不能翻译: {str(zlist)}
+Begin!""" if target_lang == 'zh' else f"""You are a helpful assistant, now you will recieve a word or sentence.
+Pick an emotion that is most relative to it, and provide a confidence. Output in json format as {{"res": emotion(str), "cfd": confidence(float)}}.
+You can only pick an emotion from the following list, no edition or translation: {str(elist)}
+Begin!"""
+    messages = [{'role': 'system', 'content': system_init}]
+    messages.append({'role': 'user', 'content': emo})
+    completion_args = {
+        "messages": messages,
+        "response_format": {"type": "json_object"},
+    }
+
+    resp = await mnerve_conn.make_completion(**completion_args)
+    resp_content, resp_reasoning = resp.choices[0].message.content, getattr(resp.choices[0].message, 'reasoning_content', None)
+    resp_json = proceed_common_text(resp_content, is_json=True)
+
+    sync_messenger(info=f"Finished processing 'add' to phrase '{emo}': {resp_json}", type=MsgType.CARRIAGE)
+    return resp_json.get('res'), resp_json.get('cfd')
+
+async def emo_proc_auto(emo: str, target_lang: Literal['zh', 'en']='zh', mnerve_conn: Optional[AiConnectionManager]=None):
+    res = emo_proc(emo, target_lang)
+    if res[1] <= 0.3 and mnerve_conn:
+        res = await emo_proc_llm(emo, target_lang, mnerve_conn)
+    return res
 
 def post_proc(reply_appended, target_lang: Literal['zh', 'en']='zh'):
 

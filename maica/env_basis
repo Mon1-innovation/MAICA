@@ -1,8 +1,8 @@
 # Exclude these lines in your env configuration
 # Current backend version
-MAICA_CURR_VERSION = '1.2.000.rc4'
+MAICA_CURR_VERSION = '1.2.000.rc5'
 # Oldest capable backend version
-MAICA_LEGC_VERSION = '1.1.006'
+MAICA_LEGC_VERSION = '1.2.000.rc5'
 
 
 # cp ./env_basis ./.env
@@ -77,6 +77,8 @@ MAICA_MNERVE_EXTRA = '
         }
     }
 '
+# Wait [] seconds before giving up an OpenAI query or not
+MAICA_OPENAI_TIMEOUT = '90'
 # 0 = ms-swift, 1 = modern openai
 MAICA_ALT_TOOLCALL = '1'
 # MFocus model think postfix, for hybrid thinking models only

@@ -1,5 +1,5 @@
 
-from .mfocus_main import MFocusCoroutine
-from .mfocus_sfe import SfBoundCoroutine
+from .mfocus_main import MFocusManager
+from .mfocus_sfe import SfPersistentManager
 
-__all__ = ['MFocusCoroutine', 'SfBoundCoroutine']
+__all__ = ['MFocusManager', 'SfPersistentManager']

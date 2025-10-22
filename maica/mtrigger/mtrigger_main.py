@@ -7,12 +7,12 @@ import colorama
 
 from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from typing import *
-from maica.mfocus.mfocus_sfe import SfBoundCoroutine
-from maica.mtrigger.mtrigger_sfe import MtBoundCoroutine
+from maica.mfocus.mfocus_sfe import SfPersistentManager
+from maica.mtrigger.mtrigger_sfe import MtPersistentManager
 from maica.maica_utils import *
 
-class MTriggerCoroutine(SideFunctionCoroutine):
-    def __init__(self, fsc: FullSocketsContainer, mt_inst: MtBoundCoroutine, sf_inst: Optional[SfBoundCoroutine]=None):
+class MTriggerManager(AgentContextManager):
+    def __init__(self, fsc: FullSocketsContainer, mt_inst: MtPersistentManager, sf_inst: Optional[SfPersistentManager]=None):
         super().__init__(fsc, sf_inst, mt_inst)
 
     def _construct_tools(self):
@@ -185,11 +185,8 @@ class MTriggerCoroutine(SideFunctionCoroutine):
                 cycle += 1
 
                 resp_content, resp_reasoning, resp_tools = await self._send_query(thinking=True)
-                resp_content, resp_reasoning = clean_text(resp_content), clean_text(resp_reasoning)
-                if not has_valid_content(resp_content):
-                    resp_content = None
-                if not has_valid_content(resp_reasoning):
-                    resp_reasoning = None
+                resp_content, resp_reasoning = proceed_common_text(resp_content), proceed_common_text(resp_reasoning)
+
                 await messenger(self.websocket, 'maica_mtrigger_toolchain', f'\nMTrigger toolchain {cycle} round responded, response is:\nR: {resp_reasoning}\nA: {resp_content}\nAnalyzing response...', code='200')
                 tool_seq = 0
                 if resp_tools:
@@ -204,7 +201,7 @@ class MTriggerCoroutine(SideFunctionCoroutine):
                             ending = True
                             break
                         else:
-                            trigger_signal = {tool_func_name: try_load_json(tool_func_args)}
+                            trigger_signal = {tool_func_name: proceed_common_text(tool_func_args, is_json=True)}
                             await messenger(self.websocket, 'maica_mtrigger_trigger', trigger_signal, '200', type='carriage')
 
                             machine = f'{tool_func_name}已被调用过并生效' if self.settings.basic.target_lang == 'zh' else f'{tool_func_name} has been called already and taking effect'
