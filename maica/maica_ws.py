@@ -131,7 +131,6 @@ class WsCoroutine(NoWsCoroutine):
                 if ce.is_critical or ce.is_breaking:
                     raise ce
                 else:
-                    traceback.print_exc()
                     await messenger(websocket, error=ce, no_raise=True)
                     await messenger(websocket, 'maica_loop_warn_finished', 'Loop hit a user level exception, stopped and reset', '304')
                     continue

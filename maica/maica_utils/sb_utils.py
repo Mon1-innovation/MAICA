@@ -188,6 +188,7 @@ class AgentContextManager(AsyncCreator):
             "messages": self.serial_messages,
             "tools": self.tools,
         }
+        # print(completion_args)
 
         resp = await self.mfocus_conn.make_completion(**completion_args)
         content, rcontent, tool_calls = resp.choices[0].message.content, getattr(resp.choices[0].message, 'reasoning_content', None), resp.choices[0].message.tool_calls

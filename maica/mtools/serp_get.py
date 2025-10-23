@@ -32,7 +32,7 @@ async def internet_search(fsc: FullSocketsContainer, query, original_query):
             humane_text = ReUtils.re_sub_serp_datetime.sub('', text, 1)
             results_humane += f'信息{rank}\n标题:{title}\n内容:{humane_text}\n'
 
-    await messenger(info=f'MFocus got {rank} information lines from search engine', type=MsgType.DEBUG)
+    await messenger(info=f'MFocus got {rank} information lines from search engine', type=MsgType.INFO)
 
     results_full_str = str(results_full).strip('[').strip(']')
     results_short_str = str(results_short).strip('[').strip(']')
