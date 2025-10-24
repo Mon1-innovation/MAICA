@@ -37,6 +37,12 @@ class FullSocketsContainer():
     rsc: Optional[RealtimeSocketsContainer]=None
     csc: Optional[ConnSocketsContainer]=None
 
+    def __post_init__(self):
+        if not self.rsc:
+            self.rsc = RealtimeSocketsContainer()
+        if not self.csc:
+            self.csc = ConnSocketsContainer()
+
     rsc_proxied = ['websocket', 'traceray_id', 'maica_settings']
     csc_proxied = ['auth_pool', 'maica_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn']
 

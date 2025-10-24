@@ -1,10 +1,8 @@
 # Exclude these lines in your env configuration
 # Current backend version
-MAICA_CURR_VERSION = '1.2.000.rc5'
+MAICA_CURR_VERSION = '1.2.000.rc6'
 # Oldest capable backend version
 MAICA_LEGC_VERSION = '1.2.000.rc5'
-
-
 # cp ./env_basis ./.env
 # vim .env
 # Do not mv, rm or edit basis! They're required as default templates.
@@ -49,7 +47,7 @@ MAICA_MFOCUS_EXTRA = '
         }
     }
 '
-# MVista VL model endpoint
+# MVista VL model endpoint, leave empty to disable
 MAICA_MVISTA_ADDR = ''
 # MVista VL model key
 MAICA_MVISTA_KEY = ''
@@ -63,7 +61,7 @@ MAICA_MVISTA_EXTRA = '
         }
     }
 '
-# MNerve VL model endpoint
+# MNerve VL model endpoint, leave empty to disable
 MAICA_MNERVE_ADDR = ''
 # MNerve VL model key
 MAICA_MNERVE_KEY = ''

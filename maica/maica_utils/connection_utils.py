@@ -7,7 +7,7 @@ import json
 import openai
 import functools
 import wrapt
-from tenacity import *
+
 from typing import *
 from typing_extensions import deprecated
 from openai import AsyncOpenAI
@@ -17,43 +17,6 @@ from .maica_utils import *
 from .setting_utils import *
 from .fsc_early import *
 from .locater import *
-
-RETRYABLE_EXCEPTIONS = (
-    aiomysql.OperationalError,
-    aiomysql.InterfaceError,
-    ConnectionError,
-    TimeoutError,
-    openai.APIConnectionError,
-    openai.APITimeoutError,
-    openai.RateLimitError,
-)
-
-def conn_retryer_factory(
-    max_attempts: int=3,
-    min_wait: float=1,
-    max_wait: float=10,
-    retry_exceptions=RETRYABLE_EXCEPTIONS,
-) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    """Mostly for instance methods."""
-    def decorator(func):
-        async def log_retry(retry_state):
-            self = retry_state.args[0] if retry_state else None
-            rsc = getattr(self, 'rsc', None); name = getattr(self, 'name', 'anon_conn')
-            websocket = rsc.websocket if rsc else None; traceray_id = rsc.traceray_id if rsc else ''
-            await messenger(websocket=websocket, status=f'{name}_temp_failure', info=f'{name} temporary failure, retrying...', code='304', traceray_id=traceray_id, type=MsgType.WARN)
-
-        @functools.wraps(func)
-        @retry(
-            stop=stop_after_attempt(max_attempts),
-            wait=wait_exponential(multiplier=1, min=min_wait, max=max_wait),
-            retry=retry_if_exception_type(retry_exceptions),
-            before_sleep=log_retry,
-            reraise=True,
-        )
-        async def wrapper(self, *args, **kwargs):
-            return await func(self, *args, **kwargs)
-        return wrapper
-    return decorator
 
 def pkg_init_connection_utils():
     global ConnUtils
@@ -182,7 +145,7 @@ class DbPoolManager(AsyncCreator):
     # @test_logger
     @Decos.catch_exceptions
     @Decos.ro_expression
-    @conn_retryer_factory()
+    @Decos.conn_retryer_factory()
     async def query_get(self, expression, values=None, fetchall=False, inherit_conn: Optional[aiomysql.Connection]=None) -> list:
         async def _query_get(cur, expression, values, fetchall) -> list:
             if not values:
@@ -217,7 +180,7 @@ class DbPoolManager(AsyncCreator):
     # @test_logger
     @Decos.catch_exceptions
     @Decos.wo_expression
-    @conn_retryer_factory()
+    @Decos.conn_retryer_factory()
     async def query_modify(self, expression, values=None, fetchall=False, inherit_conn: Optional[aiomysql.Connection]=None) -> int:
         if self.ro:
             raise MaicaDbError(f'DB marked as ro, no modification permitted', '511', 'db_modification_denied')
@@ -332,7 +295,7 @@ class SqliteDbPoolManager(DbPoolManager):
     @Decos.catch_exceptions
     @Decos.ro_expression
     @Decos.escape_sqlite_expression
-    @conn_retryer_factory()
+    @Decos.conn_retryer_factory()
     async def query_get(self, expression, values=None, fetchall=False) -> list:
         results = None
         await self.keep_alive()
@@ -354,7 +317,7 @@ class SqliteDbPoolManager(DbPoolManager):
     @Decos.catch_exceptions
     @Decos.wo_expression
     @Decos.escape_sqlite_expression
-    @conn_retryer_factory()
+    @Decos.conn_retryer_factory()
     async def query_modify(self, expression, values=None, fetchall=False) -> int:
         if self.ro:
             raise MaicaDbError(f'DB marked as ro, no modification permitted', '511', 'sqlite_modification_denied')
@@ -457,7 +420,7 @@ class AiConnectionManager(AsyncCreator):
         """Makes completion with arguments."""
 
     @Decos.catch_exceptions
-    @conn_retryer_factory()
+    @Decos.conn_retryer_factory()
     async def make_completion(self, **kwargs) -> ChatCompletion:
         kwargs.update(
             {
@@ -514,7 +477,7 @@ class ConnUtils():
             api_key=G.A.MCORE_KEY,
             base_url=G.A.MCORE_ADDR,
             name='mcore_conn',
-            model=G.A.MCORE_CHOICE if G.A.MCORE_CHOICE else 0,
+            model=G.A.MCORE_CHOICE or 0,
         )
         conn.default_params(**json.loads(G.A.MCORE_EXTRA))
         return conn
@@ -524,7 +487,7 @@ class ConnUtils():
             api_key=G.A.MFOCUS_KEY,
             base_url=G.A.MFOCUS_ADDR,
             name='mfocus_conn',
-            model=G.A.MFOCUS_CHOICE if G.A.MFOCUS_CHOICE else 0,
+            model=G.A.MFOCUS_CHOICE or 0,
         )
         conn.default_params(**json.loads(G.A.MFOCUS_EXTRA))
         return conn
@@ -536,7 +499,7 @@ class ConnUtils():
                 api_key=G.A.MVISTA_KEY,
                 base_url=G.A.MVISTA_ADDR,
                 name='mvista_conn',
-                model=G.A.MVISTA_CHOICE if G.A.MVISTA_CHOICE else 0,
+                model=G.A.MVISTA_CHOICE or 0,
             )
             conn.default_params(**json.loads(G.A.MVISTA_EXTRA))
             return conn
@@ -550,7 +513,7 @@ class ConnUtils():
                 api_key=G.A.MNERVE_KEY,
                 base_url=G.A.MNERVE_ADDR,
                 name='mnerve_conn',
-                model=G.A.MNERVE_CHOICE if G.A.MNERVE_CHOICE else 0,
+                model=G.A.MNERVE_CHOICE or 0,
             )
             conn.default_params(**json.loads(G.A.MNERVE_EXTRA))
             return conn
@@ -561,8 +524,8 @@ async def validate_input(input: Union[str, dict, list], limit: int=4096, rsc: Op
     """
     Mostly for ws.
     """
-    must = must if must else []
-    warn = warn if warn else []
+    must = must or []
+    warn = warn or []
     if not input:
         raise MaicaInputWarning('Input is empty', '410', 'maica_input_empty')
     

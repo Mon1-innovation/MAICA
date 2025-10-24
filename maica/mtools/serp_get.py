@@ -10,7 +10,7 @@ from . import providers
 async def internet_search(fsc: FullSocketsContainer, query, original_query):
     target_lang = fsc.maica_settings.basic.target_lang
 
-    @conn_retryer_factory()
+    @Decos.conn_retryer_factory()
     async def _search(fake_self, query, target_lang):
         results_sync = await (providers.get_asearch())(query, target_lang)
         assert len(results_sync), 'Search result is empty'
@@ -40,31 +40,34 @@ async def internet_search(fsc: FullSocketsContainer, query, original_query):
         return results_short_str, results_humane
 
     system_init = """你是一个人工智能助手, 你接下来会收到一个问题和一些来自互联网的信息.
-以单行不换行的自然语言的形式, 简洁地整理提供相关的信息. 如果你最终认为提供的信息与问题相关性不足, 返回false.
+以单行不换行的自然语言的形式, 简洁地整理提供相关的信息, 长度不要超过一个自然句. 如果你最终认为提供的信息与问题相关性不足, 返回false.
 Begin!""" if target_lang == 'zh' else """You are a helpful assistant, now you will recieve a question and some information from the Internet.
-Conclude related information briefly in a single line of natural sentence. If you think the provided information is not related enough to the question, return false.
+Conclude related information briefly in a single line of natural language, and do not exceed the length of a natural sentence. If you think the provided information is not related enough to the question, return false.
 Begin!"""
 
     messages = [{'role': 'system', 'content': system_init}]
     messages.append({'role': 'user', 'content': f'question: {query}; information: {results_full_str}'})
-    messages = apply_postfix(messages, thinking=False)
+    # messages = apply_postfix(messages, thinking=False)
     completion_args = {
         "messages": messages,
     }
 
-    resp = await fsc.mfocus_conn.make_completion(**completion_args)
+    conn = fsc.mnerve_conn or fsc.mfocus_conn
+
+    resp = await conn.make_completion(**completion_args)
     resp_content, resp_reasoning = resp.choices[0].message.content, getattr(resp.choices[0].message, 'reasoning_content', None)
     resp_content, resp_reasoning = proceed_common_text(resp_content), proceed_common_text(resp_reasoning)
         
     await messenger(None, 'mfocus_internet_search', f"\nMFocus toolchain searching internet, response is:\nR: {resp_reasoning}\nA: {resp_content}\nEnd of MFocus toolchain searching internet", '201')
     
     answer_post_think = proceed_common_text(resp_content)
-    return answer_post_think, answer_post_think
+    return answer_post_think, f"参考资料: {answer_post_think}" if target_lang == 'zh' else f"References: {answer_post_think}"
 
 if __name__ == '__main__':
     async def test():
         fsc = FullSocketsContainer()
-        fsc.mfocus_conn = await ConnUtils.mfocus_conn()
+        fsc.maica_settings.basic.target_lang = 'en'
+        fsc.mnerve_conn = await ConnUtils.mnerve_conn()
         print(await internet_search(fsc, "使用不同的语言会改变人的思考方式吗", "话说，莫妮卡，你觉得使用不同的语言会改变人的思考方式吗"))
     from maica import init
     init()

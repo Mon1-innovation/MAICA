@@ -4,7 +4,6 @@ import asyncio
 import zhconv
 from maica.maica_utils import *
  
-
 async def get_multi_json(*list_url):
     list_resp = await asyncio.gather(*[dld_json(u) for u in list_url])
     return list_resp
@@ -18,6 +17,7 @@ async def get_page(title=None, target_lang='zh'):
     cat_weight = 10
     page_found = None
     insanity = 0
+
     if title and isinstance(title, dict) and 'type' in title:
         # {"type": "in_category/in_fuzzy_category/page/fuzzy_page", "sample": 200, "title": "anything"}
         match title['type']:
@@ -49,12 +49,13 @@ async def get_page(title=None, target_lang='zh'):
                 if isinstance(title['sample'], int) and 2 <= title['sample'] <= 250:
                     sample = set_sample = title['sample']
             case _:
-                raise Exception('MSpire type not matched')
+                raise MaicaInputWarning('MSpire type not matched')
     else:
         if target_lang == 'zh':
             category_list=['自然', '自然科学', '社会', '人文學科', '世界', '生活', '艺术', '文化']
         else:
             category_list=['Nature', 'Natural_sciences', 'Society', 'Humanities', 'World', 'Health', 'Culture', 'The_arts']
+
         category = random.choice(category_list)
         next_title = f"incategory:{category}"
         # def_cat = True
@@ -62,9 +63,9 @@ async def get_page(title=None, target_lang='zh'):
     while not page_found:
         insanity += 1
         if insanity > 15:
-            raise Exception('mspire_insanity_limit_reached')
+            raise MaicaInternetWarning('MSpire searching entered deadend', '404', 'maica_mspire_search_deadend')
         if title and insanity > 6:
-            raise Exception('mspire_title_insane')
+            raise MaicaInputWarning('MSpire prompt not found on wikipedia', '410', 'maica_mspire_prompt_bad')
         # Skipping this by default
         if insanity == 1 and not def_cat and not use_page and zh_scraper.search(next_title):
             nxt_hans=zhconv.convert(next_title, 'zh-hans');nxt_hant=zhconv.convert(next_title, 'zh-hant')

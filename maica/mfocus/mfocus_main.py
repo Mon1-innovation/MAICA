@@ -420,7 +420,7 @@ class MFocusManager(AgentContextManager):
                             v = ''
                     else:
                         if v:
-                            v = '[' + v + ']'
+                            v = '[' + v + ']' if isinstance(v, str) else str(v)
                         else:
                             v = ''
                     instructed_answer_str += v
@@ -437,4 +437,4 @@ class MFocusManager(AgentContextManager):
             raise MaicaConnectionWarning(str(we), '408') from we
 
         except Exception as e:
-            raise CommonMaicaError(str(e), '500', 'maica_mfocus_critical') from e
+            raise CommonMaicaError('Uncaught MFocus exception happened', '500', 'maica_mfocus_critical') from e

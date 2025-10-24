@@ -66,7 +66,7 @@ class MaicaSettings:
         enable_mt: bool
         sf_extraction: bool
         mt_extraction: bool
-        target_lang: str
+        target_lang: Literal['zh', 'en']
         max_length: int
 
     @dataclass

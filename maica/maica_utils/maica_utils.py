@@ -2,6 +2,8 @@
 import logging
 import asyncio
 import httpx
+import aiomysql
+import openai
 import functools
 import hashlib
 import os
@@ -14,7 +16,9 @@ import time
 import datetime
 import random
 import traceback
+
 from typing import *
+from tenacity import *
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from typing_extensions import deprecated
@@ -139,6 +143,17 @@ class MaicaConnectionWarning(CommonMaicaWarning):
 class MaicaInternetWarning(CommonMaicaWarning):
     """This suggests the backend request action is not behaving normal."""
 
+RETRYABLE_EXCEPTIONS = (
+    aiomysql.OperationalError,
+    aiomysql.InterfaceError,
+    ConnectionError,
+    TimeoutError,
+    openai.APIConnectionError,
+    openai.APITimeoutError,
+    openai.RateLimitError,
+    MaicaInternetWarning,
+)
+
 class AsyncCreator(ABC):
     """Inherit this for async init."""
     @abstractmethod
@@ -247,6 +262,33 @@ class ReUtils():
 
 class Decos():
     """Do not initialize."""
+    def conn_retryer_factory(
+        max_attempts: int=3,
+        min_wait: float=1,
+        max_wait: float=10,
+        retry_exceptions=RETRYABLE_EXCEPTIONS,
+    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        """Mostly for instance methods."""
+        def decorator(func):
+            async def log_retry(retry_state):
+                self = retry_state.args[0] if retry_state else None
+                rsc = getattr(self, 'rsc', None); name = getattr(self, 'name', 'anon_conn')
+                websocket = rsc.websocket if rsc else None; traceray_id = rsc.traceray_id if rsc else ''
+                await messenger(websocket=websocket, status=f'{name}_temp_failure', info=f'{name} temporary failure, retrying...', code='304', traceray_id=traceray_id, type=MsgType.WARN)
+
+            @functools.wraps(func)
+            @retry(
+                stop=stop_after_attempt(max_attempts),
+                wait=wait_exponential(multiplier=1, min=min_wait, max=max_wait),
+                retry=retry_if_exception_type(retry_exceptions),
+                before_sleep=log_retry,
+                reraise=True,
+            )
+            async def wrapper(self, *args, **kwargs):
+                return await func(self, *args, **kwargs)
+            return wrapper
+        return decorator
+
     def log_task(func):
         """Every~time you call my name~~~"""
         @functools.wraps(func)
@@ -304,7 +346,7 @@ class Decos():
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                raise MaicaInputWarning(f'Acquired persistent not acceptable: {str(e) if str(e) else "Assertion"}', '405', 'maica_agent_persistent_bad') from e
+                raise MaicaInputWarning(f'Acquired persistent not acceptable: {str(e) or "Assertion"}', '405', 'maica_agent_persistent_bad') from e
         return wrapper
 
     def report_reading_error(func):
@@ -314,7 +356,7 @@ class Decos():
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                raise MaicaInputError(f'Access before necessary assignment: {str(e) if str(e) else "Assertion"}', '500', 'maica_settings_read_rejected') from e
+                raise MaicaInputError(f'Access before necessary assignment', '500', 'maica_settings_read_rejected') from e
         return wrapper
 
     def report_limit_warning(func):
@@ -324,7 +366,7 @@ class Decos():
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                raise MaicaInputWarning(f'Input param not acceptable: {str(e) if str(e) else "Assertion"}', '422', 'maica_settings_param_rejected') from e
+                raise MaicaInputWarning(f'Input param not acceptable: {str(e) or "Assertion"}', '422', 'maica_settings_param_rejected') from e
         return wrapper
 
     def report_limit_error(func):
@@ -335,7 +377,7 @@ class Decos():
                 assert not getattr(self, '_lock', None)
                 return func(self, *args, **kwargs)
             except Exception as e:
-                raise MaicaInputError(f'Input param not acceptable: {str(e) if str(e) else "Assertion"}', '500', 'maica_settings_param_rejected') from e
+                raise MaicaInputError(f'Input param not acceptable', '500', 'maica_settings_param_rejected') from e
         return wrapper
 
 @dataclass
@@ -573,25 +615,22 @@ async def wrap_run_in_exc(loop, func, *args, **kwargs) -> any:
 def limit_length(col: list, limit: int) -> list:
     return random.sample(col, limit) if limit < len(col) else col
 
-async def dld_json(url, retries=2) -> json:
+async def dld_json(url) -> json:
     """Get JSON context from an endpoint."""
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'}
+
+    @Decos.conn_retryer_factory()
+    async def _dld_json(fake_self, url):
+        nonlocal headers
+        async with httpx.AsyncClient(proxy=G.A.PROXY_ADDR) as client:
+            res = (await client.get(url, headers=headers)).json()
+            return res
+
     try:
-        for tries in range(0, retries + 1):
-            try:
-                client = httpx.AsyncClient(proxy=G.A.PROXY_ADDR)
-                res = (await client.get(url, headers=headers)).json()
-                break
-            except Exception as e:
-                if tries < retries:
-                    await messenger(info=f'HTTP temporary failure, retrying {str(tries + 1)} time(s)')
-                    await asyncio.sleep(0.5)
-                else:
-                    raise MaicaInternetWarning(f'Cannot get JSON response after {str(tries + 1)} times', '408') from e
+        res = await _dld_json(DummyClass(name="dld_json"), url)
     except Exception as e:
-        raise e
-    finally:
-        await client.aclose()
+        raise MaicaInternetWarning(f"Failed downloading json from {url}: {str(e)}") from e
+
     return res
 
 def numeric(num: str) -> Union[int, float]:
@@ -661,7 +700,10 @@ def clean_text(text: str) -> str:
 def try_load_json(sj: str) -> Union[dict, list]:
     """I'd basically trust the LLM here, they're far better than the earlier ones."""
     try:
-        clean_sj = (ReUtils.re_search_answer_json.search(sj))[1]
+        try:
+            clean_sj = (ReUtils.re_search_answer_json.search(sj))[1]
+        except Exception:
+            clean_sj = sj.strip()
         j = json.loads(clean_sj)
         return j
     except Exception:
@@ -677,3 +719,10 @@ def sysstruct() -> Literal['Windows', 'Linux']:
     sysstruct = platform.system()
     assert sysstruct in ['Windows', 'Linux'], 'Your system not supported'
     return sysstruct
+
+if __name__ == "__main__":
+    print(proceed_common_text("""{
+  "result": [
+    "莫妮卡和[player]都喜欢抹茶冰淇淋."
+  ]
+}""", is_json=True))

@@ -155,7 +155,7 @@ class ShortConnHandler(View):
             return jsonify({"success": False, "exception": str(e)})
 
     async def validate_http(self, raw_data: Union[str, dict], must: Optional[list]=None) -> dict:
-        must = must if must else []
+        must = must or []
         data_json = await validate_input(raw_data, 100000, None, must=must)
         if self.val and 'access_token' in must:
             access_token = data_json.get('access_token')

@@ -387,7 +387,7 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
 
                 其中, 若MPostal请求体为str则使用简单模式, 将其设置为一个dict可进行更详细的设置:
 
-                    {"header": "信件标题", "content": "信件内容", "bypass_mf": false, "bypass_mt": true, "bypass_stream": true, "ic_prep": true, "strict_conv": false}
+                    {"header": "信件标题", "content": "信件内容", "bypass_mf": true, "bypass_mt": true, "bypass_stream": true, "ic_prep": true, "strict_conv": false}
 
                         * 简单模式下的str将被用作信件内容, 其余条目留空或默认.
 

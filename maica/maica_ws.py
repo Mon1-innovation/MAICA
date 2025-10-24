@@ -167,7 +167,6 @@ class WsCoroutine(NoWsCoroutine):
         maica_assert(-1 <= chat_session < 10, "chat_session")
         self.settings.temp.update(chat_session=chat_session)
 
-
         if 'reset' in recv_loaded_json:
             if recv_loaded_json['reset']:
                 maica_assert(1 <= chat_session < 10, "chat_session")
@@ -188,30 +187,24 @@ class WsCoroutine(NoWsCoroutine):
                 if recv_loaded_json.get('use_cache') and self.settings.temp.chat_session == 0:
                     self.settings.temp.update(ms_cache=True)
                 self.settings.temp.update(bypass_mf=True, bypass_mt=True)
-                if not query_insp[0]:
-                    if str(query_insp[1]) == 'mspire_insanity_limit_reached':
-                        raise MaicaInternetWarning('MSpire scraping failed', '404', 'maica_mspire_scraping_failed')
-                    elif str(query_insp[1]) == 'mspire_title_insane':
-                        raise MaicaInputWarning('MSpire prompt not found on wikipedia', '410', 'maica_mspire_prompt_bad')
-                    else:
-                        raise MaicaInternetWarning('MSpire failed connecting wikipedia', '408', 'maica_mspire_conn_failed')
+
                 if self.settings.temp.ms_cache:
                     self.settings.temp.update(bypass_sup=True)
-                    ms_cache_identity = query_insp[3]
+                    ms_cache_identity = query_insp[1]
                     cache_insp = await self.find_ms_cache(ms_cache_identity)
                     if cache_insp:
                         self.settings.temp.update(bypass_gen=True)
                         replace_generation = cache_insp
                         
-                query_in = query_insp[2]
+                query_in = query_insp[0]
 
         if 'postmail' in recv_loaded_json and not query_in:
             if recv_loaded_json['postmail']:
                 maica_assert(0 <= chat_session < 10, "chat_session")
                 if isinstance(recv_loaded_json['postmail'], dict):
-                    query_insp = await mtools.make_postmail(**recv_loaded_json['postmail'], target_lang=self.settings.basic.target_lang)
+                    query_insp = await mtools.make_postmail(**recv_loaded_json['postmail'], fsc=self.fsc)
                     # We're using the old school way to avoid using eval()
-                    if default(recv_loaded_json['postmail'].get('bypass_mf'), False):
+                    if default(recv_loaded_json['postmail'].get('bypass_mf'), True):
                         self.settings.temp.update(bypass_mf=True)
                     if default(recv_loaded_json['postmail'].get('bypass_mt'), True):
                         self.settings.temp.update(bypass_mt=True)
@@ -222,12 +215,12 @@ class WsCoroutine(NoWsCoroutine):
                     if not default(recv_loaded_json['postmail'].get('strict_conv'), False):
                         self.settings.temp.update(strict_conv=False)
                 elif isinstance(recv_loaded_json['postmail'], str):
-                    query_insp = await mtools.make_postmail(content=recv_loaded_json['postmail'], target_lang=self.settings.basic.target_lang)
+                    query_insp = await mtools.make_postmail(content=recv_loaded_json['postmail'], fsc=self.fsc)
                     self.settings.temp.update(bypass_stream=True, ic_prep=True, strict_conv=False)
                 else:
                     maica_assert(False, "postmail")
                 
-                query_in = query_insp[2]
+                query_in = query_insp
 
         if not query_in:
             maica_assert(recv_loaded_json.get('query'), 'query')

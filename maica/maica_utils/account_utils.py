@@ -73,7 +73,7 @@ class AccountCursor(AsyncCreator):
                 return tuple(l)
 
         except Exception as e:
-            raise MaicaDbError(str(e), '502', f'user_{status}_read_failed') from e
+            raise MaicaDbError(f'Cannot acquire user {user_id}\'s {status}', '502', f'user_{status}_read_failed') from e
 
     async def write_user_status(self, enforce=False, pref=False, **kwargs) -> None:
         status = "status" if not pref else "preferences"

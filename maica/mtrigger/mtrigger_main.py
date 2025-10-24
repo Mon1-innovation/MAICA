@@ -221,4 +221,4 @@ class MTriggerManager(AgentContextManager):
             raise MaicaConnectionWarning(str(we), '408') from we
 
         except Exception as e:
-            raise CommonMaicaError(str(e), '500', 'maica_mtrigger_critical') from e
+            raise CommonMaicaError('Uncaught MTrigger exception happened', '500', 'maica_mtrigger_critical') from e

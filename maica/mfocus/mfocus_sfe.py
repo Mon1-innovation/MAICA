@@ -803,28 +803,34 @@ class SfPersistentManager(PersistentManager):
         information = self._mfocus_form_info()
         system_init = """你是一个人工智能助手, 你接下来会收到一个问题和一系列信息.
 注意不要对信息作任何改动. 你可以认为[player]是用户的名字, 莫妮卡是你的名字.
-从中挑选1至5条最相关的信息, 并以单行json列表的形式输出. 如果你最终认为没有信息符合条件, 输出false.
-你应当保持思考过程尽可能短, 因此不要在思考中复述或逐条解读信息.
+从中挑选1至5条最相关的信息, 并以json数组的形式输出. 如果你最终认为没有信息符合条件, 返回空列表.
 Begin!""" if self.settings.basic.target_lang == 'zh' else """You are a helpful assistant, now you will recieve a question and a list of information.
 Remember not to modify any item. Output them as what they were. You can consider [player] as user's name and Monika as yours.
-Pick 1 to 5 most relative items from the information, and return them in a json list. If you think no information provided is helpful at last, return false.
-Keep your thinking as short as possible, so do not enumerate or repeat the information while thinking.
+Pick 1 to 5 most relative items from the information, and return them in a json array. If you think no information provided is helpful at last, return empty list.
 Begin!"""
         messages = [{'role': 'system', 'content': system_init}]
         messages.append({'role': 'user', 'content': f'question: {query}; information: {information}'})
-        messages = apply_postfix(messages, thinking=False)
+        # messages = apply_postfix(messages, thinking=False)
         completion_args = {
             "messages": messages,
             "response_format": {"type": "json_object"},
         }
 
-        resp = await self.mfocus_conn.make_completion(**completion_args)
+        conn = self.mnerve_conn or self.mfocus_conn
+
+        resp = await conn.make_completion(**completion_args)
         resp_content, resp_reasoning = resp.choices[0].message.content, getattr(resp.choices[0].message, 'reasoning_content', None)
         resp_content, resp_reasoning = proceed_common_text(resp_content), proceed_common_text(resp_reasoning)
 
         await messenger(None, 'mfocus_sfe_search', f"\nMFocus sfe searching persistent, response is:\nR: {resp_reasoning}\nA: {resp_content}\nEnd of MFocus sfe searching persistent", '201')
         
         answer_fin_json = proceed_common_text(resp_content, is_json=True)
+        if isinstance(answer_fin_json, dict):
+            try:
+                answer_fin_json = list(answer_fin_json.values())[0]
+            except Exception:
+                answer_fin_json = None
+
         return answer_fin_json
 
     @Decos.report_data_error

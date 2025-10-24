@@ -26,7 +26,8 @@ class PersistentManager(AsyncCreator):
 
     def __init__(self, fsc: FullSocketsContainer) -> None:
         self.settings: MaicaSettings = fsc.maica_settings
-        self.mfocus_conn: AiConnectionManager = fsc.mfocus_conn
+        self.mfocus_conn = fsc.mfocus_conn
+        self.mnerve_conn = fsc.mnerve_conn
         self.websocket, self.traceray_id = fsc.rsc.websocket, fsc.rsc.traceray_id
         self.maica_pool = fsc.maica_pool
         self.sf_forming_buffer = self.EMPTY()
@@ -94,7 +95,8 @@ class AgentContextManager(AsyncCreator):
     def __init__(self, fsc: FullSocketsContainer, sf_inst=None, mt_inst=None):
         self.settings = fsc.maica_settings
         self.websocket, self.traceray_id = fsc.rsc.websocket, fsc.rsc.traceray_id
-        self.mcore_conn, self.mfocus_conn = fsc.mcore_conn, fsc.mfocus_conn
+        self.mfocus_conn = fsc.mfocus_conn
+        self.mnerve_conn = fsc.mnerve_conn
         self.sf_inst, self.mt_inst = sf_inst, mt_inst
         self.maica_pool = fsc.maica_pool
 

@@ -26,7 +26,7 @@ with open("maica/env_basis", "r", encoding="utf-8") as env:
     else:
         raise Exception('no version line found')
 
-curr_version = custom_args.override_version if custom_args.override_version else curr_version
+curr_version = custom_args.override_version or curr_version
 
 def parse_requirements(filename='requirements.txt'):
     """从requirements.txt文件中加载依赖列表"""

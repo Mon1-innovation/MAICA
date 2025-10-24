@@ -22,3 +22,7 @@ If you want to read in English, use a translator.
 = 改良了配置和环境变量的运作模式
 
 + 添加环境变量MAICA_KEEP_MVISTA, MAICA_ROTATE_MVISTA, MAICA_OPENAI_TIMEOUT
+
+= 现在MPostal默认启用bypass_mf
+
+= 现在搜索聚合功能默认由MNerve实现

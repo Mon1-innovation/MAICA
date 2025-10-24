@@ -53,7 +53,7 @@ from .maica_utils import (
     Desc,
     DummyClass,
 )
-from .connection_utils import DbPoolManager, SqliteDbPoolManager, ConnUtils, AiConnectionManager, validate_input, apply_postfix, conn_retryer_factory
+from .connection_utils import DbPoolManager, SqliteDbPoolManager, ConnUtils, AiConnectionManager, validate_input, apply_postfix
 from .setting_utils import MaicaSettings
 from .fsc_early import RealtimeSocketsContainer
 from .account_utils import AccountCursor, encrypt_token, sign_message, verify_message
@@ -101,7 +101,6 @@ __all__ = [
     'messenger',
     'validate_input',
     'apply_postfix',
-    'conn_retryer_factory',
     'load_env',
     'wrap_run_in_exc',
     'limit_length',

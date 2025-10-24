@@ -53,7 +53,7 @@ class NoWsCoroutine(AsyncCreator):
             else:
                 return []
         except Exception as e:
-            raise MaicaDbError(f'Chat session not JSON: {str(e)}', '500', 'maica_db_corruption') from e
+            raise MaicaDbError(f'Chat session not JSON', '500', 'maica_db_corruption') from e
 
     def _flattern_chat_session(self, content_json: list) -> str:
         if content_json:
