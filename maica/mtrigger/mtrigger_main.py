@@ -147,7 +147,7 @@ class MTriggerManager(AgentContextManager):
         self.tools.append(
             {
                 "name": "agent_finished",
-                "description": f"若你已调用了所有其它必要的工具, 则在作出任何额外思考或最终回答之前, 调用此工具以表示调用完成." if self.settings.basic.target_lang == 'zh' else f"Call this tool after you've finished calling every other necessary tool, call this tool before any extra thinking or final answer, so we know you're done.",
+                "description": f"若你已调用了所有其它必要的工具, 或不需要调用任何其它工具, 则在作出最终回答之前调用此工具, 以表示调用完成." if self.settings.basic.target_lang == 'zh' else f"Call this tool after you've finished calling every other necessary tool, or if you don't need any other tool. Call this tool before making final answer, so we know toolcalling has finished.",
                 "parameters": {
                     "type": "object",
                     "properties": {
