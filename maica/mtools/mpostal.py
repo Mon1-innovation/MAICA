@@ -24,7 +24,7 @@ async def make_postmail(content: str, header: str, fsc: FullSocketsContainer, **
         sync_messenger(info=f"Proceeding 'is_poem' to letter '{header}'...", type=MsgType.PRIM_RECV)
         
         system_init = f"""你是一个人工智能助手, 你接下来会收到一封信件.
-你只需判断其是否属于诗歌, 体裁不限. 你的输出应形如{{"is_poem": 是否是诗歌(bool)}}.
+你只需以json形式判断其是否属于诗歌, 体裁不限. 你的输出应形如{{"is_poem": 是否是诗歌(bool)}}.
 Begin!""" if target_lang == 'zh' else f"""You are a helpful assistant, now you will recieve a mail letter.
 You just have to decide if it's a poem or not, whatever type of poem it is. Output in json format as {{"is_poem": is poem or not(bool)}}.
 Begin!"""

@@ -82,7 +82,7 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
 
             mcore: 核心模型, 仅角色扮演.
 
-            mfocus: 推荐使用thinking模型, 处理信息, 逻辑与行为.
+            mfocus: 推荐使用thinking或混合思考模型, 处理信息, 逻辑与行为.
 
             mvista: 可选, 必须具备视觉多模态能力, 推荐使用instruct模型.
 
