@@ -21,6 +21,7 @@ from typing import *
 from tenacity import *
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
+from openai.types.chat import ChatCompletionMessage
 from typing_extensions import deprecated
 from urllib.parse import urlparse
 from .locater import *
@@ -450,6 +451,15 @@ def alt_tools(tools: list) -> list:
                 new_tools[-1]['function'] = tool
                 new_tools[-1]['type'] = 'function'
             return new_tools
+        
+def clean_msgs(msgs: list[dict, ChatCompletionMessage], include: Optional[list[str]]=None, exclude: Optional[list[str]]=None) -> list[dict]:
+    """Clean a set of OpenAI msgs."""
+    def _convert_msg(msg: Union[dict, ChatCompletionMessage]):
+        if isinstance(msg, ChatCompletionMessage):
+            msg = msg.model_dump(include=include, exclude=exclude)
+        return msg
+
+    return [_convert_msg(i) for i in msgs]
 
 def maica_assert(condition, kwd='param'):
     """Normally used for input checkings."""

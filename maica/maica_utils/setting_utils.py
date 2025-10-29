@@ -218,7 +218,7 @@ class MaicaSettings():
         """Passthrough params to core LLM."""
 
         _max_tokens: int = 1600
-        _seed: int = None
+        _seed: Optional[int] = None
         _top_p: float = 0.7
         _temperature: float = 0.22
         _frequency_penalty: float = 0.44

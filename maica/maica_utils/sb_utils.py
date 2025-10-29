@@ -140,44 +140,9 @@ class AgentContextManager(AsyncCreator):
                     self.serial_messages.extend(message_additive)
                     assert self.serial_messages[-1]['role'] == 'assistant', 'Additive got corrupted chat history'
 
-        # This does no good. LLMs are too stupid for things like this.
-
-        # if not self.serial_messages or self.serial_messages[0].get('role') != 'system':
-        #     system_content = "你是一个信息检索助手, 因此保持输出和思考尽可能简短. 只要必要工具调用完成, 就在继续思考或作答前调用agent_finished." if self.settings.basic.target_lang == 'zh' else ""
-        #     self.serial_messages.insert(0, {'role': 'system', 'content': system_content})
-
         if user_input:
-
-            # # Having user input here suggests the last tool calls are over.
-            # # So we have to cleanup the thinking part and toolcalls.
-            # self.serial_messages = [msg for msg in self.serial_messages if msg.get('role') != 'tool']
-            # assistant_last_msg = ''
-            # for msg in self.serial_messages[::-1]:
-            #     if isinstance(msg, ChatCompletionMessage):
-            #         assistant_last_msg = msg.content + assistant_last_msg
-            #         self.serial_messages.pop()
-            #     elif msg.get('role') == 'assistant':
-            #         assistant_last_msg = msg.get('content') + assistant_last_msg
-            #         self.serial_messages.pop()
-            #     else:
-            #         break
-
-            # # Then we peal off the thinking part
-            # assistant_last_msg = proceed_common_text(assistant_last_msg)
-
-            # if assistant_last_msg:
-            #     self.serial_messages.append({'role': 'assistant', 'content': assistant_last_msg})
-
             # The new OpenAI standard fucked all previous procedures
-            assistant_last_msg = ''
-
-            for msg in self.serial_messages[::-1]:
-                if msg.get('role') == 'user':
-                    break
-                elif isinstance(msg, ChatCompletionMessage):
-                    ind = self.serial_messages.index(msg)
-                    self.serial_messages[ind] = msg.model_dump(exclude=['reasoning_content'])
-
+            self.serial_messages = clean_msgs(self.serial_messages, exclude=['reasoning_content'])
             self.serial_messages.append({'role': 'user', 'content': user_input})
 
         elif tool_input:
