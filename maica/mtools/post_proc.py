@@ -78,8 +78,8 @@ zlist = list(emotion_zte.keys())
 
 elist_ai = list(set(emotion_zte.values()))
 zlist_ai = list(emotion_zte.keys())
-elist_ai.pop('kawaii', None)
-zlist_ai.pop('可爱', None)
+elist_ai = [i for i in elist_ai if not i in ('kawaii', )]
+zlist_ai = [i for i in zlist_ai if not i in ('可爱', )]
 
 def emo_proc(emo: str, target_lang: Literal['zh', 'en']='zh'):
     emo_clean = emo.strip().strip('[').strip(']').lower()
