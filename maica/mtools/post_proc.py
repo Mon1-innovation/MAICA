@@ -76,6 +76,11 @@ emotion_zte = {
 elist = list(emotion_etz.keys())
 zlist = list(emotion_zte.keys())
 
+elist_ai = list(set(emotion_zte.values()))
+zlist_ai = list(emotion_zte.keys())
+elist_ai.pop('kawaii', None)
+zlist_ai.pop('可爱', None)
+
 def emo_proc(emo: str, target_lang: Literal['zh', 'en']='zh'):
     emo_clean = emo.strip().strip('[').strip(']').lower()
 
@@ -120,10 +125,10 @@ async def emo_proc_llm(emo: str, target_lang: Literal['zh', 'en']='zh', mnerve_c
     
     system_init = f"""你是一个人工智能助手, 你接下来会收到一个词或句子.
 你需要以json形式为其挑选最接近的表情, 并提供一个置信度. 你的输出应形如{{"res": 某个表情(str), "cfd": 置信度(float)}}.
-你只能从以下列表中选取一个表情, 不能改动, 不能翻译: {str(zlist)}
+你只能从以下列表中选取一个表情, 不能改动, 不能翻译: {str(zlist_ai)}
 Begin!""" if target_lang == 'zh' else f"""You are a helpful assistant, now you will recieve a word or sentence.
 Pick an emotion that is most relative to it, and provide a confidence. Output in json format as {{"res": emotion(str), "cfd": confidence(float)}}.
-You can only pick an emotion from the following list, no edition or translation: {str(elist)}
+You can only pick an emotion from the following list, no edition or translation: {str(elist_ai)}
 Begin!"""
     messages = [{'role': 'system', 'content': system_init}]
     messages.append({'role': 'user', 'content': emo})

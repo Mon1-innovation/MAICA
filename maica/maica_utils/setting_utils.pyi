@@ -5,7 +5,7 @@ from dataclasses import dataclass
 MAX_LENGTH: int
 
 @dataclass
-class _common_funcs:
+class _CommonFuncs:
     def reset(self) -> None: ...
     
     def _dict(self) -> Dict[str, Any]: ...
@@ -49,17 +49,17 @@ def set_spec_default(self: Any, n: str, v: Any, defaults: List[Any] = ..., **kwa
 
 class MaicaSettings:
     @dataclass
-    class _identity(_common_funcs):
+    class _Identity(_CommonFuncs):
         user_id: int
         username: str
         nickname: Optional[str]
         email: str
         
     @dataclass
-    class _verification(_identity):...
+    class _Verification(_Identity):...
 
     @dataclass
-    class _basic(_common_funcs):
+    class _Basic(_CommonFuncs):
         stream_output: bool
         deformation: bool
         enable_mf: bool
@@ -70,7 +70,7 @@ class MaicaSettings:
         max_length: int
 
     @dataclass
-    class _extra(_common_funcs):
+    class _Extra(_CommonFuncs):
         sfe_aggressive: bool
         mf_aggressive: bool
         tnd_aggressive: int
@@ -82,7 +82,7 @@ class MaicaSettings:
         tz: Optional[str]
 
     @dataclass
-    class _super(_common_funcs):
+    class _Super(_CommonFuncs):
         max_tokens: int
         seed: Optional[int]
         top_p: float
@@ -91,7 +91,7 @@ class MaicaSettings:
         presence_penalty: float
 
     @dataclass
-    class _temp(_common_funcs):
+    class _Temp(_CommonFuncs):
         chat_session: int
         sf_extraction_once: bool
         mt_extraction_once: bool
@@ -105,12 +105,12 @@ class MaicaSettings:
         ms_cache: bool
         mv_imgs: Optional[list]
 
-    identity: _identity
-    verification: _verification
-    basic: _basic
-    extra: _extra
-    super: _super
-    temp: _temp
+    identity: _Identity
+    verification: _Verification
+    basic: _Basic
+    extra: _Extra
+    super: _Super
+    temp: _Temp
     
     def __init__(self) -> None: ...
     

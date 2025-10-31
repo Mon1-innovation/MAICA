@@ -7,7 +7,7 @@ from .gvars import *
 from .maica_utils import *
 
 @dataclass
-class _common_funcs():
+class _CommonFuncs():
     """Just a template. Do not initialize!"""
 
     def reset(self):
@@ -54,14 +54,14 @@ def create_prop(
     if not isinstance(setter_kwargs, dict):
         setter_kwargs = {}
     
-    def getter(self: _common_funcs):
+    def getter(self: _CommonFuncs):
         value = getattr(self, private_name, None)
         if getter_ext:
             for func in getter_ext:
                 value = func(self, n=name, v=value, **getter_kwargs)
         return value
     
-    def setter(self: _common_funcs, value):
+    def setter(self: _CommonFuncs, value):
         if setter_ext:
             for func in setter_ext:
                 value = func(self, n=name, v=value, **setter_kwargs)
@@ -118,7 +118,7 @@ def set_instance(self, n, v, types: list[type], **kwargs):
         raise AssertionError
     return v
 
-def set_spec_default(self, n, v, defaults: list=[None], **kwargs):
+def set_spec_default(self, n, v, defaults: tuple=(None, ), **kwargs):
     """Value to default if specificated value passed in."""
     if v in defaults:
         v = self.default(n)
@@ -128,7 +128,7 @@ class MaicaSettings():
     """All the per-client settings for MAICA."""
 
     @dataclass
-    class _identity(_common_funcs):
+    class _Identity(_CommonFuncs):
         """Note that this identity is not verified and not safe to use in most cases. Use verification for those."""
 
         _user_id: int = None
@@ -142,7 +142,7 @@ class MaicaSettings():
         email = create_prop('email', getter_ext=[read_exist], setter_ext=[set_instance], setter_kwargs={"types": [str]})
 
     @dataclass
-    class _verification(_identity):
+    class _Verification(_Identity):
         """Verified identity, safe to use."""
 
         user_id = create_prop('user_id', getter_ext=[read_exist], setter_ext=[set_locked, set_instance], setter_kwargs={"types": [int]})
@@ -151,7 +151,7 @@ class MaicaSettings():
         email = create_prop('email', getter_ext=[read_exist], setter_ext=[set_locked, set_instance], setter_kwargs={"types": [str]})
 
     @dataclass
-    class _basic(_common_funcs):
+    class _Basic(_CommonFuncs):
         """Major params that decide MAICA's behavior."""
 
         _stream_output: bool = True
@@ -181,7 +181,7 @@ class MaicaSettings():
         """Max session length."""
 
     @dataclass
-    class _extra(_common_funcs):
+    class _Extra(_CommonFuncs):
         """Params that aren't that important, but affect MAICA's behavior."""
 
         _sfe_aggressive: bool = False
@@ -214,7 +214,7 @@ class MaicaSettings():
         """Timezone. This is not fully checked, double check before use."""
 
     @dataclass
-    class _super(_common_funcs):
+    class _Super(_CommonFuncs):
         """Passthrough params to core LLM."""
 
         _max_tokens: int = 1600
@@ -232,7 +232,7 @@ class MaicaSettings():
         presence_penalty = create_prop('presence_penalty', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 0.0, "upper": 1.0})
 
     @dataclass
-    class _temp(_common_funcs):
+    class _Temp(_CommonFuncs):
         """Should be reset after each round of completion."""
 
         _chat_session: int=0
@@ -272,7 +272,7 @@ class MaicaSettings():
         mv_imgs = create_prop('mv_imgs', setter_ext=[set_instance], setter_kwargs={"types": [list, None]})
 
     def __init__(self):
-        self.identity, self.verification, self.basic, self.extra, self.super, self.temp = self._identity(), self._verification(), self._basic(), self._extra(), self._super(), self._temp()
+        self.identity, self.verification, self.basic, self.extra, self.super, self.temp = self._Identity(), self._Verification(), self._Basic(), self._Extra(), self._Super(), self._Temp()
 
     def _dict(self):
         d = dict(self.identity)
