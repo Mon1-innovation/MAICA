@@ -142,7 +142,7 @@ Begin!"""
     resp_json = proceed_common_text(resp_content, is_json=True)
 
     sync_messenger(info=f"Finished processing 'add' to phrase '{emo}': {resp_json}", type=MsgType.CARRIAGE)
-    return resp_json.get('res'), resp_json.get('cfd')
+    return f"[{resp_json.get('res')}]", resp_json.get('cfd')
 
 async def emo_proc_auto(emo: str, target_lang: Literal['zh', 'en']='zh', mnerve_conn: Optional[AiConnectionManager]=None):
     res = emo_proc(emo, target_lang)

@@ -1,4 +1,4 @@
-# Exclude these lines in your env configuration
+# It's suggested to exclude these lines (the top block) in your env configuration
 # Current backend version
 MAICA_CURR_VERSION = '1.2.000.rc7'
 # Oldest capable backend version
