@@ -338,6 +338,9 @@ class MFocusManager(AgentContextManager):
                         args = []
 
                         kwargs = proceed_common_text(tool_func_args, is_json=True)
+                        if not kwargs:
+                            kwargs = {}
+                            
                         if tool_func_name == "search_internet":
                             kwargs['original_query'] = query
                         elif tool_func_name == "vista_acquire":

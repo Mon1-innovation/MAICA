@@ -507,10 +507,14 @@ def proceed_common_text(text: str, is_json=False) -> Union[str, list, dict]:
             answer_post_think = text
         else:
             answer_post_think = None
-    if answer_post_think and not ReUtils.re_search_answer_none.search(answer_post_think) and is_json:
+    if answer_post_think and is_json:
         answer_fin = try_load_json(answer_post_think)
-    else:
+    elif answer_post_think:
         answer_fin = clean_text(answer_post_think)
+    elif is_json:
+        answer_fin = {}
+    else:
+        answer_fin = ''
     return answer_fin
 
 @overload
