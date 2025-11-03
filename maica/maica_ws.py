@@ -115,6 +115,8 @@ class WsCoroutine(NoWsCoroutine):
                 match recv_type.lower():
                     case 'ping':
                         await messenger(websocket, "pong", f"Ping recieved from {self.settings.verification.username} and responded", "200")
+                    case 'sping':
+                        pass
                     case 'params':
                         await self.def_model(recv_loaded_json)
                     case 'query':

@@ -46,3 +46,4 @@ v1.2.000.rc2: 进一步重构, 参见changelog
 v1.2.000.rc3-4: 重构继续, 参见changelog
 v1.2.000.rc5: 初步完成MVista
 v1.2.000.rc6: 使用MNerve实现搜索聚合, 功能改良和调整
+v1.2.000.rc7: 一系列调整修复, 添加sping
