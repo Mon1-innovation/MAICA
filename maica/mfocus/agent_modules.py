@@ -263,7 +263,7 @@ class AgentTools():
             original_query = geolocation + original_query
 
         try:
-            result = await internet_search(self.fsc, query, original_query)
+            return await internet_search(self.fsc, query, original_query)
         except Exception:
             return None, None
     
