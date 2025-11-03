@@ -371,12 +371,13 @@ class MFocusManager(AgentContextManager):
                                     raise MaicaInputError('Unrecognizable toolcall recieved', '405')
                                 
                         if not has_valid_content(machine):
+                            await messenger(self.websocket, 'maica_mfocus_parallel_empty', f'Answer to parallel tool {tool_seq}/{len(resp_tools)} is empty', '200', type=MsgType.WARN)
                             machine = '未获得有效信息' if self.settings.basic.target_lang == 'zh' else 'No useful information found'
 
                         elif has_valid_content(humane):
                             await messenger(self.websocket, 'maica_mfocus_parallel_result', f'Answer to parallel tool {tool_seq}/{len(resp_tools)} is "{ellipsis_str(humane, 50)}"', '200', type=MsgType.INFO)
                             _instructed_add(tool_func_name, humane)
-                            
+
                         await self._construct_query(tool_input=machine, tool_id=tool_id)
 
                 else:
