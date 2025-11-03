@@ -61,14 +61,18 @@ Begin!"""
     await messenger(None, 'mfocus_internet_search', f"\nMFocus toolchain searching internet, response is:\nR: {resp_reasoning}\nA: {resp_content}\nEnd of MFocus toolchain searching internet", '201')
     
     answer_post_think = proceed_common_text(resp_content)
-    return answer_post_think, f"参考资料: {answer_post_think}" if target_lang == 'zh' else f"References: {answer_post_think}"
+    if answer_post_think:
+        return answer_post_think, f"参考资料: {answer_post_think}" if target_lang == 'zh' else f"References: {answer_post_think}"
+    else:
+        return None, None
 
 if __name__ == '__main__':
     async def test():
         fsc = FullSocketsContainer()
         fsc.maica_settings.basic.target_lang = 'en'
+        fsc.maica_settings.extra.esc_aggressive = False
         fsc.mnerve_conn = await ConnUtils.mnerve_conn()
-        print(await internet_search(fsc, "使用不同的语言会改变人的思考方式吗", "话说，莫妮卡，你觉得使用不同的语言会改变人的思考方式吗"))
+        print(await internet_search(fsc, "yuri读的《第三只眼》内容", "话说，莫妮卡，你觉得使用不同的语言会改变人的思考方式吗"))
     from maica import init
     init()
     asyncio.run(test())

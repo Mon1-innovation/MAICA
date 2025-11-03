@@ -41,8 +41,11 @@ async def asearch(query, target_lang: Literal['zh', 'en']='zh'):
             response_json = response.json()
     else:
         _before_retry -= 1
+        response_json = {}
 
-    if _before_retry > 0 or not 'organic' in response.json():
+    # print(json.dumps(response_json, ensure_ascii=False, indent=2))
+
+    if not 'organic' in response_json and not response_json.get('general').get('empty'):
         if getattr(TpAPIKeys, 'BRIGHTDATA_FB_ZONE', None):
             sync_messenger(info=f"BD free tier seemingly out, trying fallback...", type=MsgType.WARN)
             payload['zone'] = TpAPIKeys.BRIGHTDATA_FB_ZONE
@@ -52,7 +55,10 @@ async def asearch(query, target_lang: Literal['zh', 'en']='zh'):
                 response = await client.post(url, headers=headers, data=json_payload, timeout=30)
                 response_json = response.json()
 
-    results_formatted = [{"title": it['title'], "text": it['description']} for it in response_json['organic'] if 'description' in it]
+    try:
+        results_formatted = [{"title": it['title'], "text": it['description']} for it in response_json['organic'] if 'description' in it]
+    except Exception:
+        results_formatted = []
     return results_formatted
 
 if __name__ == "__main__":

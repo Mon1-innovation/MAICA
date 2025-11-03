@@ -242,12 +242,11 @@ class AgentTools():
 
     async def persistent_acquire(self, query: str, *args, **kwargs) -> tuple[str, str]:
         """Gets value from persistent. Requires fsc and sf_inst and query."""
-        target_lang = self.fsc.maica_settings.basic.target_lang
         response_json = await self.sf_inst.mfocus_find_info(query)
         if response_json:
             content = json.dumps(response_json, ensure_ascii=False)
         else:
-            content = '没有相关信息' if target_lang == 'zh' else "No related information found"
+            content = None
         return content, response_json
 
     async def search_internet(self, query: str, original_query: str, location_req: Optional[str]=None, *args, **kwargs) -> tuple[str, str]:
@@ -263,7 +262,10 @@ class AgentTools():
             query = geolocation + query
             original_query = geolocation + original_query
 
-        return await internet_search(self.fsc, query, original_query)
+        try:
+            result = await internet_search(self.fsc, query, original_query)
+        except Exception:
+            return None, None
     
     async def vista_acquire(self, img_list: list[str], query: Optional[str]=None, *args, **kwargs) -> tuple[str, str]:
         """Gets information from image. Requires fsc and img_list and query."""

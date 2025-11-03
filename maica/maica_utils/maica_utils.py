@@ -468,6 +468,15 @@ def maica_assert(condition, kwd='param'):
 
 def has_valid_content(text: Union[str, list, dict]):
     """If the LLM actually gave anything."""
+    if not text:
+        return False
+    
+    try:
+        text_json = json.loads(text)
+        if isinstance(text_json, (list, dict, tuple, set)):
+            return bool(text_json)
+    except Exception:...
+
     text = str(text)
     text_proc = text.lower().replace(' ', '').replace('\n', '')
     if (not text_proc) or text_proc in ['false', 'null', 'none']:
@@ -731,8 +740,6 @@ def sysstruct() -> Literal['Windows', 'Linux']:
     return sysstruct
 
 if __name__ == "__main__":
-    print(proceed_common_text("""{
-  "result": [
-    "莫妮卡和[player]都喜欢抹茶冰淇淋."
-  ]
-}""", is_json=True))
+    print(has_valid_content("""{
+  
+}"""))

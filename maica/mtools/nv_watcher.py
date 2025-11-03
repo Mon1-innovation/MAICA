@@ -94,7 +94,7 @@ class NvWatcher(AsyncCreator):
                 await messenger(info=f"Necessary info not complete for watching {self.node}, freezing watcher", type=MsgType.LOG)
             await sleep_forever()
         else:
-            await messenger(info=f'Necessities complete for watching {self.node}, starting watcher', type=MsgType.LOG)
+            await messenger(info=f'Necessities complete for watching {self.node}, starting watcher', type=MsgType.PRIM_LOG)
 
         self.dynamics_curr = []
         dynamic_keys = ['utilization.gpu', 'memory.used', 'power.draw']
