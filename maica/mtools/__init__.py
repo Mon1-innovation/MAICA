@@ -9,6 +9,7 @@ from .event_get import RegEvent, EventsCollection
 from .post_proc import emo_proc, emo_proc_llm, emo_proc_auto, post_proc, zlist, elist
 from .nv_watcher import NvWatcher
 from .mvista import ProcessingImg, query_vlm
+from .descalation_pvn import dscl_detect, ws_dscl_detect
 
 __all__ = [
     'TpAPIKeys',
@@ -27,6 +28,8 @@ __all__ = [
     'NvWatcher',
     'ProcessingImg',
     'query_vlm',
+    'dscl_detect',
+    'ws_dscl_detect',
     ]
 
 from .mcp import pkg_init_mcp

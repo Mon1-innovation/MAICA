@@ -109,6 +109,12 @@ class NoWsCoroutine(AsyncCreator):
             cut_status = 0
         return cut_status, content
     
+    @overload
+    async def rw_chat_session(self, irwa: Literal['i', 'r']='r', content_append: list=None, system_prompt: str=None, chat_session_num=None) -> tuple[int, list]:...
+
+    @overload
+    async def rw_chat_session(self, irwa: Literal['w', 'a']='r', content_append: list=None, system_prompt: str=None, chat_session_num=None) -> tuple[int, int]:...
+
     async def rw_chat_session(self, irwa='r', content_append: list=None, system_prompt: str=None, chat_session_num=None) -> tuple[int, int | list]:
         """A common way to operate chat sessions."""
         self._check_essentials()

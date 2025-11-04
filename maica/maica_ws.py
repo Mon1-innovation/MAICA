@@ -290,6 +290,9 @@ class WsCoroutine(NoWsCoroutine):
                 elif session_type == 0:
                     messages = [{'role': 'system', 'content': prompt}, messages0]
 
+            case _:
+                raise MaicaInputError("Using an out of bound session")
+
         # Construction part done, communication part started
 
         completion_args = {
@@ -302,11 +305,9 @@ class WsCoroutine(NoWsCoroutine):
             completion_args.update(dict(self.settings.super))
         else:
             completion_args.update(self.settings.super.default())
-            self.settings.temp.update(bypass_sup=False)
 
         if self.settings.temp.bypass_stream:
             completion_args['stream'] = False
-            self.settings.temp.update(bypass_stream=False)
 
         if self.settings.temp.ic_prep:
             completion_args['presence_penalty'] = 1.0 - (1.0 - completion_args['presence_penalty']) * (2/3)
@@ -362,13 +363,19 @@ class WsCoroutine(NoWsCoroutine):
         reply_appended_insertion = {'role': 'assistant', 'content': reply_appended}
 
         # Trigger process
+        # We should start post processes simultaneously
+        post_coros = []
+
+        if len(messages) >= 3 * 2 + 1 and self.settings.extra.dscl_pvn:
+            post_coros.append(mtools.ws_dscl_detect(messages[-2:], self.fsc))
+
         if self.settings.basic.enable_mt and not self.settings.temp.bypass_mt:
-            await self.mtrigger_coro.triggering(query_in, reply_appended)
-        else:
-            self.settings.temp.update(bypass_mt=False)
+            post_coros.append(self.mtrigger_coro.triggering(query_in, reply_appended))
 
         if self.settings.temp.ms_cache and not self.settings.temp.bypass_gen and not replace_generation:
-            await self.store_ms_cache(ms_cache_identity, reply_appended)
+            post_coros.append(self.store_ms_cache(ms_cache_identity, reply_appended))
+
+        await asyncio.gather(*post_coros)
 
         # Store history here
         if session_type == 1:

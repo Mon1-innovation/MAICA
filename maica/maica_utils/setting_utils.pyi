@@ -80,6 +80,7 @@ class MaicaSettings:
         pre_additive: int
         post_additive: int
         tz: Optional[str]
+        dscl_pvn: bool
 
     @dataclass
     class _Super(_CommonFuncs):

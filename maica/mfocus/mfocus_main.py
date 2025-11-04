@@ -277,7 +277,7 @@ class MFocusManager(AgentContextManager):
     async def _construct_query(self, user_input=None, tool_input=None, tool_id=None):
         await super()._construct_query(user_input, tool_input, tool_id, 'pre')
     
-    async def agenting(self, query):
+    async def agenting(self, query) -> str:
         try:
 
             # Just all the tools
@@ -340,7 +340,7 @@ class MFocusManager(AgentContextManager):
                         kwargs = proceed_common_text(tool_func_args, is_json=True)
                         if not kwargs:
                             kwargs = {}
-                            
+
                         if tool_func_name == "search_internet":
                             kwargs['original_query'] = query
                         elif tool_func_name == "vista_acquire":

@@ -165,7 +165,7 @@ class MTriggerManager(AgentContextManager):
     async def _construct_query(self, user_input=None, tool_input=None, tool_id=None):
         await super()._construct_query(user_input, tool_input, tool_id, 'post')
 
-    async def triggering(self, input, output):
+    async def triggering(self, input, output) -> None:
         try:
 
             # Prepare the first query first
@@ -202,7 +202,7 @@ class MTriggerManager(AgentContextManager):
                             break
                         else:
                             trigger_signal = {tool_func_name: proceed_common_text(tool_func_args, is_json=True)}
-                            await messenger(self.websocket, 'maica_mtrigger_trigger', trigger_signal, '200', type='carriage')
+                            await messenger(self.websocket, 'maica_mtrigger_trigger', trigger_signal, '200', type=MsgType.CARRIAGE)
 
                             machine = f'{tool_func_name}已被调用过并生效' if self.settings.basic.target_lang == 'zh' else f'{tool_func_name} has been called already and taking effect'
                             await self._construct_query(tool_input=machine, tool_id=tool_id)

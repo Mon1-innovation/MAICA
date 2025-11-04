@@ -193,6 +193,7 @@ class MaicaSettings():
         _pre_additive: int = 0
         _post_additive: int = 1
         _tz: Optional[str] = None
+        _dscl_pvn: bool = False
 
         sfe_aggressive = create_prop('sfe_aggressive', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Use name from savefile instead of [player] in prompts."""
@@ -212,6 +213,8 @@ class MaicaSettings():
         """Add history rounds for MFocus to understand the conversation."""
         tz = create_prop('tz', setter_ext=[set_instance], setter_kwargs={"types": [str, None]})
         """Timezone. This is not fully checked, double check before use."""
+        dscl_pvn = create_prop('dscl_pvn', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        """Check and warn about context quality descalation using MNerve."""
 
     @dataclass
     class _Super(_CommonFuncs):

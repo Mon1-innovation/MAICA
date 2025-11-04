@@ -159,6 +159,7 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
                     "pre_additive": 0,
                     "post_additive": 1,
                     "tz": null,
+                    "dscl_pvn": false,
 
                     "max_tokens": 1600,
                     "seed": null,
@@ -262,6 +263,12 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
                 tz: 时区. 支持null, "zh", "en" 或具体时区形如"Asia/Shanghai".
 
                     * 其实不太算一个高级设置, 有需要可以调. 设为null默认根据语言选择.
+
+                dscl_pvn: 在每轮对话结束时, 要求MNerve介入检查输出合理性.
+
+                    + 量化地检测判断会话劣化情况, 以免用户注意不到.
+                    - 产生额外的MNerve开销.
+                    - 我觉得智力正常的人都用不上这种功能才对.
 
             超参数:
 

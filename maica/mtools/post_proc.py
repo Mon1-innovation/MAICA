@@ -81,7 +81,7 @@ zlist_ai = list(emotion_zte.keys())
 elist_ai = [i for i in elist_ai if not i in ('kawaii', )]
 zlist_ai = [i for i in zlist_ai if not i in ('可爱', )]
 
-def emo_proc(emo: str, target_lang: Literal['zh', 'en']='zh'):
+def emo_proc(emo: str, target_lang: Literal['zh', 'en']='zh') -> tuple[str, float]:
     emo_clean = emo.strip().strip('[').strip(']').lower()
 
     res: Annotated[str, Desc('Final result')] = f'[{emo_clean}]'
@@ -119,7 +119,7 @@ def emo_proc(emo: str, target_lang: Literal['zh', 'en']='zh'):
 
     return res, cfd
 
-async def emo_proc_llm(emo: str, target_lang: Literal['zh', 'en']='zh', mnerve_conn: Optional[AiConnectionManager]=None):
+async def emo_proc_llm(emo: str, target_lang: Literal['zh', 'en']='zh', mnerve_conn: Optional[AiConnectionManager]=None) -> tuple[str, float]:
     
     sync_messenger(info=f"Proceeding 'add' to phrase '{emo}'...", type=MsgType.PRIM_RECV)
     
@@ -144,7 +144,7 @@ Begin!"""
     sync_messenger(info=f"Finished processing 'add' to phrase '{emo}': {resp_json}", type=MsgType.CARRIAGE)
     return f"[{resp_json.get('res')}]", resp_json.get('cfd')
 
-async def emo_proc_auto(emo: str, target_lang: Literal['zh', 'en']='zh', mnerve_conn: Optional[AiConnectionManager]=None):
+async def emo_proc_auto(emo: str, target_lang: Literal['zh', 'en']='zh', mnerve_conn: Optional[AiConnectionManager]=None) -> tuple[str, float]:
     res = emo_proc(emo, target_lang)
     if res[1] <= 0.3 and mnerve_conn:
         res = await emo_proc_llm(emo, target_lang, mnerve_conn)

@@ -3,10 +3,10 @@ from openai.types.chat import ChatCompletionMessage
 from typing import *
 from maica.maica_utils import *
 
-async def detect(rnds: list[dict, ChatCompletionMessage], target_lang: Literal['zh', 'en']='zh', mnerve_conn: Optional[AiConnectionManager]=None) -> bool:
+async def dscl_detect(rnds: list[dict, ChatCompletionMessage], target_lang: Literal['zh', 'en']='zh', mnerve_conn: Optional[AiConnectionManager]=None) -> tuple[bool, float]:
     """Detects if a session is descalated and should be reset."""
     if not mnerve_conn:
-        return {"res": True, "cfd": 0.1}
+        return True, 0.1
 
     rnds = clean_msgs(rnds, include=["role", "content"])
     rnds_str = ''
@@ -33,4 +33,10 @@ Begin!"""
     resp_content, resp_reasoning = resp.choices[0].message.content, getattr(resp.choices[0].message, 'reasoning_content', None)
     resp_json = proceed_common_text(resp_content, is_json=True)
 
+    sync_messenger(info=f"Finished descalation detection: {resp_json}", type=MsgType.DEBUG)
+    return resp_json.get('res'), resp_json.get('cfd')
     
+async def ws_dscl_detect(rnds: list[dict, ChatCompletionMessage], fsc: FullSocketsContainer) -> None:
+    """Detects if a session is descalated and should be reset, and send results to ws automatically."""
+    result = await dscl_detect(rnds, fsc.maica_settings.basic.target_lang, fsc.mnerve_conn)
+    await messenger(fsc.websocket, 'maica_dscl_status', result, '200', type=MsgType.CARRIAGE)
