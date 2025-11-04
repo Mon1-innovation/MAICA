@@ -352,6 +352,7 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
             {"code": "1001", "status": "maica_mtrigger_done", "content": "MTrigger ended with 2 triggers sent", "timestamp": 时间戳}
 
                 * 应当注意, maica_mtrigger_trigger的content是可处理内容, 而非人类可读内容. 这是一个例外.
+                * 在v1.2.000.rc9之后, maica_mtrigger_done消息已标记为弃用(但仍然会被发出). 你应当检测maica_chat_loop_finished以确认所有后处理完成.
 
         在响应完成后, 若dscl_pvn启用且符合条件, MAICA会发送劣化检测结果:
 

@@ -48,3 +48,4 @@ v1.2.000.rc5: 初步完成MVista
 v1.2.000.rc6: 使用MNerve实现搜索聚合, 功能改良和调整
 v1.2.000.rc7: 一系列调整修复, 添加sping
 v1.2.000.rc8: 一系列细节调整, 添加dscl_pvn
+v1.2.000.rc9: 统一核心模型输出结束代码为maica_core_complete

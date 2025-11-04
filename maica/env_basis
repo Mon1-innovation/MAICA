@@ -1,8 +1,8 @@
 # It's suggested to exclude these lines (the top block) in your env configuration
 # Current backend version
-MAICA_CURR_VERSION = '1.2.000.rc8'
+MAICA_CURR_VERSION = '1.2.000.rc9'
 # Oldest capable backend version
-MAICA_LEGC_VERSION = '1.2.000.rc5'
+MAICA_LEGC_VERSION = '1.2.000.rc9'
 # cp ./env_basis ./.env
 # vim .env
 # Do not mv, rm or edit basis! They're required as default templates.
