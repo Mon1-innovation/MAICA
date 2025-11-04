@@ -134,6 +134,12 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
             * 反劫持cookie不强制. 在输入中添加cookie键并传入正确的cookie即可启用, 此后该会话每次输入必须传入.
             * 说实话并不能真的防住, 顶多增加点难度.
 
+        紧接着, 服务器会发送连接建立通告, 服务模型名称, 以及可选模型的名称.
+
+            status为maica_model_anno的消息通告核心和MFocus模型的名称.
+            status为maica_model_mvista的消息通告MVista模型的名称. 若该通告未发出, 代表实例未启用MVista.
+            status为maica_model_mnerve的消息通告MNerve模型的名称. 若该通告未发出, 代表实例未启用MNerve.
+
     调整设置:
 
         在登录完成后, 你可以随时修改会话设置:
@@ -264,7 +270,7 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
 
                     * 其实不太算一个高级设置, 有需要可以调. 设为null默认根据语言选择.
 
-                dscl_pvn: 在每轮对话结束时, 要求MNerve介入检查输出合理性.
+                dscl_pvn: 对话长度超过3轮后, 在每轮对话结束时, 要求MNerve介入检查输出合理性.
 
                     + 量化地检测判断会话劣化情况, 以免用户注意不到.
                     - 产生额外的MNerve开销.
@@ -346,6 +352,19 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
             {"code": "1001", "status": "maica_mtrigger_done", "content": "MTrigger ended with 2 triggers sent", "timestamp": 时间戳}
 
                 * 应当注意, maica_mtrigger_trigger的content是可处理内容, 而非人类可读内容. 这是一个例外.
+
+        在响应完成后, 若dscl_pvn启用且符合条件, MAICA会发送劣化检测结果:
+
+            {"code": "200", "status": "maica_dscl_status", "content": [输出合理性, 可信度], "timestamp": 时间戳}
+
+                * 应当注意, maica_dscl_status的content是可处理内容, 而非人类可读内容. 这是一个例外.
+
+                其中, 输出合理性是一个bool, 可信度是一个float. 若合理性为False且可信度高于一定阈值, 可以提醒用户清除session.
+
+                    * 对话长度超过3轮前dscl_pvn不工作, 即使其已经启用.
+                    * dscl_pvn基于MNerve, 后端部署不一定有实现. 未实现MNerve的后端只会返回[True, 0.1].
+
+                * 应当注意, dscl_pvn与MTrigger同时启动, 其消息发送不存在严格的先后顺序.
         
         在一轮对话循环完全完成后, MAICA会发送通告, 其status为maica_chat_loop_finished. 此时可以进行下一次输入.
 

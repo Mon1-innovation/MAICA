@@ -79,8 +79,10 @@ class WsCoroutine(NoWsCoroutine):
         await messenger(websocket, "maica_connection_established", "MAICA connection established", "201", type=MsgType.INFO, no_print=True)
         await messenger(websocket, "maica_provider_anno", f"Current service provider is {G.A.DEV_IDENTITY or 'UNKNOWN'}", "200", type=MsgType.INFO, no_print=True)
         await messenger(websocket, "maica_model_anno", f"Main model is {self.fsc.mcore_conn.model_actual}, MFocus model is {self.fsc.mfocus_conn.model_actual}", "200", type=MsgType.INFO, no_print=True)
-        await messenger(websocket, "maica_model_mvista", f"MVista enabled on server, model is {self.fsc.mvista_conn.model_actual}", "200", type=MsgType.INFO, no_print=True)
-        await messenger(websocket, "maica_model_mnerve", f"MNerve enabled on server, model is {self.fsc.mnerve_conn.model_actual}", "200", type=MsgType.INFO, no_print=True)
+        if self.fsc.mvista_conn:
+            await messenger(websocket, "maica_model_mvista", f"MVista enabled on server, model is {self.fsc.mvista_conn.model_actual}", "200", type=MsgType.INFO, no_print=True)
+        if self.fsc.mnerve_conn:
+            await messenger(websocket, "maica_model_mnerve", f"MNerve enabled on server, model is {self.fsc.mnerve_conn.model_actual}", "200", type=MsgType.INFO, no_print=True)
 
         # Starting loop from here
         while True:
