@@ -334,14 +334,14 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
                 {"code": "100", "status": "maica_core_streaming_continue", "content": "色有", "type": "carriage", "timestamp": 时间戳}
                 {"code": "100", "status": "maica_core_streaming_continue", "content": "很多, ", "type": "carriage", "timestamp": 时间戳}
                 ...
-                {"code": "1000", "status": "maica_core_streaming_done", "content": "Streaming finished with seed 42 for user, 10 packets sent", "type": "carriage", "timestamp": 时间戳}
+                {"code": "1000", "status": "maica_core_complete", "content": "Streaming finished with seed 42 for user, 10 packets sent", "type": "carriage", "timestamp": 时间戳}
 
                     * 应当注意, 自v1.1更新之后, 流式输出不再提供seq键, 因为websocket的顺序是安全的.
 
             若stream_output为false:
 
                 {"code": "200", "status": "maica_core_nostream_reply", "content": "我也爱你, [player]!", "type": "carriage", "timestamp": 时间戳}
-                {"code": "1000", "status": "maica_core_nostream_done", "content": "Reply sent with seed 42 for user", "type": "carriage", "timestamp": 时间戳}
+                {"code": "1000", "status": "maica_core_complete", "content": "Reply sent with seed 42 for user", "type": "carriage", "timestamp": 时间戳}
 
             除输出形式外, 二者的表现相同.
 
