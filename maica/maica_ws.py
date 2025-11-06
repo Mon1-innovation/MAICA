@@ -16,6 +16,60 @@ from maica.maica_utils import *
 
 _CONNS_LIST = ['auth_pool', 'maica_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn']
 
+async def drain_buffer(websocket, id: int):
+    """Drains a buffer and send through ws."""
+    buffer: mtools.StreamBuffer = mtools.buffer_dict.get(id)
+    if not buffer:
+        await messenger(websocket, 'maica_reconn_buffer_empty', f"Reconnection buffer not present for user id {id}.", '204')
+        return
+
+    sent = 0
+    async for ws_tuple in buffer:
+        sent += 1
+        await websocket.send(wrap_ws_formatter(*ws_tuple))
+
+    await messenger(websocket, 'maica_reconn_buffer_drained', f"Reconnection buffer drained for user id {id}, {sent} packets sent.", '200', type=MsgType.INFO)
+
+class BufferedMessenger():
+    """As name."""
+    @staticmethod
+    def _dummy_messenger(websocket=None, *args, **kwargs):
+        return sync_messenger(*args, **kwargs)
+    
+    def __init__(self, id: int):
+        """Destroys previous buffer on initialization."""
+        self.id = id
+        self.wsint = False
+        self.we = None
+
+        mtools.buffer_dict.del_id(id)
+
+    async def __call__(self, *args, **kwargs):
+        if not self.wsint:
+            try:
+                return await messenger(*args, **kwargs)
+            except websockets.WebSocketException as we:
+                self.wsint = True
+                self.we = we
+                sync_messenger(info="<WSINT, storing remaining to buffer>", type=MsgType.PLAIN, color=colorama.Fore.LIGHTYELLOW_EX)
+
+                mtools.buffer_dict.add_id(self.id)
+                self.buffer: mtools.StreamBuffer = mtools.buffer_dict[self.id]
+
+        if self.wsint:
+            ws_tuple = self._dummy_messenger(*args, **kwargs)
+            await self.buffer.aappend(ws_tuple)
+
+    async def seal(self):
+        """
+        Announce corresponding buffer exhausted.
+        Also raises ws exception if captured, remains the destroying procedure intact.
+        """
+        if self.wsint:
+            sync_messenger(info=f"Sealed {len(self.buffer)} packets into buffer, sending original interrupt...", type=MsgType.INFO)
+            await self.buffer.aexhaust()
+            raise self.we
+
 class WsCoroutine(NoWsCoroutine):
     """
     Force ws existence.
@@ -119,6 +173,8 @@ class WsCoroutine(NoWsCoroutine):
                         await messenger(websocket, "pong", f"Ping recieved from {self.settings.verification.username} and responded", "200")
                     case 'sping':
                         pass
+                    case 'reconn':
+                        await drain_buffer(websocket, self.settings.verification.user_id)
                     case 'params':
                         await self.def_model(recv_loaded_json)
                     case 'query':
@@ -326,6 +382,9 @@ class WsCoroutine(NoWsCoroutine):
 
         await messenger(info=f'\nQuery constrcted and ready to go, last input is:\n{query_in}\nSending query...', type=MsgType.PRIM_RECV)
 
+        # We're about to start generation, so any ws interrupts should be handled by buffered_messenger from now.
+        buffered_messenger = BufferedMessenger(self.settings.verification.user_id)
+
         if not self.settings.temp.bypass_gen or not replace_generation: # They should present together
 
             # Generation here
@@ -339,26 +398,26 @@ class WsCoroutine(NoWsCoroutine):
                     if token:
                         await asyncio.sleep(0)
                         token = ReUtils.re_sub_replacement_chr.sub('', token)
-                        await messenger(websocket, 'maica_core_streaming_continue', token, '100')
+                        await buffered_messenger(websocket, 'maica_core_streaming_continue', token, '100')
                         reply_appended += token
                         seq += 1
-                await messenger(info='\n', type=MsgType.PLAIN)
-                await messenger(websocket, 'maica_core_complete', f'Streaming finished with seed {completion_args['seed']} for {self.settings.verification.username}, {seq} packets sent', '1000', traceray_id=self.traceray_id)
+                await buffered_messenger(info='\n', type=MsgType.PLAIN)
+                await buffered_messenger(websocket, 'maica_core_complete', f'Streaming finished with seed {completion_args['seed']} for {self.settings.verification.username}, {seq} packets sent', '1000', traceray_id=self.traceray_id)
             else:
                 reply_appended = resp.choices[0].message.content
-                await messenger(websocket, 'maica_core_nostream_reply', reply_appended, '200', type=MsgType.CARRIAGE)
-                await messenger(None, 'maica_core_complete', f'Reply sent with seed {completion_args['seed']} for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
+                await buffered_messenger(websocket, 'maica_core_nostream_reply', reply_appended, '200', type=MsgType.CARRIAGE)
+                await buffered_messenger(None, 'maica_core_complete', f'Reply sent with seed {completion_args['seed']} for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
 
         else:
 
             # We just pretend it was generated
             reply_appended = replace_generation
             if completion_args['stream']:
-                await messenger(websocket, 'maica_core_streaming_continue', reply_appended, '100'); await messenger(info='\n', type=MsgType.PLAIN)
-                await messenger(websocket, 'maica_core_complete', f'Streaming finished with cache for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
+                await buffered_messenger(websocket, 'maica_core_streaming_continue', reply_appended, '100'); await messenger(info='\n', type=MsgType.PLAIN)
+                await buffered_messenger(websocket, 'maica_core_complete', f'Streaming finished with cache for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
             else:
-                await messenger(websocket, 'maica_core_nostream_reply', reply_appended, '200', type=MsgType.CARRIAGE)
-                await messenger(None, 'maica_core_complete', f'Reply sent with cache for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
+                await buffered_messenger(websocket, 'maica_core_nostream_reply', reply_appended, '200', type=MsgType.CARRIAGE)
+                await buffered_messenger(None, 'maica_core_complete', f'Reply sent with cache for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
 
         # Can be post-processed here
         reply_appended = mtools.post_proc(reply_appended, self.settings.basic.target_lang)
@@ -369,10 +428,10 @@ class WsCoroutine(NoWsCoroutine):
         post_coros = []
 
         if len(messages) >= 3 * 2 + 1 and self.settings.extra.dscl_pvn:
-            post_coros.append(mtools.ws_dscl_detect(messages[-2:], self.fsc))
+            post_coros.append(mtools.ws_dscl_detect(messages[-2:], self.fsc, bm=buffered_messenger))
 
         if self.settings.basic.enable_mt and not self.settings.temp.bypass_mt:
-            post_coros.append(self.mtrigger_coro.triggering(query_in, reply_appended))
+            post_coros.append(self.mtrigger_coro.triggering(query_in, reply_appended, bm=buffered_messenger))
 
         if self.settings.temp.ms_cache and not self.settings.temp.bypass_gen and not replace_generation:
             post_coros.append(self.store_ms_cache(ms_cache_identity, reply_appended))
@@ -384,14 +443,16 @@ class WsCoroutine(NoWsCoroutine):
             stored = await self.rw_chat_session('a', [messages0, reply_appended_insertion])
             match stored[1]:
                 case 1:
-                    await messenger(websocket, 'maica_history_sliced', f"Session {self.settings.temp.chat_session} of {self.settings.verification.username} exceeded {self.settings.basic.max_length} characters and sliced", '204')
+                    await buffered_messenger(websocket, 'maica_history_sliced', f"Session {self.settings.temp.chat_session} of {self.settings.verification.username} exceeded {self.settings.basic.max_length} characters and sliced", '204')
                 case 2:
-                    await messenger(websocket, 'maica_history_slice_hint', f"Session {self.settings.temp.chat_session} of {self.settings.verification.username} exceeded {self.settings.basic.max_length * (2/3)} characters, will slice at {self.settings.basic.max_length}", '200', no_print=True)
+                    await buffered_messenger(websocket, 'maica_history_slice_hint', f"Session {self.settings.temp.chat_session} of {self.settings.verification.username} exceeded {self.settings.basic.max_length * (2/3)} characters, will slice at {self.settings.basic.max_length}", '200', no_print=True)
 
-            await messenger(websocket, 'maica_chat_loop_finished', f'Finished chat loop from {self.settings.verification.username}', '200', traceray_id=self.traceray_id, type=MsgType.INFO)
+            await buffered_messenger(websocket, 'maica_chat_loop_finished', f'Finished chat loop from {self.settings.verification.username}', '200', traceray_id=self.traceray_id, type=MsgType.INFO)
         else:
-            
-            await messenger(websocket, 'maica_chat_loop_finished', f'Finished non-recording chat loop from {self.settings.verification.username}', '200', traceray_id=self.traceray_id, type=MsgType.INFO)
+            await buffered_messenger(websocket, 'maica_chat_loop_finished', f'Finished non-recording chat loop from {self.settings.verification.username}', '200', traceray_id=self.traceray_id, type=MsgType.INFO)
+
+        # Seal it finally
+        await buffered_messenger.seal()
 
 # Reserved for whatever
 def callback_func_switch(future):
@@ -433,7 +494,7 @@ async def main_logic(
                 traceback.print_exc()
             await messenger(websocket, error=ce, traceray_id=getattr(thread_instance, 'traceray_id', None), no_raise=True)
 
-        except websockets.exceptions.WebSocketException as we:
+        except websockets.WebSocketException as we:
             try:
                 we_code, we_reason = we.code, we.reason
                 await messenger(info=f'Connection closed with {we_code}: {we_reason or 'No reason provided'}', type=MsgType.PRIM_LOG)

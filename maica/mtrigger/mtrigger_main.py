@@ -165,7 +165,7 @@ class MTriggerManager(AgentContextManager):
     async def _construct_query(self, user_input=None, tool_input=None, tool_id=None):
         await super()._construct_query(user_input, tool_input, tool_id, 'post')
 
-    async def triggering(self, input, output) -> None:
+    async def triggering(self, input, output, bm=messenger) -> None:
         try:
 
             # Prepare the first query first
@@ -187,7 +187,7 @@ class MTriggerManager(AgentContextManager):
                 resp_content, resp_reasoning, resp_tools = await self._send_query(thinking=True)
                 resp_content, resp_reasoning = proceed_common_text(resp_content), proceed_common_text(resp_reasoning)
 
-                await messenger(self.websocket, 'maica_mtrigger_toolchain', f'\nMTrigger toolchain {cycle} round responded, response is:\nR: {resp_reasoning}\nA: {resp_content}\nAnalyzing response...', code='200')
+                await bm(self.websocket, 'maica_mtrigger_toolchain', f'\nMTrigger toolchain {cycle} round responded, response is:\nR: {resp_reasoning}\nA: {resp_content}\nAnalyzing response...', code='200')
                 tool_seq = 0
                 if resp_tools:
                     for resp_tool in resp_tools:
@@ -195,14 +195,14 @@ class MTriggerManager(AgentContextManager):
                         # Tool parallel support
                         tool_seq += 1; all_tool_count += 1
                         tool_id, tool_type, tool_func_name, tool_func_args = resp_tool.id, resp_tool.type, resp_tool.function.name, resp_tool.function.arguments
-                        await messenger(self.websocket, 'maica_mtrigger_parallel_tool', f'\nCalling parallel tool {tool_seq}/{len(resp_tools)}:\n{resp_tool}\nSending trigger...', '200', type=MsgType.INFO, color=colorama.Fore.BLUE)
+                        await bm(self.websocket, 'maica_mtrigger_parallel_tool', f'\nCalling parallel tool {tool_seq}/{len(resp_tools)}:\n{resp_tool}\nSending trigger...', '200', type=MsgType.INFO, color=colorama.Fore.BLUE)
 
                         if tool_func_name == 'agent_finished':
                             ending = True
                             break
                         else:
                             trigger_signal = {tool_func_name: proceed_common_text(tool_func_args, is_json=True)}
-                            await messenger(self.websocket, 'maica_mtrigger_trigger', trigger_signal, '200', type=MsgType.CARRIAGE)
+                            await bm(self.websocket, 'maica_mtrigger_trigger', trigger_signal, '200', type=MsgType.CARRIAGE)
 
                             machine = f'{tool_func_name}已被调用过并生效' if self.settings.basic.target_lang == 'zh' else f'{tool_func_name} has been called already and taking effect'
                             await self._construct_query(tool_input=machine, tool_id=tool_id)
@@ -210,9 +210,9 @@ class MTriggerManager(AgentContextManager):
                 else:
                     ending = True
                     
-                await messenger(self.websocket, 'maica_mtrigger_round_finish', f'MTrigger toolchain {cycle} round finished, ending is {str(ending)}', '200', type=MsgType.INFO, color=colorama.Fore.BLUE)
+                await bm(self.websocket, 'maica_mtrigger_round_finish', f'MTrigger toolchain {cycle} round finished, ending is {str(ending)}', '200', type=MsgType.INFO, color=colorama.Fore.BLUE)
             # This goes -1 if agent_finished not called, but I decide to leave it be
-            await messenger(self.websocket, 'maica_mtrigger_done', f'MTrigger ended with {all_tool_count - 1} triggers sent', '1001', color=colorama.Fore.LIGHTBLUE_EX)
+            await bm(self.websocket, 'maica_mtrigger_done', f'MTrigger ended with {all_tool_count - 1} triggers sent', '1001', color=colorama.Fore.LIGHTBLUE_EX)
 
         except CommonMaicaException as ce:
             raise ce

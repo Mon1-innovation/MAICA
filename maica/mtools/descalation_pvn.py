@@ -36,7 +36,7 @@ Begin!"""
     sync_messenger(info=f"Finished descalation detection: {resp_json}", type=MsgType.DEBUG)
     return resp_json.get('res'), resp_json.get('cfd')
     
-async def ws_dscl_detect(rnds: list[dict, ChatCompletionMessage], fsc: FullSocketsContainer) -> None:
+async def ws_dscl_detect(rnds: list[dict, ChatCompletionMessage], fsc: FullSocketsContainer, bm=messenger) -> None:
     """Detects if a session is descalated and should be reset, and send results to ws automatically."""
     result = await dscl_detect(rnds, fsc.maica_settings.basic.target_lang, fsc.mnerve_conn)
-    await messenger(fsc.websocket, 'maica_dscl_status', result, '200', type=MsgType.CARRIAGE)
+    await bm(fsc.websocket, 'maica_dscl_status', result, '200', type=MsgType.CARRIAGE)
