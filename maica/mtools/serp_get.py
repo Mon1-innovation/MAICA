@@ -55,6 +55,7 @@ Begin!"""
     conn = fsc.mnerve_conn or fsc.mfocus_conn
 
     resp = await conn.make_completion(**completion_args)
+    print(resp)
     resp_content, resp_reasoning = resp.choices[0].message.content, getattr(resp.choices[0].message, 'reasoning_content', None)
     resp_content, resp_reasoning = proceed_common_text(resp_content), proceed_common_text(resp_reasoning)
         
@@ -70,9 +71,9 @@ if __name__ == '__main__':
     async def test():
         fsc = FullSocketsContainer()
         fsc.maica_settings.basic.target_lang = 'en'
-        fsc.maica_settings.extra.esc_aggressive = False
+        # fsc.maica_settings.extra.esc_aggressive = False
         fsc.mnerve_conn = await ConnUtils.mnerve_conn()
-        print(await internet_search(fsc, "yuri读的《第三只眼》内容", "话说，莫妮卡，你觉得使用不同的语言会改变人的思考方式吗"))
+        print(await internet_search(fsc, "使用不同的语言会改变人的思考方式吗", "话说，莫妮卡，你觉得使用不同的语言会改变人的思考方式吗"))
     from maica import init
     init()
     asyncio.run(test())

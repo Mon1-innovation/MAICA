@@ -260,6 +260,7 @@ class ReUtils():
     re_sub_serp_datetime = re.compile(r'.{1,10}?,.{1,10}?-\s*')
     re_sub_clear_text = re.compile(r'^[\n\s]*(.*?)[\n\s]*$', re.S)
     re_match_secure_path = re.compile(r'^[a-zA-Z0-9_.-]+$')
+    re_search_wiki_avoid = re.compile(r"(模板|模闆|template|消歧义|消歧義|disambiguation)", re.I)
 
 class Decos():
     """Do not initialize."""
@@ -417,6 +418,13 @@ def ellipsis_str(input: any, limit=80) -> str:
     text = str(input)
     if len(text) > limit:
         text = text[:limit] + '...'
+    return text
+
+def ellipsis_large_str(input: any, limit=600) -> str:
+    """It converts anything large to str and ellipsis it."""
+    text = str(input)
+    if len(text) > limit:
+        text = text[:limit] + '\n... ...'
     return text
 
 def uscore_words_upper(text: str) -> str:

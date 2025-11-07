@@ -54,11 +54,12 @@ class BufferedMessenger():
                 sync_messenger(info="<WSINT, storing remaining to buffer>", type=MsgType.PLAIN, color=colorama.Fore.LIGHTYELLOW_EX)
 
                 mtools.buffer_dict.add_id(self.id)
-                self.buffer: mtools.StreamBuffer = mtools.buffer_dict[self.id]
+                self._buffer: mtools.StreamBuffer = mtools.buffer_dict[self.id]
+                self._timestamp = self._buffer.timestamp
 
         if self.wsint:
             ws_tuple = self._dummy_messenger(*args, **kwargs)
-            await self.buffer.aappend(ws_tuple)
+            await self._buffer.aappend(ws_tuple)
 
     async def seal(self):
         """
@@ -66,8 +67,8 @@ class BufferedMessenger():
         Also raises ws exception if captured, remains the destroying procedure intact.
         """
         if self.wsint:
-            sync_messenger(info=f"Sealed {len(self.buffer)} packets into buffer, sending original interrupt...", type=MsgType.INFO)
-            await self.buffer.aexhaust()
+            sync_messenger(info=f"Sealed {len(self._buffer)} packets into buffer, sending original interrupt...", type=MsgType.INFO)
+            await self._buffer.aexhaust()
             raise self.we
 
 class WsCoroutine(NoWsCoroutine):

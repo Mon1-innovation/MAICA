@@ -90,9 +90,8 @@ async def get_page(title=None, target_lang='zh'):
             case False:
                 page_list, cat_list = {"batchcomplete":True,"query":{"searchinfo":{"totalhits":0},"search":[]}}, await dld_json(cat_url)
         page_list_r, cat_list_r = page_list['query']['search'], cat_list['query']['search']
-        filter_regex = re.compile(r"(模板|模闆|template|消歧义|消歧義|disambiguation)", re.I)
         for cat in cat_list_r:
-            if filter_regex.search(cat['title'].lower()):
+            if ReUtils.re_search_wiki_avoid.search(cat['title'].lower()):
                 cat_list_r.remove(cat)
         if len(cat_list_r):
             if use_page == False or random.randint(1, cat_weight*len(cat_list_r)+len(page_list_r)) <= cat_weight*len(cat_list_r):

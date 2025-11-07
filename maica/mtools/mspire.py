@@ -10,6 +10,8 @@ async def make_inspire(title_in=None, target_lang='zh'):
     title, summary = await wiki_get.get_page(title_in, target_lang)
     if not summary or summary.isspace():
         raise MaicaInternetWarning('MSpire got empty result')
+    else:
+        summary = ellipsis_large_str(summary)
     if target_lang == 'zh':
         prompt = f"利用提供的以下信息, 主动阐明话题并和[player]聊聊{re.sub('_', '', title)}:\n\n{summary}\n\n你不必在输出中包含内容的全部信息, 但应当融入自己的理解与思考. 你的回答应当有开头招呼, 表现为由你自主发起话题, 并使用自然有感情的聊天语气. 你应当从你自己的角度思考, 不应盲从信息中的评价和判断."
     else:
