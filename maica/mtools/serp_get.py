@@ -55,7 +55,6 @@ Begin!"""
     conn = fsc.mnerve_conn or fsc.mfocus_conn
 
     resp = await conn.make_completion(**completion_args)
-    print(resp)
     resp_content, resp_reasoning = resp.choices[0].message.content, getattr(resp.choices[0].message, 'reasoning_content', None)
     resp_content, resp_reasoning = proceed_common_text(resp_content), proceed_common_text(resp_reasoning)
         

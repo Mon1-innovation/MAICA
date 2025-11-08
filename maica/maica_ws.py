@@ -37,7 +37,7 @@ class BufferedMessenger():
         return sync_messenger(*args, **kwargs)
     
     def __init__(self, id: int):
-        """Destroys previous buffer on initialization."""
+        """Unlinks previous buffer on initialization."""
         self.id = id
         self.wsint = False
         self.we = None
