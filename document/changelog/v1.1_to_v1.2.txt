@@ -26,3 +26,13 @@ If you want to read in English, use a translator.
 = 现在MPostal默认启用bypass_mf
 
 = 现在搜索聚合功能默认由MNerve实现
+
++ 添加了sping以静默维持连接
+
++ 添加dscl_pvn功能和设置
+
+= 统一核心模型输出结束代码为maica_core_complete
+
++ 添加断点续传功能
+
+= 规范化登录行为, 统一使用type
