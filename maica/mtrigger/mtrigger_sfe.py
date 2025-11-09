@@ -52,7 +52,7 @@ class MtPersistentManager(PersistentManager):
 
     @Decos.report_data_error
     def use_only(self, *args) -> None:
-        self.sf_forming_buffer = args
+        self.sf_forming_buffer = list(args)
 
     @Decos.report_data_error
     def read_from_sf(self, seq) -> any:

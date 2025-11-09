@@ -193,12 +193,10 @@ class WsCoroutine(NoWsCoroutine):
                     case 'params':
                         await self.def_model(recv_loaded_json)
                     case 'query':
-                        await self.reset_auxiliary_inst()
                         await self.do_communicate(recv_loaded_json)
                     case placeholder if "chat_params" in recv_loaded_json:
                         await self.def_model(recv_loaded_json)
                     case placeholder if "chat_session" in recv_loaded_json:
-                        await self.reset_auxiliary_inst()
                         await self.do_communicate(recv_loaded_json)
                     case _:
                         raise MaicaInputWarning('Type cannot be determined', '422', 'maica_request_type_unknown')
@@ -243,6 +241,9 @@ class WsCoroutine(NoWsCoroutine):
         chat_session = int(default(recv_loaded_json.get('chat_session'), 0))
         maica_assert(-1 <= chat_session < 10, "chat_session")
         self.settings.temp.update(chat_session=chat_session)
+
+        # This needs chat_session to function
+        await self.reset_auxiliary_inst()
 
         if 'reset' in recv_loaded_json:
             if recv_loaded_json['reset']:
