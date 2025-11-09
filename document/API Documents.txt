@@ -750,9 +750,9 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
 
             端点: DELETE /vista
 
-            * 需要access_token, content
+            * 需要access_token, 可选content
 
-                其中content为str或int, 代表需删除图片的uuid或序号(从0开始, 由新到旧).
+                其中content为str或int, 代表需删除图片的uuid或序号(从0开始, 由新到旧). 若无content则全部删除.
 
             该端点不会返回content.
 

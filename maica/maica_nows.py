@@ -258,22 +258,25 @@ class NoWsCoroutine(AsyncCreator):
         self._check_essentials()
         if isinstance(input, int):
             assert input < int(G.A.KEEP_MVISTA), f"Sequence must be smaller than {G.A.KEEP_MVISTA}"
-            uuid = (await self.list_user_mv())[input]
+            uuids = [(await self.list_user_mv())[input]]
+        elif isinstance(input, str):
+            uuids = [input]
         else:
-            uuid = input
+            uuids = await self.list_user_mv()
         
-        processing_img = ProcessingImg()
-        processing_img.det_path(uuid)
+        for uuid in uuids:
+            processing_img = ProcessingImg()
+            processing_img.det_path(uuid)
 
-        sql_expression_1 = "SELECT vista_id FROM mv_meta WHERE user_id = %s AND uuid = %s"
-        result = await self.maica_pool.query_get(expression=sql_expression_1, values=(self.settings.verification.user_id, uuid))
-        if not result:
-            raise MaicaInputWarning(f'{uuid} not available for this account')
-        vista_id = result[0]
+            sql_expression_1 = "SELECT vista_id FROM mv_meta WHERE user_id = %s AND uuid = %s"
+            result = await self.maica_pool.query_get(expression=sql_expression_1, values=(self.settings.verification.user_id, uuid))
+            if not result:
+                raise MaicaInputWarning(f'{uuid} not available for this account')
+            vista_id = result[0]
 
-        processing_img.delete()
-        sql_expression_2 = "DELETE FROM mv_meta WHERE vista_id = %s"
-        await self.maica_pool.query_modify(expression=sql_expression_2, values=(vista_id, ))
+            processing_img.delete()
+            sql_expression_2 = "DELETE FROM mv_meta WHERE vista_id = %s"
+            await self.maica_pool.query_modify(expression=sql_expression_2, values=(vista_id, ))
         
     async def store_mv(self, input: bytes) -> int:
         """Register a mv meta and store as file."""
