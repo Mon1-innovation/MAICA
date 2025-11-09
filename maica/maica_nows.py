@@ -349,7 +349,7 @@ class NoWsCoroutine(AsyncCreator):
     async def reset_auxiliary_inst(self) -> None:
         sb_list = []
         for sb_name in ['sf_inst', 'mt_inst', 'mfocus_coro', 'mtrigger_coro']:
-            sb = getattr(self, sb_name)
+            sb = getattr(self, sb_name, None)
             if sb:
                 sb_list.append(sb.reset())
         await asyncio.gather(*sb_list)

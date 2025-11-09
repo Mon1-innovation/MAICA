@@ -520,7 +520,7 @@ class ConnUtils():
         else:
             return None
 
-async def validate_input(input: Union[str, dict, list], limit: int=4096, rsc: Optional[RealtimeSocketsContainer]=None, must: Optional[list]=None, warn: Optional[list]=None) -> Union[dict, list]:
+async def validate_input(input: Union[str, dict, list], limit: int=0, rsc: Optional[RealtimeSocketsContainer]=None, must: Optional[list]=None, warn: Optional[list]=None) -> Union[dict, list]:
     """
     Mostly for ws.
     """
@@ -530,14 +530,14 @@ async def validate_input(input: Union[str, dict, list], limit: int=4096, rsc: Op
         raise MaicaInputWarning('Input is empty', '410', 'maica_input_empty')
     
     if isinstance(input, str):
-        if len(input) > limit:
+        if limit and len(input) > limit:
             raise MaicaInputWarning('Input length exceeded', '413', 'maica_input_length_exceeded')
         try:
             input_json = json.loads(input)
         except Exception as e:
             raise MaicaInputWarning('Request body not JSON', '400', 'maica_input_not_json') from e
     elif isinstance(input, dict | list):
-        if len(str(input)) > limit:
+        if limit and len(str(input)) > limit:
             raise MaicaInputWarning('Input length exceeded', '413', 'maica_input_length_exceeded')
         input_json = input
     else:

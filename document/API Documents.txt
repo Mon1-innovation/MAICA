@@ -118,7 +118,9 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
 
         在长连接建立后, 你应该先发送令牌:
 
-            {"access_token": "你的令牌"}
+            {"type": "auth", "access_token": "你的令牌"}
+
+            * 自v1.2.000.rc11后, 登录阶段也建议添加type. 未来版本可能弃用旧的行为.
 
         若令牌验证无误, 该会话就已经登录完毕.
 
@@ -141,6 +143,8 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
             status为maica_model_mnerve的消息通告MNerve模型的名称. 若该通告未发出, 代表实例未启用MNerve.
 
     调整设置:
+
+        * 自v1.1更新后, 登录后的输入均要求携带type. 未来版本可能弃用旧的行为.
 
         在登录完成后, 你可以随时修改会话设置:
 
@@ -352,7 +356,7 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
             {"code": "1001", "status": "maica_mtrigger_done", "content": "MTrigger ended with 2 triggers sent", "timestamp": 时间戳}
 
                 * 应当注意, maica_mtrigger_trigger的content是可处理内容, 而非人类可读内容. 这是一个例外.
-                * 在v1.2.000.rc9之后, maica_mtrigger_done消息已标记为弃用(但仍然会被发出). 你应当检测maica_chat_loop_finished以确认所有后处理完成.
+                * 自v1.2.000.rc9后, maica_mtrigger_done消息已标记为弃用(但仍然会被发出). 你应当检测maica_chat_loop_finished以确认所有后处理完成.
 
         在响应完成后, 若dscl_pvn启用且符合条件, MAICA会发送劣化检测结果:
 
@@ -482,7 +486,7 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
 
                 服务器会发回一个status为pong的响应.
 
-                    * 仅在登录完成后可以发送心跳.
+                    * 自v1.2.000.rc11后, ping可以在登录前发送.
                     * 心跳连接不强制发送, 但可用于连接性和延迟检测等.
 
             安静心跳连接:
@@ -491,7 +495,7 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
 
                 服务器不会响应.
 
-                    * 仅在登录完成后可以发送安静心跳.
+                    * 自v1.2.000.rc11后, sping可以在登录前发送.
                     * 说实话我不知道这个能有什么用, 但是先做了吧.
                     * 如果单纯用于连接保活, 你也许应该用这个.
 

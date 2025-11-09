@@ -100,25 +100,38 @@ class WsCoroutine(NoWsCoroutine):
                 self.settings.verification.reset()
 
                 recv_text = await websocket.recv()
-                await messenger(info=f'Recieved an input on stage1', type=MsgType.RECV)
-                recv_loaded_json = await validate_input(recv_text, 4096, self.fsc.rsc, must=['access_token'])
+                if not ReUtils.re_search_type_sping.search(recv_text):
+                    await messenger(info=f'Recieved an input on stage1', type=MsgType.RECV)
+                recv_loaded_json = await validate_input(recv_text, 4096, self.fsc.rsc)
 
-                login_success = await self.hash_and_login(recv_loaded_json['access_token'], check_online=True)
-                if login_success:
+                recv_type = recv_loaded_json.get('type', 'auth')
 
-                    # From here we can assume the user has logged in successfully
-                    self.cookie = cookie = str(uuid.uuid4())
-                    self.enforce_cookie = False
+                match recv_type.lower():
+                    case 'ping':
+                        await messenger(websocket, "pong", f"Ping recieved from anonymous and responded", "200")
+                    case 'sping':
+                        pass
+                    case 'auth':
+                        recv_loaded_json = await validate_input(recv_loaded_json, 0, self.fsc.rsc, must=['access_token'])
+                        login_success = await self.hash_and_login(recv_loaded_json['access_token'], check_online=True)
 
-                    await self.populate_auxiliary_inst()
+                        if login_success:
 
-                    await messenger(info=f'Authentication passed: {self.settings.verification.username}({self.settings.verification.user_id})', type=MsgType.LOG)
-                    await messenger(websocket, 'maica_login_id', f"{self.settings.verification.user_id}", '200', no_print=True)
-                    await messenger(websocket, 'maica_login_user', f"{self.settings.verification.username}", '200', no_print=True)
-                    await messenger(websocket, 'maica_login_nickname', f"{self.settings.verification.nickname}", '200', no_print=True)
-                    await messenger(websocket, 'maica_connection_security_cookie', cookie, '200', no_print=True)
+                            # From here we can assume the user has logged in successfully
+                            self.cookie = cookie = str(uuid.uuid4())
+                            self.enforce_cookie = False
 
-                    return {'id': self.settings.verification.user_id, 'username': self.settings.verification.username}
+                            await self.populate_auxiliary_inst()
+
+                            await messenger(info=f'Authentication passed: {self.settings.verification.username}({self.settings.verification.user_id})', type=MsgType.LOG)
+                            await messenger(websocket, 'maica_login_id', f"{self.settings.verification.user_id}", '200', no_print=True)
+                            await messenger(websocket, 'maica_login_user', f"{self.settings.verification.username}", '200', no_print=True)
+                            await messenger(websocket, 'maica_login_nickname', f"{self.settings.verification.nickname}", '200', no_print=True)
+                            await messenger(websocket, 'maica_connection_security_cookie', cookie, '200', no_print=True)
+
+                            return {'id': self.settings.verification.user_id, 'username': self.settings.verification.username}
+                    case _:
+                        raise MaicaInputWarning('Type cannot be determined', '422', 'maica_request_type_unknown')
 
             # Handle expected exceptions
             except CommonMaicaException as ce:
@@ -150,7 +163,8 @@ class WsCoroutine(NoWsCoroutine):
 
                 # Then we examine the input
                 recv_text = await websocket.recv()
-                await messenger(info=f'Recieved an input on stage2: {recv_text}', type=MsgType.RECV)
+                if not ReUtils.re_search_type_sping.search(recv_text):
+                    await messenger(info=f'Recieved an input on stage2: {recv_text}', type=MsgType.RECV)
                 recv_loaded_json = await validate_input(recv_text, 4096, self.fsc.rsc, warn=['type'])
 
                 recv_type = recv_loaded_json.get('type', 'unknown')
@@ -179,13 +193,13 @@ class WsCoroutine(NoWsCoroutine):
                     case 'params':
                         await self.def_model(recv_loaded_json)
                     case 'query':
-                        await self.do_communicate(recv_loaded_json)
                         await self.reset_auxiliary_inst()
+                        await self.do_communicate(recv_loaded_json)
                     case placeholder if "chat_params" in recv_loaded_json:
                         await self.def_model(recv_loaded_json)
                     case placeholder if "chat_session" in recv_loaded_json:
-                        await self.do_communicate(recv_loaded_json)
                         await self.reset_auxiliary_inst()
+                        await self.do_communicate(recv_loaded_json)
                     case _:
                         raise MaicaInputWarning('Type cannot be determined', '422', 'maica_request_type_unknown')
 
@@ -288,8 +302,6 @@ class WsCoroutine(NoWsCoroutine):
         if not query_in:
             maica_assert(recv_loaded_json.get('query'), 'query')
             query_in = recv_loaded_json['query']
-        
-        await asyncio.gather(self.sf_inst.reset(), self.mt_inst.reset())
 
         if 'savefile' in recv_loaded_json:
             if self.settings.basic.sf_extraction:
