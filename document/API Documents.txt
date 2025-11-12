@@ -170,6 +170,8 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
                     "post_additive": 1,
                     "tz": null,
                     "dscl_pvn": false,
+                    "pre_astp": true,
+                    "post_astp": false,
 
                     "max_tokens": 1600,
                     "seed": null,
@@ -279,6 +281,17 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
                     + 量化地检测判断会话劣化情况, 以免用户注意不到.
                     - 产生额外的MNerve开销.
                     - 我觉得智力正常的人都用不上这种功能才对.
+
+                pre_astp: 禁用MFocus工具链循环以节约时间.
+
+                    + 多数工具调用情况下节约时间, 降低TTFT.
+                    - 有可能缺漏信息.
+                    - 启用时会阻止mf_aggressive.
+
+                post_astp: 禁用MTrigger工具链循环以节约时间.
+
+                    + 多数触发器调用情况下节约时间.
+                    - 明显更容易缺漏调用.
 
             超参数:
 

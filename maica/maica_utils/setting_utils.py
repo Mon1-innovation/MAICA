@@ -194,6 +194,8 @@ class MaicaSettings():
         _post_additive: int = 1
         _tz: Optional[str] = None
         _dscl_pvn: bool = False
+        _pre_astp = True
+        _post_astp = False
 
         sfe_aggressive = create_prop('sfe_aggressive', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Use name from savefile instead of [player] in prompts."""
@@ -215,6 +217,10 @@ class MaicaSettings():
         """Timezone. This is not fully checked, double check before use."""
         dscl_pvn = create_prop('dscl_pvn', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Check and warn about context quality descalation using MNerve."""
+        pre_astp = create_prop('pre_astp', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        """Disable MFocus sequential toolcall to save time."""
+        post_astp = create_prop('post_astp', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        """Disable MTrigger sequential toolcall to save time."""
 
     @dataclass
     class _Super(_CommonFuncs):

@@ -208,8 +208,13 @@ class MTriggerManager(AgentContextManager):
                             await self._construct_query(tool_input=machine, tool_id=tool_id)
 
                 else:
+                    await messenger(self.websocket, 'maica_mtrigger_absent', f'No tool called, ending toolchain...', '204', type=MsgType.INFO, color=colorama.Fore.LIGHTBLUE_EX)
                     ending = True
                     
+                if self.settings.extra.post_astp and not ending:
+                    await messenger(self.websocket, 'maica_mtrigger_astp', f'MTrigger interrupted by pre_astp, ending toolchain...', '200', type=MsgType.INFO, color=colorama.Fore.LIGHTBLUE_EX)
+                    ending = True
+
                 await bm(self.websocket, 'maica_mtrigger_round_finish', f'MTrigger toolchain {cycle} round finished, ending is {str(ending)}', '200', type=MsgType.INFO, color=colorama.Fore.BLUE)
             # This goes -1 if agent_finished not called, but I decide to leave it be
             await bm(self.websocket, 'maica_mtrigger_done', f'MTrigger ended with {all_tool_count - 1} triggers sent', '1001', color=colorama.Fore.LIGHTBLUE_EX)

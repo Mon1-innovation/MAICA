@@ -81,6 +81,8 @@ class MaicaSettings:
         post_additive: int
         tz: Optional[str]
         dscl_pvn: bool
+        pre_astp: bool
+        post_astp: bool
 
     @dataclass
     class _Super(_CommonFuncs):

@@ -52,3 +52,4 @@ v1.2.000.rc9: 统一核心模型输出结束代码为maica_core_complete
 v1.2.000.rc10: 添加断点续传缓冲区功能, 用type=reconn获取
 v1.2.000.rc11: 规范化登录行为
 v1.2.000.rc12: 修复调整, 为MVista添加全部删除功能
+v1.2.000.rc13: 修复调整, 添加pre_astp和post_astp

@@ -255,6 +255,13 @@ class WsCoroutine(NoWsCoroutine):
                     await messenger(websocket, "maica_session_reset", "Determined chat_session reset", "204", self.traceray_id)
                 return
 
+        if 'vision' in recv_loaded_json:
+            if recv_loaded_json['vision']:
+                if isinstance(recv_loaded_json['vision'], str):
+                    recv_loaded_json['vision'] = [recv_loaded_json['vision']]
+                if isinstance(recv_loaded_json['vision'], list):
+                    self.settings.temp.update(mv_imgs=recv_loaded_json['vision'])
+
         if 'inspire' in recv_loaded_json and not query_in:
             if recv_loaded_json['inspire']:
                 maica_assert(0 <= chat_session < 10, "chat_session")
@@ -316,13 +323,6 @@ class WsCoroutine(NoWsCoroutine):
             else:
                 self.settings.temp.update(mt_extraction_once=True)
                 self.mt_inst.use_only(recv_loaded_json['trigger'])
-
-        if 'vision' in recv_loaded_json:
-            if recv_loaded_json['vision']:
-                if isinstance(recv_loaded_json['vision'], str):
-                    recv_loaded_json['vision'] = [recv_loaded_json['vision']]
-                if isinstance(recv_loaded_json['vision'], list):
-                    self.settings.temp.update(mv_imgs=recv_loaded_json['vision'])
 
         # Deprecated: The easter egg thing
 

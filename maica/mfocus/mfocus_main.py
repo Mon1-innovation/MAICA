@@ -387,6 +387,10 @@ class MFocusManager(AgentContextManager):
                     await messenger(self.websocket, 'maica_mfocus_absent', f'No tool called, ending toolchain...', '204', type=MsgType.INFO, color=colorama.Fore.LIGHTBLUE_EX)
                     ending = True
 
+                if self.settings.extra.pre_astp and not ending:
+                    await messenger(self.websocket, 'maica_mfocus_astp', f'MFocus interrupted by pre_astp, ending toolchain...', '200', type=MsgType.INFO, color=colorama.Fore.LIGHTBLUE_EX)
+                    ending = True
+
                 await messenger(self.websocket, 'maica_mfocus_round_finish', f'MFocus toolchain {cycle} round finished, ending is {str(ending)}', '200', type=MsgType.INFO, color=colorama.Fore.BLUE)
                     
             # Now we're out of the loop
@@ -404,13 +408,13 @@ class MFocusManager(AgentContextManager):
                 await messenger(self.websocket, 'maica_mfocus_no_conclusion', 'MFocus got no conclusion, falling back to instruction', '404', traceray_id=self.traceray_id)
                 
             # Then if mfa not enabled or ignored
-            if self.tnd_aggressive >= 1:
+            if self.settings.extra.tnd_aggressive >= 1:
                 # Add time and events
                 if not instructed_answer.get('time_acquire'):
                     _instructed_add('time_acquire', (await self.agent_tools.time_acquire())[1], False)
                 if not instructed_answer.get('event_acquire'):
                     _instructed_add('event_acquire', (await self.agent_tools.event_acquire())[1], False)
-            if self.tnd_aggressive >= 2:
+            if self.settings.extra.tnd_aggressive >= 2 or self.settings.temp.ic_prep:
                 # Add date and weather
                 if not instructed_answer.get('date_acquire'):
                     _instructed_add('date_acquire', (await self.agent_tools.date_acquire())[1], False)

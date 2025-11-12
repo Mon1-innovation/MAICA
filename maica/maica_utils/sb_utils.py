@@ -105,9 +105,6 @@ class AgentContextManager(AsyncCreator):
 
     async def reset(self):
         """Caution: we should reset sf_inst and mt_inst here, but these are done more manually to prevent duplication."""
-        self.tnd_aggressive = self.settings.extra.tnd_aggressive
-        if self.settings.temp.ic_prep:
-            self.tnd_aggressive = 2
         self.tools = []
         self.serial_messages = []
 

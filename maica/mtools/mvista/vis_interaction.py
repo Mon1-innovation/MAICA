@@ -36,4 +36,7 @@ Begin!"""
     await messenger(None, 'mfocus_mvista_acquire', f"\nMFocus toolchain calling MVista, response is:\nR: {resp_reasoning}\nA: {resp_content}\nEnd of MFocus toolchain calling MVista", '201')
     
     answer_post_think = proceed_common_text(resp_content)
-    return answer_post_think, answer_post_think
+    if answer_post_think:
+        return answer_post_think, f"图片内容: {answer_post_think}" if target_lang == 'zh' else f"Image content: {answer_post_think}"
+    else:
+        return None, None

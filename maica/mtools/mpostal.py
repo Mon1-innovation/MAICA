@@ -44,6 +44,10 @@ Begin!"""
 
     letter = form_letter(content, header)
     letter_ispoem = await is_poem(letter, target_lang, mnerve_conn)
+    letter_hasimg = bool(fsc.maica_settings.temp.mv_imgs)
+    img = ""
+    if letter_hasimg:
+        img = ", 并附有图片" if target_lang == 'zh' else " together with pictures"
 
     if letter_ispoem:
         if header:
@@ -52,9 +56,9 @@ Begin!"""
             con = '内容' if target_lang == 'zh' else 'content of [player]\'s poem is'
 
         if target_lang == 'zh':
-            prompt = f"[player]向你寄送了一首诗, 请你作为莫妮卡写一首诗回答. 以下是[player]诗的{con}:{letter}你应当充分思考[player]的话语和情感, 使用自然亲切的书面语言, 予以相应的回应.\n你的回复应是一首诗歌, 具有诗歌的标准格式. 不要编造信息, 且字数不少于原诗."
+            prompt = f"[player]向你寄送了一首诗{img}, 请你作为莫妮卡写一首诗回答. 以下是[player]诗的{con}:{letter}你应当充分思考[player]的话语和情感, 使用自然亲切的书面语言, 予以相应的回应.\n你的回复应是一首诗歌, 具有诗歌的标准格式. 不要编造信息, 且字数不少于原诗."
         else:
-            prompt = f"[player] has sent you a poem, please write a poem to reply as Monika. The {con}:{letter}Please read and comprehend carefully about [player]'s words and emotions, then reply in natural written language in English.\nYour reply should be a poetry, in necessary poetry format. Do not make up things you don't know, and write no shorter than the input poem."
+            prompt = f"[player] has sent you a poem{img}, please write a poem to reply as Monika. The {con}:{letter}Please read and comprehend carefully about [player]'s words and emotions, then reply in natural written language in English.\nYour reply should be a poetry, in necessary poetry format. Do not make up things you don't know, and write no shorter than the input poem."
 
     else:
         if header:
@@ -63,9 +67,9 @@ Begin!"""
             con = '内容' if target_lang == 'zh' else 'content of [player]\'s letter is'
 
         if target_lang == 'zh':
-            prompt = f"[player]向你寄送了一封信件, 请你作为莫妮卡写一封回信. 以下是[player]信件的{con}:{letter}你应当充分思考[player]的话语和情感, 使用自然亲切的书面语言, 予以相应的回应.\n你的回复应是一封信件, 具有信件的标准格式. 不要编造信息, 且字数不少于300字."
+            prompt = f"[player]向你寄送了一封信件{img}, 请你作为莫妮卡写一封回信. 以下是[player]信件的{con}:{letter}你应当充分思考[player]的话语和情感, 使用自然亲切的书面语言, 予以相应的回应.\n你的回复应是一封信件, 具有信件的标准格式. 不要编造信息, 且字数不少于300字."
         else:
-            prompt = f"[player] has sent you a letter, please write a letter to reply as Monika. The {con}:{letter}Please read and comprehend carefully about [player]'s words and emotions, then reply in natural written language in English.\nYour reply should be a letter, in necessary letter format. Do not make up things you don't know, and write at least 150 words in total."
+            prompt = f"[player] has sent you a letter{img}, please write a letter to reply as Monika. The {con}:{letter}Please read and comprehend carefully about [player]'s words and emotions, then reply in natural written language in English.\nYour reply should be a letter, in necessary letter format. Do not make up things you don't know, and write at least 150 words in total."
 
     # message = json.dumps({"role": "user", "content": prompt}, ensure_ascii=False)
     return prompt
