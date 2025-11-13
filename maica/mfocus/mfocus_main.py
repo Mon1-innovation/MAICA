@@ -214,7 +214,7 @@ class MFocusManager(AgentContextManager):
             self.tools.append(
                 {
                     "name": "vista_acquire",
-                    "description": "此工具能从用户上传的图片中获取信息, 并以文字形式返回. 如果用户要求你使用视觉或查看图片等, 则调用该工具." if self.settings.basic.target_lang == 'zh' else "This tool can extract information from images user uploaded, and return in plain text. If user is requesting you to use your vision, read pictures or do related things, use this tool.",
+                    "description": "用户已上传了一到数张图片. 此工具能从用户上传的图片中获取信息, 并以文字形式返回. 如果用户要求你使用视觉或查看图片等, 则调用该工具." if self.settings.basic.target_lang == 'zh' else "User has uploaded one or several images. This tool can extract information from images user uploaded, and return in plain text. If user is requesting you to use your vision, read pictures or do related things, use this tool.",
                     "parameters": {
                         "type": "object",
                         "properties": {
