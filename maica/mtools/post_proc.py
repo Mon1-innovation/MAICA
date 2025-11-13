@@ -120,6 +120,8 @@ def emo_proc(emo: str, target_lang: Literal['zh', 'en']='zh') -> tuple[str, floa
     return res, cfd
 
 async def emo_proc_llm(emo: str, target_lang: Literal['zh', 'en']='zh', mnerve_conn: Optional[AiConnectionManager]=None) -> tuple[str, float]:
+    if not mnerve_conn:
+        raise MaicaInputWarning("MNerve not implemented on this deployment")
     
     sync_messenger(info=f"Proceeding 'add' to phrase '{emo}'...", type=MsgType.PRIM_RECV)
     
