@@ -148,11 +148,11 @@ class ShortConnHandler(View):
             if ce.is_critical:
                 traceback.print_exc()
             await messenger(error=ce, no_raise=True)
-            return jsonify({"success": False, "exception": str(ce)})
+            return jsonify({"success": False, "exception": str(ce)}), int(ce.error_code) or 400
 
         except Exception as e:
             await messenger(info=f'Handler hit an exception: {str(e)}', type=MsgType.WARN)
-            return jsonify({"success": False, "exception": str(e)})
+            return jsonify({"success": False, "exception": str(e)}), 400
 
     async def validate_http(self, raw_data: Union[str, dict], must: Optional[list]=None) -> dict:
         must = must or []
@@ -465,7 +465,7 @@ class ShortConnHandler(View):
                 return self.jfy_res(result)
             except Exception as e2:
                 if isinstance(valid_data, dict) and valid_data.get('content'):
-                    raise e
+                    raise MaicaInputWarning(f"File {valid_data.get('content')}.jpg not exist", '404') from e
                 else:
                     raise e2
 

@@ -81,6 +81,7 @@ class ProcessingImg():
     def compress(self, mw=1920, mh=1080, q=85):
         """Compresses the wrapped picture."""
         img = Image.open(self._bio)
+        img.load()
 
         if img.mode in ('RGBA', 'LA', 'P'):
             background = Image.new('RGB', img.size, (255, 255, 255))
