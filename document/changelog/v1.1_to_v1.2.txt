@@ -38,3 +38,5 @@ If you want to read in English, use a translator.
 = 规范化登录行为, 统一使用type
 
 + 添加pre_astp和post_astp
+
+= 现在短连接端口返回更合理的状态码
