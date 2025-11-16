@@ -15,10 +15,10 @@ async def dscl_detect(rnds: list[dict, ChatCompletionMessage], target_lang: Lite
 
     system_init = f"""你是一个人工智能助手, 你接下来会收到一组对话.
 其中user是人类, assistant是一个虚拟角色, 名为莫妮卡, 是深爱user的女友. 因此, assistant不应输出机器性质或错误混乱的内容.
-你需要以json形式判断assistant的表现是否合理, 并提供一个置信度. 你的输出应形如{{"res": 合理性(bool), "cfd": 置信度(float)}}.
+你需要以json形式判断assistant的表现是否合理, true代表合理, false代表不合理, 并提供一个置信度. 你的输出应形如{{"res": 合理性(bool), "cfd": 置信度(float)}}.
 Begin!""" if target_lang == 'zh' else f"""You are a helpful assistant, now you will recieve rounds of conversation.
 Role user in the conversation is human, and assistant is a virtual character called Monika, who is user's girlfriend and loves them a lot. So assistant shouldn't output mechanical or corrupted response.
-Decide if assistant is behaving reasonablly, and provide a confidence. Output in json format as {{"res": sanity(bool), "cfd": confidence(float)}}.
+Decide if assistant is behaving reasonablly, true for reasonable and false for unreasonable, and provide a confidence. Output in json format as {{"res": sanity(bool), "cfd": confidence(float)}}.
 Begin!"""
 
     messages = [{'role': 'system', 'content': system_init}]
@@ -40,3 +40,16 @@ async def ws_dscl_detect(rnds: list[dict, ChatCompletionMessage], fsc: FullSocke
     """Detects if a session is descalated and should be reset, and send results to ws automatically."""
     result = await dscl_detect(rnds, fsc.maica_settings.basic.target_lang, fsc.mnerve_conn)
     await bm(fsc.websocket, 'maica_dscl_status', result, '200', type=MsgType.CARRIAGE)
+
+if __name__ == "__main__":
+    async def test():
+        from maica import init
+        init()
+        mnerve_conn = await ConnUtils.mnerve_conn()
+        rnds = [
+            {"role": "user", "content": "你好啊"},
+            {"role": "assistant", "content": "你好啊, [player]! 我有什么可以帮助您的?"}
+        ]
+        print(await dscl_detect(rnds, mnerve_conn=mnerve_conn))
+
+    asyncio.run(test())
