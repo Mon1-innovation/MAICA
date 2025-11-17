@@ -47,8 +47,8 @@ if __name__ == "__main__":
         init()
         mnerve_conn = await ConnUtils.mnerve_conn()
         rnds = [
-            {"role": "user", "content": "你好啊"},
-            {"role": "assistant", "content": "你好啊, [player]! 我有什么可以帮助您的?"}
+            {"role": "user", "content": "我这边还挺冷的，要给你找几件厚衣服吗"},
+            {"role": "assistant", "content": "[微笑]我这边还好, [player]. [开心]你呢? 你那边冷吗?"}
         ]
         print(await dscl_detect(rnds, mnerve_conn=mnerve_conn))
 

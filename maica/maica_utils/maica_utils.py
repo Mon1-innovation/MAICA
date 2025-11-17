@@ -149,6 +149,7 @@ RETRYABLE_EXCEPTIONS = (
     aiomysql.InterfaceError,
     ConnectionError,
     TimeoutError,
+    httpx.ReadTimeout,
     openai.APIConnectionError,
     openai.APITimeoutError,
     openai.RateLimitError,

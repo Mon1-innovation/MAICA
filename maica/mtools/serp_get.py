@@ -69,7 +69,7 @@ Begin!"""
 if __name__ == '__main__':
     async def test():
         fsc = FullSocketsContainer()
-        fsc.maica_settings.basic.target_lang = 'en'
+        fsc.maica_settings.basic.target_lang = 'zh'
         # fsc.maica_settings.extra.esc_aggressive = False
         fsc.mnerve_conn = await ConnUtils.mnerve_conn()
         print(await internet_search(fsc, "使用不同的语言会改变人的思考方式吗", "话说，莫妮卡，你觉得使用不同的语言会改变人的思考方式吗"))
