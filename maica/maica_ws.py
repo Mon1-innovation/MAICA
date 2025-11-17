@@ -436,6 +436,7 @@ class WsCoroutine(NoWsCoroutine):
         # Can be post-processed here
         reply_appended = mtools.post_proc(reply_appended, self.settings.basic.target_lang)
         reply_appended_insertion = {'role': 'assistant', 'content': reply_appended}
+        messages.append(reply_appended_insertion)
 
         # Trigger process
         # We should start post processes simultaneously

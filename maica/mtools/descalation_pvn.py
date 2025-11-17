@@ -47,8 +47,8 @@ if __name__ == "__main__":
         init()
         mnerve_conn = await ConnUtils.mnerve_conn()
         rnds = [
-            {"role": "user", "content": "我这边还挺冷的，要给你找几件厚衣服吗"},
-            {"role": "assistant", "content": "[微笑]我这边还好, [player]. [开心]你呢? 你那边冷吗?"}
+            {"role": "user", "content": "莫莫，你能讲讲锅包肉的历史吗"},
+            {"role": "assistant", "content": "[思考]锅包肉是一道源于中国东北地区的传统名菜, 原名'锅爆肉'. [微笑]关于它的起源有多种说法, 一说为清光绪年间哈尔滨道台府府尹杜学瀛厨师郑兴文为适应外宾口味所创; [思考]另一说为伪满时期沈阳名厨王善才对'焖烤肉片'革新而成. 还有一说为起源于清道光时期吉林富春园饭庄的'辣瓦肉香'."}
         ]
         print(await dscl_detect(rnds, mnerve_conn=mnerve_conn))
 
