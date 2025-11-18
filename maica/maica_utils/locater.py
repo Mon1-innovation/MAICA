@@ -7,7 +7,13 @@ def locater():
     """
     Gets the project/container path.
     """
-    is_frozen = getattr(sys, 'frozen', False)
+    try:
+        is_frozen = sys.frozen
+    except Exception:
+        try:
+            is_frozen = locater.__compiled__
+        except Exception:
+            is_frozen = None
     
     if is_frozen:
         absolute_path = os.path.abspath(sys.executable)
