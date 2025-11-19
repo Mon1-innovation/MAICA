@@ -809,7 +809,7 @@ Remember not to modify any item. Output them as what they were. You can consider
 Pick 1 to 5 most relative items from the information, and return them in a json array. If you think no information provided is helpful at last, return empty list.
 Begin!"""
         messages = [{'role': 'system', 'content': system_init}]
-        messages.append({'role': 'user', 'content': f'question: {query}; information: {information}'})
+        messages.append({'role': 'user', 'content': f'question: {query}; information: {json.dumps(information, ensure_ascii=False)}'})
         # messages = apply_postfix(messages, thinking=False)
         completion_args = {
             "messages": messages,

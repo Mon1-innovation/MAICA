@@ -197,7 +197,7 @@ class MFocusManager(AgentContextManager):
                             "properties": {
                                 "prediction": {
                                     "type": "string",
-                                    "description": f"你将收到一系列可用选项. 若某选项能够满足用户的请求, 则输出该选项, 否则输出false. 以下是可用选项:\n{str(choice_list)}" if self.settings.basic.target_lang == 'zh' else f"You'll be offered a list of avaliable choices. return the choice if you think it matches the query, or return false if none matches. Avaliable choices:\n{str(choice_list)}",
+                                    "description": f"你将收到一系列可用选项. 若某选项能够满足用户的请求, 则输出该选项, 否则输出false. 以下是可用选项:\n{json.dumps(choice_list)}" if self.settings.basic.target_lang == 'zh' else f"You'll be offered a list of avaliable choices. return the choice if you think it matches the query, or return false if none matches. Avaliable choices:\n{json.dumps(choice_list)}",
                                     "example_value": random.choice(choice_checklist)
                                 }
                             },
