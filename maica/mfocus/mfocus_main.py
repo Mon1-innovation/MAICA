@@ -425,17 +425,20 @@ class MFocusManager(AgentContextManager):
             if instructed_answer:
                 for k, v in instructed_answer.items():
                     # v can be only list or str
-                    if k in ["persistent_acquire", "search_internet"]:
-                        if v:
-                            v = '"' + v + '"' if isinstance(v, str) else '"' + ', '.join(v) + '"'
+                    try:
+                        if k in ["persistent_acquire", "search_internet"]:
+                            if v:
+                                v = '"' + v + '"' if isinstance(v, str) else '"' + ', '.join(v) + '"'
+                            else:
+                                v = ''
                         else:
-                            v = ''
-                    else:
-                        if v:
-                            v = '[' + v + ']' if isinstance(v, str) else str(v)
-                        else:
-                            v = ''
-                    instructed_answer_str += v
+                            if v:
+                                v = '[' + v + ']' if isinstance(v, str) else str(v)
+                            else:
+                                v = ''
+                        instructed_answer_str += v
+                    except Exception as e:
+                        await messenger(self.websocket, 'maica_mfocus_corruption', 'MFocus got corrupted information, skipping to continue', '304', traceray_id=self.traceray_id, type=MsgType.WARN)
             else:
                 # If there's really no instruction
                 return None
