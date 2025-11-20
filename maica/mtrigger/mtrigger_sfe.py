@@ -48,7 +48,17 @@ class MtPersistentManager(PersistentManager):
     
     @Decos.report_data_error
     def add_extra(self, *args) -> None:
-        self.sf_forming_buffer.extend(args)
+        # We should merge identical triggers here
+        checkdict = {}
+        for i, item in enumerate(self.sf_forming_buffer):
+            key = item.get['name']
+            checkdict[key] = i
+        for i, item in enumerate(args):
+            key = item.get['name']
+            if key in checkdict:
+                self.sf_forming_buffer[checkdict[key]].update(item)
+            else:
+                self.sf_forming_buffer.append(item)
 
     @Decos.report_data_error
     def use_only(self, *args) -> None:

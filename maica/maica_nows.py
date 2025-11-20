@@ -16,10 +16,10 @@ class NoWsCoroutine(AsyncCreator):
     """
 
     # To be populated or not
-    sf_inst = None
-    mt_inst = None
-    mfocus_coro = None
-    mtrigger_coro = None
+    sf_inst: Optional[SfPersistentManager] = None
+    mt_inst: Optional[MtPersistentManager] = None
+    mfocus_coro: Optional[MFocusManager] = None
+    mtrigger_coro: Optional[MTriggerManager] = None
 
     # Initialization
 

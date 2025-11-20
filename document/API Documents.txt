@@ -527,7 +527,8 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
 
                 query可以携带临时的触发器表, 并临时添加到上传的触发器表. 该功能适合上传触发器表中可能频繁变化的内容.
 
-                    * 应当注意, 触发器表是一个list而非dict, 临时触发器表不会覆盖上传的触发器表中的内容. 请在开发中注意避免重复.
+                    * 应当注意, 由于长连接输入4096字符的限制, 此功能不适合用于传输完整触发器表.
+                    * 若临时触发器表中包含与上传的触发器表中name相同的条目, 其将临时update到触发器表.
                     * 关于触发器表的具体格式参见附录.
 
 
@@ -1082,7 +1083,7 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
 
         模板common_affection_template:
 
-            {"template": "common_affection_template","name": "alter_affection"}
+            {"template": "common_affection_template", "name": "alter_affection"}
 
                 其中name的值可以任取, 建议使用alter_affection.
 
@@ -1098,7 +1099,7 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
 
         模板common_switch_template:
 
-            {"template": "common_switch_template","name": "change_clothes","exprop":{"item_name": {"zh": "衣服","en": "clothes"},"item_list": ["白色连衣裙", "黑色连衣裙"],"curr_item": "白色连衣裙", "suggestion": false}}
+            {"template": "common_switch_template", "name": "change_clothes", "exprop": {"item_name": {"zh": "衣服", "en": "clothes"}, "item_list": ["白色连衣裙", "黑色连衣裙"], "curr_item": "白色连衣裙", "suggestion": false}}
 
                 其中name的值可以任取, 建议格式与范例尽可能一致且能表明用途.
 
@@ -1116,7 +1117,7 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
 
         模板common_meter_template:
 
-            {"template": "common_meter_template","name": "change_distance","exprop":{"item_name": {"zh": "距离","en": "distance"},"value_limits": [0.0, 2.5],"curr_value": 0.67}}
+            {"template": "common_meter_template", "name": "change_distance", "exprop": {"item_name": {"zh": "距离", "en": "distance"}, "value_limits": [0.0, 2.5], "curr_value": 0.67}}
 
                 其中name的值可以任取, 建议格式与范例尽可能一致且能表明用途.
 
@@ -1127,9 +1128,10 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
                 输出范例: {"code": "101", "status": "maica_mtrigger_trigger", "content": ["change_distance", {"value": "0.75"}], "type": "carriage", "time_ms": 时间戳(毫秒)}
 
                 该模板的触发器最多存在6个, 超出则随机抽取6个.
+
         自由模板:
 
-            {"template": "customized","name": "some_name","exprop":{"item_name": {"zh": "关闭游戏","en": "close game"}}}
+            {"template": "customized", "name": "some_name", "exprop": {"item_name": {"zh": "关闭游戏", "en": "close game"}}}
 
                 其中name的值可以任取, 建议格式与范例尽可能一致且能表明用途.
 
