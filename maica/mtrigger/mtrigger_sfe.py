@@ -51,10 +51,10 @@ class MtPersistentManager(PersistentManager):
         # We should merge identical triggers here
         checkdict = {}
         for i, item in enumerate(self.sf_forming_buffer):
-            key = item.get['name']
+            key = item['name']
             checkdict[key] = i
         for i, item in enumerate(args):
-            key = item.get['name']
+            key = item['name']
             if key in checkdict:
                 self.sf_forming_buffer[checkdict[key]].update(item)
             else:
