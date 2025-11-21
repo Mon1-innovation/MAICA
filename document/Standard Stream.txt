@@ -56,3 +56,4 @@ v1.2.000.rc13: 修复调整, 添加pre_astp和post_astp
 v1.2.000: 调整返回状态码行为, 一系列修复改良
 v1.2.000.post1: 调整提示词, 修复和改良
 v1.2.000.post2: 改良MTrigger上传行为
+v1.2.000.post3: 调整query_modify的行为, 一系列修复改良

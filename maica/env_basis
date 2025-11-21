@@ -1,6 +1,6 @@
 # It's suggested to exclude these lines (the top block) in your env configuration
 # Current backend version
-MAICA_CURR_VERSION = '1.2.000.post2'
+MAICA_CURR_VERSION = '1.2.000.post3'
 # Oldest capable backend version
 MAICA_LEGC_VERSION = '1.2.000.rc10'
 # cp ./env_basis ./.env

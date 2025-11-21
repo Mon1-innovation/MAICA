@@ -173,40 +173,36 @@ class DbPoolManager(AsyncCreator):
 
         return results
 
-    @overload
-    async def query_modify(self, expression: str, values: Optional[tuple]=None, fetchall: bool=False, inherit_conn: Optional[aiomysql.Connection]=None) -> int:
-        """Execute INSERT/UPDATE/DELETE query on MySQL database."""
-
     # @test_logger
     @Decos.catch_exceptions
     @Decos.wo_expression
     @Decos.conn_retryer_factory()
-    async def query_modify(self, expression, values=None, fetchall=False, inherit_conn: Optional[aiomysql.Connection]=None) -> int:
+    async def query_modify(self, expression: str, values: Optional[tuple]=None, fetchall=False, inherit_conn: Optional[aiomysql.Connection]=None) -> tuple[Annotated[int, Desc('rows')], Annotated[int, Desc('lrid')]]:
+        """Execute INSERT/UPDATE/DELETE query on MySQL database."""
         if self.ro:
             raise MaicaDbError(f'DB marked as ro, no modification permitted', '511', 'db_modification_denied')
         
-        async def _query_modify(cur, expression, values, fetchall) -> Optional[int]:
+        async def _query_modify(cur, expression, values, fetchall) -> tuple[int, int]:
             if not values:
-                await cur.execute(expression)
+                rows = await cur.execute(expression)
             else:
-                await cur.execute(expression, values)
+                rows = await cur.execute(expression, values)
             lrid = cur.lastrowid
-            return lrid
+            return rows, lrid
 
-        lrid = None
         await self.keep_alive()
 
         if not inherit_conn:
             async with self.pool.acquire() as conn:
                 async with conn.cursor() as cur:
-                    lrid = await _query_modify(cur, expression, values, fetchall)
+                    res = await _query_modify(cur, expression, values, fetchall)
                     await conn.commit()
         else:
             async with inherit_conn.cursor() as cur:
-                lrid = await _query_modify(cur, expression, values, fetchall)
+                res = await _query_modify(cur, expression, values, fetchall)
                 # We leave the transactional manager handling commitments
 
-        return lrid
+        return res
     
     async def close(self):
         """Close before closing coroutine to avoid errors."""
@@ -309,16 +305,13 @@ class SqliteDbPoolManager(DbPoolManager):
 
         return results
 
-    @overload
-    async def query_modify(self, expression: str, values: Optional[tuple]=None, fetchall: bool=False) -> int:
-        """Execute INSERT/UPDATE/DELETE query on SQLite database."""
-
     # @test_logger
     @Decos.catch_exceptions
     @Decos.wo_expression
     @Decos.escape_sqlite_expression
     @Decos.conn_retryer_factory()
-    async def query_modify(self, expression, values=None, fetchall=False) -> int:
+    async def query_modify(self, expression: str, values: Optional[tuple]=None, fetchall=False) -> tuple[int, int]:
+        """Execute INSERT/UPDATE/DELETE query on SQLite database."""
         if self.ro:
             raise MaicaDbError(f'DB marked as ro, no modification permitted', '511', 'sqlite_modification_denied')
         lrid = None
@@ -329,10 +322,11 @@ class SqliteDbPoolManager(DbPoolManager):
         else:
             cursor = await self.pool.execute(expression, values)
         await self.pool.commit()
+        rows = cursor.rowcount
         lrid = cursor.lastrowid
         await cursor.close()
 
-        return lrid
+        return rows, lrid
 
     async def close(self):
         """Close SQLite connection."""

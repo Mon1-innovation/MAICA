@@ -198,7 +198,7 @@ class ShortConnHandler(View):
         chat_session = valid_data.get('chat_session')
 
         sql_expression_1 = "DELETE FROM persistents WHERE user_id = %s AND chat_session_num = %s"
-        result = await self.maica_pool.query_modify(sql_expression_1, (self.settings.verification.user_id, chat_session))
+        await self.maica_pool.query_modify(sql_expression_1, (self.settings.verification.user_id, chat_session))
 
         return self.jfy_res()
         
@@ -231,7 +231,7 @@ class ShortConnHandler(View):
         chat_session = valid_data.get('chat_session')
 
         sql_expression_1 = "DELETE FROM triggers WHERE user_id = %s AND chat_session_num = %s"
-        result = await self.maica_pool.query_modify(sql_expression_1, (self.settings.verification.user_id, chat_session))
+        await self.maica_pool.query_modify(sql_expression_1, (self.settings.verification.user_id, chat_session))
 
         return self.jfy_res()
    

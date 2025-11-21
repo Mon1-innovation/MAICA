@@ -241,7 +241,7 @@ class NoWsCoroutine(AsyncCreator):
         self._check_essentials()
 
         sql_expression_1 = "INSERT INTO ms_cache (user_id, hash, content) VALUES (%s, %s, %s)"
-        spire_id = await self.maica_pool.query_modify(expression=sql_expression_1, values=(self.settings.verification.user_id, hash, content))
+        spire_id = (await self.maica_pool.query_modify(expression=sql_expression_1, values=(self.settings.verification.user_id, hash, content)))[1]
         await messenger(None, 'maica_spire_cache_stored', 'Stored a cache for MSpire', '200')
         return spire_id
 
@@ -297,7 +297,7 @@ class NoWsCoroutine(AsyncCreator):
         uuid = processing_img.det_path()
         
         sql_expression_1 = "INSERT INTO mv_meta (user_id, uuid) VALUES (%s, %s)"
-        vista_id = await self.maica_pool.query_modify(expression=sql_expression_1, values=(self.settings.verification.user_id, uuid))
+        vista_id = (await self.maica_pool.query_modify(expression=sql_expression_1, values=(self.settings.verification.user_id, uuid)))[1]
         processing_img.save()
 
         return uuid

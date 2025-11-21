@@ -130,6 +130,10 @@ class WsCoroutine(NoWsCoroutine):
                             await messenger(websocket, 'maica_connection_security_cookie', cookie, '200', no_print=True)
 
                             return {'id': self.settings.verification.user_id, 'username': self.settings.verification.username}
+                    
+                    case 'reconn' | 'params' | 'query':
+                        raise MaicaInputWarning('You have not logged in in current session', '403', 'maica_request_login_required')
+
                     case _:
                         raise MaicaInputWarning('Type cannot be determined', '422', 'maica_request_type_unknown')
 

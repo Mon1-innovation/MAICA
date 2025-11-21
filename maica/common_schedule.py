@@ -42,7 +42,8 @@ class CommonScheduler():
             timestamp = datetime.datetime.now()
             earliest_timestamp = timestamp - datetime.timedelta(hours=keep_time)
             sql_expression_1 = "DELETE FROM ms_cache WHERE timestamp < %s"
-            await self.maica_pool.query_modify(expression=sql_expression_1, values=(earliest_timestamp, ))
+            rows = (await self.maica_pool.query_modify(expression=sql_expression_1, values=(earliest_timestamp, )))[0]
+            sync_messenger(info=f'Removed {rows} rows of MSpire cache', type=MsgType.LOG)
 
     @Decos.log_task
     async def rotate_mv_imgs(self):
@@ -62,6 +63,8 @@ class CommonScheduler():
 
                 sql_expression_2 = "DELETE FROM mv_meta WHERE uuid = %s"
                 await self.maica_pool.query_modify(expression=sql_expression_2, values=(uuid, ))
+
+            sync_messenger(info=f'Removed {len(uuids)} MVista images', type=MsgType.LOG)
 
     async def run_schedule(self):
         """The schedule starter."""
