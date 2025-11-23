@@ -408,14 +408,11 @@ class AiConnectionManager(AsyncCreator):
         if self.socket.is_closed():
             await messenger(info=f"Recreating {self.name} sock since is closed", type=MsgType.WARN)
             await self._ainit()
-            
-    @overload
-    async def make_completion(self, **kwargs) -> ChatCompletion:
-        """Makes completion with arguments."""
 
     @Decos.catch_exceptions
     @Decos.conn_retryer_factory()
     async def make_completion(self, **kwargs) -> ChatCompletion:
+        """Makes completion with arguments."""
         kwargs.update(
             {
                 "model": self.model_actual

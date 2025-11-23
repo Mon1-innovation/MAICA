@@ -412,6 +412,7 @@ class WsCoroutine(NoWsCoroutine):
                 reply_appended = ''
                 seq = 0
                 async for chunk in resp:
+                    if not chunk.choices: continue
                     token = chunk.choices[0].delta.content
                     if token:
                         await asyncio.sleep(0)
