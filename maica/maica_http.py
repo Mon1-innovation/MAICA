@@ -481,7 +481,8 @@ class ShortConnHandler(View):
     async def get_version(self):
         """GET, val=False"""
         curr_version, legc_version = G.A.CURR_VERSION, G.A.LEGC_VERSION
-        return self.jfy_res({"curr_version": curr_version, "legc_version": legc_version})
+        blessland_capv = G.A.BLESSLAND_CAPV
+        return self.jfy_res({"curr_version": curr_version, "legc_version": legc_version, "fe_blessland_version": blessland_capv})
 
     async def get_workload(self):
         """GET, val=False"""
