@@ -158,7 +158,7 @@ class AccountCursor(AsyncCreator):
             exec_decrypted_token = await wrap_run_in_exc(None, decryptor.decrypt, exec_unbase64_token)
             decrypted_token = exec_decrypted_token.decode("utf-8")
         except Exception as e:
-            raise MaicaInputWarning(f'Security token not RSA: {str(e)}') from e
+            raise MaicaInputWarning(f'Security token "{ellipsis_str(access_token)}" not RSA: {str(e)}') from e
         login_cridential = json.loads(decrypted_token)
         login_cridential_print = ReUtils.re_sub_password_spoiler.sub(rf'"password": "{colorama.Back.CYAN}\1{colorama.Back.RESET}"', decrypted_token)
 

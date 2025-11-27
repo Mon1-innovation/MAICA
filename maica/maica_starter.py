@@ -259,7 +259,8 @@ async def start_all(start_target: Literal['chat', 'tts', 'all']='chat'):
 
     close_list = []
     for conn in root_csc_items:
-        close_list.append(conn.close())
+        if conn:
+            close_list.append(conn.close())
     await asyncio.gather(*close_list)
 
     await messenger(info="Everything done, bye", type=MsgType.DEBUG)
