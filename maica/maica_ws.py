@@ -448,7 +448,7 @@ class WsCoroutine(NoWsCoroutine):
         post_coros = []
 
         if len(messages) >= 3 * 2 + 1 and self.settings.extra.dscl_pvn:
-            post_coros.append(mtools.ws_dscl_detect(messages[-2:], self.fsc, bm=buffered_messenger))
+            post_coros.append(mtools.ws_dscl_detect(messages[-4:], self.fsc, bm=buffered_messenger))
 
         if self.settings.basic.enable_mt and not self.settings.temp.bypass_mt:
             post_coros.append(self.mtrigger_coro.triggering(query_in, reply_appended, bm=buffered_messenger))

@@ -528,7 +528,7 @@ def proceed_common_text(text: str, is_json=False) -> Union[str, list, dict]:
     return answer_fin
 
 @overload
-async def messenger(websocket=None, status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaException]=None, type='', color='', add_time=True, no_print=False, no_raise=False) -> None: ...
+async def messenger(websocket=None, status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaException]=None, type='', color='', add_time=True, no_print=False, no_raise=False, **kwargs) -> None: ...
 
 async def messenger(websocket=None, *args, **kwargs) -> None:
     """Together with websocket.send()."""
@@ -536,7 +536,7 @@ async def messenger(websocket=None, *args, **kwargs) -> None:
     if websocket and ws_tuple:
         await websocket.send(wrap_ws_formatter(*ws_tuple))
 
-def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaException]=None, type='', color='', add_time=True, no_print=False, no_raise=False) -> tuple:
+def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaException]=None, type='', color='', add_time=True, no_print=False, no_raise=False, **kwargs) -> tuple:
     """It could handle most log printing and exception raising jobs pretty automatically."""
     try:
         term_v = os.get_terminal_size().columns
@@ -631,7 +631,8 @@ def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional
         raise error
     if error and error.send is False:
         return
-    return code, status, msg_send, type
+    ws_tuple = (code, status, msg_send, type) if not kwargs.get('deformation') else (code, status, msg_send, type, kwargs.get('deformation'))
+    return ws_tuple
 
 def load_env(key) -> str:
     """Load something from .env."""

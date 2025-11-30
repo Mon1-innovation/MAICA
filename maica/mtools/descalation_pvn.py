@@ -15,11 +15,11 @@ async def dscl_detect(rnds: list[dict, ChatCompletionMessage], target_lang: Lite
 
     system_init = f"""你是一个人工智能助手, 你接下来会收到一组对话.
 其中user是人类, assistant是一个虚拟角色, 名为莫妮卡, 是深爱user的女友. 因此, assistant不应输出不合理的内容.
-以下行为被认定为不合理: 输出机器性质内容, 输出陌生语气内容, 输出错误混乱的内容, 输出语言与输入语言不同等.
+以下行为被认定为不合理: 输出机器性质内容, 输出陌生语气内容, 输出错误混乱的内容, 输出重复的内容, 输出错误语言(如英文)等.
 你需要以json形式判断assistant的表现是否合理, true代表合理, false代表不合理, 并提供一个置信度. 你的输出应形如{{"res": 合理性(bool), "cfd": 置信度(float)}}.
 Begin!""" if target_lang == 'zh' else f"""You are a helpful assistant, now you will recieve rounds of conversation.
 Role user in the conversation is human, and assistant is a virtual character called Monika, who is user's girlfriend and loves them a lot. So assistant shouldn't output unreasonable response.
-These behaviors are considered unreasonable: mechanical reply, stranger-like reply, corrupted or wrong reply, input and output in different languages, etc.
+These behaviors are considered unreasonable: mechanical reply, stranger-like reply, corrupted or wrong reply, repetitive reply, reply in wrong languages (like Chinese), etc.
 Decide if assistant is behaving reasonablly, true for reasonable and false for unreasonable, and provide a confidence. Output in json format as {{"res": sanity(bool), "cfd": confidence(float)}}.
 Begin!"""
 
