@@ -32,6 +32,7 @@ class NoWsCoroutine(AsyncCreator):
         self.websocket = fsc.websocket
         self.traceray_id = fsc.traceray_id
         self.settings = fsc.maica_settings
+        self.remote_addr = None
 
     async def _ainit(self):
         self.hasher = await AccountCursor.async_create(self.settings, self.auth_pool, self.maica_pool)

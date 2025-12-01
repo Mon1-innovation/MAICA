@@ -312,6 +312,9 @@ class MFocusManager(AgentContextManager):
                 # The logic is not that considerate, but trust me it's enough
 
             # First thing first we prepare the first query
+            if self.settings.temp.mv_imgs:
+                image_word = " [图片]" if self.settings.basic.target_lang == 'zh' else " [Image]"
+                query += image_word
             self._construct_tools()
             await self._construct_query(user_input=query)
 

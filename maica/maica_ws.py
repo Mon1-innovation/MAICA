@@ -87,8 +87,11 @@ class WsCoroutine(NoWsCoroutine):
     # Stage 1 permission check
     async def check_permit(self):
         websocket = self.websocket
-        await messenger(info='An anonymous connection initiated', type=MsgType.PRIM_LOG)
-        await messenger(info=f'Current online users: {list(online_dict.keys())}', type=MsgType.DEBUG)
+        xff = websocket.request.headers.get("X-Forwarded-For")
+        if xff:
+            self.remote_addr = xff.split(',')[0].strip()
+        sync_messenger(info=f'An anonymous connection initiated, IP {self.remote_addr}', type=MsgType.PRIM_LOG)
+        sync_messenger(info=f'Current online users: {list(online_dict.keys())}', type=MsgType.DEBUG)
 
         # Starting loop from here
         while True:
@@ -101,7 +104,8 @@ class WsCoroutine(NoWsCoroutine):
 
                 recv_text = await websocket.recv()
                 if not ReUtils.re_search_type_sping.search(recv_text):
-                    await messenger(info=f'Recieved an input on stage1', type=MsgType.RECV)
+                    sync_messenger(info=f'Recieved an input on stage1: {colorama.Back.CYAN}{recv_text}{colorama.Back.RESET}', type=MsgType.RECV)
+                    sync_messenger(info=f'From IP {self.remote_addr}', type=MsgType.DEBUG)
                 recv_loaded_json = await validate_input(recv_text, 4096, self.fsc.rsc)
 
                 recv_type = recv_loaded_json.get('type', 'auth')
@@ -168,7 +172,8 @@ class WsCoroutine(NoWsCoroutine):
                 # Then we examine the input
                 recv_text = await websocket.recv()
                 if not ReUtils.re_search_type_sping.search(recv_text):
-                    await messenger(info=f'Recieved an input on stage2: {recv_text}', type=MsgType.RECV)
+                    sync_messenger(info=f'Recieved an input on stage2: {recv_text}', type=MsgType.RECV)
+                    sync_messenger(info=f'From IP {self.remote_addr}, user {self.settings.verification.username}', type=MsgType.DEBUG)
                 recv_loaded_json = await validate_input(recv_text, 4096, self.fsc.rsc, warn=['type'])
 
                 recv_type = recv_loaded_json.get('type', 'unknown')
