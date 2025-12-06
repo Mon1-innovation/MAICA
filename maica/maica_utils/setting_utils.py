@@ -196,7 +196,7 @@ class MaicaSettings():
         _dscl_pvn: bool = False
         _pre_astp: bool = True
         _post_astp: bool = False
-        _enforce_lang: bool = False
+        _enforce_lang: bool = True
 
         sfe_aggressive = create_prop('sfe_aggressive', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Use name from savefile instead of [player] in prompts."""

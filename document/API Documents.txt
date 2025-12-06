@@ -158,7 +158,6 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
                     "sf_extraction": true,
                     "mt_extraction": true,
                     "target_lang": "zh",
-                    "enforce_lang": false,
                     "max_length": 8192,
 
                     "sfe_aggressive": false,
@@ -173,6 +172,7 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
                     "dscl_pvn": false,
                     "pre_astp": true,
                     "post_astp": false,
+                    "enforce_lang": true,
 
                     "max_tokens": 1600,
                     "seed": null,
