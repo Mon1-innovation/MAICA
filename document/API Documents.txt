@@ -310,7 +310,7 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
 
                     int(seed)
 
-                        * 应当注意, 当seed为默认值null时, 生成时采用的种子由模型后端决定. 官方服务使用42.
+                        * 应当注意, 当seed为默认值null时, 生成时种子表现为模型的默认行为, 一般而言是随机种子.
 
                 agent模型的超参数不受影响, 且不可由用户设置.
 
@@ -413,6 +413,29 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
                 {"type": "query", "chat_session": "1", "reset": true}
 
                 * 这会将对应的chat_session清空并归档.
+
+            自动断句和实时后处理:
+
+                {"type": "query", "chat_session": "1", "query": "你好啊", "pprt": 实时后处理配置}
+
+                    * 这一功能是前端可以实现的, 但为方便开发和简化流程起见, 于后端提供支持.
+                    * 这一功能仅对流式输出生效.
+
+                其中, 若将实时后处理配置设置为true则采用默认的配置, 将其设置为一个dict可进行更详细的设置:
+
+                    {"yield_interval": [40, 20, 10, 5, 3, 1], "split_limit": 180, "correct_malform": True}
+
+                        yield_interval: 每收到指定多个chunk尝试一次断句, 若断句引擎认为不应断句则尝试下一个数字. 成功断句时重置计数, 耗尽后最终变为1. 合理配置以兼顾流畅和表现.
+
+                        split_limit: 期望的每句长度(编码计算, 每个中文字符占3, 每个英文字母占1), 断句引擎会尽可能提供接近该长度的合理断句. 注意这不是一个硬限制, 最多可能超出20字符左右.
+
+                        correct_malform: 处理句中的中括号标记, 并将其尽可能转化为正确语言的规范标记. 强烈建议保持启用, 且非流式输出总是启用, 不可配置.
+
+                启用该功能时, 流式输出将产生类似以下结果:
+
+                    {"code": "100", "status": "maica_core_streaming_continue", "content": "[微笑]我觉得...年轻人喜欢喝奶茶是因为它好喝吧? [笑]还有就是奶茶的包装很吸引人, 很多网红奶茶店都有自己的特色.", "type": "carriage", "timestamp": 时间戳}
+                    {"code": "100", "status": "maica_core_streaming_continue", "content": "[思考]从社会心理学的角度来看, 喝奶茶似乎成了一种社交活动, 就像喝酒一样.", "type": "carriage", "timestamp": 时间戳}
+                    {"code": "100", "status": "maica_core_streaming_continue", "content": "人们通过喝奶茶来满足自己的社交需求, 获得幸福感和认同感.", "type": "carriage", "timestamp": 时间戳}
 
             生成MSpire响应:
 

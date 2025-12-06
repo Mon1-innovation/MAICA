@@ -1,3 +1,4 @@
+import asyncio
 import re
 from typing import *
 from maica.maica_utils import *
@@ -144,27 +145,29 @@ Begin!"""
     resp_json = proceed_common_text(resp_content, is_json=True)
 
     sync_messenger(info=f"Finished processing 'add' to phrase '{emo}': {resp_json}", type=MsgType.CARRIAGE)
-    return f"[{resp_json.get('res')}]", resp_json.get('cfd')
+    return f"[{resp_json.get('res', '微笑' if target_lang == 'zh' else 'smile')}]", resp_json.get('cfd', 0.1)
 
 async def emo_proc_auto(emo: str, target_lang: Literal['zh', 'en']='zh', mnerve_conn: Optional[AiConnectionManager]=None) -> tuple[str, float]:
     res = emo_proc(emo, target_lang)
     if res[1] <= 0.3 and mnerve_conn:
         res = await emo_proc_llm(emo, target_lang, mnerve_conn)
+        if not res[0] in (zlist if target_lang == 'zh' else elist):
+            return emo_proc(res[0], target_lang)
     return res
 
-def post_proc(reply_appended, target_lang: Literal['zh', 'en']='zh'):
+async def post_proc(reply_appended: str, target_lang: Literal['zh', 'en']='zh', mnerve_conn: Optional[AiConnectionManager]=None):
 
     reply_all_signatures = ReUtils.re_findall_square_brackets.findall(reply_appended)
 
     for signature in reply_all_signatures:
         if not signature == '[player]' and not signature.strip('[').strip(']') in (zlist if target_lang == 'zh' else elist):
-            realword = emo_proc(signature, target_lang)[0]
+            realword = emo_proc(signature, target_lang)[0] if not mnerve_conn else (await emo_proc_auto(signature, target_lang, mnerve_conn))[0]
             reply_appended = re.sub(re.escape(signature), realword, reply_appended, flags = re.I)
     
     return reply_appended
 
 if __name__ == '__main__':
     ra = '[理解 ]没关系, [player]. [微笑 ]我知[fear]道[womble]你很[adaifgnashioufoiusahdfoiua]忙[a1]. [心]你能抽空[slash我]陪我就[害怕]很好啦!'
-    print(post_proc(ra, 'zh'))
+    print(asyncio.run(post_proc(ra, 'zh')))
     # print(elist)
     # print(zlist)

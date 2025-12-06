@@ -72,7 +72,7 @@ if __name__ == '__main__':
         fsc.maica_settings.basic.target_lang = 'zh'
         # fsc.maica_settings.extra.esc_aggressive = False
         fsc.mnerve_conn = await ConnUtils.mnerve_conn()
-        print(await internet_search(fsc, "使用不同的语言会改变人的思考方式吗", "话说，莫妮卡，你觉得使用不同的语言会改变人的思考方式吗"))
+        print(await internet_search(fsc, "花谱上海演唱会取消", "花谱上海演唱会取消了，难过"))
     from maica import init
     init()
     asyncio.run(test())

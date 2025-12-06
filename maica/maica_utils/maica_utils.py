@@ -263,6 +263,7 @@ class ReUtils():
     re_match_secure_path = re.compile(r'^[a-zA-Z0-9_.-]+$')
     re_search_wiki_avoid = re.compile(r"(模板|模闆|template|消歧义|消歧義|disambiguation)", re.I)
     re_search_type_sping = re.compile(r'"type"\s*?:\s*?"sping"', re.I)
+    re_findall_zh_characters = re.compile(r'([一-龥].*[一-龥])')
 
 class Decos():
     """Do not initialize."""
