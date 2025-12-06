@@ -4,9 +4,6 @@ import aiosqlite
 import asyncio
 import traceback
 import json
-import openai
-import functools
-import wrapt
 
 from typing import *
 from typing_extensions import deprecated
@@ -418,9 +415,12 @@ class AiConnectionManager(AsyncCreator):
                 "model": self.model_actual
             }
         )
+        mixed_exbody = {**self.gen_kwargs.get('extra_body', {}), **kwargs.get('extra_body', {})}
+        mixed_kwargs = {**self.gen_kwargs, **kwargs}
+        mixed_kwargs['extra_body'] = mixed_exbody
 
         await self.keep_alive()
-        task_stream_resp = asyncio.create_task(self.socket.chat.completions.create(**self.gen_kwargs, **kwargs))
+        task_stream_resp = asyncio.create_task(self.socket.chat.completions.create(**mixed_kwargs))
         await asyncio.wait_for(task_stream_resp, timeout=int(G.A.OPENAI_TIMEOUT) if G.A.OPENAI_TIMEOUT != '0' else None)
         return task_stream_resp.result()
     

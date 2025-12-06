@@ -158,6 +158,7 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
                     "sf_extraction": true,
                     "mt_extraction": true,
                     "target_lang": "zh",
+                    "enforce_lang": false,
                     "max_length": 8192,
 
                     "sfe_aggressive": false,
@@ -292,6 +293,12 @@ MAICA的通信主要以两部分构成, 长连接(websocket)和短连接. 其中
 
                     + 多数触发器调用情况下节约时间.
                     - 明显更容易缺漏调用.
+
+                enforce_lang: 实验性功能, 通过LLM引导式解码(guided_regex)强制使用目标语言输出.
+
+                    * 截至文档编纂时为止, 该功能仅对目标生成语言en有效. 在目标生成语言为zh时, 该功能无法阻止模型错误地使用英文作答.
+                    * 引导式解码不属于OpenAI规范的一部分, 要求部署实例提供支持, 如使用vllm.
+                    * 启用该功能可能影响模型的表现, 或导致其它意料之外的问题.
 
             超参数:
 

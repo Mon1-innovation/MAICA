@@ -194,8 +194,9 @@ class MaicaSettings():
         _post_additive: int = 1
         _tz: Optional[str] = None
         _dscl_pvn: bool = False
-        _pre_astp = True
-        _post_astp = False
+        _pre_astp: bool = True
+        _post_astp: bool = False
+        _enforce_lang: bool = False
 
         sfe_aggressive = create_prop('sfe_aggressive', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Use name from savefile instead of [player] in prompts."""
@@ -221,6 +222,9 @@ class MaicaSettings():
         """Disable MFocus sequential toolcall to save time."""
         post_astp = create_prop('post_astp', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Disable MTrigger sequential toolcall to save time."""
+        enforce_lang = create_prop('enforce_lang', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        """Enforce target language (only applies to English currently)."""
+
 
     @dataclass
     class _Super(_CommonFuncs):

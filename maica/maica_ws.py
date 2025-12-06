@@ -393,6 +393,10 @@ class WsCoroutine(NoWsCoroutine):
         if self.settings.temp.ic_prep:
             completion_args['presence_penalty'] = 1.0 - (1.0 - completion_args['presence_penalty']) * (2/3)
 
+        if self.settings.extra.enforce_lang:
+            if self.settings.basic.target_lang == 'en':
+                completion_args['extra_body'] = {"guided_regex": "^[一-龥]*"}
+
         # Add context log
         previous_rnds = messages[1:-1]
         previous_rnds_len = int(len(previous_rnds) / 2)

@@ -83,6 +83,7 @@ class MaicaSettings:
         dscl_pvn: bool
         pre_astp: bool
         post_astp: bool
+        enforce_lang: bool
 
     @dataclass
     class _Super(_CommonFuncs):
