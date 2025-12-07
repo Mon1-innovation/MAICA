@@ -449,6 +449,7 @@ class WsCoroutine(NoWsCoroutine):
                     for sentence in sentences:
                         await buffered_messenger(websocket, 'maica_core_streaming_continue', sentence, '100')
                         reply_appended += sentence
+                        seq += 1
                 else:
                     reply_appended = await mtools.post_proc(reply_appended, self.settings.basic.target_lang, self.fsc.mnerve_conn)
 
