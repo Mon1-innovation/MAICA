@@ -449,6 +449,8 @@ class WsCoroutine(NoWsCoroutine):
                     for sentence in sentences:
                         await buffered_messenger(websocket, 'maica_core_streaming_continue', sentence, '100')
                         reply_appended += sentence
+                else:
+                    reply_appended = await mtools.post_proc(reply_appended, self.settings.basic.target_lang, self.fsc.mnerve_conn)
 
                 sync_messenger(info='\n', type=MsgType.PLAIN)
                 await buffered_messenger(websocket, 'maica_core_complete', f'Streaming finished with seed {completion_args['seed']} for {self.settings.verification.username}, {seq} packets sent', '1000', traceray_id=self.traceray_id)
