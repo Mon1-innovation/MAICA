@@ -58,6 +58,7 @@ setuptools.setup(
     python_requires='>=3.12',
     install_requires=parse_requirements(),
     extras_require={
+        "all": ["mi-mtts"],
         "mtts": ["mi-mtts"],
     },
     entry_points={
