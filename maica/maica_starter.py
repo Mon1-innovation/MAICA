@@ -14,6 +14,7 @@ except Exception:
 
 try:
     import mtts
+    from mtts.mtts_utils import locater as mtts_locater
     mtts_installed = True
 except Exception:
     mtts_installed = False
@@ -52,7 +53,7 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwar
 
     def init_parser():
         parser = argparse.ArgumentParser(description="Start MAICA Illuminator deployment or run self-maintenance functions")
-        parser.add_argument('target', choices=['chat', 'tts', 'all'], nargs='?', default='chat', help='Start maica chat server or mtts server')
+        parser.add_argument('target', choices=['chat', 'tts', 'all'], nargs='?', default='chat', help='Start maica chat server or mtts server, default chat')
         parser.add_argument('-e', '--envdir', help='Include external env file for running deployment, specify every time')
         parser.add_argument('-s', '--silent', action="store_true", help='Run without logging (unrecommended for deployment)')
         excluse_1 = parser.add_mutually_exclusive_group()
@@ -98,7 +99,7 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwar
                     load_dotenv(dotenv_path=realpath)
 
         if mtts_installed:
-            realpath = mtts.mtts_utils.get_inner_path('mtts_env_basis')
+            realpath = mtts_locater.get_inner_path('mtts_env_basis')
             sync_messenger(info=f'[maica-env] Loading mtts basis {realpath} to guarantee basic functions...', type=MsgType.DEBUG)
             if os.path.isfile(realpath):
                 load_dotenv(dotenv_path=realpath)
@@ -235,9 +236,13 @@ def check_warns():
         sync_messenger(info='\nOne or more NVwatch nodes detected\nNVwatch of MAICA Illuminator will try to collect nvidia-smi outputs through SSH, which can fail the process if SSH not avaliable\nIf SSH of nodes are not accessable or not wanted to be used, delete X_NODE, X_USER, X_PWD accordingly', type=MsgType.DEBUG)
 
 async def start_all(start_target: Literal['chat', 'tts', 'all']='chat'):
-    _root_csc_items = [getattr(ConnUtils, k)() for k in _CONNS_LIST]
-    root_csc_items = await asyncio.gather(*_root_csc_items)
-    root_csc_kwargs = dict(zip(_CONNS_LIST, root_csc_items))
+    if start_target != 'tts':
+        _root_csc_items = [getattr(ConnUtils, k)() for k in _CONNS_LIST]
+        root_csc_items = await asyncio.gather(*_root_csc_items)
+        root_csc_kwargs = dict(zip(_CONNS_LIST, root_csc_items))
+    else:
+        root_csc_items = {}
+        root_csc_kwargs = {}
 
     if start_target == 'chat':
         await maica_start_all(**root_csc_kwargs)
@@ -270,13 +275,14 @@ async def maica_start_all(**kwargs):
 
     task_ws = asyncio.create_task(maica_ws.prepare_thread(**kwargs))
     task_http = asyncio.create_task(maica_http.prepare_thread(**kwargs))
-    task_schedule = asyncio.create_task(common_schedule.prepare_thread(**kwargs))
+    task_schedule = asyncio.create_task(common_schedule.prepare_thread(**kwargs, involve_chat=True, involve_tts=False))
 
     res = await asyncio.wait([
         task_ws,
         task_http,
         task_schedule,
     ], return_when=asyncio.FIRST_COMPLETED)
+
     await messenger(info="First chat quit collected, quitting other chat tasks...", type=MsgType.DEBUG)
     for pending in res[1]:
         pending.cancel()
@@ -287,8 +293,20 @@ async def maica_start_all(**kwargs):
 async def mtts_start_all(**kwargs):
 
     assert mtts_installed, "Install with mi-mtts or .[mtts] to implement"
-    await mtts.prepare_thread(**kwargs)
-    await messenger(info="First tts quit collected", type=MsgType.DEBUG)
+
+    task_tts = asyncio.create_task(mtts.prepare_thread(**kwargs))
+    task_schedule = asyncio.create_task(common_schedule.prepare_thread(**kwargs, involve_chat=False, involve_tts=True))
+
+    res = await asyncio.wait([
+        task_tts,
+        task_schedule,
+    ], return_when=asyncio.FIRST_COMPLETED)
+
+    await messenger(info="First tts quit collected, quitting other chat tasks...", type=MsgType.DEBUG)
+    for pending in res[1]:
+        pending.cancel()
+        await pending
+    await messenger(info="All tts quits collected", type=MsgType.DEBUG)
     return
 
 def full_start():

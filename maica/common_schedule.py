@@ -1,5 +1,7 @@
 import asyncio
 import datetime
+import os
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
@@ -15,23 +17,30 @@ class CommonScheduler():
     root_csc: ConnSocketsContainer = None
     """Don't forget to implement at first!"""
 
-    def __init__(self):
+    def __init__(self, involve_chat=True, involve_tts=True):
         rsc = RealtimeSocketsContainer()
         csc = self.__class__.root_csc.spawn_sub(rsc)
         self.fsc = FullSocketsContainer(rsc, csc)
         self.maica_pool = self.fsc.maica_pool
 
         self.schedule = AsyncIOScheduler()
-        self.schedule.add_job(
-            self.rotate_ms_cache,
-            trigger=IntervalTrigger(hours=1),
-            id='rotate_ms_cache',
-        )
-        self.schedule.add_job(
-            self.rotate_mv_imgs,
-            trigger=IntervalTrigger(hours=1),
-            id='rotate_mv_imgs'
-        )
+        if involve_chat:
+            self.schedule.add_job(
+                self.rotate_ms_cache,
+                trigger=IntervalTrigger(hours=1),
+                id='rotate_ms_cache',
+            )
+            self.schedule.add_job(
+                self.rotate_mv_imgs,
+                trigger=IntervalTrigger(hours=1),
+                id='rotate_mv_imgs'
+            )
+        if involve_tts:
+            self.schedule.add_job(
+                self.rotate_mtts_cache,
+                trigger=IntervalTrigger(hours=1),
+                id='rotate_mtts_cache'
+            )
         self.schedule.start()
 
     @Decos.log_task
@@ -52,6 +61,7 @@ class CommonScheduler():
         if keep_time:
             timestamp = datetime.datetime.now()
             earliest_timestamp = timestamp - datetime.timedelta(hours=keep_time)
+
             sql_expression_1 = "SELECT uuid FROM mv_meta WHERE timestamp < %s"
             result = await self.maica_pool.query_get(expression=sql_expression_1, values=(earliest_timestamp, ), fetchall=True)
             uuids = [i[0] for i in result]
@@ -65,6 +75,35 @@ class CommonScheduler():
                 await self.maica_pool.query_modify(expression=sql_expression_2, values=(uuid, ))
 
             sync_messenger(info=f'Removed {len(uuids)} MVista images', type=MsgType.LOG)
+
+    @Decos.log_task
+    async def rotate_mtts_cache(self):
+        """Deletes long-unused mtts cache."""
+        def sync_rotation(earliest_timestamp):
+            base_path = get_inner_path('fs_storage/mtts')
+            mtts_cache_entries = os.scandir(base_path)
+            delete_list = []
+            for entry in mtts_cache_entries:
+                if entry.is_file() and not entry.name.startswith('.'):
+                    path = entry.path
+                    last_atime = os.path.getatime(path)
+                    if last_atime < earliest_timestamp:
+                        delete_list.append(path)
+            
+            for path in delete_list:
+                try:
+                    os.remove(path)
+                except Exception:...
+
+            return len(delete_list)
+
+        keep_time = int(G.T.ROTATE_TTSCACHE)
+        if keep_time:
+            timestamp = datetime.datetime.now()
+            earliest_timestamp = timestamp - datetime.timedelta(hours=keep_time)
+            deleted_count = await wrap_run_in_exc(None, sync_rotation, earliest_timestamp)
+
+            sync_messenger(info=f'Removed {deleted_count} MTTS caches', type=MsgType.LOG)
 
     async def run_schedule(self):
         """The schedule starter."""
@@ -83,7 +122,7 @@ async def prepare_thread(**kwargs):
     await messenger(info='MAICA scheduler started!', type=MsgType.PRIM_SYS)
     
     try:
-        common_scheduler = CommonScheduler()
+        common_scheduler = CommonScheduler(kwargs.get('involve_chat', True), kwargs.get('involve_tts', True))
         await common_scheduler.run_schedule()
         common_scheduler.close()
 

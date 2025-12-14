@@ -101,7 +101,7 @@ class ShortConnHandler(View):
         self.val = val
         if val:
             rsc = RealtimeSocketsContainer()
-            csc = self.__class__.root_csc.spawn_sub(rsc)
+            csc = self.__class__.root_csc.spawn_sub(rsc) if self.__class__.root_csc else ConnSocketsContainer()
             self.fsc = FullSocketsContainer(rsc, csc)
             
             self.maica_pool = self.fsc.maica_pool

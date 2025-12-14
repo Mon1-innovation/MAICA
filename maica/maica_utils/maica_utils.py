@@ -264,6 +264,8 @@ class ReUtils():
     re_search_wiki_avoid = re.compile(r"(模板|模闆|template|消歧义|消歧義|disambiguation)", re.I)
     re_search_type_sping = re.compile(r'"type"\s*?:\s*?"sping"', re.I)
     re_findall_zh_characters = re.compile(r'([一-龥].*[一-龥])')
+    re_sub_multi_spaces = re.compile(r'\s{2,}')
+    re_sub_ellipsis = re.compile(r'\.\.\.')
 
 class Decos():
     """Do not initialize."""

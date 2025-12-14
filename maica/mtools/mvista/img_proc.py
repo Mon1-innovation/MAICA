@@ -13,7 +13,7 @@ class ProcessingImg():
     """A wrapped picture to process."""
     _bio: Optional[BytesIO] = None
     _real_path: Optional[str] = None
-    _base_path: str = get_inner_path('fs_storage')    
+    _base_path: str = get_inner_path('fs_storage')
 
     format: str = ''
     is_compressed: bool = False
