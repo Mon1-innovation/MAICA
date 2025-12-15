@@ -100,8 +100,8 @@ class CommonScheduler():
         keep_time = int(G.T.ROTATE_TTSCACHE)
         if keep_time:
             timestamp = datetime.datetime.now()
-            earliest_timestamp = timestamp - datetime.timedelta(hours=keep_time)
-            deleted_count = await wrap_run_in_exc(None, sync_rotation, earliest_timestamp)
+            earliest_timestamp_float = (timestamp - datetime.timedelta(hours=keep_time)).timestamp()
+            deleted_count = await wrap_run_in_exc(None, sync_rotation, earliest_timestamp_float)
 
             sync_messenger(info=f'Removed {deleted_count} MTTS caches', type=MsgType.LOG)
 

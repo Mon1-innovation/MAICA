@@ -1,0 +1,58 @@
+I'm sorry for not offering an English ver of this document but it's just too much work for me.
+If you want to read in English, use a translator.
+
+此文档是MAICA接口后端"幻象引擎"的部署文档, 编纂版本为v1.2.  
+请注意"幻象引擎"是协调通信程序, 模型需要另行部署. 自v1.2后, 仓库提供自动的release.
+
+该文档仅为有一定技术基础的用户讲解, 不会提供过于细致的指导.
+
++ 下载和安装:
+
+    拉取仓库:
+
+    ```
+    git clone https://github.com/Mon1-innovation/MAICA.git
+    cd MAICA
+    ```
+
+    安装:
+
+    ```
+    pip install -e .
+    ```
+
+    配置:
+
+    ```
+    maica -t create
+    vim .env
+    ```
+
+    启动实例:
+
+    ```
+    maica -e .env
+    ```
+
++ 或者, 直接通过pypi安装:
+
+    > 便捷但不适合开发, 兼容性有待测试.
+
+    安装:
+
+    ```
+    pip install mi-maica
+    ```
+
+    配置:
+
+    ```
+    maica -t create
+    vim .env
+    ```
+
+    启动实例:
+
+    ```
+    maica -e .env
+    ```

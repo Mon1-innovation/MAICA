@@ -27,7 +27,8 @@ from maica import maica_ws, maica_http, common_schedule, silent as _silent
 from maica.maica_utils import *
 from maica.initializer import *
 
-_CONNS_LIST = ['auth_pool', 'maica_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn']
+_CHAT_CONNS_LIST = ['auth_pool', 'maica_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn']
+_TTS_CONNS_LIST = ['auth_pool', 'maica_pool']
 
 from maica.initializer import pkg_init_initializer
 from maica.maica_http import pkg_init_maica_http
@@ -236,13 +237,10 @@ def check_warns():
         sync_messenger(info='\nOne or more NVwatch nodes detected\nNVwatch of MAICA Illuminator will try to collect nvidia-smi outputs through SSH, which can fail the process if SSH not avaliable\nIf SSH of nodes are not accessable or not wanted to be used, delete X_NODE, X_USER, X_PWD accordingly', type=MsgType.DEBUG)
 
 async def start_all(start_target: Literal['chat', 'tts', 'all']='chat'):
-    if start_target != 'tts':
-        _root_csc_items = [getattr(ConnUtils, k)() for k in _CONNS_LIST]
-        root_csc_items = await asyncio.gather(*_root_csc_items)
-        root_csc_kwargs = dict(zip(_CONNS_LIST, root_csc_items))
-    else:
-        root_csc_items = {}
-        root_csc_kwargs = {}
+
+    _root_csc_items = [getattr(ConnUtils, k)() for k in (_CHAT_CONNS_LIST if start_target != 'tts' else _TTS_CONNS_LIST)]
+    root_csc_items = await asyncio.gather(*_root_csc_items)
+    root_csc_kwargs = dict(zip(_CHAT_CONNS_LIST, root_csc_items))
 
     if start_target == 'chat':
         await maica_start_all(**root_csc_kwargs)
@@ -292,7 +290,9 @@ async def maica_start_all(**kwargs):
 
 async def mtts_start_all(**kwargs):
 
-    assert mtts_installed, "Install with mi-mtts or .[mtts] to implement"
+    if not mtts_installed:
+        sync_messenger(info="Install with mi-mtts or .[mtts] to implement", type=MsgType.ERROR)
+        return
 
     task_tts = asyncio.create_task(mtts.prepare_thread(**kwargs))
     task_schedule = asyncio.create_task(common_schedule.prepare_thread(**kwargs, involve_chat=False, involve_tts=True))

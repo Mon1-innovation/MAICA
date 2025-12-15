@@ -58,8 +58,8 @@ setuptools.setup(
     python_requires='>=3.12',
     install_requires=parse_requirements(),
     extras_require={
-        "all": ["mi-mtts"],
-        "mtts": ["mi-mtts"],
+        "all": ["mi-mtts>=1.0.2"],
+        "mtts": ["mi-mtts>=1.0.2"],
     },
     entry_points={
         'console_scripts': [
