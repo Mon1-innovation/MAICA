@@ -104,7 +104,7 @@ class MFocusManager(AgentContextManager):
             },
             {
                 "name": "persistent_acquire",
-                "description": "调用该工具以查询你的角色(莫妮卡)或用户的记忆, 例如你或用户的喜好, 兴趣, 经历, 体验, 关系或个人信息. 只要你被问及你作为AI不具有的记忆, 经历, 个性, 喜好或其它事物, 就使用此工具查找记忆. " if self.settings.basic.target_lang == 'zh' else "Call this tool to get any additional information from your character (Monika)'s memory or user's memory, such as your or user's preferences, hobbies, experiences, appearence, relationship or personal information. Always use this tool if the conversation mentions memories, personality, preferences, hobbies, experience or any other thing you don't have as an AI.",
+                "description": "调用该工具以查询你的角色(莫妮卡)或用户的记忆, 例如你或用户的喜好, 兴趣, 经历, 体验, 关系或个人信息. 只要你被问及你作为AI不具有的记忆, 经历, 个性, 喜好或其它事物, 就使用此工具查找记忆. 此外应注意, 若用户提及'天堂树林', '太空教室', '文学部', 及其它指代不明确的专有名词, 可先使用此工具." if self.settings.basic.target_lang == 'zh' else "Call this tool to get any additional information from your character (Monika)'s memory or user's memory, such as your or user's preferences, hobbies, experiences, appearence, relationship or personal information. Always use this tool if the conversation mentions memories, personality, preferences, hobbies, experience or any other thing you don't have as an AI. Also, if user mentioned 'Heaven Forest', 'Spaceroom', 'Literature club' or unclear proper nouns, use this tool first.",
                 "parameters": {
                     "type": "object",
                     "properties": {

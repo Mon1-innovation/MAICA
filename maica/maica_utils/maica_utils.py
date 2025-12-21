@@ -149,7 +149,7 @@ RETRYABLE_EXCEPTIONS = (
     aiomysql.InterfaceError,
     ConnectionError,
     TimeoutError,
-    httpx.ReadTimeout,
+    httpx.TransportError,
     openai.APIConnectionError,
     openai.APITimeoutError,
     openai.RateLimitError,
@@ -270,27 +270,29 @@ class ReUtils():
 class Decos():
     """Do not initialize."""
     def conn_retryer_factory(
-        max_attempts: int=3,
+        max_attempts: int=4,
         min_wait: float=1,
         max_wait: float=10,
         retry_exceptions=RETRYABLE_EXCEPTIONS,
     ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         """Mostly for instance methods."""
-        def decorator(func):
-            async def log_retry(retry_state):
-                self = retry_state.args[0] if retry_state else None
-                rsc = getattr(self, 'rsc', None); name = getattr(self, 'name', 'anon_conn')
-                websocket = rsc.websocket if rsc else None; traceray_id = rsc.traceray_id if rsc else ''
-                await messenger(websocket=websocket, status=f'{name}_temp_failure', info=f'{name} temporary failure, retrying...', code='304', traceray_id=traceray_id, type=MsgType.WARN)
+        async def log_retry(retry_state):
+            self = retry_state.args[0] if retry_state else None
+            rsc = getattr(self, 'rsc', None); name = getattr(self, 'name', 'anon_conn')
+            websocket = rsc.websocket if rsc else None; traceray_id = rsc.traceray_id if rsc else ''
+            await messenger(websocket=websocket, status=f'{name}_temp_failure', info=f'{name} temporary failure, retrying...', code='304', traceray_id=traceray_id, type=MsgType.WARN)
 
+        retry_decorator = retry(
+            stop=stop_after_attempt(max_attempts),
+            wait=wait_exponential(multiplier=1, min=min_wait, max=max_wait),
+            retry=retry_if_exception_type(retry_exceptions),
+            before_sleep=log_retry,
+            reraise=True,
+        )
+
+        def decorator(func):
             @functools.wraps(func)
-            @retry(
-                stop=stop_after_attempt(max_attempts),
-                wait=wait_exponential(multiplier=1, min=min_wait, max=max_wait),
-                retry=retry_if_exception_type(retry_exceptions),
-                before_sleep=log_retry,
-                reraise=True,
-            )
+            @retry_decorator
             async def wrapper(self, *args, **kwargs):
                 return await func(self, *args, **kwargs)
             return wrapper
@@ -758,6 +760,4 @@ def sysstruct() -> Literal['Windows', 'Linux']:
     return sysstruct
 
 if __name__ == "__main__":
-    print(has_valid_content("""{
-  
-}"""))
+    asyncio.run(dld_json("http://127.0.0.2"))
