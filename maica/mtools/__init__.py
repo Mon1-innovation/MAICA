@@ -12,6 +12,7 @@ from .nv_watcher import NvWatcher
 from .mvista import ProcessingImg, query_vlm
 from .descalation_pvn import dscl_detect, ws_dscl_detect
 from .stream_buffer import BufferDict, StreamBuffer, buffer_dict
+from .censor import has_censored
 
 __all__ = [
     'TpAPIKeys',
@@ -36,6 +37,7 @@ __all__ = [
     'BufferDict',
     'StreamBuffer',
     'buffer_dict',
+    'has_censored',
     ]
 
 from .mcp import pkg_init_mcp

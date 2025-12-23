@@ -320,6 +320,12 @@ class WsCoroutine(NoWsCoroutine):
             maica_assert(recv_loaded_json.get('query'), 'query')
             query_in = recv_loaded_json['query']
 
+        if G.A.CENSOR_QUERY == '1':
+            query_censor = mtools.has_censored(query_in)
+            if query_censor:
+                sync_messenger(info=f"Query has censored words: {query_censor}", type=MsgType.DEBUG)
+                raise MaicaInputWarning("Input query has censored words or phrases", "403", "maica_input_query_censored")
+
         if 'savefile' in recv_loaded_json:
             if self.settings.basic.sf_extraction:
                 self.sf_inst.add_extra(**recv_loaded_json['savefile'])

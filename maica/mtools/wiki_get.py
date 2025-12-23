@@ -2,7 +2,10 @@ import re
 import random
 import asyncio
 import zhconv
+
+from typing import *
 from maica.maica_utils import *
+from .censor import *
  
 async def get_multi_json(*list_url):
     list_resp = await asyncio.gather(*[dld_json(u) for u in list_url])
@@ -60,12 +63,14 @@ async def get_page(title=None, target_lang='zh'):
         next_title = f"incategory:{category}"
         # def_cat = True
     next_title_fs = next_title
+
     while not page_found:
         insanity += 1
         if insanity > 15:
             raise MaicaInternetWarning('MSpire searching entered deadend', '404', 'maica_mspire_search_deadend')
         if title and insanity > 6:
             raise MaicaInputWarning('MSpire prompt not found on wikipedia', '410', 'maica_mspire_prompt_bad')
+        
         # Skipping this by default
         if insanity == 1 and not def_cat and not use_page and zh_scraper.search(next_title):
             nxt_hans=zhconv.convert(next_title, 'zh-hans');nxt_hant=zhconv.convert(next_title, 'zh-hant')
@@ -77,11 +82,13 @@ async def get_page(title=None, target_lang='zh'):
             else:
                 next_title = nxt_hant
                 await messenger(info='MSpire using traditional Chinese title', type=MsgType.DEBUG)
+
         if insanity >= 2:
             sample = set_sample
         page_url = f"https://{target_lang}.wikipedia.org/w/api.php?action=query&format=json&list=search&redirects=1&utf8=1&formatversion=2&srsearch={next_title}&srnamespace=0&srlimit={sample}&sroffset=0&srprop="
         cat_url = f"https://{target_lang}.wikipedia.org/w/api.php?action=query&format=json&list=search&redirects=1&utf8=1&formatversion=2&srsearch={next_title}&srnamespace=14&srlimit={sample}&sroffset=0&srprop="
         next_item = None
+
         match use_page:
             case None:
                 page_list, cat_list = await get_multi_json(page_url, cat_url)
@@ -89,10 +96,13 @@ async def get_page(title=None, target_lang='zh'):
                 page_list, cat_list = await dld_json(page_url), {"batchcomplete":True,"query":{"searchinfo":{"totalhits":0},"search":[]}}
             case False:
                 page_list, cat_list = {"batchcomplete":True,"query":{"searchinfo":{"totalhits":0},"search":[]}}, await dld_json(cat_url)
+
         page_list_r, cat_list_r = page_list['query']['search'], cat_list['query']['search']
+
         for cat in cat_list_r:
             if ReUtils.re_search_wiki_avoid.search(cat['title'].lower()):
                 cat_list_r.remove(cat)
+
         if len(cat_list_r):
             if use_page == False or random.randint(1, cat_weight*len(cat_list_r)+len(page_list_r)) <= cat_weight*len(cat_list_r):
                 next_item = random.choice(cat_list_r)
@@ -103,23 +113,55 @@ async def get_page(title=None, target_lang='zh'):
             else:
                 next_item = random.choice(page_list_r)
                 next_title = next_item['title']
-                page_found = next_title
-                await messenger(info=f"MSpire hit midway page: {next_title}", type=MsgType.LOG)
+                confirmed = await confirm_page(next_title, target_lang)
+                if confirmed:
+                    await messenger(info=f"MSpire hit midway page: {next_title}", type=MsgType.LOG)
+                    return confirmed
+                else:
+                    await messenger(info=f"MSpire hit bad page: {next_title} --trying again", type=MsgType.WARN)
+                    next_title = next_title_fs
+                    insanity += 1
+
         elif len(page_list_r):
             next_item = random.choice(page_list_r)
             next_title = next_item['title']
-            page_found = next_title
-            await messenger(info=f"MSpire hit bottom page: {next_title}", type=MsgType.LOG)
+            confirmed = await confirm_page(next_title, target_lang)
+            if confirmed:
+                await messenger(info=f"MSpire hit bottom page: {next_title}", type=MsgType.LOG)
+                return confirmed
+            else:
+                await messenger(info=f"MSpire hit bad page: {next_title} --trying again", type=MsgType.WARN)
+                next_title = next_title_fs
+                insanity += 2
+
         else:
             await messenger(info='MSpire hit deadend--trying again', type=MsgType.DEBUG)
             next_title = next_title_fs
+            insanity += 3
 
-    finale_url = f"https://{target_lang}.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exsentences=15&exlimit=1&titles={next_title}&explaintext=1&formatversion=2"
+async def confirm_page(title, target_lang='zh') -> Union[False, tuple[str, str]]:
+    """We have a likely-ultimately page, now confirm if it's suitable in all aspects."""
+    finale_url = f"https://{target_lang}.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exsentences=15&exlimit=1&titles={title}&explaintext=1&formatversion=2"
     #print(finale_url)
     summary_json = await dld_json(finale_url)
+
     title = zhconv.convert(summary_json['query']['pages'][0]['title'], 'zh-cn')
     summary_raw = summary_json['query']['pages'][0]['extract']
+
     summary = re.sub(r'(\n|\s)*\n(\n|\s)*', r'\n', re.sub(r'\n*=+(.*?)=+', r'\n\1:', zhconv.convert(summary_raw, 'zh-cn'), re.I|re.S))
+
+    if G.A.CENSOR_MSPIRE == '1':
+        title_censor = await has_censored(title)
+        if title_censor:
+            sync_messenger(info=f"MSpire title {title} has censored words: {title_censor}", type=MsgType.DEBUG)
+            return False
+
+        # Some tolerance settings can be added here, but we don't bother to
+        summary_censor = await has_censored(summary)
+        if summary_censor:
+            sync_messenger(info=f"MSpire page {title} has censored words: {summary_censor}", type=MsgType.DEBUG)
+            return False
+
     return title, summary
 
 if __name__ == '__main__':

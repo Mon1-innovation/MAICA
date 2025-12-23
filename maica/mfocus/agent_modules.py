@@ -101,7 +101,7 @@ class AgentTools():
 
         if not weather:
             content = '天气未知' if target_lang == 'zh' else "Weather unknown"
-            weather_friendly = None
+            weather_friendly = content
         return content, weather_friendly
 
     async def event_acquire(self, *args, **kwargs: dict[str: int]) -> tuple[str, str]:

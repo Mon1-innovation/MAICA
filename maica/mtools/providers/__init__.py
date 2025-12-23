@@ -1,16 +1,16 @@
 """
 SERP is really complex if you don't use google's super expensive api, so I made this.
 
-This searches submodules in its folder at a priority sequence from 0 to 99, and adopts
+This searches submodules in its folder at a priority sequence from 0 to 99, and adopts 
 the first module that implements a valid 'asearch' function with optional 'requires'.
 
-'asearch' must accept (query, target_lang), and returns a list[dict[#type, #content]]. This
+'asearch' must accept (query, target_lang), and returns a list[dict[#type, #content]]. This 
 implementation will only take effect if all items in 'requires' exist in TpAPIKeys.
 
 The local solution is not stable and efficient enough, so I might be using some third-
 party apis. They're not ads.
 
-You can always implement your own SERP function by adding a submodule with higher priority
+You can always implement your own SERP function by adding a submodule with higher priority 
 (smaller number).
 """
 import importlib

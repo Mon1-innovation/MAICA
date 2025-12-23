@@ -374,7 +374,7 @@ class NoWsCoroutine(AsyncCreator):
             # Cridential correct and not banned
             if check_online and not logged_in_already:
                 if self.settings.verification.user_id in online_dict:
-                    if G.A.KICK_STALE_CONNS == "0":
+                    if G.A.KICK_STALE_CONNS != "1":
                         self.settings.verification.reset()
                         raise MaicaConnectionWarning('A connection was established already and kicking not enabled', '406', 'maica_connection_reuse_denied')
                     else:
