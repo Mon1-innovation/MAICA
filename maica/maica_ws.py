@@ -321,7 +321,7 @@ class WsCoroutine(NoWsCoroutine):
             query_in = recv_loaded_json['query']
 
         if G.A.CENSOR_QUERY == '1':
-            query_censor = mtools.has_censored(query_in)
+            query_censor = await mtools.has_censored(query_in)
             if query_censor:
                 sync_messenger(info=f"Query has censored words: {query_censor}", type=MsgType.DEBUG)
                 raise MaicaInputWarning("Input query has censored words or phrases", "403", "maica_input_query_censored")
