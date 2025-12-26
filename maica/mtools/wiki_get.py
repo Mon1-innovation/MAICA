@@ -158,11 +158,13 @@ async def confirm_page(title, target_lang='zh') -> Union[False, tuple[str, str]]
             sync_messenger(info=f"MSpire title {title} has censored words: {title_censor}", type=MsgType.DEBUG)
             return False
 
-        # Some tolerance settings can be added here, but we don't bother to
+        # Some tolerance settings can be added here
         summary_censor = await has_censored(summary)
-        if summary_censor:
+        if len(summary_censor) >= 2:
             sync_messenger(info=f"MSpire page {title} has censored words: {summary_censor}", type=MsgType.DEBUG)
             return False
+        elif summary_censor:
+            sync_messenger(info=f"MSpire page {title} has censored words but ignored: {summary_censor}", type=MsgType.DEBUG)
 
     return title, summary
 
