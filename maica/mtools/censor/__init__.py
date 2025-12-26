@@ -22,7 +22,7 @@ censor_set = set()
 for entry in censor_file_entries:
     if entry.is_file() and entry.name.endswith('.txt'):
         with open(entry.path, 'r') as file:
-            censor_set.update(file.readlines())
+            censor_set.update(file.read().splitlines())
 
 kp = KeywordProcessor()
 for kw in censor_set:
