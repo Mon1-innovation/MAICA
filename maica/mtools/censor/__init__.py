@@ -33,6 +33,6 @@ sync_messenger(info=f"[maica-cnsr] Loaded censor patterns: {len(censor_set)}", t
 async def has_censored(text) -> list:
     """If there are censored words in text, or how many."""
     found = await wrap_run_in_exc(None, kp.extract_keywords, text)
-    return found
+    return set(found)
 
 __all__ = ['has_censored']
