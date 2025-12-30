@@ -1,10 +1,10 @@
 # It's suggested to exclude these lines (the top block) in your env configuration
 # Current backend version
-MAICA_CURR_VERSION = '1.2.002'
+MAICA_CURR_VERSION = '1.2.002.post1'
 # Oldest capable backend version
 MAICA_LEGC_VERSION = '1.2.000.rc10'
 # Frontend version announcement(s)
-MAICA_BLESSLAND_CAPV = '1.5.7'
+MAICA_BLESSLAND_CAPV = '1.5.10'
 # cp ./env_basis ./.env
 # vim .env
 # Do not mv, rm or edit basis! They're required as default templates.
