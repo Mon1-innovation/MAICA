@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS `users` (
 `email` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
 `is_email_confirmed` tinyint(1) NOT NULL DEFAULT '0',
 `password` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+`suspended_until` datetime DEFAULT NULL,
 PRIMARY KEY (`id`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 """
@@ -56,7 +57,8 @@ CREATE TABLE IF NOT EXISTS users (
     nickname TEXT DEFAULT NULL,
     email TEXT NOT NULL,
     is_email_confirmed INTEGER NOT NULL DEFAULT 0,
-    password TEXT NOT NULL
+    password TEXT NOT NULL,
+    suspended_until DATETIME DEFAULT NULL
 );
 """
     ]

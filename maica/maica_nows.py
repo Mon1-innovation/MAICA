@@ -367,8 +367,8 @@ class NoWsCoroutine(AsyncCreator):
         if verification_result[0]:
 
             # Account security check
-            checked_status = await self.hasher.check_user_status(False, 'banned')
-            if checked_status[0]:
+            banned = await self.hasher.is_banned()
+            if banned:
                 raise MaicaPermissionError('Account banned by MAICA', '403', 'maica_account_banned')
 
             # Cridential correct and not banned

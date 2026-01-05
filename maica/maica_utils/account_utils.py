@@ -73,7 +73,7 @@ class AccountCursor(AsyncCreator):
                 return tuple(l)
 
         except Exception as e:
-            raise MaicaDbError(f'Cannot acquire user {user_id}\'s {status}', '502', f'user_{status}_read_failed') from e
+            raise MaicaDbError(e, '502', f'user_{status}_read_failed') from e
 
     async def write_user_status(self, enforce=False, pref=False, **kwargs) -> None:
         status = "status" if not pref else "preferences"
@@ -99,7 +99,7 @@ class AccountCursor(AsyncCreator):
             raise MaicaDbError(e, '502', f'user_{status}_write_failed') from e
 
     async def _account_pwd_verify(self, identity, is_email, password) -> tuple[bool, Union[str, dict, None]]:
-        sql_expression = 'SELECT id, username, nickname, email, is_email_confirmed, password FROM users WHERE email = %s' if is_email else 'SELECT id, username, nickname, email, is_email_confirmed, password FROM users WHERE username = %s'
+        sql_expression = f'SELECT id, username, nickname, email, is_email_confirmed, password FROM users WHERE {"email" if is_email else "username"} = %s'
         try:
             result = await self.auth_pool.query_get(expression=sql_expression, values=(identity, ))
             assert result, "User does not exist"
@@ -178,6 +178,19 @@ class AccountCursor(AsyncCreator):
             raise Exception('No password provided')
         return await self._account_pwd_verify(login_identity, login_is_email, login_password)
     
+    async def is_banned(self) -> bool:
+        sql_expression = 'SELECT suspended_until FROM users WHERE id = %s'
+        try:
+            result = await self.auth_pool.query_get(expression=sql_expression, values=(self.settings.verification.user_id, ))
+            dbres_susp_until: Optional[datetime.datetime] = result[0]
+            if dbres_susp_until:
+                time_now = datetime.datetime.now()
+                if dbres_susp_until > time_now:
+                    return True
+            return False
+        except Exception as e:
+            raise MaicaDbError(e, '502', f'user_db_read_failed') from e
+
 def encrypt_token(cridential: str) -> str:
     """Generates an encrypted token. It does not care validity."""
     encoded_token = cridential.encode('utf-8')

@@ -136,15 +136,15 @@ class DbPoolManager(AsyncCreator):
             await self._ainit()
 
     @overload
-    async def query_get(self, expression: str, values: Optional[tuple]=None, fetchall: bool=False, inherit_conn: Optional[aiomysql.Connection]=None) -> list:
+    async def query_get(self, expression: str, values: Optional[tuple]=None, fetchall: bool=False, inherit_conn: Optional[aiomysql.Connection]=None) -> tuple:
         """Execute SELECT query on MySQL database."""
 
     # @test_logger
     @Decos.catch_exceptions
     @Decos.ro_expression
     @Decos.conn_retryer_factory()
-    async def query_get(self, expression, values=None, fetchall=False, inherit_conn: Optional[aiomysql.Connection]=None) -> list:
-        async def _query_get(cur, expression, values, fetchall) -> list:
+    async def query_get(self, expression, values=None, fetchall=False, inherit_conn: Optional[aiomysql.Connection]=None) -> tuple:
+        async def _query_get(cur, expression, values, fetchall) -> tuple:
             if not values:
                 await cur.execute(expression)
             else:
@@ -281,7 +281,7 @@ class SqliteDbPoolManager(DbPoolManager):
             await self._ainit()
 
     @overload
-    async def query_get(self, expression: str, values: Optional[tuple]=None, fetchall: bool=False) -> list:
+    async def query_get(self, expression: str, values: Optional[tuple]=None, fetchall: bool=False) -> tuple:
         """Execute SELECT query on SQLite database."""
 
     # @test_logger
@@ -289,7 +289,7 @@ class SqliteDbPoolManager(DbPoolManager):
     @Decos.ro_expression
     @Decos.escape_sqlite_expression
     @Decos.conn_retryer_factory()
-    async def query_get(self, expression, values=None, fetchall=False) -> list:
+    async def query_get(self, expression, values=None, fetchall=False) -> tuple:
         results = None
         await self.keep_alive()
 

@@ -160,7 +160,7 @@ async def confirm_page(title, target_lang='zh') -> Union[False, tuple[str, str]]
 
         # Some tolerance settings can be added here
         summary_censor = await has_censored(summary)
-        if len(summary_censor) > 3:
+        if len(summary_censor) > 1:
             sync_messenger(info=f"MSpire page {title} has censored words: {summary_censor}", type=MsgType.DEBUG)
             return False
         elif summary_censor:

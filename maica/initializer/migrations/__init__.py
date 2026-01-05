@@ -15,13 +15,15 @@ def pkg_init_migrations():
     global available_list
     available_list = []
 
-    for prio in range(0, 100):
+    prio = 0
+    while True:
+        prio += 1
         modname = f".migration_{prio}"
         try:
             mig_module = importlib.import_module(modname, "maica.initializer.migrations")
             mig_v = parse(mig_module.upper_version); migrate = mig_module.migrate
             available_list.append((mig_v, migrate))
-        except Exception:...
+        except Exception: break
 
     sync_messenger(info=f'[maica-mig] {len(available_list)} migrations found', type=MsgType.DEBUG)
 
