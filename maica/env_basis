@@ -196,6 +196,10 @@ MAICA_WRITE_NVW = '0'
 MTTS_TTS_ADDR = ''# http://172.17.0.1:80/tts
 # Rotate MTTS cache every [] hours or not
 MTTS_ROTATE_TTSCACHE = '168'
+# TTS language of reference audio
+MTTS_REF_LANG = 'en'
+# TTS text of reference audio
+MTTS_REF_TEXT = 'Now, I actually do have the perspective of the other Monika, too. And you know, honestly, the side of me that let those insults get to me is kind of frustrated.'
 # Name of MTTS deployment device
 # MTTS_TTS_NODE = ''
 # Username to access nvidia-smi through SSH
