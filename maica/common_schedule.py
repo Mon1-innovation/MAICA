@@ -82,9 +82,10 @@ class CommonScheduler():
         def sync_rotation(earliest_timestamp):
             base_path = get_inner_path('fs_storage/mtts')
             mtts_cache_entries = os.scandir(base_path)
-            delete_list = []
+            delete_list = []; all_count = 0
             for entry in mtts_cache_entries:
                 if entry.is_file() and not entry.name.startswith('.'):
+                    all_count += 1
                     path = entry.path
                     last_atime = os.path.getatime(path)
                     if last_atime < earliest_timestamp:
@@ -95,15 +96,15 @@ class CommonScheduler():
                     os.remove(path)
                 except Exception:...
 
-            return len(delete_list)
+            return len(delete_list), all_count
 
         keep_time = int(G.T.ROTATE_TTSCACHE)
         if keep_time:
             timestamp = datetime.datetime.now()
             earliest_timestamp_float = (timestamp - datetime.timedelta(hours=keep_time)).timestamp()
-            deleted_count = await wrap_run_in_exc(None, sync_rotation, earliest_timestamp_float)
+            deleted_count, all_count = await wrap_run_in_exc(None, sync_rotation, earliest_timestamp_float)
 
-            sync_messenger(info=f'Removed {deleted_count} MTTS caches', type=MsgType.LOG)
+            sync_messenger(info=f'Removed {deleted_count} MTTS caches, {all_count} remaining', type=MsgType.LOG)
 
     async def run_schedule(self):
         """The schedule starter."""
