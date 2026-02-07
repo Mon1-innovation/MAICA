@@ -100,6 +100,8 @@ class AgentContextManager(AsyncCreator):
         self.sf_inst, self.mt_inst = sf_inst, mt_inst
         self.maica_pool = fsc.maica_pool
 
+        self.fsc = fsc
+
     async def _ainit(self):
         await self.reset()
 
@@ -118,7 +120,7 @@ class AgentContextManager(AsyncCreator):
         await asyncio.gather(*reset_list)
         await self.reset()
 
-    async def _construct_query(self, user_input=None, tool_input=None, tool_id=None, pre_post: Literal['pre', 'post']=None):
+    async def _construct_query(self, user_input=None, tool_input=None, tool_id=None, pre_post: Literal['pre', 'post']=None, addi_override: Optional[int]=None):
         match pre_post:
             case 'pre':
                 additive_setting = self.settings.extra.pre_additive
@@ -126,6 +128,10 @@ class AgentContextManager(AsyncCreator):
                 additive_setting = self.settings.extra.post_additive
             case _:
                 raise MaicaInputError('Need type assignment on use', '500')
+            
+        if addi_override != None:
+            additive_setting = addi_override
+
         if not self.serial_messages and additive_setting and 1 <= self.settings.temp.chat_session <= 9:
             sql_expression = 'SELECT content FROM chat_session WHERE user_id = %s AND chat_session_num = %s'
             result = await self.maica_pool.query_get(expression=sql_expression, values=(self.settings.verification.user_id, self.settings.temp.chat_session))

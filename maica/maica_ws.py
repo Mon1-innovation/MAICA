@@ -225,8 +225,12 @@ class WsCoroutine(NoWsCoroutine):
         # Initiations
         websocket = self.websocket
         try:
-            chat_params: dict = recv_loaded_json['chat_params']
+            chat_params: dict = recv_loaded_json.get('chat_params', {})
             in_params = len(chat_params)
+
+            if recv_loaded_json.get('reset'):
+                self.settings.soft_reset()
+            
             accepted_params = self.settings.update(**chat_params)
             await messenger(websocket, 'maica_params_accepted', f"{accepted_params} out of {in_params} settings accepted", "200")
         
@@ -320,11 +324,15 @@ class WsCoroutine(NoWsCoroutine):
             maica_assert(recv_loaded_json.get('query'), 'query')
             query_in = recv_loaded_json['query']
 
-        if G.A.CENSOR_QUERY == '1':
+        if G.A.CENSOR_QUERY != '0':
+            tolerance = int(G.A.CENSOR_QUERY)
             query_censor = await mtools.has_censored(query_in)
-            if query_censor:
+            if len(query_censor) >= tolerance:
                 sync_messenger(info=f"Query has censored words: {query_censor}", type=MsgType.DEBUG)
                 raise MaicaInputWarning("Input query has censored words or phrases", "403", "maica_input_query_censored")
+            
+            elif len(query_censor):
+                sync_messenger(info=f"Input query has censored words or phrases but ignored: {query_censor}", type=MsgType.DEBUG)
 
         if 'savefile' in recv_loaded_json:
             if self.settings.basic.sf_extraction:

@@ -1,4 +1,5 @@
 import asyncio
+
 from openai.types.chat import ChatCompletionMessage
 from typing import *
 from maica.maica_utils import *
@@ -51,8 +52,8 @@ if __name__ == "__main__":
         init()
         mnerve_conn = await ConnUtils.mnerve_conn()
         rnds = [
-            {"role": "user", "content": "你可以吻我吗"},
-            {"role": "assistant", "content": "[开心]当然可以, [player]. 我想和你接吻很久了. [憧憬]让我们来一个热吻吧~"}
+            {"role": "user", "content": "莫莫，你能亲亲我吗"},
+            {"role": "assistant", "content": "[开心]当然可以, [player]! [开心]mua~"}
         ]
         print(await dscl_detect(rnds, mnerve_conn=mnerve_conn, target_lang='en'))
 

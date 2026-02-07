@@ -302,7 +302,12 @@ class MaicaSettings():
         return iter(self._dict().items())
 
     def reset(self):
+        """This resets identity stuff too!"""
         self.__init__()
+
+    def soft_reset(self):
+        """This resets only passable params."""
+        self.basic, self.extra, self.super = self._Basic(), self._Extra(), self._Super()
 
     def update(self, secure=None, **kwargs):
         """Used for handling manual settings."""

@@ -10,6 +10,7 @@ from typing import *
 from maica.mfocus.mfocus_sfe import SfPersistentManager
 from maica.mtrigger.mtrigger_sfe import MtPersistentManager
 from maica.mfocus.agent_modules import AgentTools
+from maica.mfocus.react_trigger import react_detect
 from maica.maica_utils import *
 from maica.mtools import providers
 
@@ -152,8 +153,8 @@ class MFocusManager(AgentContextManager):
                 },
             )
 
+        choice_list = []; choice_checklist = []
         if trigger_list and self.settings.extra.amt_aggressive:
-            choice_list = []; choice_checklist = []
             for trigger in trigger_list:
                 match trigger.template:
                     case 'common_affection_template':
@@ -185,30 +186,36 @@ class MFocusManager(AgentContextManager):
                         choice_checklist.append(j)
                         choice_list.append(j)
 
-            self.choice_checklist = choice_checklist
+        self.choice_list = choice_list
+        self.choice_checklist = choice_checklist
 
-            if choice_list:
-                self.tools.append(
-                    {
-                        "name": "react_trigger",
-                        "description": "此工具能检验用户的特定要求可否完成. 如果用户对你提出以下类别请求: 切换(如换衣服, 换地点, 换场景), 调整(如调距离, 调亮度), 触发(如开灯, 开启某模式), 则调用该工具." if self.settings.basic.target_lang == 'zh' else "This tool can verify if user's specific request can be done. If user is requesting you to: switching(like changing your clothes, changing location, changing scene), adjusting(like adjusting distance, adjusting brightness), triggering(like turning on light, turning on some mode), use this tool.",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "prediction": {
-                                    "type": "string",
-                                    "description": f"你将收到一系列可用选项. 若某选项能够满足用户的请求, 则输出该选项, 否则输出false. 以下是可用选项:\n{json.dumps(choice_list)}" if self.settings.basic.target_lang == 'zh' else f"You'll be offered a list of avaliable choices. return the choice if you think it matches the query, or return false if none matches. Avaliable choices:\n{json.dumps(choice_list)}",
-                                    "example_value": random.choice(choice_checklist)
-                                }
-                            },
-                            "required": [
-                                "prediction",
-                            ],
-                            "optional": [
-                            ]
-                        }
-                    },
-                )
+        if choice_list:
+            self.react_trigger_impl = "func" if self.mnerve_conn else "tool"
+        else:
+            self.react_trigger_impl = None
+
+        if self.react_trigger_impl == 'tool':
+            self.tools.append(
+                {
+                    "name": "react_trigger",
+                    "description": "此工具能检验用户的特定要求可否完成. 如果用户对你提出以下类别请求: 切换(如换衣服, 换地点, 换场景), 调整(如调距离, 调亮度), 触发(如开灯, 开启某模式), 则调用该工具." if self.settings.basic.target_lang == 'zh' else "This tool can verify if user's specific request can be done. If user is requesting you to: switching(like changing your clothes, changing location, changing scene), adjusting(like adjusting distance, adjusting brightness), triggering(like turning on light, turning on some mode), use this tool.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "prediction": {
+                                "type": "string",
+                                "description": f"你将收到一系列可用选项. 若某选项能够满足用户的请求, 则输出该选项, 否则输出false. 以下是可用选项:\n{json.dumps(choice_list)}" if self.settings.basic.target_lang == 'zh' else f"You'll be offered a list of avaliable choices. return the corresponding choice if you think it matches the query, or return false if none matches. Avaliable choices:\n{json.dumps(choice_list)}",
+                                "example_value": random.choice(choice_checklist)
+                            }
+                        },
+                        "required": [
+                            "prediction",
+                        ],
+                        "optional": [
+                        ]
+                    }
+                },
+            )
 
         if self.settings.temp.mv_imgs:
             self.tools.append(
@@ -311,12 +318,29 @@ class MFocusManager(AgentContextManager):
                         instructed_answer[tool_real_name] = humane
                 # The logic is not that considerate, but trust me it's enough
 
+            def _react_to_instruction(resp):
+                nonlocal self
+
+                if not has_valid_content(resp):
+                    inst = '[player]的请求当前无法被满足. 请表示你做不到, 并建议[player]自行解决或寻找其它方法.' if self.settings.basic.target_lang == 'zh' else '[player]\'s current request cannot be satisfied. please indicate that you can\'t do it, and suggest [player] doing it themselves or find another way.'
+                else:
+                    if resp in self.choice_checklist:
+                        inst = f'[player]的请求是你所了解的, 且会被系统完成, 请作出关于<{resp}>的正面答复.' if self.settings.basic.target_lang == 'zh' else f'[player]\'s request is understood and will be done by system, please make positive answer about <{resp}>.'
+                    else:
+                        inst = '[player]的请求是你所了解的, 且会被系统完成, 请作出正面答复.' if self.settings.basic.target_lang == 'zh' else '[player]\'s request is understood and will be done by system, please make positive answer.'
+
+                return inst
+
             # First thing first we prepare the first query
             if self.settings.temp.mv_imgs:
                 image_word = " [图片]" if self.settings.basic.target_lang == 'zh' else " [Image]"
                 query += image_word
             self._construct_tools()
             await self._construct_query(user_input=query)
+
+            if self.react_trigger_impl == 'func':
+                react_task = asyncio.create_task(react_detect(query, self.fsc, self.choice_list))
+            else: react_task = None
 
             cycle = 0; ending = False
             while cycle <= 7 and not ending:
@@ -355,13 +379,7 @@ class MFocusManager(AgentContextManager):
                         else:
                             match tool_func_name:
                                 case 'react_trigger':
-                                    if not has_valid_content(kwargs.get('prediction')):
-                                        humane = '[player]的请求当前无法被满足. 请表示你做不到, 并建议[player]自行解决或寻找其它方法.' if self.settings.basic.target_lang == 'zh' else '[player]\'s current request cannot be satisfied. please indicate that you can\'t do it, and suggest [player] doing it themselves or find another way.'
-                                    else:
-                                        if kwargs.get('prediction') in self.choice_checklist:
-                                            humane = f'[player]的请求是你所了解的, 且会被系统完成, 请作出关于<{kwargs.get("prediction")}>的正面答复.' if self.settings.basic.target_lang == 'zh' else f'[player]\'s request is understood and will be done by system, please make positive answer about <{kwargs.get("prediction")}>.'
-                                        else:
-                                            humane = '[player]的请求是你所了解的, 且会被系统完成, 请作出正面答复.' if self.settings.basic.target_lang == 'zh' else '[player]\'s request is understood and will be done by system, please make positive answer.'
+                                    humane = _react_to_instruction(kwargs.get('prediction'))
                                     machine = '已收到你的判断, 请继续调用其它工具或正常结束作答.' if self.settings.basic.target_lang == 'zh' else 'Your judgement recieved, please continue using other tools or end as normal.'
                                 case 'conclude_information':
                                     conclusion_answer = kwargs.get('conclusion')
@@ -397,6 +415,11 @@ class MFocusManager(AgentContextManager):
                 await messenger(self.websocket, 'maica_mfocus_round_finish', f'MFocus toolchain {cycle} round finished, ending is {str(ending)}', '200', type=MsgType.INFO, color=colorama.Fore.BLUE)
                     
             # Now we're out of the loop
+
+            if react_task:
+                await react_task
+                _instructed_add('react_trigger', _react_to_instruction(react_task.result()))
+
             if self.settings.extra.mf_aggressive:
                 
                 # So we use last response instead if no conclusion offered

@@ -152,19 +152,16 @@ async def confirm_page(title, target_lang='zh') -> Union[False, tuple[str, str]]
 
     summary = re.sub(r'(\n|\s)*\n(\n|\s)*', r'\n', re.sub(r'\n*=+(.*?)=+', r'\n\1:', zhconv.convert(summary_raw, 'zh-cn'), re.I|re.S))
 
-    if G.A.CENSOR_MSPIRE == '1':
+    if G.A.CENSOR_MSPIRE != '0':
+        tolerance = int(G.A.CENSOR_MSPIRE)
         title_censor = await has_censored(title)
-        if title_censor:
-            sync_messenger(info=f"MSpire title {title} has censored words: {title_censor}", type=MsgType.DEBUG)
+        summary_censor = await has_censored(summary)
+        if len(title_censor) + len(summary_censor) >= tolerance:
+            sync_messenger(info=f"MSpire {title} has censored words or phrases: {title_censor | summary_censor}", type=MsgType.DEBUG)
             return False
 
-        # Some tolerance settings can be added here
-        summary_censor = await has_censored(summary)
-        if len(summary_censor) > 1:
-            sync_messenger(info=f"MSpire page {title} has censored words: {summary_censor}", type=MsgType.DEBUG)
-            return False
-        elif summary_censor:
-            sync_messenger(info=f"MSpire page {title} has censored words but ignored: {summary_censor}", type=MsgType.DEBUG)
+        elif len(title_censor) + len(summary_censor):
+            sync_messenger(info=f"MSpire page {title} has censored words or phrases but ignored: {title_censor | summary_censor}", type=MsgType.DEBUG)
 
     return title, summary
 
