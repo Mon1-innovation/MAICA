@@ -105,7 +105,8 @@ class ShortConnHandler(View):
             self.fsc = FullSocketsContainer(rsc, csc)
             
             self.maica_pool = self.fsc.maica_pool
-            self.remote_addr = None
+
+        self.remote_addr = None
 
     def msg_http(self, *args, **kwargs):
         if self.val:
@@ -133,8 +134,10 @@ class ShortConnHandler(View):
             xff = request.headers.get('X-Forwarded-For')
             if xff:
                 self.remote_addr = xff.split(',')[0].strip()
-                if self.stem_inst:
-                    self.stem_inst.remote_addr = self.remote_addr
+            else:
+                self.remote_addr = str(request.remote_addr)
+            if self.stem_inst:
+                self.stem_inst.remote_addr = self.remote_addr
 
             self.msg_http(info=f'Recieved request on API endpoint {endpoint}', type=MsgType.RECV)
             self.msg_http(info=f'From IP {self.remote_addr}', type=MsgType.DEBUG)

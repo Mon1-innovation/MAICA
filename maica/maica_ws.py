@@ -90,6 +90,8 @@ class WsCoroutine(NoWsCoroutine):
         xff = websocket.request.headers.get("X-Forwarded-For")
         if xff:
             self.remote_addr = xff.split(',')[0].strip()
+        else:
+            self.remote_addr = str(websocket.remote_address[0])
         sync_messenger(info=f'An anonymous connection initiated, IP {self.remote_addr}', type=MsgType.PRIM_LOG)
         sync_messenger(info=f'Current online users: {list(online_dict.keys())}', type=MsgType.DEBUG)
 
