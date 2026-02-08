@@ -4,14 +4,14 @@ Some annoying migration stuff here.
 import asyncio
 import importlib
 from typing import *
-from packaging.version import parse
+from packaging.version import parse, Version
 from collections.abc import Callable
 from maica.maica_utils import *
 # from maica.initializer import create_marking
 from maica.initializer.migrations.base import get_migrations
 from maica.initializer.migrations import nukita_announcer
 
-available_list: list[tuple[str, Callable]]
+available_list: list[tuple[Version, Callable]]
 
 def pkg_init_migrations():
     global available_list
@@ -48,3 +48,6 @@ def migrate(version):
         sync_messenger(info=f'[maica-mig] No migration applied, continuing launch procedure...', type=MsgType.DEBUG)
 
     return migrated
+
+if __name__ == "__main__":
+    print(parse("1.0") <= parse("1.1") < parse("1.2"))
