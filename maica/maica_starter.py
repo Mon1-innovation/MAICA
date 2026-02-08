@@ -4,6 +4,7 @@ import traceback
 from typing import *
 from pathlib import Path
 from dotenv import load_dotenv
+from packaging.version import parse
 try:
     from maica import maica_ws
 except Exception:
@@ -201,7 +202,7 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwar
 
 def check_data_init():
     last_version = check_marking()
-    if not last_version:
+    if parse(last_version) <= parse("1.0.000"):
         generate_rsa_keys()
         pkg_init_maica()
         if load_env('MAICA_IS_REAL_ENV') == '1':
