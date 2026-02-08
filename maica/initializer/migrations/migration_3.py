@@ -2,6 +2,7 @@ import asyncio
 import os
 from typing import *
 from maica.maica_utils import *
+from .base import register_migration
 
 upper_version = "1.2.003"
 
@@ -32,3 +33,5 @@ async def migrate():
         raise MaicaDbWarning(f'Couldn\'t add column \'suspended_until\' automatically: {str(e)}, consider doing a manual double-check') from e
     finally:
         await auth_pool.close()
+
+register_migration(upper_version, migrate)

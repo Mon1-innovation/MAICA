@@ -2,6 +2,7 @@ import asyncio
 import os
 from typing import *
 from maica.maica_utils import *
+from .base import register_migration
 
 upper_version = "1.2.000.rc2"
 
@@ -47,3 +48,5 @@ END;
         raise MaicaDbWarning(f'Couldn\'t alter lines LONGTEXT to TEXT and add table mv_meta: {str(e)}, maybe manually done already?') from e
     finally:
         await maica_pool.close()
+        
+register_migration(upper_version, migrate)

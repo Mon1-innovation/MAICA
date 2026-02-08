@@ -2,6 +2,7 @@ import asyncio
 import os
 from typing import *
 from maica.maica_utils import *
+from .base import register_migration
 
 upper_version = "1.1.007.post3"
 
@@ -14,3 +15,5 @@ async def migrate():
         raise MaicaDbWarning(f'Couldn\'t rename table cchop_archived to crop_archived: {str(e)}, maybe manually done already?') from e
     finally:
         await maica_pool.close()
+
+register_migration(upper_version, migrate)
