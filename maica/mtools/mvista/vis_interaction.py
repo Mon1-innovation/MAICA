@@ -29,7 +29,7 @@ Begin!"""
         "messages": messages,
     }
 
-    resp = await fsc.mvista_conn.make_completion(**completion_args)
+    resp = await fsc.mvista_conn.make_completion(swallow=True, **completion_args)
     resp_content, resp_reasoning = resp.choices[0].message.content, getattr(resp.choices[0].message, 'reasoning_content', None)
     resp_content, resp_reasoning = proceed_common_text(resp_content), proceed_common_text(resp_reasoning)
         

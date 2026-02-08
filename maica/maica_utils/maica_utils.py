@@ -86,6 +86,20 @@ class MsgType():
     WARN = 'warn'
     ERROR = 'error'
 
+class FakeChatCompletion():
+    """A fake OpenAI completion class. Do not use for context."""
+    class Message:
+        def __init__(self, role="assistant", content=""):
+            self.role = role
+            self.content = content
+
+    class Choice:
+        def __init__(self, message):
+            self.message = message
+
+    def __init__(self, text):
+        self.choices = [self.Choice(self.Message(content=text))]
+
 class CommonMaicaException(Exception):
     """This is a common MAICA exception."""
     def __init__(self, message=None, error_code=None, status=None, send=None, print=None):

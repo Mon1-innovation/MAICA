@@ -34,7 +34,7 @@ Begin!"""
         "response_format": {"type": "json_object"},
     }
 
-    resp = await mnerve_conn.make_completion(**completion_args)
+    resp = await mnerve_conn.make_completion(swallow='{"res": false, "cfd": 0.99}', **completion_args)
     resp_content, resp_reasoning = resp.choices[0].message.content, getattr(resp.choices[0].message, 'reasoning_content', None)
     resp_json = proceed_common_text(resp_content, is_json=True)
 

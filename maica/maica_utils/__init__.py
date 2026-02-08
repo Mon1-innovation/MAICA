@@ -2,6 +2,7 @@
 from .maica_utils import (
     silent,
     MsgType,
+    FakeChatCompletion,
     CommonMaicaException,
     CommonMaicaError,
     CommonMaicaWarning,
@@ -68,6 +69,7 @@ from .gvars import online_dict, G
 __all__ = [
     'silent',
     'MsgType',
+    'FakeChatCompletion',
     'CommonMaicaException',
     'CommonMaicaError',
     'CommonMaicaWarning',

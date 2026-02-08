@@ -65,3 +65,4 @@ v1.2.001.post2: 修复重试机制, 调整mfocus提示词
 v1.2.002: 添加输入和ms内容审查配置, 一系列修复调整
 v1.2.003: 现在使用auth_db验证封禁状态, 兼容flarum, 一系列调整
 v1.2.004: 调整react_trigger实现, 添加设置reset, 添加censor容忍度, 一些小调整
+v1.2.004.post1: 添加openai端点容错设置, 改良打包兼容, 改良remote_addr实现, 一些小调整

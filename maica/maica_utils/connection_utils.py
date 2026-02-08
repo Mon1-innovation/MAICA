@@ -408,8 +408,11 @@ class AiConnectionManager(AsyncCreator):
 
     @Decos.catch_exceptions
     @Decos.conn_retryer_factory()
-    async def make_completion(self, **kwargs) -> ChatCompletion:
-        """Makes completion with arguments."""
+    async def make_completion(self, swallow: Union[bool, str]=False, **kwargs) -> ChatCompletion:
+        """
+        Makes completion with arguments.
+        swallow: At least do not raise exception if OpenAI denies with fucking sensitive policy. str as default response.
+        """
         kwargs.update(
             {
                 "model": self.model_actual
@@ -420,9 +423,22 @@ class AiConnectionManager(AsyncCreator):
         mixed_kwargs['extra_body'] = mixed_exbody
 
         await self.keep_alive()
-        task_stream_resp = asyncio.create_task(self.socket.chat.completions.create(**mixed_kwargs))
-        await asyncio.wait_for(task_stream_resp, timeout=int(G.A.OPENAI_TIMEOUT) if G.A.OPENAI_TIMEOUT != '0' else None)
-        return task_stream_resp.result()
+
+        try:
+            task_stream_resp = asyncio.create_task(self.socket.chat.completions.create(**mixed_kwargs))
+            await asyncio.wait_for(task_stream_resp, timeout=int(G.A.OPENAI_TIMEOUT) if G.A.OPENAI_TIMEOUT != '0' else None)
+            res = task_stream_resp.result()
+
+        except openai.InternalServerError as oe:
+            if not swallow:
+                raise oe
+            else:
+                # Create a fake response
+                fake_text = swallow if isinstance(swallow, str) else 'null'
+                res = FakeChatCompletion(fake_text)
+                sync_messenger(info=f"Swallowed OpenAI api exception: {str(oe)}, returning default: {fake_text}")
+
+        return res
     
     async def close(self):
         try:

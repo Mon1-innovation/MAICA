@@ -31,7 +31,7 @@ try:
     sync_messenger(info=f"[maica-cnsr] Loaded censor patterns: {len(censor_set)}", type=MsgType.DEBUG)
 
 except Exception as e:
-    sync_messenger(info=f"[maica-cnsr] Failed loading censor patterns: {str(e)}, ignoring and continuing", type=MsgType.WARN)
+    sync_messenger(info=f"[maica-cnsr] Censor patterns may not exist: {str(e)}, ignoring and continuing", type=MsgType.DEBUG)
 
 async def has_censored(text) -> list:
     """If there are censored words in text, or how many."""
