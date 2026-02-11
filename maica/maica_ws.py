@@ -364,11 +364,12 @@ class WsCoroutine(NoWsCoroutine):
                 session_type = -1
                 try:
                     messages = json.loads(query_in) if isinstance(query_in, str) else query_in
-                    query_in = messages[-1]['text']
-                    if len(messages) > 10:
-                        raise MaicaInputWarning('Sequence exceeded 10 rounds for chat_session -1', '413', 'maica_sequence_rounds_exceeded')
+                    query_in = messages[-1]['content']
                 except Exception as e:
                     raise MaicaInputWarning('Sequence is not JSON for chat_session -1', '406', 'maica_sequence_not_json') from e
+                if len(messages) > 10:
+                    raise MaicaInputWarning('Sequence exceeded 10 rounds for chat_session -1', '413', 'maica_sequence_rounds_exceeded')
+
 
             case i if 0 <= i < 10:
                 maica_assert(isinstance(query_in, str), 'query')
