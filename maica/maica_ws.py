@@ -359,11 +359,11 @@ class WsCoroutine(NoWsCoroutine):
 
         match int(self.settings.temp.chat_session):
             case -1:
-
+                maica_assert(isinstance(query_in, (str, list)), 'query')
                 # chat_session == -1 means query contains an entire chat history(sequence mode)
                 session_type = -1
                 try:
-                    messages = json.loads(query_in)
+                    messages = json.loads(query_in) if isinstance(query_in, str) else query_in
                     query_in = messages[-1]['text']
                     if len(messages) > 10:
                         raise MaicaInputWarning('Sequence exceeded 10 rounds for chat_session -1', '413', 'maica_sequence_rounds_exceeded')
@@ -371,7 +371,7 @@ class WsCoroutine(NoWsCoroutine):
                     raise MaicaInputWarning('Sequence is not JSON for chat_session -1', '406', 'maica_sequence_not_json') from e
 
             case i if 0 <= i < 10:
-
+                maica_assert(isinstance(query_in, str), 'query')
                 # chat_session == 0 means single round, else normal
                 session_type = 0 if i == 0 else 1
                 messages0 = {'role': 'user', 'content': query_in}

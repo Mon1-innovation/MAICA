@@ -58,6 +58,7 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwar
         parser.add_argument('target', choices=['chat', 'tts', 'all'], nargs='?', default='chat', help='Start maica chat server or mtts server, default chat')
         parser.add_argument('-e', '--envdir', help='Include external env file for running deployment, specify every time')
         parser.add_argument('-s', '--silent', action="store_true", help='Run without logging (unrecommended for deployment)')
+        parser.add_argument('--test', action="store_true", help='Run announcing test status')
         excluse_1 = parser.add_mutually_exclusive_group()
         excluse_1.add_argument('-k', '--keys', choices=['path', 'export', 'import'], nargs='?', const='path', help='Get path of RSA keys, or export/import to/from current directory')
         excluse_1.add_argument('-d', '--databases', choices=['path', 'export', 'import'], nargs='?', const='path', help='Get path of databases, or export/import to/from current directory')
@@ -69,9 +70,13 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwar
     start_target = args.target
     envdir = envdir or args.envdir
     silent = silent or args.silent
+    test = args.test
     operate_keys = args.keys
     operate_databases = args.databases
     operate_templates = args.templates
+
+    if test:
+        kwargs.update({"MAICA_DEV_STATUS": "testing"})
 
     _silent(silent)
 
