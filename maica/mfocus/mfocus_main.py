@@ -321,7 +321,9 @@ class MFocusManager(AgentContextManager):
             def _react_to_instruction(resp):
                 nonlocal self
 
-                if not has_valid_content(resp):
+                if resp == None:
+                    inst = ''
+                elif not has_valid_content(resp):
                     inst = '[player]的请求当前无法被满足. 请表示你做不到, 并建议[player]自行解决或寻找其它方法.' if self.settings.basic.target_lang == 'zh' else '[player]\'s current request cannot be satisfied. please indicate that you can\'t do it, and suggest [player] doing it themselves or find another way.'
                 else:
                     if resp in self.choice_checklist:
