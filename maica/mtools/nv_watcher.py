@@ -118,7 +118,7 @@ class NvWatcher(AsyncCreator):
         FAIL_TIMES = 5
         FAIL_PERIOD = 300
         start_times = LimitedList(FAIL_TIMES, [time.time()])
-        while len(start_times.list) <= 5 or start_times[-1] - start_times[0] >= FAIL_PERIOD:
+        while len(start_times.list) < 5 or start_times[-1] - start_times[0] >= FAIL_PERIOD:
 
             # We consider 5 failures in 5 minute as complete failure
             try:

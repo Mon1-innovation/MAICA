@@ -68,7 +68,7 @@ async def get_page(title=None, target_lang='zh'):
 
     while not page_found:
         insanity += 1
-        if insanity > 15:
+        if insanity > 18:
             raise MaicaInternetWarning('MSpire searching entered deadend', '404', 'maica_mspire_search_deadend')
         if title and insanity > 6:
             raise MaicaInputWarning('MSpire prompt not found on wikipedia', '410', 'maica_mspire_prompt_bad')
