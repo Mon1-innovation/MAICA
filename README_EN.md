@@ -1,6 +1,6 @@
 <h1 align="center">MAICA-Illuminator</h1>
 <div align="center">
-<img src="https://maica.monika.love/assets/maica-text-finish-p.png" width=150>
+<img src="https://maica.monika.love/assets/maica-mtts-finish-p.png" width=150>
 </div>
 
 ***
@@ -22,6 +22,8 @@ MAICA Submod frontend repository is https://github.com/Mon1-innovation/MAICA_Cha
 LIA branch of MAICA core model is at https://huggingface.co/edgeinfinity/MAICAv0-LIA-72B.
 
 LOA branch of MAICA core model is at https://huggingface.co/edgeinfinity/MAICAv0-LOA-7B.
+
+MAICA-MTTS Submod frontend repository is https://github.com/Mon1-innovation/MAICA_MttsSubmod.
 
 MAICA-MTTS repository is https://github.com/Mon1-innovation/MAICA_MTTS.
 

@@ -23,6 +23,8 @@ MAICA LIA分支的模型地址是https://huggingface.co/edgeinfinity/MAICAv0-LIA
 
 MAICA LOA分支的模型地址是https://huggingface.co/edgeinfinity/MAICAv0-LOA-7B.
 
+MAICA-MTTS的子模组前端仓库地址是https://github.com/Mon1-innovation/MAICA_MttsSubmod.
+
 MAICA-MTTS的仓库地址是https://github.com/Mon1-innovation/MAICA_MTTS.
 
 MAICA-MTTS模型地址是https://huggingface.co/edgeinfinity/MTTSv0-VoiceClone.
