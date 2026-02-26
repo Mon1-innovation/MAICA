@@ -24,7 +24,7 @@ Begin!"""
         "response_format": {"type": "json_object"},
     }
 
-    resp = await (fsc.mnerve_conn or fsc.mfocus_conn).make_completion(**completion_args)
+    resp = await (fsc.mnerve_conn or fsc.mfocus_conn).make_completion(swallow='{"choice": null}', **completion_args)
     resp_content, resp_reasoning = resp.choices[0].message.content, getattr(resp.choices[0].message, 'reasoning_content', None)
     resp_json = proceed_common_text(resp_content, is_json=True)
 
