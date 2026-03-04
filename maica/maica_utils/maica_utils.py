@@ -16,6 +16,7 @@ import time
 import datetime
 import random
 import traceback
+import websockets
 
 from typing import *
 from tenacity import *
@@ -332,6 +333,8 @@ class Decos():
                 return await func(self, *args, **kwargs)
             except CommonMaicaException as ce:
                 raise ce
+            except websockets.WebSocketException as we:
+                raise we
             except Exception as e:
                 exception_cls = MaicaDbError if hasattr(self, 'db') else MaicaResponseError
                 conn_type = 'db_conn' if hasattr(self, 'db') else 'ai_conn'
