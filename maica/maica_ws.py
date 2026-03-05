@@ -392,11 +392,12 @@ class WsCoroutine(NoWsCoroutine):
                 raise MaicaInputError("Using an out of bound session")
 
         # Construction part done, communication part started
-
+        # Notice: always do write response_format to override ability if must be text
         completion_args = {
             "messages": messages,
             "stream": self.settings.basic.stream_output,
             "stop": ['<|im_end|>', '<|endoftext|>'],
+            "response_format": {"type": "text"},
         }
         
         if not self.settings.temp.bypass_sup:

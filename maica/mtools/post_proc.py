@@ -126,6 +126,7 @@ async def emo_proc_llm(emo: str, target_lang: Literal['zh', 'en']='zh', mnerve_c
     
     sync_messenger(info=f"Proceeding 'add' to phrase '{emo}'...", type=MsgType.PRIM_RECV)
     
+    # Utilizing mnerve
     system_init = f"""你是一个人工智能助手, 你接下来会收到一个词或句子.
 你需要以json形式为其挑选最接近的表情, 并提供一个置信度. 你的输出应形如{{"res": 某个表情(str), "cfd": 置信度(float)}}.
 你只能从以下列表中选取一个表情, 不能改动, 不能翻译: {str(zlist_ai)}
@@ -137,7 +138,6 @@ Begin!"""
     messages.append({'role': 'user', 'content': emo})
     completion_args = {
         "messages": messages,
-        "response_format": {"type": "json_object"},
     }
 
     resp = await mnerve_conn.make_completion(swallow=f'{{"res": "{'微笑' if target_lang == 'zh' else 'smile'}", "cfd": 0.1}}', **completion_args)

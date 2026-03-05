@@ -7,6 +7,7 @@ from maica.mtrigger.mtrigger_sfe import MtPersistentManager
 from maica.maica_utils import *
 
 async def react_detect(query: str, fsc: FullSocketsContainer, choice_list: list) -> Union[str, bool, None]:
+    # Utilizing mnerve
     system_init = f"""你是一个人工智能助手, 你接下来会收到一条输入和一系列可用选项.
 用户可以请求'游戏内操作', 你需要判断用户是否提出了此类请求, 以及请求是否可被完成. 可用文字应对的请求不属于游戏内操作.
 若用户没有提出游戏内操作请求, 则输出null. 若用户提出了游戏内操作请求, 则输出相应的选项表示请求可完成, 否则输出false表示不可完成. 以json形式输出, 你的输出应形如{{"choice": 结果(str, false或null)}}.
@@ -21,7 +22,6 @@ Begin!"""
 
     completion_args = {
         "messages": messages,
-        "response_format": {"type": "json_object"},
     }
 
     resp = await (fsc.mnerve_conn or fsc.mfocus_conn).make_completion(swallow='{"choice": null}', **completion_args)

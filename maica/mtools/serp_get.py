@@ -50,6 +50,7 @@ Begin!"""
     # messages = apply_postfix(messages, thinking=False)
     completion_args = {
         "messages": messages,
+        "response_format": {"type": "text"},
     }
 
     conn = fsc.mnerve_conn or fsc.mfocus_conn

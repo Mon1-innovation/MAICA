@@ -8,6 +8,7 @@ async def query_vlm(fsc: FullSocketsContainer, query: str, img_list: list[str]) 
     target_lang = fsc.maica_settings.basic.target_lang
     assert len(img_list) <= int(G.A.KEEP_MVISTA), f"{G.A.KEEP_MVISTA} images at most per query"
 
+    # Utilizing mvista
     system_init = f"""你是一个人工智能助手, 你接下来会收到一到数张图片和一个问题.
 根据问题的要求, 以单行不换行的自然语言的形式, 对图片作出简洁的描述. 如果数张图片中只有一部分与问题有关, 则只根据这部分回答.
 你的回答应当以类似"在图中"的表述开头, 以客观视角讲述.
@@ -27,6 +28,7 @@ Begin!"""
     messages.append({'role': 'user', 'content': query_list})
     completion_args = {
         "messages": messages,
+        "response_format": {"type": "text"},
     }
 
     resp = await fsc.mvista_conn.make_completion(swallow=True, **completion_args)
@@ -40,3 +42,14 @@ Begin!"""
         return answer_post_think, f"图片内容: {answer_post_think}" if target_lang == 'zh' else f"Image content: {answer_post_think}"
     else:
         return None, None
+
+if __name__ == "__main__":
+    async def test():
+        from maica import init
+        init()
+        mvista_conn = await ConnUtils.mvista_conn()
+        fsc = FullSocketsContainer()
+        fsc.mvista_conn = mvista_conn
+        print(await query_vlm(fsc, "图片上有什么", ["https://upload.edgemonix.top:28991/assets/files/2025-10-31/1761883474-832827-image-1761665233450.png"]))
+
+    asyncio.run(test())

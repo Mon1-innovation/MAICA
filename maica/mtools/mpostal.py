@@ -23,6 +23,7 @@ async def make_postmail(content: str, header: str, fsc: FullSocketsContainer, **
         
         sync_messenger(info=f"Proceeding 'is_poem' to letter '{header}'...", type=MsgType.PRIM_RECV)
         
+        # Utilizing mnerve
         system_init = f"""你是一个人工智能助手, 你接下来会收到一封信件.
 你只需以json形式判断其是否属于诗歌, 体裁不限. 你的输出应形如{{"is_poem": 是否是诗歌(bool)}}.
 Begin!""" if target_lang == 'zh' else f"""You are a helpful assistant, now you will recieve a mail letter.
@@ -32,7 +33,6 @@ Begin!"""
         messages.append({'role': 'user', 'content': letter})
         completion_args = {
             "messages": messages,
-            "response_format": {"type": "json_object"},
         }
 
         resp = await mnerve_conn.make_completion(swallow='{"is_poem": false}', **completion_args)

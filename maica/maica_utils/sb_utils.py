@@ -157,6 +157,7 @@ class AgentContextManager(AsyncCreator):
         completion_args = {
             "messages": self.serial_messages,
             "tools": self.tools,
+            "response_format": {"type": "text"},
         }
         # print(completion_args)
 

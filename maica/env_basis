@@ -24,7 +24,7 @@ MAICA_MCORE_KEY = ''
 # MAICA core model choice, leave empty for first
 MAICA_MCORE_CHOICE = ''
 # MAICA core model completion extra params, must be valid json
-# Not a part of OpenAI standard, so only useful for vllm-like deployments
+# Not necessarily a part of OpenAI standard, may useful for vllm-like deployments
 MAICA_MCORE_EXTRA = '
     {
         "extra_body": {
@@ -39,7 +39,7 @@ MAICA_MFOCUS_KEY = ''
 # MFocus model choice, leave empty for first
 MAICA_MFOCUS_CHOICE = ''
 # MFocus model completion extra params, must be valid json
-# Not a part of OpenAI standard, so only useful for vllm-like deployments
+# Not necessarily a part of OpenAI standard, may useful for vllm-like deployments
 MAICA_MFOCUS_EXTRA = '
     {
         "temperature": 0.2,
@@ -56,7 +56,7 @@ MAICA_MVISTA_KEY = ''
 # MVista VL model choice, leave empty for first
 MAICA_MVISTA_CHOICE = ''
 # MVista model completion extra params, must be valid json
-# Not a part of OpenAI standard, so only useful for vllm-like deployments
+# Not necessarily a part of OpenAI standard, may useful for vllm-like deployments
 MAICA_MVISTA_EXTRA = '
     {
         "extra_body": {
@@ -70,7 +70,7 @@ MAICA_MNERVE_KEY = ''
 # MNerve VL model choice, leave empty for first
 MAICA_MNERVE_CHOICE = ''
 # MNerve model completion extra params, must be valid json
-# Not a part of OpenAI standard, so only useful for vllm-like deployments
+# Not necessarily a part of OpenAI standard, may useful for vllm-like deployments
 MAICA_MNERVE_EXTRA = '
     {
         "extra_body": {

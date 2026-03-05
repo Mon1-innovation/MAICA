@@ -813,7 +813,6 @@ Begin!"""
         # messages = apply_postfix(messages, thinking=False)
         completion_args = {
             "messages": messages,
-            "response_format": {"type": "json_object"},
         }
 
         conn = self.mnerve_conn or self.mfocus_conn
