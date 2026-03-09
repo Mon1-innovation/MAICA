@@ -804,11 +804,11 @@ class SfPersistentManager(PersistentManager):
         system_init = f"""\
 你是一个人工智能助手, 你接下来会收到一个问题和一系列信息.
 注意不要对信息作任何改动. 你可以认为[player]是用户的名字, 莫妮卡是你的名字.
-从中挑选1至5条最相关的信息, 并以json形式输出. 如果你最终认为没有信息符合条件, 可以留空. 你的输出应形如{{"info_array": 你挑选的信息(array)}}\
+从中挑选1至5条最直接, 最明确相关的信息, 并以json形式输出. 如果没有信息足够相关, 输出空数组. 你的输出应形如{{"info_array": 你挑选的信息(array)}}\
 """ if self.settings.basic.target_lang == 'zh' else f"""\
 You are a helpful assistant, now you will recieve a question and a list of information.
 Remember not to modify any item. Output them as what they were. You can consider [player] as user's name and Monika as yours.
-Pick 1 to 5 most relative items from the information. If you think no information provided is helpful at last, you can leave empty. Output in json format as {{"info_array": information you picked(array)}}\
+Pick 1 to 5 most directly relative items from the information. If information provided is relative enough, output empty array. Output in json format as {{"info_array": information you picked(array)}}\
 """
         messages = [{'role': 'system', 'content': system_init}]
         messages.append({'role': 'user', 'content': f'question: {query}; information: {json.dumps(information, ensure_ascii=False)}'})

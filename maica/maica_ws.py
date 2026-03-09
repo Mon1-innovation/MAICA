@@ -398,6 +398,7 @@ class WsCoroutine(NoWsCoroutine):
             "stream": self.settings.basic.stream_output,
             "stop": ['<|im_end|>', '<|endoftext|>'],
             "response_format": {"type": "text"},
+            "extra_body": {},
         }
         
         if not self.settings.temp.bypass_sup:
@@ -413,7 +414,7 @@ class WsCoroutine(NoWsCoroutine):
 
         if self.settings.extra.enforce_lang:
             if self.settings.basic.target_lang == 'en':
-                completion_args['extra_body'] = {"guided_regex": "^[一-龥]*"}
+                completion_args['extra_body']["structured_outputs"] = {"regex": "^[一-龥]*"}
 
         # Add context log
         previous_rnds = messages[1:-1]

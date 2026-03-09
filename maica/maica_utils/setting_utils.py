@@ -91,7 +91,7 @@ def set_literal(self, n, v, valid: list[any], **kwargs):
     return v
 
 @Decos.report_limit_warning
-def set_range(self, n, v, lower: Union[int, float], upper: Union[int, float], **kwargs):
+def set_range(self, n, v, lower: Union[int, float], upper: Union[int, float], soft_limit: bool=False, **kwargs):
     """Value must in range on set."""
     if isinstance(lower, str):
         lower = numeric(getattr(G.A, lower))
@@ -101,6 +101,11 @@ def set_range(self, n, v, lower: Union[int, float], upper: Union[int, float], **
         v = float(v)
     else:
         v = int(v)
+    if soft_limit:
+        new_v = max(lower, min(upper, v))
+        if v != new_v:
+            sync_messenger(info=f"{n}={v} out of range [{lower}, {upper}], limiting to {new_v}")
+            v = new_v
     assert lower <= v <= upper
     return v
 
@@ -237,7 +242,7 @@ class MaicaSettings():
         _frequency_penalty: float = 0.44
         _presence_penalty: float = 0.34
 
-        max_tokens = create_prop('max_tokens', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 1, "upper": 2048})
+        max_tokens = create_prop('max_tokens', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 1, "upper": 2048, "soft_limit": True})
         seed = create_prop('seed', setter_ext=[set_instance], setter_kwargs={"types": [int, None]})
         top_p = create_prop('top_p', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 0.1, "upper": 1.0})
         temperature = create_prop('temperature', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 0.0, "upper": 1.0})
