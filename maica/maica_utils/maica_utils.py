@@ -695,7 +695,7 @@ async def wrap_run_in_exc(loop, func, *args, **kwargs) -> any:
 def limit_length(col: list, limit: int) -> list:
     return random.sample(col, limit) if limit < len(col) else col
 
-async def dld_json(url, use_proxy=True, method='get', carriage={}) -> json:
+async def dld_json(url, use_proxy=True, method='get', carriage=None) -> json:
     """Get JSON context from an endpoint."""
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'}
 

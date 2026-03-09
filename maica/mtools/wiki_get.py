@@ -167,5 +167,5 @@ async def confirm_page(title, target_lang='zh') -> Union[False, tuple[str, str]]
 
 if __name__ == '__main__':
     import asyncio
-    s = asyncio.run(get_page('Images_of_nature',target_lang='en'))
-    print(s[1])
+    s = asyncio.run(get_page(None, target_lang='en'))
+    print(s)
