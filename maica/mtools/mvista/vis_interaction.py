@@ -9,13 +9,15 @@ async def query_vlm(fsc: FullSocketsContainer, query: str, img_list: list[str]) 
     assert len(img_list) <= int(G.A.KEEP_MVISTA), f"{G.A.KEEP_MVISTA} images at most per query"
 
     # Utilizing mvista
-    system_init = f"""你是一个人工智能助手, 你接下来会收到一到数张图片和一个问题.
+    system_init = f"""\
+你是一个人工智能助手, 你接下来会收到一到数张图片和一个问题.
 根据问题的要求, 以单行不换行的自然语言的形式, 对图片作出简洁的描述. 如果数张图片中只有一部分与问题有关, 则只根据这部分回答.
-你的回答应当以类似"在图中"的表述开头, 以客观视角讲述.
-Begin!""" if target_lang == 'zh' else f"""You are a helpful assistant, now you will recieve one or several images and a query.
+你的回答应当以类似"在图中"的表述开头, 以客观视角讲述.\
+""" if target_lang == 'zh' else f"""\
+You are a helpful assistant, now you will recieve one or several images and a query.
 Describe the images briefly in a single line of natural sentence, according to the query. If only some of images are related to the query, ignore the unrelated ones.
-Your reply should start with expressions like "In the image", and describe objectively.
-Begin!"""
+Your reply should start with expressions like "In the image", and describe objectively.\
+"""
     messages = [{'role': 'system', 'content': system_init}]
     query_list = [{"type": "text", "text": query}]
     for i in img_list:
@@ -32,7 +34,7 @@ Begin!"""
     }
 
     resp = await fsc.mvista_conn.make_completion(swallow=True, **completion_args)
-    resp_content, resp_reasoning = resp.choices[0].message.content, getattr(resp.choices[0].message, 'reasoning_content', None)
+    resp_content, resp_reasoning = resp.choices[0].message.content, try_getattr(resp.choices[0].message, 'reasoning_content', 'reasoning')
     resp_content, resp_reasoning = proceed_common_text(resp_content), proceed_common_text(resp_reasoning)
         
     await messenger(None, 'mfocus_mvista_acquire', f"\nMFocus toolchain calling MVista, response is:\nR: {resp_reasoning}\nA: {resp_content}\nEnd of MFocus toolchain calling MVista", '201')
@@ -50,6 +52,6 @@ if __name__ == "__main__":
         mvista_conn = await ConnUtils.mvista_conn()
         fsc = FullSocketsContainer()
         fsc.mvista_conn = mvista_conn
-        print(await query_vlm(fsc, "图片上有什么", ["https://upload.edgemonix.top:28991/assets/files/2025-10-31/1761883474-832827-image-1761665233450.png"]))
+        print(await query_vlm(fsc, "图片上有什么", ["https://upload.edgemonix.top:28991/assets/files/2025-10-31/1761883474-832827-image-1761665233450.png", "https://upload.edgemonix.top:28991/assets/files/2025-10-31/1761883474-832827-image-1761665233450.png", "https://upload.edgemonix.top:28991/assets/files/2025-10-31/1761883474-832827-image-1761665233450.png"]))
 
     asyncio.run(test())

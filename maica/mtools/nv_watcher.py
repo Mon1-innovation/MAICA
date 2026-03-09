@@ -29,7 +29,7 @@ class NvWatcher(AsyncCreator):
         self.node_pwd = getattr(subset, f'{node.upper()}_PWD')
         self.is_dead = False
 
-        self.node_addr = get_host(getattr(subset, f'{node.upper()}_ADDR'))
+        self.node_addr = get_host(getattr(subset, f'{node.upper()}_ADDR'))[1]
 
     async def _ainit(self):
         if self.is_active:

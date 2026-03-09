@@ -127,13 +127,15 @@ async def emo_proc_llm(emo: str, target_lang: Literal['zh', 'en']='zh', mnerve_c
     sync_messenger(info=f"Proceeding 'add' to phrase '{emo}'...", type=MsgType.PRIM_RECV)
     
     # Utilizing mnerve
-    system_init = f"""你是一个人工智能助手, 你接下来会收到一个词或句子.
+    system_init = f"""\
+你是一个人工智能助手, 你接下来会收到一个词或句子.
 你需要以json形式为其挑选最接近的表情, 并提供一个置信度. 你的输出应形如{{"res": 某个表情(str), "cfd": 置信度(float)}}.
-你只能从以下列表中选取一个表情, 不能改动, 不能翻译: {str(zlist_ai)}
-Begin!""" if target_lang == 'zh' else f"""You are a helpful assistant, now you will recieve a word or sentence.
+你只能从以下列表中选取一个表情, 不能改动, 不能翻译: {str(zlist_ai)}.\
+""" if target_lang == 'zh' else f"""\
+You are a helpful assistant, now you will recieve a word or sentence.
 Pick an emotion that is most relative to it, and provide a confidence. Output in json format as {{"res": emotion(str), "cfd": confidence(float)}}.
-You can only pick an emotion from the following list, no edition or translation: {str(elist_ai)}
-Begin!"""
+You can only pick an emotion from the following list, no edition or translation: {str(elist_ai)}.\
+"""
     messages = [{'role': 'system', 'content': system_init}]
     messages.append({'role': 'user', 'content': emo})
     completion_args = {
@@ -141,7 +143,7 @@ Begin!"""
     }
 
     resp = await mnerve_conn.make_completion(swallow=f'{{"res": "{'微笑' if target_lang == 'zh' else 'smile'}", "cfd": 0.1}}', **completion_args)
-    resp_content, resp_reasoning = resp.choices[0].message.content, getattr(resp.choices[0].message, 'reasoning_content', None)
+    resp_content, resp_reasoning = resp.choices[0].message.content, try_getattr(resp.choices[0].message, 'reasoning_content', 'reasoning')
     resp_json = proceed_common_text(resp_content, is_json=True)
 
     sync_messenger(info=f"Finished processing 'add' to phrase '{emo}': {resp_json}", type=MsgType.CARRIAGE)
@@ -151,7 +153,7 @@ async def emo_proc_auto(emo: str, target_lang: Literal['zh', 'en']='zh', mnerve_
     res = emo_proc(emo, target_lang)
     if res[1] <= 0.3 and mnerve_conn:
         res = await emo_proc_llm(emo, target_lang, mnerve_conn)
-        if not res[0] in (zlist if target_lang == 'zh' else elist):
+        if not res[0].strip('[').strip(']') in (zlist if target_lang == 'zh' else elist):
             return emo_proc(res[0], target_lang)
     return res
 
@@ -167,7 +169,12 @@ async def post_proc(reply_appended: str, target_lang: Literal['zh', 'en']='zh', 
     return reply_appended
 
 if __name__ == '__main__':
-    ra = '[理解 ]没关系, [player]. [微笑 ]我知[fear]道[womble]你很[adaifgnashioufoiusahdfoiua]忙[a1]. [心]你能抽空[slash我]陪我就[害怕]很好啦!'
-    print(asyncio.run(post_proc(ra, 'zh')))
-    # print(elist)
-    # print(zlist)
+    # ra = '[理解 ]没关系, [player]. [微笑 ]我知[fear]道[womble]你很[adaifgnashioufoiusahdfoiua]忙[a1]. [心]你能抽空[slash我]陪我就[害怕]很好啦!'
+    # print(asyncio.run(post_proc(ra, 'zh')))
+    async def test():
+        from maica import init
+        init()
+        mnerve_conn = await ConnUtils.mnerve_conn()
+        print(await emo_proc_auto("理解", mnerve_conn=mnerve_conn, target_lang='zh'))
+
+    asyncio.run(test())

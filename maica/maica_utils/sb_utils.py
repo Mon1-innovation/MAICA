@@ -145,14 +145,14 @@ class AgentContextManager(AsyncCreator):
 
         if user_input:
             # The new OpenAI standard fucked all previous procedures
-            self.serial_messages = clean_msgs(self.serial_messages, exclude=['reasoning_content'])
+            self.serial_messages = clean_msgs(self.serial_messages, exclude=['reasoning_content', 'reasoning'])
             self.serial_messages.append({'role': 'user', 'content': user_input})
 
         elif tool_input:
             self.serial_messages.append({'role': 'tool', 'tool_call_id': tool_id, 'content': tool_input})
 
     async def _send_query(self, thinking: Literal[True, False, None]=True) -> tuple[str, list]:
-        self.serial_messages = apply_postfix(self.serial_messages, thinking)
+        # self.serial_messages = apply_postfix(self.serial_messages, thinking)
         
         completion_args = {
             "messages": self.serial_messages,
@@ -162,7 +162,7 @@ class AgentContextManager(AsyncCreator):
         # print(completion_args)
 
         resp = await self.mfocus_conn.make_completion(**completion_args)
-        content, rcontent, tool_calls = resp.choices[0].message.content, getattr(resp.choices[0].message, 'reasoning_content', None), resp.choices[0].message.tool_calls
+        content, rcontent, tool_calls = resp.choices[0].message.content, try_getattr(resp.choices[0].message, 'reasoning_content', 'reasoning'), resp.choices[0].message.tool_calls
 
         if G.A.ALT_TOOLCALL != '0':
             self.serial_messages.append(resp.choices[0].message)

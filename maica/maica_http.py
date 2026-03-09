@@ -530,7 +530,7 @@ async def prepare_thread(**kwargs):
     # Construct watchers
     watch_addrs = {}
     for k, v in _WATCHES_DICT.items():
-        host = get_host(getattr(G.A, v))
+        host = get_host(getattr(G.A, v))[1]
         if host and not k in watch_addrs:
             watch_addrs[k] = host
             

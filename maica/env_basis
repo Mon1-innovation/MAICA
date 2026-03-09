@@ -44,6 +44,7 @@ MAICA_MFOCUS_EXTRA = '
     {
         "temperature": 0.2,
         "seed": 42,
+        "response_format": {"type": "json_object"},
         "extra_body": {
             "repetition_penalty": 1.05
         }
@@ -59,7 +60,9 @@ MAICA_MVISTA_CHOICE = ''
 # Not necessarily a part of OpenAI standard, may useful for vllm-like deployments
 MAICA_MVISTA_EXTRA = '
     {
+        "response_format": {"type": "json_object"},
         "extra_body": {
+            "chat_template_kwargs": {"enable_thinking": false}
         }
     }
 '
@@ -73,21 +76,20 @@ MAICA_MNERVE_CHOICE = ''
 # Not necessarily a part of OpenAI standard, may useful for vllm-like deployments
 MAICA_MNERVE_EXTRA = '
     {
+        "response_format": {"type": "json_object"},
         "extra_body": {
+            "chat_template_kwargs": {"enable_thinking": false}
         }
     }
 '
 # Wait [] seconds before giving up an OpenAI query or not
 MAICA_OPENAI_TIMEOUT = '90'
+# is /tokenizer endpoint open or not
+MAICA_CALC_TOKENS = '0'
 # 0 = ms-swift, 1 = modern openai
 MAICA_ALT_TOOLCALL = '1'
-# MFocus model think postfix, for hybrid thinking models only
-MAICA_MFOCUS_THINK = ''# /think
-# MFocus model no think postfix, for hybrid thinking models only
-MAICA_MFOCUS_NOTHINK = ''# /nothink
 # MFocus provide trained data or not
 MAICA_BASIC_MFOCUS = '0'
-
 
 # Data exchanging endpoint settings
 

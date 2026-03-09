@@ -241,6 +241,30 @@ class LoginResult():
             d[key] = getattr(self, key)
         return d
 
+class Combiner():
+    """For performance since GPT says string adding is not good."""
+    def __init__(self, pre_str='', splitter=', '):
+        self.str_buffer = pre_str
+        self.dyn_buffer = []
+        self.splitter = splitter
+
+    def append(self, item):
+        self.dyn_buffer.append(item)
+
+    def extend(self, items):
+        self.dyn_buffer.extend(items)
+
+    def _migrate(self):
+        ext_str = self.splitter.join(self.dyn_buffer)
+        if self.str_buffer:
+            self.str_buffer += self.splitter
+        self.str_buffer += ext_str
+        self.dyn_buffer.clear()
+
+    def to_text(self):
+        self._migrate()
+        return self.str_buffer
+
 class ReUtils():
     """Do not initialize."""
     IS = re.I | re.S
@@ -671,15 +695,16 @@ async def wrap_run_in_exc(loop, func, *args, **kwargs) -> any:
 def limit_length(col: list, limit: int) -> list:
     return random.sample(col, limit) if limit < len(col) else col
 
-async def dld_json(url) -> json:
+async def dld_json(url, use_proxy=True, method='get', carriage={}) -> json:
     """Get JSON context from an endpoint."""
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'}
 
     @Decos.conn_retryer_factory()
     async def _dld_json(fake_self, url):
         nonlocal headers
-        async with httpx.AsyncClient(proxy=G.A.PROXY_ADDR) as client:
-            res = (await client.get(url, headers=headers)).json()
+        async with httpx.AsyncClient(proxy=G.A.PROXY_ADDR if use_proxy else None) as client:
+            exparams = {"params": carriage} if method == 'get' else {"json": carriage}
+            res = (await getattr(client, method)(url, headers=headers, **exparams)).json()
             return res
 
     try:
@@ -696,10 +721,16 @@ def numeric(num: str) -> Union[int, float]:
         return float(num)
 
 def get_host(url: str) -> bool:
-    """Try to get hostname from url."""
+    """Try to get protocol, hostname and port from url."""
     try:
         url_parsed = urlparse(url)
-        return url_parsed.hostname
+        default_port = None
+        match url_parsed.scheme:
+            case 'http':
+                default_port = 80
+            case 'https':
+                default_port = 443
+        return url_parsed.scheme, url_parsed.hostname, url_parsed.port or default_port
     except Exception:
         return False
 
@@ -765,6 +796,15 @@ def try_load_json(sj: str) -> Union[dict, list]:
     except Exception:
         return {}
 
+def try_getattr(o, *names) -> Optional[any]:
+    """Just for convenience."""
+    res = None
+    for name in names:
+        res = getattr(o, name, None)
+        if res:
+            break
+    return res
+
 async def hash_sha256(str) -> str:
     """Get SHA256 for a string."""
     def hash_sync(str):
@@ -777,4 +817,15 @@ def sysstruct() -> Literal['Windows', 'Linux']:
     return sysstruct
 
 if __name__ == "__main__":
-    asyncio.run(dld_json("http://127.0.0.2"))
+    async def test():
+        from maica import init
+        init()
+        host_info = get_host(G.A.MCORE_ADDR)
+        res = await dld_json(f"{host_info[0]}://{host_info[1]}:{host_info[2]}/detokenize", False, 'post', {
+            "tokens": [
+                4754
+            ]
+        })
+        print(res)
+
+    asyncio.run(test())

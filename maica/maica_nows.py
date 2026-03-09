@@ -1,5 +1,6 @@
 import asyncio
 import json
+import orjson
 
 from typing import *
 from Crypto.Random import random as crandom
@@ -58,25 +59,57 @@ class NoWsCoroutine(AsyncCreator):
 
     def _flattern_chat_session(self, content_json: list) -> str:
         if content_json:
-            return json.dumps(content_json, ensure_ascii=False).strip('[').strip(']')
+            return orjson.dumps(content_json).decode().strip('[').strip(']')
         else:
             return None
 
-    async def _try_repair_chat_session(self, text) -> list:
+    async def _try_repair_chat_session(self, content) -> list:
         """Therotically shouldn't happen."""
-        text = text.strip(', ').strip(' ,')
-        content_json = await self._jsonify_chat_session(text)
+        content = content.strip(', ').strip(' ,')
+        content_json = await self._jsonify_chat_session(content)
         if content_json[0]['role'] != 'system':
             content_json.insert(0, {"role": "system", "content": await self.gen_system_prompt()})
         while content_json[1]['role'] != 'user':
             content_json.pop(1)
+        while content_json[-1]['role'] != 'assistant':
+            content_json.pop(-1)
         return content_json
 
     async def _crop_session(self, chat_session_id, content) -> tuple[int, str]:
-        max_length_ascii = self.settings.basic.max_length * 3
-        warn_length_ascii = int(max_length_ascii * (2/3))
-        len_content_actual = len(content.encode()) - len(json.loads(f'[{content}]')) * 31
-        if len_content_actual >= max_length_ascii:
+        """If length exceeded, cut to warning threshold to avoid frequent operations."""
+        use_api = G.A.CALC_TOKENS == '1'
+        messages = orjson.loads(f"[{content}]")
+
+        async def _tokens_calc(messages):
+            host_info = get_host(G.A.MCORE_ADDR)
+            return (await dld_json(f"{host_info[0]}://{host_info[1]}:{host_info[2]}/tokenize", False, 'post', carriage={"messages": messages}))['count']
+
+        async def tokens_calc(messages):
+            if use_api:
+                return await _tokens_calc(messages)
+            else:
+                return len(orjson.dumps(messages))
+            
+        def tokens_eval(count):
+            if use_api:
+                max_length = self.settings.basic.max_length
+            else:
+                # Use bytes
+                max_length= self.settings.basic.max_length * 3
+
+            warn_length = int(max_length * (2/3))
+
+            match count:
+                case x if x < warn_length:
+                    return 0
+                case x if warn_length <= x < max_length:
+                    return 1
+                case x if max_length <= x:
+                    return 2
+                
+        len_tokens = await tokens_calc(messages)
+        len_status = tokens_eval(len_tokens)
+        if len_status == 2:
 
             # First we check if there is a cchop avaliable
             sql_expression_1 = 'SELECT archive_id, content FROM crop_archived WHERE chat_session_id = %s AND archived = 0'
@@ -86,28 +119,36 @@ class NoWsCoroutine(AsyncCreator):
             else:
                 archive_id = None; archive_content = ''
 
-            cutting_mat = json.loads(f"[{content}]")
-            while len_content_actual >= warn_length_ascii or cutting_mat[1]['role'] == "assistant":
+            archive_combiner = Combiner(archive_content)
+
+            while len(messages) >= 2 and (messages[1]['role'] != "user" or len_status):
                 # Since pos 0 is reserved for system
-                if archive_content:
-                    archive_content = archive_content + ', '
-                popped_dict = cutting_mat.pop(1)
-                archive_content = archive_content + json.dumps(popped_dict, ensure_ascii=False)
-                len_content_actual -= (len(json.dumps(popped_dict, ensure_ascii=False).encode()) - 31)
-            content = self._flattern_chat_session(cutting_mat)
+                popped_dict = messages.pop(1)
+                archive_combiner.append(orjson.dumps(popped_dict).decode())
+                if len(messages) >= 2 and messages[1]['role'] == "user":
+                    # Only then it's necessary to recalc
+                    len_tokens = await tokens_calc(messages)
+                    len_status = tokens_eval(len_tokens)
 
+            content = self._flattern_chat_session(messages)
+            archive_content = archive_combiner.to_text()
+
+            should_seal = int(len(archive_content) >= 100000)
             if archive_id:
-                sql_expression_2 = "UPDATE crop_archived SET content = %s WHERE archive_id = %s" if len(archive_content) <= 100000 else "UPDATE crop_archived SET content = %s, archived = 1 WHERE archive_id = %s"
-                await self.maica_pool.query_modify(expression=sql_expression_2, values=(archive_content, archive_id))
+                sql_expression_2 = "UPDATE crop_archived SET content = %s, archived = %s WHERE archive_id = %s"
+                await self.maica_pool.query_modify(expression=sql_expression_2, values=(archive_content, should_seal, archive_id))
             else:
-                sql_expression_2 = "INSERT INTO crop_archived (chat_session_id, content, archived) VALUES (%s, %s, 0)" if len(archive_content) <= 100000 else "INSERT INTO crop_archived (chat_session_id, content, archived) VALUES (%s, %s, 1)"
-                await self.maica_pool.query_modify(expression=sql_expression_2, values=(chat_session_id, archive_content))
+                sql_expression_2 = "INSERT INTO crop_archived (chat_session_id, content, archived) VALUES (%s, %s, %s)"
+                await self.maica_pool.query_modify(expression=sql_expression_2, values=(chat_session_id, archive_content, should_seal))
 
-            cut_status = 1
-        elif len_content_actual >= warn_length_ascii:
             cut_status = 2
+
+        elif len_status == 1:
+            cut_status = 1
+
         else:
             cut_status = 0
+
         return cut_status, content
     
     @overload
@@ -406,3 +447,6 @@ class NoWsCoroutine(AsyncCreator):
             else:
                 raise MaicaPermissionWarning(verification_result[1], '400', 'maica_login_denied_rsa')
         return False
+    
+if __name__ == "__main__":
+    pass

@@ -337,8 +337,27 @@ class MFocusManager(AgentContextManager):
             if self.settings.temp.mv_imgs:
                 image_word = " [图片]" if self.settings.basic.target_lang == 'zh' else " [Image]"
                 query += image_word
+            if self.settings.extra.mf_aggressive:
+                taskend_word = "作出总结" if self.settings.basic.target_lang == 'zh' else "draw a conclusion"
+            else:
+                taskend_word = "表示任务完成" if self.settings.basic.target_lang == 'zh' else "indicate task finished"
+
+            user_instruct_input = f"""\
+你是一个人工智能助手, 你接下来会收到一名用户发送给"莫妮卡"的消息.
+请根据用户的输入, 调用必要的工具以获取信息, 以帮助"莫妮卡"回答.
+最终你应该通过调用工具的方式{taskend_word}. 如果该问题不需要工具, 你可以直接{taskend_word}.
+用户输入:
+{query}\
+""" if self.settings.basic.target_lang == 'zh' else f"""\
+You are a helpful assistant, now you will recieve an user's message to "Monika".
+Please read user's input and call necessary tools to acquire information, to help "Monika" to answer.
+Finally you should {taskend_word} with a corresponding tool. If the message does not need a tool to answer, you can {taskend_word} directly.
+User input:
+{query}\
+"""
+            
             self._construct_tools()
-            await self._construct_query(user_input=query)
+            await self._construct_query(user_input=user_instruct_input)
 
             if self.react_trigger_impl == 'func':
                 react_task = asyncio.create_task(react_detect(query, self.fsc, self.choice_list))

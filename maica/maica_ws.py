@@ -512,9 +512,9 @@ class WsCoroutine(NoWsCoroutine):
         if session_type == 1:
             stored = await self.rw_chat_session('a', [messages0, reply_appended_insertion])
             match stored[1]:
-                case 1:
-                    await buffered_messenger(websocket, 'maica_history_sliced', f"Session {self.settings.temp.chat_session} of {self.settings.verification.username} exceeded {self.settings.basic.max_length} characters and sliced", '204')
                 case 2:
+                    await buffered_messenger(websocket, 'maica_history_sliced', f"Session {self.settings.temp.chat_session} of {self.settings.verification.username} exceeded {self.settings.basic.max_length} characters and sliced", '204')
+                case 1:
                     await buffered_messenger(websocket, 'maica_history_slice_hint', f"Session {self.settings.temp.chat_session} of {self.settings.verification.username} exceeded {self.settings.basic.max_length * (2/3)} characters, will slice at {self.settings.basic.max_length}", '200', no_print=True)
 
             await buffered_messenger(websocket, 'maica_chat_loop_finished', f'Finished chat loop from {self.settings.verification.username}', '200', traceray_id=self.traceray_id, type=MsgType.INFO)

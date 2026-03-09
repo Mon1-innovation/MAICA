@@ -75,6 +75,7 @@ def test_logger(func):
         return result
     return wrapper
 
+@deprecated("Use extra_body in env instead")
 def apply_postfix(messages, thinking: Literal[True, False, None]=None):
     last_msg: dict = messages[-1]
     if last_msg.get('role') == 'user':
