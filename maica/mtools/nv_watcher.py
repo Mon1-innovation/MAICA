@@ -30,6 +30,7 @@ class NvWatcher(AsyncCreator):
         self.is_dead = False
 
         self.node_addr = get_host(getattr(subset, f'{node.upper()}_ADDR'))[1]
+        self.critical_reported = False
 
     async def _ainit(self):
         if self.is_active:
@@ -98,7 +99,7 @@ class NvWatcher(AsyncCreator):
 
         self.dynamics_curr = []
         dynamic_keys = ['utilization.gpu', 'memory.used', 'power.draw']
-        while True:
+        while not self.critical_reported:
             dynamics_new = await self._query_nvsmi(self.node_ssh, dynamic_keys)
             async with aiosqlite.connect(self.db_path, autocommit=True) if self.write_nvw else _FakeSQLiteConn() as db_client:
 
@@ -113,6 +114,9 @@ class NvWatcher(AsyncCreator):
                     self.gpu_overall[i][4] = gpu_curr
 
             await asyncio.sleep(10)
+
+        else:
+            raise self.critical_reported
 
     async def wrapped_main_watcher(self):
         FAIL_TIMES = 5
@@ -135,14 +139,20 @@ class NvWatcher(AsyncCreator):
         if not self.is_active:
             return {}
         
-        node_info = {}
-        for gpu_status in self.gpu_overall:
-            gpuid, name, memory, tflops, dynamic = gpu_status
-            u = 0; m = 0; p = 0
-            for line in dynamic:
-                u += float(line['u']); m += float(line['m']); p += float(line['p'])
-            u /= len(dynamic); m /= len(dynamic); p /= len(dynamic)
-            node_info[gpuid] = {'name': name, 'vram': memory, 'tflops': tflops, 'mean_utilization': int(u), 'mean_memory': int(m), 'mean_consumption': int(p)}
+        try:
+            node_info = {}
+            for gpu_status in self.gpu_overall:
+                gpuid, name, memory, tflops, dynamic = gpu_status
+                u = 0; m = 0; p = 0
+                for line in dynamic:
+                    u += float(line['u']); m += float(line['m']); p += float(line['p'])
+                u /= len(dynamic) or 1; m /= len(dynamic) or 1; p /= len(dynamic) or 1
+                node_info[gpuid] = {'name': name, 'vram': memory, 'tflops': tflops, 'mean_utilization': int(u), 'mean_memory': int(m), 'mean_consumption': int(p)}
+
+        except Exception as e:
+            # Something horrible might have happened to GPU server if statics are insane
+            self.critical_reported = e
+            raise e
             
         return {self.node_name: node_info}
 
