@@ -182,7 +182,7 @@ class MaicaSettings():
         """Enable trigger extraction."""
         target_lang = create_prop('target_lang', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": ['zh', 'en']})
         """Target language."""
-        max_length = create_prop('max_length', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 512, "upper": 'SESSION_MAX_LENGTH'})
+        max_length = create_prop('max_length', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 512, "upper": 'SESSION_MAX_LENGTH', "soft_limit": True})
         """Max session length."""
 
     @dataclass
@@ -242,7 +242,7 @@ class MaicaSettings():
         _frequency_penalty: float = 0.44
         _presence_penalty: float = 0.34
 
-        max_tokens = create_prop('max_tokens', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 1, "upper": 2048, "soft_limit": True})
+        max_tokens = create_prop('max_tokens', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 1, "upper": 2048})
         seed = create_prop('seed', setter_ext=[set_instance], setter_kwargs={"types": [int, None]})
         top_p = create_prop('top_p', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 0.1, "upper": 1.0})
         temperature = create_prop('temperature', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 0.0, "upper": 1.0})
