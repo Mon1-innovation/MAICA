@@ -385,6 +385,58 @@ agent模型的超参数不受影响, 且不可由用户设置.
 
 > 自v1.2.001后, pprt的引入使流式输出和非流式输出结果经历的后处理不同, 可能导致差异. 详见pprt部分.
 
+MAICA的规范包含一系列占位符与标记, 这些标记应当由前端处理或过滤.  
+在自定义拓展, 前端开发, 数据集处理和模型训练等方面, 请尽可能遵循规范. 其中包括:
+
+- 表情符号
+    ```
+    "smile": "微笑",
+    "happy": "开心",
+    "worry": "担心",
+    "grin": "笑",
+    "think": "思考",
+    "angry": "生气",
+    "blush": "脸红",
+    "gaze": "凝视",
+    "upset": "沉重",
+    "daydreaming": "憧憬",
+    "surprise": "惊喜",
+    "awkward": "尴尬",
+    "meaningful": "意味深长",
+    "unexpected": "惊讶",
+    "relaxed": "轻松",
+    "shy": "害羞",
+    "eagering": "急切",
+    "proud": "得意",
+    "dissatisfied": "不满",
+    "serious": "严肃",
+    "touched": "感动",
+    "excited": "激动",
+    "love": "宠爱",
+    "wink": "眨眼",
+    "sad": "伤心",
+    "disgust": "厌恶",
+    "fear": "害怕",
+    "kawaii": "可爱",
+    "smiling": "微笑",
+    "worrying": "担心",
+    "grinning": "笑",
+    "thinking": "思考",
+    "gazing": "凝视",
+    "surprised": "惊喜",
+    "relaxing": "轻松",
+    "eager": "急切",
+    "winking": "眨眼",
+    "disgusting": "厌恶",
+    "fearing": "害怕"
+    ```
+    > 以上列举了所有标准内的表情及其对应关系, 大小写不敏感.  
+    > 这些标记将被模型以中括号标识, 如`[微笑]`.  
+    > 实践表明模型倾向于在英文字段与中括号间插入空格等, 请考虑在内.
+
+- 玩家名称 `[player]`
+    > 出于早期设计中的某些原因, 玩家名称并没有提供nickname的区分. 如果这一行为在未来发生改变, 将记录于此.
+
 在响应完成后, 若MTrigger启用, MAICA会发送MTrigger指示:
 
 ```
