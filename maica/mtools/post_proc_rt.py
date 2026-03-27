@@ -20,6 +20,25 @@ list_subcrit_punc = list('.。!！?？；;~')
 list_crit_punc = list('.。!！?？~')
 list_excrit_puc = list('!！~')
 
+class TalkSplitPlain():
+    """For unchanged output."""
+    def __init__(self, split_limit=-1):
+        self.reset()
+        self._split_limit = split_limit
+
+    def reset(self):
+        self.sentence_present = ''
+
+    def add_part(self, part):
+        self.sentence_present += part
+
+    def split_present_sentence(self):
+        sentence_present, self.sentence_present = self.sentence_present, ''
+        return sentence_present
+    
+    def announce_stop(self):
+        return [self.sentence_present] if self.sentence_present else []
+
 class TalkSplitV2():
     """Transplanted from py2 fe. Terribly written."""
     def __init__(self, split_limit=180):
@@ -29,7 +48,7 @@ class TalkSplitV2():
     def reset(self):
         self.sentence_present = ''
 
-    def is_decimal(self, five_related_cells):
+    def _is_decimal(self, five_related_cells):
         """Not just decimal. Return True if dot shouldn't be considered as a period, vice versa."""
         def num_amount(text):
             i = 0
@@ -51,10 +70,10 @@ class TalkSplitV2():
                 return True
         return False
     
-    @staticmethod
-    def insert_string(original_str, insert_str, index):
-        """Simple."""
-        return original_str[:index] + insert_str + original_str[index:]
+    # @staticmethod
+    # def insert_string(original_str, insert_str, index):
+    #     """Simple."""
+    #     return original_str[:index] + insert_str + original_str[index:]
 
     def add_part(self, part):
         """Simple too."""
@@ -104,7 +123,7 @@ class TalkSplitV2():
         for match in matches:
             pos = match.end(); content = match.group()
             apc.append(match)
-            if len(content) > 1 or not self.is_decimal(('   ' + self.sentence_present + ' ')[pos:pos+5]):
+            if len(content) > 1 or not self._is_decimal(('   ' + self.sentence_present + ' ')[pos:pos+5]):
                 if has_words_in(content, *list_uncrit_punc):
                     upc.append(match)
                     if has_words_in(content, *list_subcrit_punc):
@@ -159,7 +178,7 @@ class TalkSplitV2():
                     return split_at_pos(match.end())
         return split_at_pos(get_pos_len(self._split_limit + 20))
     
-    def announce_stop(self):
+    def announce_stop(self) -> List[str]:
         """Exhausts remaining buffer."""
         sce_list = []
         res = True
@@ -203,7 +222,7 @@ class TalkSplitV2():
     #         lmatch = match
     #         match_tuple_b = (pos, content, prelen, alllen)
     #         # print(('   ' + strin + ' ')[pos:pos+5])
-    #         if len(content) > 1 or not self.is_decimal(('   ' + strin + ' ')[pos:pos+5]):
+    #         if len(content) > 1 or not self._is_decimal(('   ' + strin + ' ')[pos:pos+5]):
     #             if has_words_in(content, list_excrit_puc):
     #                 iepc.append(match_tuple_b)
     #             elif has_words_in(content, list_crit_punc):
@@ -237,12 +256,18 @@ class TalkSplitV2():
 class PPRTProcessor():
     """Post proc realtime processor."""
     @Decos.report_limit_warning
-    def __init__(self, pprt: Union[dict, True]=True, target_lang: Literal['zh', 'en']='zh', mnerve_conn: Optional[AiConnectionManager]=None):
+    def __init__(self, pprt: Union[dict, bool]=True, target_lang: Literal['zh', 'en']='zh', mnerve_conn: Optional[AiConnectionManager]=None):
         self._pprt = {
             "yield_interval": [40, 20, 10, 5, 3, 1],
             "split_limit": 180,
             "correct_malform": True,
         }
+        # Compatibility consideration
+        if pprt == False:
+            pprt = {
+                "split_limit": -1,
+                "correct_malform": False,
+            }
         if isinstance(pprt, dict):
             check_type(pprt.get('yield_interval'), List[int])
             check_type(pprt.get('split_limit'), int)
@@ -250,7 +275,11 @@ class PPRTProcessor():
 
         self._target_lang = target_lang
         self._mnerve_conn = mnerve_conn
-        self._buffer = TalkSplitV2(self._pprt.get('split_limit'))
+        if self._pprt.get('split_limit') > 0:
+            self._buffer = TalkSplitV2(self._pprt.get('split_limit'))
+        else:
+            self._pprt['yield_interval'] = [1]
+            self._buffer = TalkSplitPlain()
 
         self._add_counter = 0
         self._yield_counter = 0
@@ -261,31 +290,30 @@ class PPRTProcessor():
 
     def _try_yield(self):
         return self._buffer.split_present_sentence()
-    
+
     async def store_and_split(self, chunk: str) -> Optional[str]:
         self._add_chunk(chunk)
         if self._add_counter >= sum(self._pprt['yield_interval'][:self._yield_counter + 1]):
             split = self._buffer.split_present_sentence()
             if split:
-                if self._pprt.get('correct_malform'):
-                    return await self._correct_malform(split)
-                else:
-                    return split
+                return await self._correct_malform(split)
             else:
                 self._yield_counter += 1
                 return None
             
     async def _correct_malform(self, sentence: str) -> str:
-        return await post_proc(sentence, self._target_lang, self._mnerve_conn)
+        if self._pprt.get('correct_malform'):
+            return await post_proc(sentence, self._target_lang, self._mnerve_conn)
+        else:
+            return sentence
 
-    async def exaust_and_split(self) -> list[str]:
+    async def exaust_and_split(self, chunk: str='') -> list[str]:
+        if chunk:
+            self._add_chunk(chunk)
         splits = self._buffer.announce_stop()
         new_splits = []
         for split in splits:
-            if self._pprt.get('correct_malform'):
-                new_splits.append(await self._correct_malform(split))
-            else:
-                new_splits.append(split)
+            new_splits.append(await self._correct_malform(split))
         return new_splits
     
 if __name__ == "__main__":

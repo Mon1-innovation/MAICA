@@ -431,19 +431,18 @@ class WsCoroutine(NoWsCoroutine):
         # We're about to start generation, so any ws interrupts should be handled by buffered_messenger from now.
         buffered_messenger = BufferedMessenger(self.settings.verification.user_id)
 
-        pprt = pprt_processor = None
-        if recv_loaded_json.get('pprt'):
+        pprt = True
+        if recv_loaded_json.get('pprt') != None:
             pprt = recv_loaded_json['pprt']
-            pprt_processor = mtools.PPRTProcessor(pprt, self.settings.basic.target_lang, self.fsc.mnerve_conn)
+        pprt_processor = mtools.PPRTProcessor(pprt, self.settings.basic.target_lang, self.fsc.mnerve_conn)
 
         if not self.settings.temp.bypass_gen or not replace_generation: # They should present together
 
             # Generation here
             resp = await self.fsc.mcore_conn.make_completion(**completion_args)
+            reply_appended = ''; seq = 0
 
             if completion_args['stream']:
-                reply_appended = ''
-                seq = 0
                 async for chunk in resp:
                     if not chunk.choices: continue
                     token = chunk.choices[0].delta.content
@@ -451,34 +450,38 @@ class WsCoroutine(NoWsCoroutine):
                         await asyncio.sleep(0)
                         token = ReUtils.re_sub_replacement_chr.sub('', token)
 
-                        if pprt_processor:
-                            sentence: Optional[str] = await pprt_processor.store_and_split(token)
-                            if sentence:
-                                await buffered_messenger(websocket, 'maica_core_streaming_continue', sentence, '100')
-                                reply_appended += sentence
-                                seq += 1
-                        else:
-                            await buffered_messenger(websocket, 'maica_core_streaming_continue', token, '100')
-                            reply_appended += token
+                        sentence: Optional[str] = await pprt_processor.store_and_split(token)
+                        if sentence:
+                            await buffered_messenger(websocket, 'maica_core_streaming_continue', sentence, '100')
+                            reply_appended += sentence
                             seq += 1
 
                 # Exhaust pprtp on completion finish
-                if pprt_processor:
-                    sentences: list[str] = await pprt_processor.exaust_and_split()
-                    for sentence in sentences:
-                        await buffered_messenger(websocket, 'maica_core_streaming_continue', sentence, '100')
-                        reply_appended += sentence
-                        seq += 1
-                else:
-                    reply_appended = await mtools.post_proc(reply_appended, self.settings.basic.target_lang, self.fsc.mnerve_conn)
+                sentences: list[str] = await pprt_processor.exaust_and_split()
+                for sentence in sentences:
+                    await buffered_messenger(websocket, 'maica_core_streaming_continue', sentence, '100')
+                    reply_appended += sentence
+                    seq += 1
 
                 sync_messenger(info='\n', type=MsgType.PLAIN)
                 await buffered_messenger(websocket, 'maica_core_complete', f'Streaming finished with seed {completion_args['seed']} for {self.settings.verification.username}, {seq} packets sent', '1000', traceray_id=self.traceray_id)
             else:
-                reply_appended = resp.choices[0].message.content
-                reply_appended = await mtools.post_proc(reply_appended, self.settings.basic.target_lang, self.fsc.mnerve_conn)
-                await buffered_messenger(websocket, 'maica_core_nostream_reply', reply_appended, '200', type=MsgType.CARRIAGE)
-                await buffered_messenger(None, 'maica_core_complete', f'Reply sent with seed {completion_args['seed']} for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
+                reply = resp.choices[0].message.content
+
+                sentences: list[str] = await pprt_processor.exaust_and_split(reply)
+                for sentence in sentences:
+                    if len(sentences) == 1:
+                        await buffered_messenger(websocket, 'maica_core_nostream_reply', sentence, '200')
+                    else:
+                        await buffered_messenger(websocket, 'maica_core_streaming_continue', sentence, '100')
+                    reply_appended += sentence
+                    seq += 1
+
+                if len(sentences) == 1:
+                    await buffered_messenger(None, 'maica_core_complete', f'Reply sent with seed {completion_args['seed']} for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
+                else:
+                    sync_messenger(info='\n', type=MsgType.PLAIN)
+                    await buffered_messenger(websocket, 'maica_core_complete', f'Streaming finished with seed {completion_args['seed']} for {self.settings.verification.username}, {seq} packets sent', '1000', traceray_id=self.traceray_id)
 
         else:
             # We just pretend it was generated

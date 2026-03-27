@@ -32,3 +32,15 @@ Return null if the query contains no ingame action request. Otherwise, return th
 
     sync_messenger(info=f"Finished reaction detection: {resp_json}", type=MsgType.DEBUG)
     return resp_json.get('choice')
+
+if __name__ == "__main__":
+    async def test():
+        from maica import init
+        from maica.test_module.test_build_choice_list import build_case_260326
+        init()
+        mnerve_conn = await ConnUtils.mnerve_conn()
+        fsc = FullSocketsContainer()
+        fsc.mnerve_conn = mnerve_conn
+        print(await react_detect("我想听your reality 钢琴版", fsc, build_case_260326()))
+
+    asyncio.run(test())
