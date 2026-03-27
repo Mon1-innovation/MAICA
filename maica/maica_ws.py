@@ -431,7 +431,7 @@ class WsCoroutine(NoWsCoroutine):
         # We're about to start generation, so any ws interrupts should be handled by buffered_messenger from now.
         buffered_messenger = BufferedMessenger(self.settings.verification.user_id)
 
-        pprt = True
+        pprt = True if completion_args['stream'] else False
         if recv_loaded_json.get('pprt') != None:
             pprt = recv_loaded_json['pprt']
         pprt_processor = mtools.PPRTProcessor(pprt, self.settings.basic.target_lang, self.fsc.mnerve_conn)

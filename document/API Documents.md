@@ -501,6 +501,7 @@ MAICA长连接有一系列附加功能可用.
 
 其中, 若将实时后处理配置设置为true或不设则采用默认的配置, 将其设置为一个dict可进行更详细的设置:
 > 将实时后处理配置设置为false等效于`{"split_limit": -1, "correct_malform": False}`. 其表现接近于旧版中的不开启pprt.
+> 若stream_output为false, 则实时后处理配置默认为false.
 
 `{"yield_interval": [40, 20, 10, 5, 3, 1], "split_limit": 180, "correct_malform": True}`
 
