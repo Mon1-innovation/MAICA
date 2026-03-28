@@ -268,10 +268,11 @@ class PPRTProcessor():
                 "split_limit": -1,
                 "correct_malform": False,
             }
+
         if isinstance(pprt, dict):
-            check_type(pprt.get('yield_interval'), List[int])
-            check_type(pprt.get('split_limit'), int)
             self._pprt.update(pprt)
+            check_type(self._pprt.get('yield_interval'), List[int])
+            check_type(self._pprt.get('split_limit'), int)
 
         self._target_lang = target_lang
         self._mnerve_conn = mnerve_conn
