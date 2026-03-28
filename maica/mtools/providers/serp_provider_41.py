@@ -11,8 +11,11 @@ import urllib.parse
 from typing import *
 from maica.maica_utils import *
 from maica.mtools.api_keys import TpAPIKeys
+from .base import register_provider
 
+prio = 41
 requires = ['BRIGHTDATA_ZONE', 'BRIGHTDATA_KEY']
+
 _before_retry = 0
 
 async def asearch(query, target_lang: Literal['zh', 'en']='zh'):
@@ -60,6 +63,8 @@ async def asearch(query, target_lang: Literal['zh', 'en']='zh'):
     except Exception:
         results_formatted = []
     return results_formatted
+
+register_provider(prio, requires, asearch)
 
 if __name__ == "__main__":
     async def main():

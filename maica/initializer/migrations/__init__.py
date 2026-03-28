@@ -9,7 +9,7 @@ from collections.abc import Callable
 from maica.maica_utils import *
 # from maica.initializer import create_marking
 from maica.initializer.migrations.base import get_migrations
-from maica.initializer.migrations import nukita_announcer
+from maica.initializer.migrations import _activator
 
 available_list: list[tuple[Version, Callable]]
 

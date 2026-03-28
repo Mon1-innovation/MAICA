@@ -16,22 +16,25 @@ from flashtext import KeywordProcessor
 from typing import *
 from maica.maica_utils import *
 
-try:
-    base_path = get_inner_path('mtools/censor')
-    censor_file_entries = os.scandir(base_path)
-    censor_set = set()
-    for entry in censor_file_entries:
-        if entry.is_file() and entry.name.endswith('.txt'):
-            with open(entry.path, 'r') as file:
-                censor_set.update(file.read().splitlines())
-    kp = KeywordProcessor()
-    for kw in censor_set:
-        kp.add_keyword(kw)
+kp = KeywordProcessor()
 
-    sync_messenger(info=f"[maica-cnsr] Loaded censor patterns: {len(censor_set)}", type=MsgType.DEBUG)
+def pkg_init_censor():
+    global kp
+    try:
+        base_path = get_inner_path('mtools/censor')
+        censor_file_entries = os.scandir(base_path)
+        censor_set = set()
+        for entry in censor_file_entries:
+            if entry.is_file() and entry.name.endswith('.txt'):
+                with open(entry.path, 'r') as file:
+                    censor_set.update(file.read().splitlines())
+        for kw in censor_set:
+            kp.add_keyword(kw)
 
-except Exception as e:
-    sync_messenger(info=f"[maica-cnsr] Censor patterns may not exist: {str(e)}, ignoring and continuing", type=MsgType.DEBUG)
+        sync_messenger(info=f"[maica-cnsr] Loaded censor patterns: {len(censor_set)}", type=MsgType.DEBUG)
+
+    except Exception as e:
+        sync_messenger(info=f"[maica-cnsr] Censor patterns may not exist: {str(e)}, ignoring and continuing", type=MsgType.DEBUG)
 
 async def has_censored(text) -> list:
     """If there are censored words in text, or how many."""

@@ -18,7 +18,9 @@ import random
 from typing import *
 from collections.abc import Callable
 from maica.maica_utils import *
-from maica.mtools.api_keys import TpAPIKeys
+# from maica.mtools.api_keys import TpAPIKeys
+from maica.mtools.providers.base import get_providers
+from maica.mtools.providers import _activator
 
 @overload
 async def asearch(query: str, target_lang: Literal['zh', 'en']) -> list[dict[Literal['title', 'text'], Annotated[str, Desc('Content')]]]:...
@@ -32,15 +34,7 @@ def pkg_init_serp_provider():
     available_list = []
 
     if G.A.NO_SERP != '1':
-        for prio in range(0, 100):
-            modname = f".serp_provider_{prio}"
-            try:
-                serp_provider = importlib.import_module(modname, "maica.mtools.providers")
-                asearch = serp_provider.asearch; requires = serp_provider.requires
-                for r in requires:
-                    assert getattr(TpAPIKeys, r)
-                available_list.append((prio, asearch))
-            except Exception:...
+        available_list = get_providers()
     sync_messenger(info=f"[maica-serp] Available SERP providers: {', '.join([str(i[0]) for i in available_list]) or None}", type=MsgType.DEBUG)
 
 def get_asearch(avoid: Union[Literal['last'], int]=None, rand: bool=False) -> Callable:

@@ -10,8 +10,11 @@ import json
 from typing import *
 from maica.maica_utils import *
 from maica.mtools.api_keys import TpAPIKeys
+from .base import register_provider
 
+prio = 43
 requires = ['SERPER_SERP']
+
 async def asearch(query, target_lang: Literal['zh', 'en']='zh'):
     host = "google.serper.dev"
     url = f"https://{host}/search"
@@ -33,6 +36,8 @@ async def asearch(query, target_lang: Literal['zh', 'en']='zh'):
 
     results_formatted = [{"title": it['title'], "text": it['snippet']} for it in response_json['organic'] if 'snippet' in it]
     return results_formatted
+
+register_provider(prio, requires, asearch)
 
 if __name__ == "__main__":
     async def main():

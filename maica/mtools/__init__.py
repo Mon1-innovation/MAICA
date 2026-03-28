@@ -43,7 +43,9 @@ __all__ = [
 from .mcp import pkg_init_mcp
 from .api_keys import pkg_init_api_keys
 from .providers import pkg_init_serp_provider
+from .censor import pkg_init_censor
 def pkg_init_mtools():
     pkg_init_mcp()
     pkg_init_api_keys()
     pkg_init_serp_provider()
+    pkg_init_censor()
