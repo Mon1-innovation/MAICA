@@ -82,7 +82,7 @@ class NoWsCoroutine(AsyncCreator):
 
         async def _tokens_calc(messages):
             host_info = get_host(G.A.MCORE_ADDR)
-            return (await dld_json(f"{host_info[0]}://{host_info[1]}:{host_info[2]}/tokenize", False, 'post', carriage={"messages": messages}))['count']
+            return (await dld_json(f"{host_info[0]}://{host_info[1]}:{host_info[2]}/tokenize", False, False, 'post', carriage={"messages": messages}))['count']
 
         async def tokens_calc(messages):
             if use_api:

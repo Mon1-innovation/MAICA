@@ -414,7 +414,7 @@ class WsCoroutine(NoWsCoroutine):
 
         if self.settings.extra.enforce_lang:
             if self.settings.basic.target_lang == 'en':
-                completion_args['extra_body']["structured_outputs"] = {"regex": "^[一-龥]*"}
+                completion_args['extra_body']["structured_outputs"] = {"regex": "^[^\u4e00-\u9fa5]*$"}
 
         # Add context log
         previous_rnds = messages[1:-1]

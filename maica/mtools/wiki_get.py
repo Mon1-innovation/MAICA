@@ -7,8 +7,8 @@ from typing import *
 from maica.maica_utils import *
 from .censor import *
  
-async def get_multi_json(*list_url):
-    list_resp = await asyncio.gather(*[dld_json(u) for u in list_url])
+async def get_multi_json(list_url, *args, **kwargs):
+    list_resp = await asyncio.gather(*[dld_json(u, *args, **kwargs) for u in list_url])
     return list_resp
 
 async def get_page(title=None, target_lang='zh'):
@@ -76,7 +76,7 @@ async def get_page(title=None, target_lang='zh'):
         # Skipping this by default
         if insanity == 1 and not def_cat and not use_page and zh_scraper.search(next_title):
             nxt_hans=zhconv.convert(next_title, 'zh-hans');nxt_hant=zhconv.convert(next_title, 'zh-hant')
-            hans_list, hant_list = await get_multi_json(f"https://{target_lang}.wikipedia.org/w/api.php?action=query&format=json&list=search&redirects=1&utf8=1&formatversion=2&srsearch={nxt_hans}&srnamespace=0%7C14&srlimit=1&sroffset=0&srprop=", f"https://{target_lang}.wikipedia.org/w/api.php?action=query&format=json&list=search&redirects=1&utf8=1&formatversion=2&srsearch={nxt_hant}&srnamespace=0%7C14&srlimit=1&sroffset=0&srprop=")
+            hans_list, hant_list = await get_multi_json([f"https://{target_lang}.wikipedia.org/w/api.php?action=query&format=json&list=search&redirects=1&utf8=1&formatversion=2&srsearch={nxt_hans}&srnamespace=0%7C14&srlimit=1&sroffset=0&srprop=", f"https://{target_lang}.wikipedia.org/w/api.php?action=query&format=json&list=search&redirects=1&utf8=1&formatversion=2&srsearch={nxt_hant}&srnamespace=0%7C14&srlimit=1&sroffset=0&srprop="])
             hans_len, hant_len = hans_list['query']['searchinfo']['totalhits'], hant_list['query']['searchinfo']['totalhits']
             if hans_len >= hant_len:
                 next_title = nxt_hans
@@ -93,7 +93,7 @@ async def get_page(title=None, target_lang='zh'):
 
         match use_page:
             case None:
-                page_list, cat_list = await get_multi_json(page_url, cat_url)
+                page_list, cat_list = await get_multi_json([page_url, cat_url])
             case True:
                 page_list, cat_list = await dld_json(page_url), {"batchcomplete":True,"query":{"searchinfo":{"totalhits":0},"search":[]}}
             case False:

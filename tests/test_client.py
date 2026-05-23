@@ -13,8 +13,10 @@ print(model)
 completion = client.chat.completions.create(
     model=model,
     messages=[
-        {"role": "user", "content": "你好啊"}
+        {"role": "user", "content": "Hello"}
     ],
-    extra_body={"guided_regex": "^[一-龥]*"},
+    extra_body={"structured_outputs": {"regex": r"^[^\u4e00-\u9fa5]*$"}},
 )
 print(completion.choices[0].message.content)
+
+# {"regex": "^[一-龥]*"} ^[^\u4e00-\u9fa5]+$

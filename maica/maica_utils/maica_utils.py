@@ -39,14 +39,17 @@ colorama.init(autoreset=True)
 logger = logging.getLogger('maica')
 logger.setLevel(logging.DEBUG)
 
-main_handler = logging.StreamHandler(sys.stdout)
-main_handler.setLevel(logging.DEBUG)
-main_handler.addFilter(lambda record: record.levelno <= logging.WARNING)
-err_handler = logging.StreamHandler(sys.stderr)
-err_handler.setLevel(logging.ERROR)
+if not logger.handlers:
+    # To prevent this executing twice
 
-logger.addHandler(main_handler)
-logger.addHandler(err_handler)
+    main_handler = logging.StreamHandler(sys.stdout)
+    main_handler.setLevel(logging.DEBUG)
+    main_handler.addFilter(lambda record: record.levelno <= logging.WARNING)
+    err_handler = logging.StreamHandler(sys.stderr)
+    err_handler.setLevel(logging.ERROR)
+
+    logger.addHandler(main_handler)
+    logger.addHandler(err_handler)
 
 def silent(tf: bool=True) -> None:
     global _silent, logger
@@ -320,7 +323,7 @@ class Decos():
             self = retry_state.args[0] if retry_state else None
             rsc = getattr(self, 'rsc', None); name = getattr(self, 'name', 'anon_conn')
             websocket = rsc.websocket if rsc else None; traceray_id = rsc.traceray_id if rsc else ''
-            await messenger(websocket=websocket, status=f'{name}_temp_failure', info=f'{name} temporary failure, retrying...', code='304', traceray_id=traceray_id, type=MsgType.WARN)
+            await messenger(websocket=websocket, status=f'{name}_temp_failure', info=f'{name} temporary failure, retrying {retry_state.attempt_number} time...', code='304', traceray_id=traceray_id, type=MsgType.WARN)
 
         retry_decorator = retry(
             stop=stop_after_attempt(max_attempts),
@@ -696,9 +699,13 @@ async def wrap_run_in_exc(loop, func, *args, **kwargs) -> any:
 def limit_length(col: list, limit: int) -> list:
     return random.sample(col, limit) if limit < len(col) else col
 
-async def dld_json(url, use_proxy=True, method='get', carriage=None) -> json:
+async def dld_json(url, use_proxy=True, ua_disguise=False, method='get', carriage=None) -> json:
     """Get JSON context from an endpoint."""
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'}
+    if ua_disguise:
+        ua = f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36"
+    else:
+        ua = f"MaicaDataFetcher/1.0 (dcc@monika.love) httpx/{httpx.__version__}"
+    headers = {'User-Agent': ua}
 
     @Decos.conn_retryer_factory()
     async def _dld_json(fake_self, url):
@@ -822,11 +829,7 @@ if __name__ == "__main__":
         from maica import init
         init()
         host_info = get_host(G.A.MCORE_ADDR)
-        res = await dld_json(f"{host_info[0]}://{host_info[1]}:{host_info[2]}/detokenize", False, 'post', {
-            "tokens": [
-                4754
-            ]
-        })
+        res = await dld_json(f"https://zh.wikipedia.org/w/api.php?action=query&format=json&list=search&redirects=1&utf8=1&formatversion=2&srsearch=incategory:各时期火山事件&srnamespace=14&srlimit=250&sroffset=0&srprop=", True)
         print(res)
 
     asyncio.run(test())
