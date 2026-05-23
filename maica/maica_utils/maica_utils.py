@@ -168,6 +168,7 @@ RETRYABLE_EXCEPTIONS = (
     openai.APIConnectionError,
     openai.APITimeoutError,
     openai.RateLimitError,
+    json.JSONDecodeError,
     MaicaInternetWarning,
 )
 
@@ -629,7 +630,7 @@ def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional
         if traceray_id and isinstance(info, str):
             msg_send += f" -- your traceray ID is {traceray_id}"
 
-    frametrack_dict = {"error": 99, "warn": 0}
+    frametrack_dict = {"error": 99, "warn": 1}
     if type in frametrack_dict:
         stack = inspect.stack()
         stack.pop(0)
