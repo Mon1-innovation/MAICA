@@ -171,7 +171,10 @@ class MaicaSession(list):
     def utilize(self, text_only=False) -> list: ...
 
     def utilize(self, *args, **kwargs):
-        self._prepare_context()
+        if self.session_num > 0:
+            self._prepare_context()
+        else:
+            self.sanitize()
         return [i.utilize(*args, **kwargs) for i in self]
 
     # All init_db, to_db, from_db could fill self.session_id on successful execution, normally no need to pre-init
