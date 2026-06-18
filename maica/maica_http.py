@@ -28,7 +28,7 @@ _WATCHES_DICT = {
 
 def pkg_init_maica_http():
     global KNOWN_SERVERS
-    if G.A.FULL_RESTFUL == '1':
+    if int(G.A.FULL_RESTFUL):
         app.add_url_rule("/savefile", methods=['POST'], view_func=ShortConnHandler.as_view("upload_savefile"))
         app.add_url_rule("/savefile", methods=['DELETE'], view_func=ShortConnHandler.as_view("delete_savefile"))
         app.add_url_rule("/trigger", methods=['POST'], view_func=ShortConnHandler.as_view("upload_trigger"))
@@ -255,7 +255,9 @@ class ShortConnHandler(View):
         assert 1 <= chat_session < 10, "chat_session out of bound"
         rounds = int(valid_data.get('content', 0))
 
-        history_json = (await self.stem_inst.rw_chat_session('r', chat_session_num=chat_session))[1]
+        session = self.stem_inst.acquire_session(chat_session)
+        await session.from_db()
+        history_json = session.json()
 
         if history_json:
             history_len = len(history_json)
@@ -287,7 +289,10 @@ class ShortConnHandler(View):
 
         sigb64, history_json = content
         assert (await wrap_run_in_exc(None, verify_message, json.dumps(history_json, ensure_ascii=False, sort_keys=True), sigb64)), "Signature mismatch"
-        await self.stem_inst.restore_chat_session(history_json, chat_session)
+
+        session = self.stem_inst.acquire_session(chat_session)
+        session.load(history_json)
+        session.to_db()
 
         return self.jfy_res()
 

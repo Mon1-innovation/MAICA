@@ -650,7 +650,7 @@ class SfPersistentManager(PersistentManager):
 
     def _conclude_moni_sf(self, extra=0):
         target_lang = self.settings.basic.target_lang
-        include_basic = G.A.BASIC_MFOCUS == '1'
+        include_basic = bool(int(G.A.BASIC_MFOCUS))
         if target_lang == 'zh':
             data_ex = [
                 '莫妮卡的生日是9月22日.',

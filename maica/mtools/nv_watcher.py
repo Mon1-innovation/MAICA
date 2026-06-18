@@ -19,7 +19,7 @@ class _FakeSQLiteConn():
 
 class NvWatcher(AsyncCreator):
     def __init__(self, node: str, prefix="maica"):
-        self.write_nvw = G.A.WRITE_NVW == '1'
+        self.write_nvw = bool(int(G.A.WRITE_NVW))
         self.node = node
         subset_name = 'A' if prefix in ['maica', 'a'] else 'T'
         subset = getattr(G, subset_name)

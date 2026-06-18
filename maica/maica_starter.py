@@ -210,7 +210,7 @@ def check_data_init():
     if parse(last_version) <= parse("1.0.000"):
         generate_rsa_keys()
         pkg_init_maica()
-        if load_env('MAICA_IS_REAL_ENV') == '1':
+        if int(load_env('MAICA_IS_REAL_ENV')):
             asyncio.run(create_tables())
         else:
             print('''No real env detected, is this workflow?

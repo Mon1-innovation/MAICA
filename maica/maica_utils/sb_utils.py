@@ -71,7 +71,7 @@ class PersistentManager(AsyncCreator):
         return True
 
     async def reset(self, force=False) -> None:
-        if  force or await self._check_expired_or_not():
+        if force or await self._check_expired_or_not():
             try:
                 sql_expression = f'SELECT {self.PRIM_KEY}, content, timestamp FROM {self.DB_NAME} WHERE user_id = %s AND chat_session_num = %s'
                 result = await self.maica_pool.query_get(sql_expression, (self.settings.verification.user_id, await self._find_session_or_default()))

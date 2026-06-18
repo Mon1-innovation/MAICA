@@ -82,7 +82,6 @@ class WsCoroutine(NoWsCoroutine):
             fsc: FullSocketsContainer,
         ):
         super().__init__(fsc=fsc)
-        self.fsc = fsc
 
     # Stage 1 permission check
     async def check_permit(self):
@@ -202,11 +201,11 @@ class WsCoroutine(NoWsCoroutine):
                     case 'reconn':
                         await drain_buffer(websocket, self.settings.verification.user_id)
                     case 'params':
-                        await self.def_model(recv_loaded_json)
+                        await self.change_settings(recv_loaded_json)
                     case 'query':
                         await self.do_communicate(recv_loaded_json)
                     case placeholder if "chat_params" in recv_loaded_json:
-                        await self.def_model(recv_loaded_json)
+                        await self.change_settings(recv_loaded_json)
                     case placeholder if "chat_session" in recv_loaded_json:
                         await self.do_communicate(recv_loaded_json)
                     case _:
@@ -222,19 +221,18 @@ class WsCoroutine(NoWsCoroutine):
                     continue
 
     # Param setting section
-    async def def_model(self, recv_loaded_json: dict):
+    async def change_settings(self, recv_loaded_json: dict):
 
         # Initiations
         websocket = self.websocket
         try:
             chat_params: dict = recv_loaded_json.get('chat_params', {})
-            in_params = len(chat_params)
 
             if recv_loaded_json.get('reset'):
                 self.settings.soft_reset()
             
             accepted_params = self.settings.update(**chat_params)
-            await messenger(websocket, 'maica_params_accepted', f"{accepted_params} out of {in_params} settings accepted", "200")
+            await messenger(websocket, 'maica_params_accepted', f"{accepted_params} out of {len(chat_params)} settings accepted", "200")
         
         # Handle input errors here
         except Exception as e:
@@ -254,7 +252,7 @@ class WsCoroutine(NoWsCoroutine):
 
         # Param assertions here
         chat_session = int(default(recv_loaded_json.get('chat_session'), 0))
-        maica_assert(-1 <= chat_session < 10, "chat_session")
+        session = self.acquire_session(chat_session)
         self.settings.temp.update(chat_session=chat_session)
 
         # This needs chat_session to function
@@ -262,12 +260,9 @@ class WsCoroutine(NoWsCoroutine):
 
         if 'reset' in recv_loaded_json:
             if recv_loaded_json['reset']:
-                maica_assert(1 <= chat_session < 10, "chat_session")
-                purge_result = await self.reset_chat_session(self.settings.temp.chat_session)
-                if not purge_result:
-                    await messenger(websocket, "maica_session_not_found", "Determined chat_session doesn't exist", "204", self.traceray_id)
-                else:
-                    await messenger(websocket, "maica_session_reset", "Determined chat_session reset", "204", self.traceray_id)
+                session.clear()
+                await session.to_db()
+                await messenger(websocket, "maica_session_reset", "Determined chat_session reset", "204", self.traceray_id)
                 return
 
         if 'vision' in recv_loaded_json:
@@ -349,44 +344,31 @@ class WsCoroutine(NoWsCoroutine):
                 self.settings.temp.update(mt_extraction_once=True)
                 self.mt_inst.use_only(recv_loaded_json['trigger'])
 
-        # Deprecated: The easter egg thing
-
-        # global easter_exist
-        # if easter_exist:
-        #     easter_check = easter(query_in)
-        #     if easter_check:
-        #         await websocket.send(self.wrap_ws_deformatter('299', 'easter_egg', easter_check, 'info'))
-
         match int(self.settings.temp.chat_session):
             case -1:
                 maica_assert(isinstance(query_in, (str, list)), 'query')
                 # chat_session == -1 means query contains an entire chat history(sequence mode)
                 session_type = -1
-                try:
-                    messages = json.loads(query_in) if isinstance(query_in, str) else query_in
-                    query_in = messages[-1]['content']
-                except Exception as e:
-                    raise MaicaInputWarning('Sequence is not JSON for chat_session -1', '406', 'maica_sequence_not_json') from e
-                if len(messages) > 10:
-                    raise MaicaInputWarning('Sequence exceeded 10 rounds for chat_session -1', '413', 'maica_sequence_rounds_exceeded')
+                session.load(query_in)
+                query_in = session[-1].content
 
+                if len(session) > 10:
+                    raise MaicaInputWarning('Sequence exceeded 10 rounds for chat_session -1', '413', 'maica_sequence_rounds_exceeded')
 
             case i if 0 <= i < 10:
                 maica_assert(isinstance(query_in, str), 'query')
                 # chat_session == 0 means single round, else normal
                 session_type = 0 if i == 0 else 1
-                messages0 = {'role': 'user', 'content': query_in}
+
+                if session_type:
+                    await session.from_db()
 
                 if self.settings.basic.enable_mf and not self.settings.temp.bypass_mf:
-                    message_agent_wrapped = await self.mfocus_coro.agenting(query_in)
+                    knwon_info = await self.mfocus_coro.agenting(query_in)
                 else:
-                    message_agent_wrapped = None
-                
-                prompt = await self.gen_system_prompt(message_agent_wrapped, self.settings.temp.strict_conv)
-                if session_type == 1:
-                    messages = (await self.rw_chat_session('i', [messages0], prompt))[1]
-                elif session_type == 0:
-                    messages = [{'role': 'system', 'content': prompt}, messages0]
+                    knwon_info = ""
+
+                session.append(MaicaSessionItem("user", query_in, {"known_info": knwon_info}))
 
             case _:
                 raise MaicaInputError("Using an out of bound session")
@@ -394,7 +376,7 @@ class WsCoroutine(NoWsCoroutine):
         # Construction part done, communication part started
         # Notice: always do write response_format to override ability if must be text
         completion_args = {
-            "messages": messages,
+            "messages": session.utilize(),
             "stream": self.settings.basic.stream_output,
             "stop": ['<|im_end|>', '<|endoftext|>'],
             "response_format": {"type": "text"},
@@ -414,10 +396,10 @@ class WsCoroutine(NoWsCoroutine):
 
         if self.settings.extra.enforce_lang:
             if self.settings.basic.target_lang == 'en':
-                completion_args['extra_body']["structured_outputs"] = {"regex": "^[^\u4e00-\u9fa5]*$"}
+                completion_args['extra_body']["structured_outputs"] = {"regex": r"^[^\u4e00-\u9fa5]*$"}
 
         # Add context log
-        previous_rnds = messages[1:-1]
+        previous_rnds = session.utilize(text_only=True)[1:-1]
         previous_rnds_len = int(len(previous_rnds) / 2)
         previous_rnds_ellipsed = previous_rnds[-6:]
         previous_rnds_str = '\n'.join([(('Q: ' if d['role'] == 'user' else 'A: ') + d['content']) for d in previous_rnds_ellipsed])
@@ -494,15 +476,14 @@ class WsCoroutine(NoWsCoroutine):
                 await buffered_messenger(None, 'maica_core_complete', f'Reply sent with cache for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
 
         # Can be post-processed here
-        reply_appended_insertion = {'role': 'assistant', 'content': reply_appended}
-        messages.append(reply_appended_insertion)
+        session.append(MaicaSessionItem("assistant", reply_appended))
 
         # Trigger process
         # We should start post processes simultaneously
         post_coros = []
 
-        if len(messages) >= 3 * 2 + 1 and self.settings.extra.dscl_pvn:
-            post_coros.append(mtools.ws_dscl_detect(messages[-4:], self.fsc, bm=buffered_messenger))
+        if len(session) >= 3 * 2 + 1 and self.settings.extra.dscl_pvn:
+            post_coros.append(mtools.ws_dscl_detect(session.utilize(text_only=True)[-4:], self.fsc, bm=buffered_messenger))
 
         if self.settings.basic.enable_mt and not self.settings.temp.bypass_mt:
             post_coros.append(self.mtrigger_coro.triggering(query_in, reply_appended, bm=buffered_messenger))
@@ -514,8 +495,8 @@ class WsCoroutine(NoWsCoroutine):
 
         # Store history here
         if session_type == 1:
-            stored = await self.rw_chat_session('a', [messages0, reply_appended_insertion])
-            match stored[1]:
+            stored = await session.wrapped_save()
+            match stored:
                 case 2:
                     await buffered_messenger(websocket, 'maica_history_sliced', f"Session {self.settings.temp.chat_session} of {self.settings.verification.username} exceeded {self.settings.basic.max_length} characters and sliced", '204')
                 case 1:

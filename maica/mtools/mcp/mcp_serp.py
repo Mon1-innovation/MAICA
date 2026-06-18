@@ -24,7 +24,7 @@ async def asearch(query, target_lang='zh'):
         "env": {k: G.A.PROXY_ADDR for k in ['http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY']},
     }
     serp_initiation_args["env"].update({
-        "DISPLAY": (load_env("DISPLAY") or '') if G.A.ENABLE_X11 == '1' else ''
+        "DISPLAY": (load_env("DISPLAY") or '') if bool(int(G.A.ENABLE_X11)) else ''
     })
 
     serp_initiation = StdioServerParameters(**serp_initiation_args)

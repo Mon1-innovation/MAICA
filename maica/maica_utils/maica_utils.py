@@ -521,10 +521,10 @@ def clean_msgs(msgs: list[dict, ChatCompletionMessage], include: Optional[list[s
 
     return [_convert_msg(i) for i in msgs]
 
-def maica_assert(condition, kwd='param'):
+def maica_assert(condition, kwd='param', full_info=None):
     """Normally used for input checkings."""
     if not condition:
-        raise MaicaInputWarning(f"Illegal input {kwd} detected", '405', 'maica_input_param_bad')
+        raise MaicaInputWarning(full_info or f"Illegal input {kwd} detected", '405', 'maica_input_param_bad')
 
 def has_valid_content(text: Union[str, list, dict]):
     """If the LLM actually gave anything."""
@@ -628,7 +628,7 @@ def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional
         msg_print += f": {str(info)}" if not str(info).startswith('\n') else f"{'-=' * rep1}{str(info)}\n{'-=' * rep2}"
         msg_print += f"; traceray ID {traceray_id}" if traceray_id else ''
         msg_send = info
-        if type == 'error' and G.A.NO_SEND_ERROR == '1':
+        if type == 'error' and int(G.A.NO_SEND_ERROR):
             msg_send = "A critical exception happened serverside, contact administrator"
         if traceray_id and isinstance(info, str):
             msg_send += f" -- your traceray ID is {traceray_id}"
@@ -818,6 +818,10 @@ async def hash_sha256(str) -> str:
     def hash_sync(str):
         return hashlib.new('sha256', str).hexdigest()
     return await wrap_run_in_exc(None, hash_sync, str)
+
+def is_mcore_vl() -> bool:
+    """If mcore is same model with mvista."""
+    return G.A.MCORE_ADDR == G.A.MVISTA_ADDR and G.A.MCORE_CHOICE == G.A.MVISTA_CHOICE
 
 def sysstruct() -> Literal['Windows', 'Linux']:
     sysstruct = platform.system()

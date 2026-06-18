@@ -53,6 +53,7 @@ from .maica_utils import (
     try_load_json,
     try_getattr,
     hash_sha256,
+    is_mcore_vl,
     sysstruct,
     Decos,
     Desc,
@@ -67,6 +68,7 @@ from .sb_utils import PersistentManager, AgentContextManager
 from .get_a_sentence import SentenceOfTheDay
 from .locater import locater, get_inner_path, get_outer_path
 from .gvars import online_dict, G
+from .session_mgr import MaicaSession, MaicaSessionItem
 
 __all__ = [
     'silent',
@@ -126,6 +128,7 @@ __all__ = [
     'try_load_json',
     'try_getattr',
     'hash_sha256',
+    'is_mcore_vl',
     'sysstruct',
     'Decos',
     'Desc',
@@ -148,6 +151,8 @@ __all__ = [
     'get_outer_path',
     'online_dict',
     'G',
+    'MaicaSession',
+    'MaicaSessionItem',
 ]
 
 from .gvars import pkg_init_gvars

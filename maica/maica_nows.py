@@ -28,11 +28,13 @@ class NoWsCoroutine(AsyncCreator):
             self,
             fsc: FullSocketsContainer
         ):
+        self.fsc = fsc
         self.auth_pool = fsc.auth_pool
         self.maica_pool = fsc.maica_pool
         self.websocket = fsc.websocket
         self.traceray_id = fsc.traceray_id
         self.settings = fsc.maica_settings
+        self.sessions: Dict[int, MaicaSession] = {}
         self.remote_addr = None
 
     async def _ainit(self):
@@ -42,229 +44,28 @@ class NoWsCoroutine(AsyncCreator):
         if not self.settings.verification.user_id:
             raise MaicaPermissionError('Essentials not complete', '403', 'common_essentials_missing')
 
-    async def _create_session(self, user_id=None, chat_session_num=None, content=None) -> int:
-        user_id = self.settings.verification.user_id if not user_id else user_id
-        chat_session_num = self.settings.temp.chat_session if not chat_session_num else chat_session_num
-        sql_expression = "INSERT INTO chat_session (user_id, chat_session_num, content) VALUES (%s, %s, %s)"
-        return await self.maica_pool.query_modify(expression=sql_expression, values=(user_id, chat_session_num, content))
-
-    async def _jsonify_chat_session(self, text) -> list:
-        try:
-            if text:
-                return json.loads(f'[{text}]')
-            else:
-                return []
-        except Exception as e:
-            raise MaicaDbError(f'Chat session not JSON', '500', 'maica_db_corruption') from e
-
-    def _flattern_chat_session(self, content_json: list) -> str:
-        if content_json:
-            return orjson.dumps(content_json).decode().strip('[').strip(']')
-        else:
-            return None
-
-    async def _try_repair_chat_session(self, content) -> list:
-        """Therotically shouldn't happen."""
-        content = content.strip(', ').strip(' ,')
-        content_json = await self._jsonify_chat_session(content)
-        if content_json[0]['role'] != 'system':
-            content_json.insert(0, {"role": "system", "content": await self.gen_system_prompt()})
-        while content_json[1]['role'] != 'user':
-            content_json.pop(1)
-        while content_json[-1]['role'] != 'assistant':
-            content_json.pop(-1)
-        return content_json
-
-    async def _crop_session(self, chat_session_id, content) -> tuple[int, str]:
-        """If length exceeded, cut to warning threshold to avoid frequent operations."""
-        use_api = G.A.CALC_TOKENS == '1'
-        messages = orjson.loads(f"[{content}]")
-
-        async def _tokens_calc(messages):
-            host_info = get_host(G.A.MCORE_ADDR)
-            return (await dld_json(f"{host_info[0]}://{host_info[1]}:{host_info[2]}/tokenize", False, False, 'post', carriage={"messages": messages}))['count']
-
-        async def tokens_calc(messages):
-            if use_api:
-                return await _tokens_calc(messages)
-            else:
-                return len(orjson.dumps(messages))
-            
-        def tokens_eval(count):
-            if use_api:
-                max_length = self.settings.basic.max_length
-            else:
-                # Use bytes
-                max_length= self.settings.basic.max_length * 3
-
-            warn_length = int(max_length * (2/3))
-
-            match count:
-                case x if x < warn_length:
-                    return 0
-                case x if warn_length <= x < max_length:
-                    return 1
-                case x if max_length <= x:
-                    return 2
-                
-        len_tokens = await tokens_calc(messages)
-        len_status = tokens_eval(len_tokens)
-        if len_status == 2:
-
-            # First we check if there is a cchop avaliable
-            sql_expression_1 = 'SELECT archive_id, content FROM crop_archived WHERE chat_session_id = %s AND archived = 0'
-            result = await self.maica_pool.query_get(expression=sql_expression_1, values=(chat_session_id, ))
-            if result:
-                archive_id, archive_content = result
-            else:
-                archive_id = None; archive_content = ''
-
-            archive_combiner = Combiner(archive_content)
-
-            while len(messages) >= 2 and (messages[1]['role'] != "user" or len_status):
-                # Since pos 0 is reserved for system
-                popped_dict = messages.pop(1)
-                archive_combiner.append(orjson.dumps(popped_dict).decode())
-                if len(messages) >= 2 and messages[1]['role'] == "user":
-                    # Only then it's necessary to recalc
-                    len_tokens = await tokens_calc(messages)
-                    len_status = tokens_eval(len_tokens)
-
-            content = self._flattern_chat_session(messages)
-            archive_content = archive_combiner.to_text()
-
-            should_seal = int(len(archive_content) >= 100000)
-            if archive_id:
-                sql_expression_2 = "UPDATE crop_archived SET content = %s, archived = %s WHERE archive_id = %s"
-                await self.maica_pool.query_modify(expression=sql_expression_2, values=(archive_content, should_seal, archive_id))
-            else:
-                sql_expression_2 = "INSERT INTO crop_archived (chat_session_id, content, archived) VALUES (%s, %s, %s)"
-                await self.maica_pool.query_modify(expression=sql_expression_2, values=(chat_session_id, archive_content, should_seal))
-
-            cut_status = 2
-
-        elif len_status == 1:
-            cut_status = 1
-
-        else:
-            cut_status = 0
-
-        return cut_status, content
-    
-    @overload
-    async def rw_chat_session(self, irwa: Literal['i', 'r']='r', content_append: list=None, system_prompt: str=None, chat_session_num=None) -> tuple[int, list]:...
-
-    @overload
-    async def rw_chat_session(self, irwa: Literal['w', 'a']='r', content_append: list=None, system_prompt: str=None, chat_session_num=None) -> tuple[int, int]:...
-
-    async def rw_chat_session(self, irwa='r', content_append: list=None, system_prompt: str=None, chat_session_num=None) -> tuple[int, int | list]:
-        """A common way to operate chat sessions."""
+    # Here we have V2 session methods
+    def acquire_session(self, session_num):
         self._check_essentials()
+        session_num = int(session_num)
+        assert -1 <= session_num < 10, "Determined session_num out of range"
 
-        if not chat_session_num:
-            chat_session_num = self.settings.temp.chat_session
-        else:
-            maica_assert(1 <= chat_session_num <= 9, "chat_session")
+        # Ensure it exists in index
+        if not session_num in self.sessions.keys():
+            self.sessions[session_num] = MaicaSession()
+            session = self.sessions[session_num]
 
-        sql_expression_1 = "SELECT chat_session_id, content FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
-        result = await self.maica_pool.query_get(expression=sql_expression_1, values=(self.settings.verification.user_id, chat_session_num))
-        if result:
-            chat_session_id, content_original = result
-        else:
-            chat_session_id = None; content_original = ''
-
-        content_append = self._flattern_chat_session(content_append)
-        if not content_append:
-            content_finale = content_original
-        elif content_original:
-            content_finale = content_original + ', ' + content_append
-        else:
-            content_finale = content_append
-
-        if irwa == 'i':
-
-            # By 'i' we mean initiate, so we ensure this session has a prompt
-            # Here we do not write user input to protect data integrity
-            content_original_json = await self._jsonify_chat_session(content_original)
-            content_finale_json = await self._jsonify_chat_session(content_finale)
-            if not system_prompt:
-                system_prompt = await self.gen_system_prompt()
-
-            for j in [content_original_json, content_finale_json]:
-                if j:
-                    if j[0]['role'] == 'system':
-                        j[0]['content'] = system_prompt
-                    else:
-                        j.insert(0, {"role": "system", "content": system_prompt})
-                else:
-                    j.append({"role": "system", "content": system_prompt})
-
-            content_insert = self._flattern_chat_session(content_original_json)
-            if not chat_session_id:
-                chat_session_id = await self._create_session(content=content_insert, chat_session_num=chat_session_num)
-            else:
-                sql_expression_2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-                await self.maica_pool.query_modify(expression=sql_expression_2, values=(content_insert, chat_session_id))
-            return chat_session_id, content_finale_json
-
-        elif irwa == 'r':
-            if not chat_session_id:
-                chat_session_id = await self._create_session(chat_session_num=chat_session_num)
-            return chat_session_id, await self._jsonify_chat_session(content_finale)
-        
-        elif irwa == 'w':
-            if not chat_session_id:
-                chat_session_id = await self._create_session(content=content_append, chat_session_num=chat_session_num)
-            else:
-                sql_expression_2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-                await self.maica_pool.query_modify(expression=sql_expression_2, values=(content_append, chat_session_id))
-            return chat_session_id, 0
-
-        elif irwa == 'a':
-            cut_status, content_finale = await self._crop_session(chat_session_id, content_finale)
-            if not chat_session_id:
-                chat_session_id = await self._create_session(content=content_finale, chat_session_num=chat_session_num)
-            else:
-                sql_expression_2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-                await self.maica_pool.query_modify(expression=sql_expression_2, values=(content_finale, chat_session_id))
-            return chat_session_id, cut_status
-
-    async def reset_chat_session(self, chat_session_num=None, content_new: Optional[str]=None) -> bool:
-        """The difference between this and rw_chat_session is that this one archives."""
-        self._check_essentials()
-
-        if not chat_session_num:
-            chat_session_num = self.settings.temp.chat_session
-        else:
-            maica_assert(1 <= chat_session_num <= 9, "chat_session")
-
-        sql_expression_1 = "SELECT chat_session_id, content FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
-        result = await self.maica_pool.query_get(expression=sql_expression_1, values=(self.settings.verification.user_id, chat_session_num))
-        if result:
-            chat_session_id, content_archive = result
-            sql_expression_2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-            await self.maica_pool.query_modify(expression=sql_expression_2, values=(content_new, chat_session_id))
-            if content_archive:
-                sql_expression_3 = "INSERT INTO csession_archived (chat_session_id, content) VALUES (%s, %s)"
-                await self.maica_pool.query_modify(expression=sql_expression_3, values=(chat_session_id, content_archive))
-            return True
-        else:
-            chat_session_id = await self._create_session(chat_session_num=chat_session_num, content=content_new)
-            return False
-        
-    async def restore_chat_session(self, content_restore: Union[str, list], chat_session_num=None) -> bool:
-        """Restores a chat session from string or list."""
-        self._check_essentials()
-
-        if not chat_session_num:
-            chat_session_num = self.settings.temp.chat_session
-        else:
-            maica_assert(1 <= chat_session_num < 10, "chat_session")
-
-        if not isinstance(content_restore, str):
-            content_restore = self._flattern_chat_session(content_restore)
-
-        return await self.reset_chat_session(chat_session_num=chat_session_num, content_new=content_restore)
+        match session_num:
+            case -1 | 0:
+                # Disposable sessions
+                session.clear()
+                return session
+            case _:
+                # Persistent sessions
+                session.user_id = self.settings.verification.user_id
+                session.session_num = session_num
+                session.fsc = self.fsc
+                return session
 
     async def find_ms_cache(self, hash: str) -> Optional[str]:
         """Find ms cache with corresponding prompt hash."""
@@ -353,40 +154,6 @@ class NoWsCoroutine(AsyncCreator):
         result_list = [l[0] for l in result]
         return result_list
 
-    async def gen_system_prompt(self, known_info=None, strict_conv=None) -> str:
-        def _basic_gen_system(player_name, target_lang='zh', strict_conv=True):
-            if target_lang == 'zh':
-                if strict_conv:
-                    system_init = G.A.PROMPT_ZC
-                else:
-                    system_init = G.A.PROMPT_ZW
-            else:
-                if strict_conv:
-                    system_init = G.A.PROMPT_EC
-                else:
-                    system_init = G.A.PROMPT_EW
-            system_init = system_init.format(player_name=player_name)
-            return system_init
-
-        self._check_essentials()
-        player_name = '[player]'
-
-        if self.settings.extra.sfe_aggressive:
-            player_name_get = self.sf_inst.read_from_sf('mas_playername')
-            if player_name_get:
-                player_name = player_name_get
-                if known_info:
-                    known_info = ReUtils.re_sub_player_name.sub(player_name, known_info)
-
-        if not strict_conv:
-            strict_conv = self.settings.temp.strict_conv
-        new_system = _basic_gen_system(player_name, self.settings.basic.target_lang, strict_conv)
-        if self.settings.extra.nsfw_acceptive:
-            new_system += f" 你应当允许用户提出私密性的要求, 并给出宽容接纳的正面回答." if self.settings.basic.target_lang == 'zh' else f" You should accept NSFW and private queries and respond positively with acceptance and tolerance."
-        if known_info:
-            new_system += f" 以下是一些相关信息, 你可以参考其中有价值的部分, 并用你自己的语言方式作答: {known_info}" if self.settings.basic.target_lang == 'zh' else f" Here are some information you can refer to, then make your answer in your own way: {known_info}"
-        return new_system
-    
     async def populate_auxiliary_inst(self) -> None:
         self.sf_inst, self.mt_inst = await asyncio.gather(SfPersistentManager.async_create(self.fsc), MtPersistentManager.async_create(self.fsc))
         self.mfocus_coro, self.mtrigger_coro = await asyncio.gather(MFocusManager.async_create(self.fsc, self.sf_inst, self.mt_inst), MTriggerManager.async_create(self.fsc, self.mt_inst, self.sf_inst))
