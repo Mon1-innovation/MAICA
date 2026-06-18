@@ -354,6 +354,11 @@ class WsCoroutine(NoWsCoroutine):
 
                 if len(session) > 10:
                     raise MaicaInputWarning('Sequence exceeded 10 rounds for chat_session -1', '413', 'maica_sequence_rounds_exceeded')
+                
+                context = {
+                    "target_lang": self.settings.basic.target_lang,
+                }
+                session[-1].context.update(context)
 
             case i if 0 <= i < 10:
                 maica_assert(isinstance(query_in, str), 'query')
@@ -368,7 +373,23 @@ class WsCoroutine(NoWsCoroutine):
                 else:
                     knwon_info = ""
 
-                session.append(MaicaSessionItem("user", query_in, {"known_info": knwon_info}))
+                player_name = '[player]'
+                if self.settings.extra.sfe_aggressive:
+                    player_name_get = self.sf_inst.read_from_sf('mas_playername')
+                    if player_name_get:
+                        player_name = player_name_get
+                        if known_info:
+                            known_info = ReUtils.re_sub_player_name.sub(player_name, known_info)
+
+                session.append(MaicaSessionItem("user", query_in))
+                context = {
+                        "target_lang": self.settings.basic.target_lang,
+                        "strict_conv": self.settings.temp.strict_conv,
+                        "player_name": player_name,
+                        "nsfw_acceptive": self.settings.extra.nsfw_acceptive,
+                        "known_info": knwon_info,
+                    }
+                session[-1].context.update(context)
 
             case _:
                 raise MaicaInputError("Using an out of bound session")

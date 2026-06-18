@@ -146,6 +146,7 @@ class MaicaSession(list):
         
         # First sanitize
         self.sanitize()
+        assert len(self) > 1, "No query could be utilized"
 
         # Then acquire context
         curr_context = self[-1].context

@@ -45,7 +45,7 @@ class NoWsCoroutine(AsyncCreator):
             raise MaicaPermissionError('Essentials not complete', '403', 'common_essentials_missing')
 
     # Here we have V2 session methods
-    def acquire_session(self, session_num):
+    def acquire_session(self, session_num) -> MaicaSession | List[MaicaSessionItem]:
         self._check_essentials()
         session_num = int(session_num)
         assert -1 <= session_num < 10, "Determined session_num out of range"
