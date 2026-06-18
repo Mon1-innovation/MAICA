@@ -19,6 +19,10 @@ class MFocusManager(AgentContextManager):
         super().__init__(fsc, sf_inst, mt_inst)        
         self.agent_tools = AgentTools(fsc, sf_inst)
 
+    @property
+    def mfocus_impl_mvista(self):
+        return bool(self.settings.temp.mv_imgs) and not is_mcore_vl()
+
     def _construct_tools(self):
         self.tools = []
         if self.mt_inst and not self.settings.temp.bypass_mt:
@@ -217,7 +221,7 @@ class MFocusManager(AgentContextManager):
                 },
             )
 
-        if self.settings.temp.mv_imgs:
+        if self.mfocus_impl_mvista:
             self.tools.append(
                 {
                     "name": "vista_acquire",
@@ -334,7 +338,7 @@ class MFocusManager(AgentContextManager):
                 return inst
 
             # First thing first we prepare the first query
-            if self.settings.temp.mv_imgs:
+            if self.mfocus_impl_mvista:
                 image_word = " [图片]" if self.settings.basic.target_lang == 'zh' else " [Image]"
                 query += image_word
             if self.settings.extra.mf_aggressive:

@@ -388,6 +388,7 @@ class WsCoroutine(NoWsCoroutine):
                         "player_name": player_name,
                         "nsfw_acceptive": self.settings.extra.nsfw_acceptive,
                         "known_info": knwon_info,
+                        "image_urls": self.settings.temp.mv_imgs if is_mcore_vl() else [],
                     }
                 session[-1].context.update(context)
 
