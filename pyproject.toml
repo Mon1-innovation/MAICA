@@ -1,0 +1,65 @@
+[build-system]
+requires = [
+    "setuptools>=77",
+    "wheel"
+]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "mi-maica"
+
+dynamic = [
+    "version",
+    "dependencies",
+]
+
+authors = [
+    {name="EdgeInfinity", email="dcc@monika.love"}
+]
+
+description = "MAICA Illuminator (Backend)"
+
+readme = "README.md"
+
+requires-python = ">=3.12"
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+]
+
+[project.optional-dependencies]
+all = [
+    "mi-mtts>=1.0.2"
+]
+
+mtts = [
+    "mi-mtts>=1.0.2"
+]
+
+[project.scripts]
+maica = "maica.maica_starter:full_start"
+
+
+[tool.setuptools]
+include-package-data = true
+
+
+[tool.setuptools.packages.find]
+
+[tool.setuptools.package-data]
+maica = [
+    "env_basis"
+]
+
+"maica.bin" = [
+    "mi-serp-precompiled-binary-linux",
+    "mi-serp-precompiled-binary-win.exe"
+]
+
+
+[tool.setuptools.dynamic]
+version = {attr = "maica.version.__version__"}
+
+dependencies = {file = ["requirements.txt"]}

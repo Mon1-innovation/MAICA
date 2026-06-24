@@ -17,11 +17,12 @@ openai>=2.24.0
 orjson>=3.11
 pillow>=12.0
 pycryptodome==3.20.0
+pymilvus>=3.0.0
 python-dotenv>=1.0.1
 python-magic>=0.4
 pytz>=2024.2
 Quart==0.20.0
-setuptools==70.0.0
+setuptools
 tenacity>=9.0.0
 typeguard>=4.4.0
 websocket==0.2.1
