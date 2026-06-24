@@ -10,7 +10,7 @@ from .post_proc import emo_proc, emo_proc_llm, emo_proc_auto, post_proc, zlist, 
 from .post_proc_rt import PPRTProcessor
 from .nv_watcher import NvWatcher
 from .mvista import ProcessingImg, query_vlm
-from .quality_chk import dscl_detect, ws_dscl_detect
+from .quality_chk import quality_chk, ws_quality_chk
 from .stream_buffer import BufferDict, StreamBuffer, buffer_dict
 from .censor import has_censored
 
@@ -32,8 +32,8 @@ __all__ = [
     'NvWatcher',
     'ProcessingImg',
     'query_vlm',
-    'dscl_detect',
-    'ws_dscl_detect',
+    'quality_chk',
+    'ws_quality_chk',
     'BufferDict',
     'StreamBuffer',
     'buffer_dict',

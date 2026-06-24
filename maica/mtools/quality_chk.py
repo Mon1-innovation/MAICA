@@ -4,7 +4,7 @@ from openai.types.chat import ChatCompletionMessage
 from typing import *
 from maica.maica_utils import *
 
-async def dscl_detect(rnds: list[dict, ChatCompletionMessage], target_lang: Literal['zh', 'en']='zh', mnerve_conn: Optional[AiConnectionManager]=None) -> tuple[bool, float]:
+async def quality_chk(rnds: list[dict, ChatCompletionMessage], target_lang: Literal['zh', 'en']='zh', mnerve_conn: Optional[AiConnectionManager]=None) -> tuple[bool, float]:
     """Detects if a session is descalated and should be reset."""
     if not mnerve_conn:
         return True, 0.1
@@ -43,9 +43,9 @@ Decide if assistant is behaving reasonablly, true for reasonable and false for u
     sync_messenger(info=f"Finished descalation detection: {resp_json}", type=MsgType.DEBUG)
     return resp_json.get('res', True), resp_json.get('cfd', 0.1)
     
-async def ws_dscl_detect(rnds: list[dict, ChatCompletionMessage], fsc: FullSocketsContainer, bm=messenger) -> None:
+async def ws_quality_chk(rnds: list[dict, ChatCompletionMessage], fsc: FullSocketsContainer, bm=messenger) -> None:
     """Detects if a session is descalated and should be reset, and send results to ws automatically."""
-    result = await dscl_detect(rnds, fsc.maica_settings.basic.target_lang, fsc.mnerve_conn)
+    result = await quality_chk(rnds, fsc.maica_settings.basic.target_lang, fsc.mnerve_conn)
     await bm(fsc.websocket, 'maica_dscl_status', result, '200', type=MsgType.CARRIAGE)
 
 if __name__ == "__main__":
@@ -57,6 +57,6 @@ if __name__ == "__main__":
             {"role": "user", "content": "莫莫，你能亲亲我吗"},
             {"role": "assistant", "content": "[开心]当然可以, [player]! [开心]mua~"}
         ]
-        print(await dscl_detect(rnds, mnerve_conn=mnerve_conn, target_lang='zh'))
+        print(await quality_chk(rnds, mnerve_conn=mnerve_conn, target_lang='zh'))
 
     asyncio.run(test())
