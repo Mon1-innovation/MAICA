@@ -71,19 +71,19 @@ class MaicaSettings:
 
     @dataclass
     class _Extra(_CommonFuncs):
-        sfe_aggressive: bool
-        mf_aggressive: bool
-        tnd_aggressive: int
-        esc_aggressive: bool
-        amt_aggressive: bool
+        prompt_pname_repl: bool
+        mf_llm_concl: bool
+        mf_constant_tools: int
+        esearch_llm_concl: bool
+        mf_precheck_mt: bool
         nsfw_acceptive: bool
-        pre_additive: int
-        post_additive: int
+        mf_context_rnds: int
+        mt_context_rnds: int
         tz: Optional[str]
-        dscl_pvn: bool
-        pre_astp: bool
-        post_astp: bool
-        enforce_lang: bool
+        gen_quality_chk: bool
+        mf_disable_loop: bool
+        mt_disable_loop: bool
+        gen_enforce_lang: bool
 
     @dataclass
     class _Super(_CommonFuncs):

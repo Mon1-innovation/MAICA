@@ -10,7 +10,7 @@ from .post_proc import emo_proc, emo_proc_llm, emo_proc_auto, post_proc, zlist, 
 from .post_proc_rt import PPRTProcessor
 from .nv_watcher import NvWatcher
 from .mvista import ProcessingImg, query_vlm
-from .descalation_pvn import dscl_detect, ws_dscl_detect
+from .quality_chk import dscl_detect, ws_dscl_detect
 from .stream_buffer import BufferDict, StreamBuffer, buffer_dict
 from .censor import has_censored
 

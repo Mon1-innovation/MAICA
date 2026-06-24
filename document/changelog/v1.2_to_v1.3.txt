@@ -1,0 +1,19 @@
+I'm sorry for not offering an English ver of this document but it's just too much work for me.
+If you want to read in English, use a translator.
+
+= 更新会话管理到v2
+
++ 添加MVista的native实现(需要核心模型支持vl)
+
+= 更改部分高级设置命名:
+    = sfe_aggressive -> prompt_pname_repl
+    = mf_aggressive -> mf_llm_concl
+    = tnd_aggressive -> mf_constant_tools
+    = esc_aggressive -> esearch_llm_concl
+    = amt_aggressive -> mf_precheck_mt
+    = pre_additive -> mf_context_rnds
+    = post_additive -> mt_context_rnds
+    = dscl_pvn -> gen_quality_chk
+    = pre_astp -> mf_disable_loop
+    = post_astp -> mt_disable_loop
+    = enforce_lang -> gen_enforce_lang

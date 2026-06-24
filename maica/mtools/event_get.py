@@ -79,7 +79,7 @@ class RegEvent():
         importance:
         2 => always inform
         1 => inform on target day (Monika likely cares)
-        0 => no inform on tnd_aggressive
+        0 => no inform on mf_constant_tools
         lasts indicates how long the legal vacation is, 0 for none.
         The lasts var is only accurate for Chinese mainland.
         """

@@ -211,8 +211,8 @@ class MTriggerManager(AgentContextManager):
                     await messenger(self.websocket, 'maica_mtrigger_absent', f'No tool called, ending toolchain...', '204', type=MsgType.INFO, color=colorama.Fore.LIGHTBLUE_EX)
                     ending = True
                     
-                if self.settings.extra.post_astp and not ending:
-                    await messenger(self.websocket, 'maica_mtrigger_astp', f'MTrigger interrupted by pre_astp, ending toolchain...', '200', type=MsgType.INFO, color=colorama.Fore.LIGHTBLUE_EX)
+                if self.settings.extra.mt_disable_loop and not ending:
+                    await messenger(self.websocket, 'maica_mtrigger_astp', f'MTrigger interrupted by mf_disable_loop, ending toolchain...', '200', type=MsgType.INFO, color=colorama.Fore.LIGHTBLUE_EX)
                     ending = True
 
                 await bm(self.websocket, 'maica_mtrigger_round_finish', f'MTrigger toolchain {cycle} round finished, ending is {str(ending)}', '200', type=MsgType.INFO, color=colorama.Fore.BLUE)

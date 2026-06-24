@@ -123,9 +123,9 @@ class AgentContextManager(AsyncCreator):
     async def _construct_query(self, user_input=None, tool_input=None, tool_id=None, pre_post: Literal['pre', 'post']=None, addi_override: Optional[int]=None):
         match pre_post:
             case 'pre':
-                additive_setting = self.settings.extra.pre_additive
+                additive_setting = self.settings.extra.mf_context_rnds
             case 'post':
-                additive_setting = self.settings.extra.post_additive
+                additive_setting = self.settings.extra.mt_context_rnds
             case _:
                 raise MaicaInputError('Need type assignment on use', '500')
             
@@ -137,7 +137,7 @@ class AgentContextManager(AsyncCreator):
             result = await self.maica_pool.query_get(expression=sql_expression, values=(self.settings.verification.user_id, self.settings.temp.chat_session))
             if result and result[0]:
                 res_list = json.loads(f'[{result[0]}]')
-                lines_num = min(self.settings.extra.pre_additive * 2, len(res_list) - 1)
+                lines_num = min(self.settings.extra.mf_context_rnds * 2, len(res_list) - 1)
                 message_additive = res_list[-lines_num:] if lines_num > 0 else []
                 if message_additive:
                     self.serial_messages.extend(message_additive)

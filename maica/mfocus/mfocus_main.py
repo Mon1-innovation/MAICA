@@ -158,7 +158,7 @@ class MFocusManager(AgentContextManager):
             )
 
         choice_list = []; choice_checklist = []
-        if trigger_list and self.settings.extra.amt_aggressive:
+        if trigger_list and self.settings.extra.mf_precheck_mt:
             for trigger in trigger_list:
                 match trigger.template:
                     case 'common_affection_template':
@@ -244,7 +244,7 @@ class MFocusManager(AgentContextManager):
                 },
             )
 
-        if self.settings.extra.mf_aggressive:
+        if self.settings.extra.mf_llm_concl:
             self.tools.append(
                 {
                     "name": "conclude_information",
@@ -341,7 +341,7 @@ class MFocusManager(AgentContextManager):
             if self.mfocus_impl_mvista:
                 image_word = " [图片]" if self.settings.basic.target_lang == 'zh' else " [Image]"
                 query += image_word
-            if self.settings.extra.mf_aggressive:
+            if self.settings.extra.mf_llm_concl:
                 taskend_word = "作出总结" if self.settings.basic.target_lang == 'zh' else "draw a conclusion"
             else:
                 taskend_word = "表示任务完成" if self.settings.basic.target_lang == 'zh' else "indicate task finished"
@@ -433,8 +433,8 @@ User input:
                     await messenger(self.websocket, 'maica_mfocus_absent', f'No tool called, ending toolchain...', '204', type=MsgType.INFO, color=colorama.Fore.LIGHTBLUE_EX)
                     ending = True
 
-                if self.settings.extra.pre_astp and not ending:
-                    await messenger(self.websocket, 'maica_mfocus_astp', f'MFocus interrupted by pre_astp, ending toolchain...', '200', type=MsgType.INFO, color=colorama.Fore.LIGHTBLUE_EX)
+                if self.settings.extra.mf_disable_loop and not ending:
+                    await messenger(self.websocket, 'maica_mfocus_astp', f'MFocus interrupted by mf_disable_loop, ending toolchain...', '200', type=MsgType.INFO, color=colorama.Fore.LIGHTBLUE_EX)
                     ending = True
 
                 await messenger(self.websocket, 'maica_mfocus_round_finish', f'MFocus toolchain {cycle} round finished, ending is {str(ending)}', '200', type=MsgType.INFO, color=colorama.Fore.BLUE)
@@ -445,7 +445,7 @@ User input:
                 await react_task
                 _instructed_add('react_trigger', _react_to_instruction(react_task.result()))
 
-            if self.settings.extra.mf_aggressive:
+            if self.settings.extra.mf_llm_concl:
                 
                 # So we use last response instead if no conclusion offered
                 if not conclusion_answer:
@@ -459,13 +459,13 @@ User input:
                 await messenger(self.websocket, 'maica_mfocus_no_conclusion', 'MFocus got no conclusion, falling back to instruction', '404', traceray_id=self.traceray_id)
                 
             # Then if mfa not enabled or ignored
-            if self.settings.extra.tnd_aggressive >= 1:
+            if self.settings.extra.mf_constant_tools >= 1:
                 # Add time and events
                 if not instructed_answer.get('time_acquire'):
                     _instructed_add('time_acquire', (await self.agent_tools.time_acquire())[1], False)
                 if not instructed_answer.get('event_acquire'):
                     _instructed_add('event_acquire', (await self.agent_tools.event_acquire())[1], False)
-            if self.settings.extra.tnd_aggressive >= 2 or self.settings.temp.ic_prep:
+            if self.settings.extra.mf_constant_tools >= 2 or self.settings.temp.ic_prep:
                 # Add date and weather
                 if not instructed_answer.get('date_acquire'):
                     _instructed_add('date_acquire', (await self.agent_tools.date_acquire())[1], False)

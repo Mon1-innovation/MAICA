@@ -374,7 +374,7 @@ class WsCoroutine(NoWsCoroutine):
                     knwon_info = ""
 
                 player_name = '[player]'
-                if self.settings.extra.sfe_aggressive:
+                if self.settings.extra.prompt_pname_repl:
                     player_name_get = self.sf_inst.read_from_sf('mas_playername')
                     if player_name_get:
                         player_name = player_name_get
@@ -416,7 +416,7 @@ class WsCoroutine(NoWsCoroutine):
         if self.settings.temp.ic_prep:
             completion_args['presence_penalty'] = 1.0 - (1.0 - completion_args['presence_penalty']) * (2/3)
 
-        if self.settings.extra.enforce_lang:
+        if self.settings.extra.gen_enforce_lang:
             if self.settings.basic.target_lang == 'en':
                 completion_args['extra_body']["structured_outputs"] = {"regex": r"^[^\u4e00-\u9fa5]*$"}
 
@@ -504,7 +504,7 @@ class WsCoroutine(NoWsCoroutine):
         # We should start post processes simultaneously
         post_coros = []
 
-        if len(session) >= 3 * 2 + 1 and self.settings.extra.dscl_pvn:
+        if len(session) >= 3 * 2 + 1 and self.settings.extra.gen_quality_chk:
             post_coros.append(mtools.ws_dscl_detect(session.utilize(text_only=True)[-4:], self.fsc, bm=buffered_messenger))
 
         if self.settings.basic.enable_mt and not self.settings.temp.bypass_mt:

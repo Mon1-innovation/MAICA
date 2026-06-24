@@ -36,7 +36,7 @@ async def internet_search(fsc: FullSocketsContainer, query, original_query):
 
     results_full_str = str(results_full).strip('[').strip(']')
     results_short_str = str(results_short).strip('[').strip(']')
-    if not fsc.maica_settings.extra.esc_aggressive:
+    if not fsc.maica_settings.extra.esearch_llm_concl:
         return results_short_str, results_humane
 
     system_init = """\
@@ -73,7 +73,7 @@ if __name__ == '__main__':
     async def test():
         fsc = FullSocketsContainer()
         fsc.maica_settings.basic.target_lang = 'zh'
-        # fsc.maica_settings.extra.esc_aggressive = False
+        # fsc.maica_settings.extra.esearch_llm_concl = False
         fsc.mnerve_conn = await ConnUtils.mnerve_conn()
         print(await internet_search(fsc, "花谱上海演唱会取消", "花谱上海演唱会取消了，难过"))
     from maica import init

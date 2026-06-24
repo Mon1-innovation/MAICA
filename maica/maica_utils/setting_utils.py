@@ -203,31 +203,31 @@ class MaicaSettings():
         _post_astp: bool = False
         _enforce_lang: bool = True
 
-        sfe_aggressive = create_prop('sfe_aggressive', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        prompt_pname_repl = create_prop('prompt_pname_repl', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Use name from savefile instead of [player] in prompts."""
-        mf_aggressive = create_prop('mf_aggressive', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        mf_llm_concl = create_prop('mf_llm_concl', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Use agent model's final output instead of instructed guidance."""
-        tnd_aggressive = create_prop('tnd_aggressive', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": [0, 1, 2, 3]})
+        mf_constant_tools = create_prop('mf_constant_tools', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": [0, 1, 2, 3]})
         """Add information to MFocus instructed guidance even if no tool used."""
-        esc_aggressive = create_prop('esc_aggressive', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        esearch_llm_concl = create_prop('esearch_llm_concl', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Force agent to resort information acquired from Internet."""
-        amt_aggressive = create_prop('amt_aggressive', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        mf_precheck_mt = create_prop('mf_precheck_mt', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Add MTrigger toollist to MFocus tools for a precheck."""
         nsfw_acceptive = create_prop('nsfw_acceptive', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Alter prompt to ask model to handle toxic topics positively."""
-        pre_additive = create_prop('pre_additive', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": [0, 1, 2, 3, 4, 5]})
+        mf_context_rnds = create_prop('mf_context_rnds', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": [0, 1, 2, 3, 4, 5]})
         """Add history rounds for MFocus to understand the conversation."""
-        post_additive = create_prop('post_additive', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": [0, 1, 2, 3, 4, 5]})
+        mt_context_rnds = create_prop('mt_context_rnds', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": [0, 1, 2, 3, 4, 5]})
         """Add history rounds for MFocus to understand the conversation."""
         tz = create_prop('tz', setter_ext=[set_instance], setter_kwargs={"types": [str, None]})
         """Timezone. This is not fully checked, double check before use."""
-        dscl_pvn = create_prop('dscl_pvn', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        gen_quality_chk = create_prop('gen_quality_chk', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Check and warn about context quality descalation using MNerve."""
-        pre_astp = create_prop('pre_astp', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        mf_disable_loop = create_prop('mf_disable_loop', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Disable MFocus sequential toolcall to save time."""
-        post_astp = create_prop('post_astp', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        mt_disable_loop = create_prop('mt_disable_loop', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Disable MTrigger sequential toolcall to save time."""
-        enforce_lang = create_prop('enforce_lang', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        gen_enforce_lang = create_prop('gen_enforce_lang', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Enforce target language (only applies to English currently)."""
 
 

@@ -142,14 +142,14 @@ class AgentTools():
         # question about a percise date, so we'll dig deeper on that. The
         # following days are usually not cared about
 
-        # Specifically, when tnd_aggressive is set to >= 3, we enable all
+        # Specifically, when mf_constant_tools is set to >= 3, we enable all
         # importance levels to be represented on major day. This is not
         # recommended
 
         global_importance = kwargs.get('importance', 2)
         if not major_day_is_today:
             global_importance -= 2
-        if self.fsc.maica_settings.extra.tnd_aggressive >= 3:
+        if self.fsc.maica_settings.extra.mf_constant_tools >= 3:
             global_importance -= 1
         assert isinstance(global_importance, int), "Importance input not valid"
 
@@ -286,7 +286,7 @@ if __name__ == "__main__":
         fsc.maica_settings.update(target_lang='en')
         fsc.maica_pool = await ConnUtils.maica_pool()
         fsc.mfocus_conn = await ConnUtils.mfocus_conn()
-        # fsc.maica_settings.update(esc_aggressive=False)
+        # fsc.maica_settings.update(esearch_llm_concl=False)
         sf_inst = await SfPersistentManager.async_create(fsc)
         at = AgentTools(fsc, sf_inst)
         time0 = time.time()
