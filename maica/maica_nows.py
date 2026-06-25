@@ -44,29 +44,6 @@ class NoWsCoroutine(AsyncCreator):
         if not self.settings.verification.user_id:
             raise MaicaPermissionError('Essentials not complete', '403', 'common_essentials_missing')
 
-    # Here we have V2 session methods
-    def acquire_session(self, session_num) -> MaicaSession | List[MaicaSessionItem]:
-        self._check_essentials()
-        session_num = int(session_num)
-        assert -1 <= session_num < 10, "Determined session_num out of range"
-
-        # Ensure it exists in index
-        if not session_num in self.sessions.keys():
-            self.sessions[session_num] = MaicaSession()
-            session = self.sessions[session_num]
-
-        match session_num:
-            case -1 | 0:
-                # Disposable sessions
-                session.clear()
-                return session
-            case _:
-                # Persistent sessions
-                session.user_id = self.settings.verification.user_id
-                session.session_num = session_num
-                session.fsc = self.fsc
-                return session
-
     async def find_ms_cache(self, hash: str) -> Optional[str]:
         """Find ms cache with corresponding prompt hash."""
 

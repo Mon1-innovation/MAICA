@@ -4,7 +4,7 @@ import json
 from openai.types.chat import ChatCompletionMessage
 from .connection_utils import *
 from .fsc_late import *
-from maica.maica_utils import *
+from .maica_utils import *
 
 class PersistentManager(AsyncCreator):
     """This is just a template. Do not initialize!"""

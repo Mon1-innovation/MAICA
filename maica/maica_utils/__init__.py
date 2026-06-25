@@ -68,7 +68,7 @@ from .sb_utils import PersistentManager, AgentContextManager
 from .get_a_sentence import SentenceOfTheDay
 from .locater import locater, get_inner_path, get_outer_path
 from .gvars import online_dict, G
-from .session_mgr import MaicaSession, MaicaSessionItem
+from .session_mgr import MaicaSession, MaicaSessionItem, acquire_session
 
 __all__ = [
     'silent',
@@ -153,6 +153,7 @@ __all__ = [
     'G',
     'MaicaSession',
     'MaicaSessionItem',
+    'acquire_session',
 ]
 
 from .gvars import pkg_init_gvars

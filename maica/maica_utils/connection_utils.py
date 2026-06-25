@@ -527,6 +527,20 @@ class ConnUtils():
             return conn
         else:
             return None
+        
+    async def embedding_conn():
+        """Disable if no addr provided."""
+        if G.A.EMBEDDING_ADDR:
+            conn = await AiConnectionManager.async_create(
+                api_key=G.A.EMBEDDING_KEY,
+                base_url=G.A.EMBEDDING_ADDR,
+                name='embedding_conn',
+                model=G.A.EMBEDDING_CHOICE or 0,
+            )
+            conn.default_params(**json.loads(G.A.EMBEDDING_EXTRA))
+            return conn
+        else:
+            return None
 
 async def validate_input(input: Union[str, dict, list], limit: int=0, rsc: Optional[RealtimeSocketsContainer]=None, must: Optional[list]=None, warn: Optional[list]=None) -> Union[dict, list]:
     """

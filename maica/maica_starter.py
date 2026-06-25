@@ -28,7 +28,7 @@ from maica import maica_ws, maica_http, common_schedule, silent as _silent
 from maica.maica_utils import *
 from maica.initializer import *
 
-_CHAT_CONNS_LIST = ['auth_pool', 'maica_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn']
+_CHAT_CONNS_LIST = ['auth_pool', 'maica_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn', 'embedding_conn']
 _TTS_CONNS_LIST = ['auth_pool', 'maica_pool']
 
 from maica.initializer import pkg_init_initializer
@@ -42,8 +42,14 @@ def pkg_init_maica():
     """Prio 1"""
     pkg_init_maica_http()
     pkg_init_mtools()
+    make_folders = ["fs_storage/mv_img", "fs_storage/rag"]
     if mtts_installed:
         mtts.mtts_http.pkg_init_mtts_http()
+        make_folders.append("fs_storage/mtts")
+    for f in make_folders:
+        fr = get_inner_path(f)
+        if not os.path.exists(fr):
+            os.makedirs(fr)
 
 colorama.init(autoreset=True)
 initialized = False

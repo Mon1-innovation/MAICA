@@ -18,7 +18,7 @@ from maica.maica_ws import NoWsCoroutine
 from maica.maica_utils import *
 from maica.mtools import *
 
-_CONNS_LIST = ['auth_pool', 'maica_pool', 'mnerve_conn']
+_CONNS_LIST = ['auth_pool', 'maica_pool', 'mnerve_conn', 'embedding_conn']
 _WATCHES_DICT = {
     "mcore": "MCORE_ADDR",
     "mfocus": "MFOCUS_ADDR",
@@ -255,8 +255,8 @@ class ShortConnHandler(View):
         assert 1 <= chat_session < 10, "chat_session out of bound"
         rounds = int(valid_data.get('content', 0))
 
-        session = self.stem_inst.acquire_session(chat_session)
-        await session.from_db()
+        async with acquire_session(self.fsc, chat_session) as session:
+            await session.from_db()
         history_json = session.json()
 
         if history_json:
@@ -290,9 +290,9 @@ class ShortConnHandler(View):
         sigb64, history_json = content
         assert (await wrap_run_in_exc(None, verify_message, json.dumps(history_json, ensure_ascii=False, sort_keys=True), sigb64)), "Signature mismatch"
 
-        session = self.stem_inst.acquire_session(chat_session)
-        session.load(history_json)
-        session.to_db()
+        async with acquire_session(self.fsc, chat_session) as session:
+            session.load(history_json)
+            session.to_db()
 
         return self.jfy_res()
 

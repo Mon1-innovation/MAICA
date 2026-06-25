@@ -6,6 +6,7 @@ import time
 import orjson
 from typing import *
 from dataclasses import dataclass, field
+from contextlib import asynccontextmanager
 from .maica_utils import *
 from .fsc_late import *
 
@@ -68,6 +69,8 @@ class MaicaSession(list):
             "known_info": "",
             "image_urls": [],
         }
+
+        self.lock = asyncio.Lock()
 
     # We override append to automatically manage context
     def append(self, object):
@@ -354,3 +357,46 @@ class MaicaSession(list):
         await self.to_db()
         await archiver.to_archive()
         return stat
+    
+_sessions_index: List[
+    Dict[
+        Tuple[int, int],
+        List[MaicaSession, float]
+    ]
+] = []
+
+def _id_acquire_session(user_id, session_num) -> MaicaSession | List[MaicaSessionItem]:
+    global _sessions_index
+    session_num = int(session_num)
+    assert -1 <= session_num < 10, "Determined session_num out of range"
+    assert user_id > 0, "Sessions are designed to be user-bound, do not acquire system-wide"
+
+    # Ensure it exists in index
+    mapping = (user_id, session_num)
+    if not mapping in _sessions_index.keys():
+        _sessions_index[mapping] = MaicaSession()
+    session = _sessions_index[mapping]
+
+    match session_num:
+        case -1 | 0:
+            # Disposable sessions
+            session.clear()
+            return session
+        case _:
+            # Persistent sessions
+            session.user_id = user_id
+            session.session_num = session_num
+            # 
+            return session
+        
+def _fsc_acquire_session(fsc: FullSocketsContainer, session_num):
+    session = _id_acquire_session(fsc.maica_settings.verification.user_id, session_num)
+    session.fsc = fsc
+    return session
+
+@asynccontextmanager
+async def acquire_session(fsc: FullSocketsContainer, session_num):
+    """This should be used as context manager!"""
+    session = _fsc_acquire_session(fsc, session_num)
+    async with session.lock:
+        yield session
