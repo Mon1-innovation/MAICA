@@ -358,11 +358,10 @@ class MaicaSession(list):
         await archiver.to_archive()
         return stat
     
-_sessions_index: List[
-    Dict[
-        Tuple[int, int],
-        List[MaicaSession, float]
-    ]
+# That float is last acquired timestamp
+_sessions_index: Dict[
+    Tuple[int, int],
+    List[MaicaSession | float]
 ] = []
 
 def _id_acquire_session(user_id, session_num) -> MaicaSession | List[MaicaSessionItem]:
@@ -374,8 +373,10 @@ def _id_acquire_session(user_id, session_num) -> MaicaSession | List[MaicaSessio
     # Ensure it exists in index
     mapping = (user_id, session_num)
     if not mapping in _sessions_index.keys():
-        _sessions_index[mapping] = MaicaSession()
-    session = _sessions_index[mapping]
+        _sessions_index[mapping] = [MaicaSession(), time.time()]
+    else:
+        _sessions_index[mapping][1] = time.time()
+    session = _sessions_index[mapping][0]
 
     match session_num:
         case -1 | 0:
@@ -400,3 +401,9 @@ async def acquire_session(fsc: FullSocketsContainer, session_num):
     session = _fsc_acquire_session(fsc, session_num)
     async with session.lock:
         yield session
+
+# To release some memory
+def sessions_gc(timestamp):
+    for k, v in _sessions_index.items():
+        if v[1] < timestamp and not v[0].lock.locked():
+            _sessions_index.pop(k)
