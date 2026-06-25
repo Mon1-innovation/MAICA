@@ -68,7 +68,7 @@ class CommonScheduler():
             for uuid in uuids:
 
                 processing_img = ProcessingImg()
-                processing_img.det_path(uuid)
+                processing_img.uuid = uuid
                 processing_img.delete()
 
                 sql_expression_2 = "DELETE FROM mv_meta WHERE uuid = %s"

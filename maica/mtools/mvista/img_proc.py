@@ -9,18 +9,38 @@ from maica.maica_utils import *
 
 _ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/bmp', 'image/webp']
 
+_base_path: str = get_inner_path('fs_storage/mv_img')
+
 class ProcessingImg():
     """A wrapped picture to process."""
     _bio: Optional[BytesIO] = None
-    _real_path: Optional[str] = None
-    _base_path: str = get_inner_path('fs_storage/mv_img')
+    _uuid: Optional[str] = None
 
     format: str = ''
     is_compressed: bool = False
 
     @property
+    def uuid(self):
+        return self._uuid
+    @uuid.setter
+    def uuid(self, v):
+        self._uuid = str(uuid.UUID(v))
+
+    @property
     def file_name(self):
-        return os.path.basename(self._real_path)
+        assert self.uuid, "No uuid for this instance"
+        return self.uuid + ".jpg"
+    
+    @property
+    def real_path(self):
+        return os.path.join(_base_path, self.file_name)
+
+    def gen_uuid(self):
+        if not self.uuid:
+            self.uuid = str(uuid.uuid4())
+            while os.path.isfile(self.real_path):
+                self.uuid = str(uuid.uuid4())
+        return self.uuid
 
     def _rfb(self, *args, **kwargs):
         self._bio.seek(0)
@@ -69,14 +89,19 @@ class ProcessingImg():
         if not self.format in _ALLOWED_MIMES:
             raise MaicaInputWarning(f'Input file {self.format} is not image')
         self.compress()
+        # self.gen_uuid()
 
-    def extract(self, uuid: str):
+    def extract(self, fuuid: str):
         """Read from fs."""
-        self.det_path(uuid)
-        self.read()
-        self.format = magic.from_buffer(self._rfb(2048), mime=True)
-        if not self.format in _ALLOWED_MIMES:
-            raise MaicaInputError(f'Extracted file {self.format} is not image')
+        self.uuid = fuuid
+        try:
+            self.read()
+            self.format = magic.from_buffer(self._rfb(2048), mime=True)
+            if not self.format in _ALLOWED_MIMES:
+                raise MaicaInputError(f'Extracted file {self.format} is not image')
+        except AssertionError:
+            # file not exist, initiating empty
+            pass
         
     def compress(self, mw=1920, mh=1080, q=85):
         """Compresses the wrapped picture."""
@@ -103,38 +128,20 @@ class ProcessingImg():
         img.save(self._bio, format='JPEG', quality=q, optimize=True)
         self.is_compressed = True
 
-    def det_path(self, fname: Optional[str]=None):
-        """Just fill the _real_path."""
-        def abspath():
-            nonlocal fname
-            try:
-                fname = str(uuid.UUID(fname))
-            except Exception as e:
-                raise MaicaInputWarning(f'fname {fname} is not uuid')
-            return os.path.join(self._base_path, f"{fname}.jpg")
-        
-        if not fname:
-            fname = str(uuid.uuid4())
-            while os.path.isfile(abspath()):
-                fname = str(uuid.uuid4())
-        self._real_path = abspath()
-        return fname
-
     def read(self):
         """Read bytes from desired path."""
-        assert os.path.isfile(self._real_path), f"File {self.file_name} not exist"
-        self._read(self._real_path)
+        assert os.path.isfile(self.real_path), f"File {self.file_name} not exist"
+        self._read(self.real_path)
 
     def save(self):
         """Save wrapped picture to desired path."""
-        assert self._real_path, "Run det_path before save"
-        self._save(self._real_path)
+        self._save(self.real_path)
 
     def delete(self):
         """Purge bio and delete desired path."""
         self._purge()
-        assert os.path.isfile(self._real_path), f"File {self.file_name} not exist"
-        os.remove(self._real_path)
+        assert os.path.isfile(self.real_path), f"File {self.file_name} not exist"
+        os.remove(self.real_path)
 
     def to_bio(self):
         """Get stored bio."""

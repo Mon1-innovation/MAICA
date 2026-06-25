@@ -86,7 +86,7 @@ class NoWsCoroutine(AsyncCreator):
         
         for uuid in uuids:
             processing_img = ProcessingImg()
-            processing_img.det_path(uuid)
+            processing_img.uuid = uuid
 
             sql_expression_1 = "SELECT vista_id FROM mv_meta WHERE user_id = %s AND uuid = %s"
             result = await self.maica_pool.query_get(expression=sql_expression_1, values=(self.settings.verification.user_id, uuid))
@@ -114,7 +114,7 @@ class NoWsCoroutine(AsyncCreator):
         await delete_mv_if_exceeds()
 
         processing_img = ProcessingImg(input)
-        uuid = processing_img.det_path()
+        uuid = processing_img.gen_uuid()
         
         sql_expression_1 = "INSERT INTO mv_meta (user_id, uuid) VALUES (%s, %s)"
         vista_id = (await self.maica_pool.query_modify(expression=sql_expression_1, values=(self.settings.verification.user_id, uuid)))[1]
