@@ -11,10 +11,12 @@ from .connection_utils import DbPoolManager, AiConnectionManager
 class ConnSocketsContainer():
     auth_pool: Optional[DbPoolManager]
     maica_pool: Optional[DbPoolManager]
+    vector_pool: Optional[MilvusDbConnectionManager]
     mcore_conn: Optional[AiConnectionManager]
     mfocus_conn: Optional[AiConnectionManager]
     mvista_conn: Optional[AiConnectionManager]
     mnerve_conn: Optional[AiConnectionManager]
+    embedding_conn: Optional[AiConnectionManager]
     def spawn_sub(self, rsc: RealtimeSocketsContainer) -> ConnSocketsContainer:...
 
 @dataclass
@@ -27,10 +29,12 @@ class FullSocketsContainer():
     maica_settings: ClassVar[MaicaSettings]
     auth_pool: ClassVar[Optional[DbPoolManager]]
     maica_pool: ClassVar[Optional[DbPoolManager]]
+    vector_pool: ClassVar[Optional[MilvusDbConnectionManager]]
     mcore_conn: ClassVar[Optional[AiConnectionManager]]
     mfocus_conn: ClassVar[Optional[AiConnectionManager]]
     mvista_conn: ClassVar[Optional[AiConnectionManager]]
     mnerve_conn: ClassVar[Optional[AiConnectionManager]]
+    embedding_conn: ClassVar[Optional[AiConnectionManager]]
 
     def __getattr__(self, k: str) -> any:...
 

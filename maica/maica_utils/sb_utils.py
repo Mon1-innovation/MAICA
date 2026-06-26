@@ -79,7 +79,7 @@ class PersistentManager(AsyncCreator):
                 p_id, content, timestamp = result
                 self.p_id, self.timestamp = p_id, timestamp
                 self.sf_content = json.loads(content)
-            except Exception:
+            except Exception as e:
                 self.p_id = self.timestamp = None
                 self.sf_content = self.EMPTY()
                 await messenger(self.websocket, f'{self.FUNC_NAME}_no_persistent', f'No persistent found for {self._cap_2(self.FUNC_NAME)}, using empty', '204', traceray_id=self.traceray_id)

@@ -290,7 +290,7 @@ class MaicaSession(list):
             # With vllm optimizations and local network, it should be fast enough for loop calculation
             # I'm not that sure
 
-            host_info = get_host(G.A.MCORE_ADDR)
+            host_info = ExplainUrl(G.A.MCORE_ADDR)
             return (await dld_json(f"{host_info[0]}://{host_info[1]}:{host_info[2]}/tokenize", False, False, 'post', carriage={"messages": messages}))['count']
 
         async def tokens_calc(messages):

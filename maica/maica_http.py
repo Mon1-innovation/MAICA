@@ -24,6 +24,7 @@ _WATCHES_DICT = {
     "mfocus": "MFOCUS_ADDR",
     "mvista": "MVISTA_ADDR",
     "mnerve": "MNERVE_ADDR",
+    "embedding": "EMBEDDING_ADDR",
 }
 
 def pkg_init_maica_http():
@@ -93,7 +94,7 @@ class ShortConnHandler(View):
     stem_inst: Optional[NoWsCoroutine]
 
     root_csc: ConnSocketsContainer = None
-    """Don't forget to implement at first!"""
+    """Don't forget to fill at first!"""
 
     nvwatchers: list[NvWatcher] = []
 
@@ -535,7 +536,7 @@ async def prepare_thread(**kwargs):
     # Construct watchers
     watch_addrs = {}
     for k, v in _WATCHES_DICT.items():
-        host = get_host(getattr(G.A, v))[1]
+        host = ExplainUrl(getattr(G.A, v)).hostname
         if host and not k in watch_addrs:
             watch_addrs[k] = host
             

@@ -364,8 +364,18 @@ class Decos():
             except websockets.WebSocketException as we:
                 raise we
             except Exception as e:
-                exception_cls = MaicaDbError if hasattr(self, 'db') else MaicaResponseError
-                conn_type = 'db_conn' if hasattr(self, 'db') else 'ai_conn'
+
+                match self:
+                    case i if getattr(i, "db_type", None) in ("mysql", "sqlite"):
+                        exception_cls = MaicaDbError
+                        conn_type = 'db_conn'
+                    case i if getattr(i, "db_type", None) in ("milvus"):
+                        exception_cls = MaicaDbError
+                        conn_type = 'vdb_conn'
+                    case _:
+                        exception_cls = MaicaResponseError
+                        conn_type = 'ai_conn'
+
                 raise exception_cls(f'{name} operation failed: {str(e)}', '502', f'{conn_type}_failed') from e
         return wrapper
 
@@ -433,6 +443,24 @@ class Decos():
             except Exception as e:
                 raise MaicaInputError(f'Input param not acceptable', '500', 'maica_settings_param_rejected') from e
         return wrapper
+
+class ExplainUrl():
+    """For convenience."""
+    def __init__(self, url):
+        parse_result = urlparse(url)
+        self.scheme, self.netloc, self.path, self.params, self.query, self.fragment = parse_result
+        self.hostname, self.port = parse_result.hostname, parse_result.port
+        self.is_url = bool(self.netloc); self.is_local = not self.is_url
+        if not self.port:
+            match self.scheme:
+                case "http":
+                    self.port = 80
+                case "https":
+                    self.port = 443
+                case "ftp":
+                    self.port = 21
+                case "ssh":
+                    self.port = 22
 
 @dataclass
 class Desc():
@@ -728,24 +756,6 @@ def numeric(num: str) -> Union[int, float]:
     except ValueError:
         return float(num)
 
-def get_host(url: str) -> bool:
-    """Try to get protocol, hostname and port from url."""
-    try:
-        url_parsed = urlparse(url)
-        default_port = None
-        match url_parsed.scheme:
-            case 'http':
-                default_port = 80
-            case 'https':
-                default_port = 443
-        return url_parsed.scheme, url_parsed.hostname, url_parsed.port or default_port
-    except Exception:
-        return False
-
-def vali_url(url: str) -> bool:
-    """urllib is dumb. It doesn't recognize ip addr so we make it brutal."""
-    return '.' in url
-
 def vali_date(y, m, d) -> tuple[int, int, int]:
     """What a pun!"""
     try:
@@ -832,7 +842,6 @@ if __name__ == "__main__":
     async def test():
         from maica import init
         init()
-        host_info = get_host(G.A.MCORE_ADDR)
         res = await dld_json(f"https://zh.wikipedia.org/w/api.php?action=query&format=json&list=search&redirects=1&utf8=1&formatversion=2&srsearch=incategory:各时期火山事件&srnamespace=14&srlimit=250&sroffset=0&srprop=", True)
         print(res)
 

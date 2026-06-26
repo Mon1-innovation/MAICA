@@ -847,3 +847,21 @@ Pick 1 to 5 most directly relative items from the information. If information pr
         if not self.settings.basic.sf_extraction and not self.settings.temp.sf_extraction_once:
             return None
         return self.sf_forming_buffer.get(key)
+    
+if __name__ == "__main__":
+    import asyncio
+    import time
+    from maica import init
+    init()
+    async def test():
+        fsc = FullSocketsContainer()
+        fsc.maica_settings = MaicaSettings()
+        fsc.maica_pool = await ConnUtils.maica_pool()
+        fsc.maica_settings.verification.update(user_id=18064, username="edge1")
+        # fsc.maica_settings.update(target_lang='zh')
+
+        spm = await SfPersistentManager.async_create(fsc)
+        info = spm._mfocus_form_info()
+        print(info)
+
+    asyncio.run(test())

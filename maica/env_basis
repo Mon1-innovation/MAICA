@@ -95,6 +95,8 @@ MAICA_EMBEDDING_EXTRA = '
     {
     }
 '
+# Embedding (RAG) model vector dims
+MAICA_EMBEDDING_DIMS = '4096'
 # Wait [] seconds before giving up an OpenAI query or not
 MAICA_OPENAI_TIMEOUT = '90'
 # is /tokenizer endpoint open or not
@@ -102,7 +104,7 @@ MAICA_CALC_TOKENS = '0'
 # 0 = ms-swift, 1 = modern openai
 MAICA_ALT_TOOLCALL = '1'
 # MFocus provide trained data or not
-MAICA_BASIC_MFOCUS = '0'
+MAICA_BASIC_MFOCUS = '1'
 
 # Data exchanging endpoint settings
 
@@ -117,7 +119,15 @@ MAICA_DB_PASSWORD = ''# 123456
 # MySQL/SQLite auth database name
 MAICA_AUTH_DB = ''# forum_flarum_db
 # MySQL/SQLite maica database name
-MAICA_DATA_DB = ''# maica
+MAICA_DATA_DB = 'maica'
+# Vector db for Milvus RAG, url or file
+MAICA_MILVUS_ADDR = 'rag.db'
+# Milvus database user / unused for lite
+MAICA_MILVUS_USER = ''# user
+# Milvus user password / unused for lite
+MAICA_MILVUS_PASSWORD = ''# 123456
+# Milvus database collection name
+MAICA_MILVUS_COLL = 'maica_rag'
 # Third party API keys, must be valid json
 MAICA_TP_APIS = '
     {
@@ -140,6 +150,8 @@ MAICA_F2B_TIME = '600'
 
 # Use full RESTful API for short connections or not
 MAICA_FULL_RESTFUL = '1'
+# GC stored sessions older than [] hours or not
+MAICA_GC_SESSIONS = '1'
 # Rotate MSpire cache every [] hours or not
 MAICA_ROTATE_MSCACHE = '0'
 # Keep [] MVista imgs per user at most

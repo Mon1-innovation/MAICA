@@ -1,6 +1,7 @@
 """Import layer 3"""
 import aiomysql
 import aiosqlite
+import pymilvus
 import asyncio
 import traceback
 import json
@@ -9,6 +10,7 @@ from typing import *
 from typing_extensions import deprecated
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion
+from openai.types.create_embedding_response import CreateEmbeddingResponse
 from .gvars import *
 from .maica_utils import *
 from .setting_utils import *
@@ -132,8 +134,8 @@ class DbPoolManager(AsyncCreator):
             async with self.pool.acquire():
                 pass
             return
-        except Exception:
-            await messenger(info=f"Recreating {self.name} pool since cannot acquire", type=MsgType.WARN)
+        except Exception as e:
+            sync_messenger(info=f"Recreating {self.name} pool since cannot acquire", type=MsgType.WARN)
             await self._ainit()
 
     @overload
@@ -249,6 +251,7 @@ class SqliteDbPoolManager(DbPoolManager):
         self.name = self.db_path
         self.ro = ro
         self.pool: aiosqlite.Connection = None
+        """It ain't pool, we just calling it one."""
         self.pool_container: list[aiosqlite.Connection] = []
         self.lock = asyncio.Lock()
 
@@ -276,9 +279,12 @@ class SqliteDbPoolManager(DbPoolManager):
     async def keep_alive(self):
         """Check and maintain SQLite connection."""
         try:
-            await self.pool.execute("SELECT 1")
-        except Exception:
-            await messenger(info=f"Recreating {self.db} pool since cannot acquire", type=MsgType.WARN)
+            # You won't lose connection with a local db file, would you?
+
+            # await self.pool.execute("SELECT 1")
+            pass
+        except Exception as e:
+            sync_messenger(info=f"Recreating {self.db} pool since cannot acquire", type=MsgType.WARN)
             await self._ainit()
 
     @overload
@@ -291,7 +297,6 @@ class SqliteDbPoolManager(DbPoolManager):
     @Decos.escape_sqlite_expression
     @Decos.conn_retryer_factory()
     async def query_get(self, expression, values=None, fetchall=False) -> tuple:
-        results = None
         await self.keep_alive()
 
         if not values:
@@ -312,7 +317,6 @@ class SqliteDbPoolManager(DbPoolManager):
         """Execute INSERT/UPDATE/DELETE query on SQLite database."""
         if self.ro:
             raise MaicaDbError(f'DB marked as ro, no modification permitted', '511', 'sqlite_modification_denied')
-        lrid = None
 
         await self.keep_alive()
         if not values:
@@ -357,12 +361,114 @@ class SubSqliteDbPoolManager(SqliteDbPoolManager):
 
     async def close(self):...
 
+class MilvusDbConnectionManager(AsyncCreator):
+    """The vector db. We write it here since it's still db."""
+
+    db_type = 'milvus'
+
+    def __init__(self, db, host, user, password, ro=False):
+        self.db = db
+        """Or shall we call it collection"""
+        self.host = host
+        """File or url"""
+        self.user, self.password = user, password
+        """Won't be used if Milvus lite"""
+        self.ro = ro
+        self.name = self.db
+        self.pool: pymilvus.AsyncMilvusClient = None
+        """It ain't pool, we just calling it one."""
+        self.pool_container: list[aiomysql.Pool] = []
+        self.lock = asyncio.Lock()
+
+    @Decos.catch_exceptions
+    async def _ainit(self):
+        """Initialize Milvus connection."""
+        if not self.lock.locked():
+            async with self.lock:
+                await self.close()
+                self.pool = pymilvus.AsyncMilvusClient(
+                    uri=self.host,
+                    user=self.user,
+                    password=self.password,
+                )
+                try:
+                    await self.pool.load_collection(collection_name=self.db)
+                except Exception as e:
+                    sync_messenger(info=f"{self.db} collection cannot be loaded: {str(e)}. Rerun _ainit afterwards", type=MsgType.WARN)
+                self.pool_container.append(self.pool)
+        else:
+            async with self.lock:
+                return
+
+    @Decos.catch_exceptions
+    async def keep_alive(self):
+        """Check and maintain Milvus connection."""
+        try:
+            state = await self.pool.get_load_state(collection_name=self.db)
+            assert str(state.get("state")) == "Loaded", "Collection not loaded"
+
+        except Exception as e:
+            sync_messenger(info=f"Recreating {self.db} pool since cannot acquire", type=MsgType.WARN)
+            await self._ainit()
+
+    def __getattr__(self, k):
+        @Decos.catch_exceptions
+        @Decos.conn_retryer_factory()
+        async def _seq_exc(self, k, *args, **kwargs):
+            await self.keep_alive()
+
+            f = getattr(self.pool, k)
+            next_coro = f(*args, **kwargs)
+
+            if isinstance(next_coro, Awaitable):
+                next_coro = await next_coro
+            else:
+                sync_messenger(info=f"Wrapping sync Milvus function {k} async...", type=MsgType.WARN)
+                pass
+            return next_coro
+        
+        f2 = functools.partial(_seq_exc, self, k)
+        return f2
+            
+    async def close(self):
+        """Close Milvus connection."""
+        try:
+            await self.pool.close()
+        except Exception:...
+        finally:
+            self.pool_container.clear()
+
+    def summon_sub(self, rsc: Optional[RealtimeSocketsContainer]=None):
+        """Summons a per-user instance."""
+        return SubMilvusDbConnectionManager(self, rsc)
+
+class SubMilvusDbConnectionManager(MilvusDbConnectionManager):
+    """Per-user MilvusDbConnectionManager."""
+    def __init__(self, parent: MilvusDbConnectionManager, rsc: Optional[RealtimeSocketsContainer]=None):
+        """Must summon from a parent object."""
+        for k, v in vars(parent).items():
+            setattr(self, k, v)
+
+        self.parent = parent; self.rsc = rsc
+
+    async def _ainit(self):
+        """Do not use async_create."""
+        raise NotImplementedError
+    
+    async def keep_alive(self):
+        await self.parent.keep_alive()
+        self.pool = self.pool_container[0]
+
+    async def close(self):...
+
 class AiConnectionManager(AsyncCreator):
     """Maintain an AI connection so you don't have to."""
-    def __init__(self, api_key, base_url, name='ai_conn', model: Union[int, str]=0):
+    def __init__(self, api_key, base_url, name='ai_conn', model: Union[int, str]=0, caps: Optional[List[Literal["completion", "embedding"]]]=None):
         self.test = False
         self.api_key, self.base_url, self.name, self.model = api_key, base_url, name, model
         self.gen_kwargs = {}
+        self.caps = caps or ["completion"]
+        """Capabilities. I don't know if there're models can both generate and embed but to be safe."""
         self.sock_container: list[AsyncOpenAI, str] = []
         """We use this thing to sync sub-instances' socks with mother instance."""
         self.lock = asyncio.Lock()
@@ -412,8 +518,10 @@ class AiConnectionManager(AsyncCreator):
     async def make_completion(self, swallow: Union[bool, str]=False, **kwargs) -> ChatCompletion:
         """
         Makes completion with arguments.
-        swallow: At least do not raise exception if OpenAI denies with fucking sensitive policy. str as default response.
+        swallow: In case some cheap providers are unstable. str as default response.
         """
+        assert "completion" in self.caps, "Connected model is not capable of completion"
+
         kwargs.update(
             {
                 "model": self.model_actual
@@ -441,6 +549,29 @@ class AiConnectionManager(AsyncCreator):
 
         return res
     
+    @Decos.catch_exceptions
+    @Decos.conn_retryer_factory()
+    async def make_embedding(self, **kwargs) -> CreateEmbeddingResponse:
+        """As above, just the embedding version."""
+        assert "embedding" in self.caps, "Connected model is not capable of completion"
+
+        kwargs.update(
+            {
+                "model": self.model_actual
+            }
+        )
+        mixed_exbody = {**self.gen_kwargs.get('extra_body', {}), **kwargs.get('extra_body', {})}
+        mixed_kwargs = {**self.gen_kwargs, **kwargs}
+        mixed_kwargs['extra_body'] = mixed_exbody
+
+        await self.keep_alive()
+
+        task_resp = asyncio.create_task(self.socket.embeddings.create(**mixed_kwargs))
+        await asyncio.wait_for(task_resp, timeout=int(G.A.OPENAI_TIMEOUT) if G.A.OPENAI_TIMEOUT != '0' else None)
+        res = task_resp.result()
+
+        return res
+
     async def close(self):
         try:
             await self.socket.close()
@@ -480,6 +611,19 @@ class ConnUtils():
     async def basic_pool(ro=False) -> DbPoolManager:
         """Dummy."""
 
+    @staticmethod
+    async def vector_pool() -> MilvusDbConnectionManager | pymilvus.AsyncMilvusClient:
+        host = get_inner_path(G.A.MILVUS_ADDR) if ExplainUrl(G.A.MILVUS_ADDR).is_local else G.A.MILVUS_ADDR
+        conn = await MilvusDbConnectionManager.async_create(
+            db=G.A.MILVUS_COLL,
+            host=host,
+            user=G.A.MILVUS_USER,
+            password=G.A.MILVUS_PASSWORD,
+            ro=False
+        )
+        return conn
+
+    @staticmethod
     async def mcore_conn():
         conn = await AiConnectionManager.async_create(
             api_key=G.A.MCORE_KEY,
@@ -490,6 +634,7 @@ class ConnUtils():
         conn.default_params(**json.loads(G.A.MCORE_EXTRA))
         return conn
 
+    @staticmethod
     async def mfocus_conn():
         conn = await AiConnectionManager.async_create(
             api_key=G.A.MFOCUS_KEY,
@@ -499,7 +644,8 @@ class ConnUtils():
         )
         conn.default_params(**json.loads(G.A.MFOCUS_EXTRA))
         return conn
-    
+
+    @staticmethod
     async def mvista_conn():
         """Disable if no addr provided."""
         if G.A.MVISTA_ADDR:
@@ -514,6 +660,7 @@ class ConnUtils():
         else:
             return None
 
+    @staticmethod
     async def mnerve_conn():
         """Disable if no addr provided."""
         if G.A.MNERVE_ADDR:
@@ -527,7 +674,8 @@ class ConnUtils():
             return conn
         else:
             return None
-        
+
+    @staticmethod
     async def embedding_conn():
         """Disable if no addr provided."""
         if G.A.EMBEDDING_ADDR:
@@ -536,6 +684,7 @@ class ConnUtils():
                 base_url=G.A.EMBEDDING_ADDR,
                 name='embedding_conn',
                 model=G.A.EMBEDDING_CHOICE or 0,
+                caps=["embedding"],
             )
             conn.default_params(**json.loads(G.A.EMBEDDING_EXTRA))
             return conn

@@ -17,7 +17,7 @@ openai>=2.24.0
 orjson>=3.11
 pillow>=12.0
 pycryptodome==3.20.0
-pymilvus>=3.0.0
+pymilvus[milvus_lite]>=3.0.0
 python-dotenv>=1.0.1
 python-magic>=0.4
 pytz>=2024.2

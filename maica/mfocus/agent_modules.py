@@ -280,8 +280,9 @@ if __name__ == "__main__":
     import time
     from maica import init
     init()
-    async def main():
-        fsc = FullSocketsContainer(maica_settings=MaicaSettings())
+    async def test():
+        fsc = FullSocketsContainer()
+        fsc.maica_settings = MaicaSettings()
         fsc.maica_settings.verification.update(user_id=18064, username="edge1")
         fsc.maica_settings.update(target_lang='en')
         fsc.maica_pool = await ConnUtils.maica_pool()
@@ -297,4 +298,4 @@ if __name__ == "__main__":
         # res_p = await at.persistent_acquire('你喜欢吃什么')
         print(f'Time consumed: {time.time() - time0}')
         print(res_i)
-    asyncio.run(main())
+    asyncio.run(test())

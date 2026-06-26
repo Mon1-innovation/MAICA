@@ -42,7 +42,7 @@ def pkg_init_maica():
     """Prio 1"""
     pkg_init_maica_http()
     pkg_init_mtools()
-    make_folders = ["fs_storage/mv_img", "fs_storage/rag"]
+    make_folders = ["fs_storage/mv_img"]
     if mtts_installed:
         mtts.mtts_http.pkg_init_mtts_http()
         make_folders.append("fs_storage/mtts")

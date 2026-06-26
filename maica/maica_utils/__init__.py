@@ -41,9 +41,7 @@ from .maica_utils import (
     wrap_run_in_exc,
     limit_length,
     dld_json,
-    get_host,
     numeric,
-    vali_url,
     vali_date,
     is_today,
     strip_date,
@@ -56,10 +54,11 @@ from .maica_utils import (
     is_mcore_vl,
     sysstruct,
     Decos,
+    ExplainUrl,
     Desc,
     DummyClass,
 )
-from .connection_utils import DbPoolManager, SqliteDbPoolManager, ConnUtils, AiConnectionManager, validate_input, apply_postfix
+from .connection_utils import DbPoolManager, SqliteDbPoolManager, MilvusDbConnectionManager, ConnUtils, AiConnectionManager, validate_input, apply_postfix
 from .setting_utils import MaicaSettings
 from .fsc_early import RealtimeSocketsContainer
 from .account_utils import AccountCursor, encrypt_token, sign_message, verify_message
@@ -68,7 +67,7 @@ from .sb_utils import PersistentManager, AgentContextManager
 from .get_a_sentence import SentenceOfTheDay
 from .locater import locater, get_inner_path, get_outer_path
 from .gvars import online_dict, G
-from .session_mgr import MaicaSession, MaicaSessionItem, acquire_session
+from .session_mgr import MaicaSession, MaicaSessionItem, acquire_session, sessions_gc
 
 __all__ = [
     'silent',
@@ -116,9 +115,7 @@ __all__ = [
     'wrap_run_in_exc',
     'limit_length',
     'dld_json',
-    'get_host',
     'numeric',
-    'vali_url',
     'vali_date',
     'is_today',
     'strip_date',
@@ -131,10 +128,12 @@ __all__ = [
     'is_mcore_vl',
     'sysstruct',
     'Decos',
+    'ExplainUrl',
     'Desc',
     'DummyClass',
     'DbPoolManager',
     'SqliteDbPoolManager',
+    'MilvusDbConnectionManager',
     'ConnUtils',
     'AiConnectionManager',
     'PersistentManager',
@@ -154,6 +153,7 @@ __all__ = [
     'MaicaSession',
     'MaicaSessionItem',
     'acquire_session',
+    'sessions_gc',
 ]
 
 from .gvars import pkg_init_gvars

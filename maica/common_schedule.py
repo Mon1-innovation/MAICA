@@ -15,7 +15,7 @@ class CommonScheduler():
     """Keeps a schedule running."""
 
     root_csc: ConnSocketsContainer = None
-    """Don't forget to implement at first!"""
+    """Don't forget to fill at first!"""
 
     def __init__(self, involve_chat=True, involve_tts=True):
         rsc = RealtimeSocketsContainer()
@@ -34,6 +34,11 @@ class CommonScheduler():
                 self.rotate_mv_imgs,
                 trigger=IntervalTrigger(hours=1),
                 id='rotate_mv_imgs'
+            )
+            self.schedule.add_job(
+                self.gc_sessions,
+                trigger=IntervalTrigger(hours=1),
+                id='gc_sessions'
             )
         if involve_tts:
             self.schedule.add_job(
@@ -75,6 +80,17 @@ class CommonScheduler():
                 await self.maica_pool.query_modify(expression=sql_expression_2, values=(uuid, ))
 
             sync_messenger(info=f'Removed {len(uuids)} MVista images', type=MsgType.LOG)
+
+    @Decos.log_task
+    async def gc_sessions(self):
+        """Releases stale V2 sessions from ram."""
+        keep_time = int(G.A.GC_SESSIONS)
+        if keep_time:
+            timestamp = datetime.datetime.now()
+            earliest_timestamp = timestamp - datetime.timedelta(hours=keep_time)
+            ftime = earliest_timestamp.timestamp()
+
+            sessions_gc(ftime)
 
     @Decos.log_task
     async def rotate_mtts_cache(self):

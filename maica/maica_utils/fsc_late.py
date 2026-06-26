@@ -21,10 +21,12 @@ class ConnSocketsContainer():
     """Why so many connections!!!"""
     auth_pool: Optional[DbPoolManager]=None
     maica_pool: Optional[DbPoolManager]=None
+    vector_pool: Optional[MilvusDbConnectionManager]=None
     mcore_conn: Optional[AiConnectionManager]=None
     mfocus_conn: Optional[AiConnectionManager]=None
     mvista_conn: Optional[AiConnectionManager]=None
     mnerve_conn: Optional[AiConnectionManager]=None
+    embedding_conn: Optional[AiConnectionManager]=None
 
     def spawn_sub(self, rsc=None):
         """Spawns a per-user sub instance."""
@@ -44,7 +46,7 @@ class FullSocketsContainer():
             self.csc = ConnSocketsContainer()
 
     rsc_proxied = ['websocket', 'traceray_id', 'maica_settings']
-    csc_proxied = ['auth_pool', 'maica_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn']
+    csc_proxied = ['auth_pool', 'maica_pool', 'vector_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn', 'embedding_conn']
 
     # websocket: ClassVar[Optional[ServerConnection]] = None
     # traceray_id: ClassVar[TracerayId] = None
