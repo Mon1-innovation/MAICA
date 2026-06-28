@@ -52,9 +52,11 @@ from .maica_utils import (
     try_getattr,
     hash_sha256,
     is_mcore_vl,
+    is_rag_enabled,
     sysstruct,
     Decos,
     ExplainUrl,
+    BilingualText,
     Desc,
     DummyClass,
 )
@@ -67,7 +69,8 @@ from .sb_utils import PersistentManager, AgentContextManager
 from .get_a_sentence import SentenceOfTheDay
 from .locater import locater, get_inner_path, get_outer_path
 from .gvars import online_dict, G
-from .session_mgr import MaicaSession, MaicaSessionItem, acquire_session, sessions_gc
+from .session_mgr import MaicaSession, MaicaSessionItem, acquire_session, dbos_gc
+from .db_bound_obj import DbBoundObject
 
 __all__ = [
     'silent',
@@ -126,9 +129,11 @@ __all__ = [
     'try_getattr',
     'hash_sha256',
     'is_mcore_vl',
+    'is_rag_enabled',
     'sysstruct',
     'Decos',
     'ExplainUrl',
+    'BilingualText',
     'Desc',
     'DummyClass',
     'DbPoolManager',
@@ -153,7 +158,8 @@ __all__ = [
     'MaicaSession',
     'MaicaSessionItem',
     'acquire_session',
-    'sessions_gc',
+    'dbos_gc',
+    'DbBoundObject',
 ]
 
 from .gvars import pkg_init_gvars

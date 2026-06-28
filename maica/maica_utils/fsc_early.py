@@ -5,6 +5,11 @@ from websockets import ServerConnection
 from Crypto.Random import random as crandom
 from .setting_utils import MaicaSettings
 
+if TYPE_CHECKING:
+    from maica.maica_utils import *
+else:
+    class MaicaSession(): ...
+
 class TracerayId():
     """String-like."""
     var: str=''
@@ -18,6 +23,7 @@ class TracerayId():
 @dataclass
 class RealtimeSocketsContainer():
     """For no-setting usage."""
+    session: Optional[MaicaSession] = None
     websocket: Optional[ServerConnection]=None
     traceray_id: TracerayId=None
     maica_settings: MaicaSettings=None
@@ -30,4 +36,4 @@ class RealtimeSocketsContainer():
 
     def rotate_tid(self):
         """Rotate traceray_id."""
-        self.traceray_id = TracerayId()
+        self.traceray_id.rotate()

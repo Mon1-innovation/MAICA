@@ -70,6 +70,9 @@ if __name__ == "__main__":
             data=[query_embedded],
             output_fields=["raw_text"],
             limit=3,
+            search_params={
+                "params": {"ef": 64},
+            },
             consistency_level="Strong",
         )
         print(query)

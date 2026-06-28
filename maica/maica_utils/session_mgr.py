@@ -4,26 +4,36 @@ This module is for v2 session management, applied for DAA4.
 """
 import time
 import orjson
+import types
 from typing import *
 from dataclasses import dataclass, field
 from contextlib import asynccontextmanager
 from .maica_utils import *
 from .fsc_late import *
+from .db_bound_obj import DbBoundObject
 
 @dataclass
 class MaicaSessionItem():
-    role: str = ''
-    content: str = ''
+    role: Literal["system", "user", "assistant", "misc"] = 'misc'
+    content: str | BilingualText = ''
+    target_lang: Optional[Literal['zh', 'en', 'auto']] = None
     # There might be other things here, like tool_call_id
     context: dict = field(default_factory=lambda: {})
-        # "target_lang": "zh",
         # "strict_conv": True,
         # "player_name": "[player]",
         # "nsfw_acceptive": True,
-        # "known_info": "",
+        # "known_info": {},
         # "image_urls": [],
+        # "memory_concl": "",
         # Extra kvs are valid here, expect them in procedures
+
+    # If item role is misc, we stop using maica format and store entire object.
+    preserved: dict = field(default_factory=lambda: {})
+
     timestamp = time.time()
+
+    def __post_init__(self):
+        assert self.role in ["system", "user", "assistant", "misc"], f"Role not recognizable: {self.role}"
 
     def load(self, item: dict):
         assert isinstance(item, dict), f"Session item can only load from dict, {type(item)} {str(item)} found"
@@ -31,107 +41,111 @@ class MaicaSessionItem():
             setattr(self, k, v)
 
     def json(self) -> dict:
-        return vars(self)
+        data = dict(vars(self))
+        if isinstance(data["content"], BilingualText):
+            data["content"] = data["content"].to_str(self.target_lang)
+        return data
     
     def utilize(self, text_only=False) -> dict:
-        d = {"role": self.role}
-        content = self.content
+        if self.role in ["system", "user", "assistant"]:
+            d = {"role": self.role}
+            content = self.content if isinstance(self.content, str) else self.content.to_str(self.target_lang)
 
-        if is_mcore_vl() and not text_only:
-            image_urls = self.context.get(image_urls)
-            if image_urls:
-                content = [
-                    {"type": "text", "text": self.content}
-                ]
-                for url in image_urls:
-                    content.append({"type": "image_url", "image_url": {"url": url}})
+            if is_mcore_vl() and not text_only:
+                image_urls = self.context.get(image_urls)
+                if image_urls:
+                    content = [
+                        {"type": "text", "text": content}
+                    ]
+                    for url in image_urls:
+                        content.append({"type": "image_url", "image_url": {"url": url}})
 
-        d["content"] = content
-        return d
+            d["content"] = content
+            return d
+        
+        else:
+            return self.preserved
 
-class MaicaSession(list):
+    def form_known_info(self) -> str:
+        """Form the known_info dict into a str. Maybe we use markdown since it's more modern."""
+        known_info = self.context.get("known_info"); known_str = ""
+        # {
+        #     "time_acquire": "现在是...",
+        #     "date_acquire": "今天是...",
+        #     "persistent_acquire": ["莫妮卡...", "[player]..."]
+        # }
+        for k, v in known_info.items():
+            if isinstance(v, list):
+                v = "; ".join(v)
+            known_str += f"\n- {v}"
+        known_str += "\n"
+        return known_str
+
+class MaicaSession(list[MaicaSessionItem], DbBoundObject):
     """
-    This is designed to bind with WsCoroutine.
+    The v2 session.
     """
-    session_id: Optional[int] = None
-    session_num: Optional[int] = None
-    fsc: Optional[FullSocketsContainer] = None
+    TABLE: ClassVar[Optional[str]] = "chat_session"
+    PRIM_KEY_NAME: ClassVar[Optional[str]] = "chat_session_id"
+    SESSION_DB_MIN = 1
 
-    def __init__(self, *args, **kwargs):
-        # Initialize the base list class
-        super().__init__(*args, **kwargs)
+    def clear(self):
+        list.clear(self)
+        DbBoundObject.clear(self)
 
+    def reset(self):
+        super().reset()
+
+        self.default_target_lang: Literal['zh', 'en', 'auto'] = 'zh'
         self.default_context: dict = {
-            "target_lang": "zh",
             "strict_conv": True,
             "player_name": "[player]",
             "nsfw_acceptive": True,
-            "known_info": "",
+            # We make it dict to be flexible
+            "known_info": {},
             "image_urls": [],
+            "memory_concl": "",
         }
 
-        self.lock = asyncio.Lock()
+    def __init__(self, session_num: int = -1, fsc: Optional[FullSocketsContainer] = None, *args, **kwargs):
+        # Initialize the base list class
+        list.__init__(self, *args, **kwargs)
+        DbBoundObject.__init__(self, session_num, fsc)
+        # It should also autorun DbBoundObject.__post_init__()
 
     # We override append to automatically manage context
     def append(self, object):
         if isinstance(object, MaicaSessionItem):
-            object.context = object.context | self.default_context
+            object.target_lang = object.target_lang or self.default_target_lang
+            object.context = self.default_context | object.context
         return super().append(object)
     
     # Well we have to use insert sometimes
-    # We don't patch extend since it's not necessary
     def insert(self, index, object):
         if isinstance(object, MaicaSessionItem):
-            object.context = object.context | self.default_context
+            object.target_lang = object.target_lang or self.default_target_lang
+            object.context = self.default_context | object.context
         return super().insert(index, object)
-
-    def _load(self, item: list, ex_context: Optional[dict] = None):
-        assert isinstance(item, list), f"Session can only load from list, {type(item)} {str(item)} found"
-        self.clear()
-        for i in item:
-            si = MaicaSessionItem(); si.load(i)
-            if ex_context:
-                for k, v in ex_context.items():
-                    si.context[k] = v
-            self.append(si)
-
+    
+    # Just doing it for safety
+    def extend(self, iterable):
+        for object in iterable:
+            if isinstance(object, MaicaSessionItem):
+                object.target_lang = object.target_lang or self.default_target_lang
+                object.context = self.default_context | object.context
+        return super().extend(iterable)
+    
     def load(self, item: Union[list, str]):
-        """This also deals with v1 compatibility."""
-        match type(item).__name__:
-            case "list":
-                list_item = item
-            case "str":
-                try:
-                    list_item = orjson.loads(item)
-                except Exception as e:
-                    try:
-                        list_item = orjson.loads(f"[{item}]")
-                    except Exception as e:
-                        raise MaicaInputWarning(f"Loading {item} is not json or flatterned-json: {str(e)}")
-                    
-        first_item = list_item[0]
-        maica_assert(isinstance(first_item, dict) and first_item.get("role") and first_item.get("content"), full_info=f"Loaded {list_item} is not a V2 or V1 session")
-
-        if len(first_item) <= 2:
-            is_v1 = True
-        else: is_v1 = False
-
-        self._load(list_item, ex_context={"from_v1": True} if is_v1 else None)
+        self.clear()
+        super().load(item)
+        for i in self.content:
+            si = MaicaSessionItem(); si.load(i)
+            self.append(si)
 
     def sanitize(self):
         # Make sure system is #0
-        if not self[0].role == "system":
+        if not len(self) or not self[0].role == "system":
             self.insert(0, MaicaSessionItem("system"))
-
-        # Likely not necessary but who knows
-        if len(self) > 1:
-            hard_fixed = []
-            while self[1].role != 'user':
-                hard_fixed.append(self.pop(1))
-            while self[-1].role != 'assistant':
-                hard_fixed.append(self.pop(-1))
-            if hard_fixed:
-                sync_messenger(info=f"Hard fix of session {self.fsc.maica_settings.verification.user_id if self.fsc else 'UNKNOWN'}:{self.session_num} applied, popped {len(hard_fixed)} items: {str(hard_fixed)}", type=MsgType.ERROR if self.session_num != -1 else MsgType.WARN)
 
     def _prepare_context(self):
         def _basic_gen_system(target_lang, strict_conv):
@@ -140,11 +154,16 @@ class MaicaSession(list):
                     prompt = G.A.PROMPT_ZC
                 else:
                     prompt = G.A.PROMPT_ZW
-            else:
+            elif target_lang == 'en':
                 if strict_conv:
                     prompt = G.A.PROMPT_EC
                 else:
                     prompt = G.A.PROMPT_EW
+            else:
+                if strict_conv:
+                    prompt = G.A.PROMPT_AC
+                else:
+                    prompt = G.A.PROMPT_AW
             return prompt
         
         # First sanitize
@@ -152,15 +171,55 @@ class MaicaSession(list):
         assert len(self) > 1, "No query could be utilized"
 
         # Then acquire context
-        curr_context = self[-1].context
+        curr_item = self[-1]
+        curr_context = curr_item.context
 
         # Then generate system prompt from context
-        prompt = _basic_gen_system(curr_context['target_lang'], curr_context['strict_conv'])
+        prompt = _basic_gen_system(curr_item.target_lang, curr_context['strict_conv'])
+        exprompt = ""; format_kvs = {}; strip_following_spaces = False
+
         if curr_context['nsfw_acceptive']:
-            prompt += G.A.PROMPT_ZNP if curr_context['target_lang'] == 'zh' else G.A.PROMPT_ENP
+            if curr_item.target_lang == 'zh':
+                prompt += G.A.PROMPT_ZNP
+            elif curr_item.target_lang == 'en':
+                prompt += G.A.PROMPT_ENP
+            else:
+                prompt += G.A.PROMPT_ANP
+
         if curr_context['known_info']:
-            prompt += G.A.PROMPT_ZKP if curr_context['target_lang'] == 'zh' else G.A.PROMPT_EKP
-        prompt = prompt.format(player_name=curr_context['player_name'], known_info=curr_context['known_info'])
+            if curr_item.target_lang == 'zh':
+                exprompt = G.A.PROMPT_ZKP
+            elif curr_item.target_lang == 'en':
+                exprompt = G.A.PROMPT_EKP
+            else:
+                exprompt = G.A.PROMPT_AKP
+
+            if strip_following_spaces:
+                exprompt = exprompt.strip()
+            
+            prompt += exprompt
+            format_kvs['known_info'] = curr_item.form_known_info()
+            strip_following_spaces = True
+
+        prompt_item = self[0]
+        prompt_context = prompt_item.content
+
+        if prompt_context['memory_concl']:
+            if curr_item.target_lang == 'zh':
+                exprompt += G.A.PROMPT_ZMP
+            elif curr_item.target_lang == 'en':
+                exprompt += G.A.PROMPT_EMP
+            else:
+                exprompt += G.A.PROMPT_AMP
+
+            if strip_following_spaces:
+                exprompt = exprompt.strip()
+            
+            prompt += exprompt
+            format_kvs['memory_concl'] = prompt_context['memory_concl']
+            strip_following_spaces = True
+
+        prompt = prompt.format(player_name=curr_context['player_name'], **format_kvs)
 
         # Then inject
         # Note that system prompt item should not be modified from external
@@ -174,91 +233,26 @@ class MaicaSession(list):
     def utilize(self, text_only=False) -> list: ...
 
     def utilize(self, *args, **kwargs):
-        if self.session_num > 0:
+        # If session == -1, we shall preserve the prompt
+        session_num = self.session_num
+        if session_num >= 0:
             self._prepare_context()
         else:
             self.sanitize()
         return [i.utilize(*args, **kwargs) for i in self]
-
-    # All init_db, to_db, from_db could fill self.session_id on successful execution, normally no need to pre-init
-    async def init_db(self):
-        user_id = self.fsc.maica_settings.verification.user_id; maica_pool = self.fsc.maica_pool
-        assert user_id and self.session_num and maica_pool, "DB cridentials not complete"
-        maica_assert(1 <= self.session_num < 10, full_info=f"{self.session_num} is not hosted session")
-
-        # First if row exists already
-        sql_expression_1 = "SELECT chat_session_id FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
-        result = await maica_pool.query_get(expression=sql_expression_1, values=(user_id, self.session_num))
-
-        # Then record or new
-        if result:
-            chat_session_id, = result
-        else:
-            sql_expression_2 = "INSERT INTO chat_session (user_id, chat_session_num, content) VALUES (%s, %s, %s)"
-            result = await maica_pool.query_modify(expression=sql_expression_2, values=(user_id, self.session_num, "[]"))
-            chat_session_id = result[1]
-        self.session_id = chat_session_id
-
-    async def to_db(self):
-        user_id = self.fsc.maica_settings.verification.user_id; maica_pool = self.fsc.maica_pool
-        assert user_id and self.session_num and maica_pool, "DB cridentials not complete"
-        maica_assert(1 <= self.session_num < 10, full_info=f"{self.session_num} is not hosted session")
-
-        # First prepare data
-        self_content = orjson.dumps(self.json()).decode()
-
-        # Then if this row exists
-        sql_expression_1 = "SELECT chat_session_id, content FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
-        result = await maica_pool.query_get(expression=sql_expression_1, values=(user_id, self.session_num))
-
-        # Then update or new
-        if result:
-            chat_session_id, db_content = result
-            sql_expression_2 = "UPDATE chat_session SET content = %s WHERE chat_session_id = %s"
-            result = await maica_pool.query_modify(expression=sql_expression_2, values=(self_content, chat_session_id))
-        else:
-            await messenger(self.fsc.websocket, 'save_session_not_present', "Determined session not exist, inserting new. Something might have went wrong if not manually operated DB", "306", self.fsc.traceray_id)
-            sql_expression_2 = "INSERT INTO chat_session (user_id, chat_session_num, content) VALUES (%s, %s, %s)"
-            result = await maica_pool.query_modify(expression=sql_expression_2, values=(user_id, self.session_num, self_content))
-            chat_session_id, db_content = result
-
-        if not self.session_id:
-            self.session_id = chat_session_id
-    
-    async def from_db(self):
-        user_id = self.fsc.maica_settings.verification.user_id; maica_pool = self.fsc.maica_pool
-        assert user_id and self.session_num and maica_pool, "DB cridentials not complete"
-        maica_assert(1 <= self.session_num < 10, full_info=f"{self.session_num} is not hosted session")
-
-        # First get data & existence
-        sql_expression_1 = "SELECT chat_session_id, content FROM chat_session WHERE user_id = %s AND chat_session_num = %s"
-        result = await maica_pool.query_get(expression=sql_expression_1, values=(user_id, self.session_num))
-
-        # Then load or warn
-        if result:
-            chat_session_id, db_content = result
-            if db_content:
-                self.load(db_content)
-            else:
-                self.clear()
-                await messenger(self.fsc.websocket, 'session_no_content', "Determined session no content, using plain. Something might have went wrong if not manually operated DB", "306", self.fsc.traceray_id)
-        else:
-            chat_session_id = None; db_content = ''
-            self.clear()
-            await messenger(self.fsc.websocket, 'session_not_exist', "Determined session not exist, using plain. Something might have went wrong if not manually operated DB", "306", self.fsc.traceray_id)
-
-        if not self.session_id:
-            self.session_id = chat_session_id
     
     async def to_archive(self) -> int:
-        """This requires session_id to function."""
-        user_id = self.fsc.maica_settings.verification.user_id; maica_pool = self.fsc.maica_pool
-        assert user_id and maica_pool, "DB cridentials not complete"
-        assert self.session_id, "Archiving requires original session_id"
+        """This requires self.prim_key_id to function."""
+        # Common + prim_key_id
+        user_id = self.fsc.maica_settings.verification.user_id
+        session_num = self.session_num
+        maica_pool = self.fsc.maica_pool
+        assert user_id and session_num and maica_pool and self.prim_key_id, "DB cridentials not complete"
+        maica_assert(self.SESSION_DB_MIN <= session_num < self.SESSION_DB_BELOW, full_info=f"{session_num} is not acceptable {self.i_name}")
 
         # First if an open archive exists
         sql_expression_1 = 'SELECT archive_id, content FROM crop_archived WHERE chat_session_id = %s AND archived = 0'
-        result = await maica_pool.query_get(expression=sql_expression_1, values=(self.session_id, ))
+        result = await maica_pool.query_get(expression=sql_expression_1, values=(self.prim_key_id, ))
 
         # Then update or new
         if result:
@@ -276,7 +270,7 @@ class MaicaSession(list):
             archive_content = orjson.dumps(self.json()).decode()
             should_seal = int(len(archive_content) >= 100000)
             sql_expression_2 = "INSERT INTO crop_archived (chat_session_id, content, archived) VALUES (%s, %s, %s)"
-            await maica_pool.query_modify(expression=sql_expression_2, values=(self.session_id, archive_content, should_seal))
+            await maica_pool.query_modify(expression=sql_expression_2, values=(self.prim_key_id, archive_content, should_seal))
     
     async def crop_length(self) -> Tuple[list, Literal[0, 1, 2]]:
         """Making it V2 style."""
@@ -299,8 +293,7 @@ class MaicaSession(list):
                 count = await _tokens_calc(messages)
                 sane_minimal = len(''.join([i['content'] for i in messages]))
                 sane_maximal = max_length + generate_length + 100
-                if messages:
-                    assert sane_minimal < count <= sane_maximal, f"Token counting API bahvior insane, returning {count} out of range {sane_minimal}-{sane_maximal}"
+                assert sane_minimal <= count <= sane_maximal, f"Token counting API bahvior insane, returning {count} out of range {sane_minimal}-{sane_maximal}"
             else:
                 # It's binary already, we just take bytes / 3 as a approximation of token count
                 return len(orjson.dumps(messages)) / 3
@@ -316,10 +309,10 @@ class MaicaSession(list):
                 
         cycle = 0; last_self_len = len(self)
         archiver = MaicaSession()
-        if not self.session_id:
+        if not self.prim_key_id:
             await self.init_db()
         archiver.default_context = self.default_context
-        archiver.session_id = self.session_id
+        archiver.prim_key_id = self.prim_key_id
 
         while True:
             cycle += 1
@@ -345,7 +338,7 @@ class MaicaSession(list):
             last_self_len = len(self)
 
             if cycle >= 100:
-                sync_messenger(f"Session cropper hit extreme fragmentation.\nSelf dump: {str(self)}\nArchiver dump: {str(archiver)}\nBreaking loop and trying to continue.", type=MsgType.WARN)
+                sync_messenger(f"Session cropper hit extreme fragmentation.\nSelf dump: {str(self)}\nArchiver dump: {str(archiver)}\nBreaking loop and trying to continue", traceray_id=self.fsc.traceray_id, type=MsgType.WARN)
                 break
 
         # Now finished cropping
@@ -355,55 +348,137 @@ class MaicaSession(list):
         """V1 comtatible behavior."""
         archiver, stat = await self.crop_length()
         await self.to_db()
-        await archiver.to_archive()
+        if len(archiver):
+            await archiver.to_archive()
         return stat
+    
+    def sync_fsc_settings(self, fsc: Optional[FullSocketsContainer] = None):
+        """Syncs fsc settings into self default. Only use for main session."""
+        if not fsc:
+            # If syncing with pre-inserted fsc, this is likely a managed session
+            # That's why we add a check here
+            fsc = self.fsc
+            assert self.session_num == fsc.maica_settings.temp.chat_session, "This is NOT the session you want, re-acquire first"
+        assert fsc, "fsc must exist to sync"
+
+        self.default_target_lang = fsc.maica_settings.basic.target_lang
+        self.default_context.update({
+                "strict_conv": fsc.maica_settings.temp.strict_conv,
+                "player_name": "[player]",
+                "nsfw_acceptive": fsc.maica_settings.extra.nsfw_acceptive,
+                "image_urls": fsc.maica_settings.temp.mv_imgs if is_mcore_vl() else [],
+            }
+        )
+
+# These should be far more simple
+class SessionPersistent(DbBoundObject):
+    TABLE: ClassVar[Optional[str]] = "persistents"
+    PRIM_KEY_NAME: ClassVar[Optional[str]] = "persistent_id"
+
+    def __init__(self, session_num: int = 0, fsc: Optional[FullSocketsContainer] = None, *args, **kwargs):
+        # Initialize the base list class
+        DbBoundObject.__init__(self, session_num, fsc)
+        self.content_temp = {}
+
+class SessionTrigger(DbBoundObject):
+    TABLE: ClassVar[Optional[str]] = "triggers"
+    PRIM_KEY_NAME: ClassVar[Optional[str]] = "trigger_id"
     
 # That float is last acquired timestamp
 _sessions_index: Dict[
-    Tuple[int, int],
-    List[MaicaSession | float]
-] = []
+    str,
+    Dict[
+        Tuple[int, int],
+        List[DbBoundObject | float]
+    ]
+] = {
+    "maica_sessions": {},
+    "session_persistents": {},
+    "session_triggers": {},
+}
+"""
+What now, we maintain an index to store all session-relative DBOs.
+The next layer of dict is for types.
+"""
 
-def _id_acquire_session(user_id, session_num) -> MaicaSession | List[MaicaSessionItem]:
+_DboType = TypeVar('_DboType', bound="DbBoundObject")
+
+async def _get_real_session_num(dbo: _DboType | DbBoundObject, fsc: FullSocketsContainer) -> int:
+    """Some dbos use session 0 if determined not exist. Input DBO cls here just for convenience."""
+    table = dbo.TABLE; pkn = dbo.PRIM_KEY_NAME
+    user_id = fsc.maica_settings.verification.user_id; session_num = fsc.maica_settings.temp.chat_session
+    sql_expression = f'SELECT {pkn} FROM {table} WHERE user_id = %s AND chat_session_num = %s'
+    if not await fsc.maica_pool.query_get(sql_expression, (user_id, session_num)):
+        return 0
+    else:
+        return session_num
+
+def _id_acquire_dbo(cls: _DboType, sub_dict_k: str, user_id: int, session_num: int) -> MaicaSession | SessionPersistent | SessionTrigger:
     global _sessions_index
-    session_num = int(session_num)
-    assert -1 <= session_num < 10, "Determined session_num out of range"
     assert user_id > 0, "Sessions are designed to be user-bound, do not acquire system-wide"
+        
+    sub_dict = _sessions_index[sub_dict_k]
 
     # Ensure it exists in index
     mapping = (user_id, session_num)
-    if not mapping in _sessions_index.keys():
-        _sessions_index[mapping] = [MaicaSession(), time.time()]
+    if not mapping in sub_dict.keys():
+        sub_dict[mapping] = [cls(session_num), time.time()]
+    # This shouldn't happen theoretically, but we cover it anyway
+    elif sub_dict[mapping][0].is_destroyed:
+        sub_dict[mapping] = [cls(session_num), time.time()]
     else:
-        _sessions_index[mapping][1] = time.time()
-    session = _sessions_index[mapping][0]
+        sub_dict[mapping][1] = time.time()
 
-    match session_num:
-        case -1 | 0:
-            # Disposable sessions
-            session.clear()
-            return session
-        case _:
-            # Persistent sessions
-            session.user_id = user_id
-            session.session_num = session_num
-            # 
-            return session
+    session = sub_dict[mapping][0]
+
+    return session
         
-def _fsc_acquire_session(fsc: FullSocketsContainer, session_num):
-    session = _id_acquire_session(fsc.maica_settings.verification.user_id, session_num)
+async def _fsc_acquire_dbo(type: Literal["session", "persistent", "trigger"], fsc: FullSocketsContainer):
+    user_id = fsc.maica_settings.verification.user_id; session_num = fsc.maica_settings.temp.chat_session
+
+    match type:
+        case "session":
+            sub_dict_k = "maica_sessions"
+            cls = MaicaSession
+        case "persistent":
+            sub_dict_k = "session_persistents"
+            cls = SessionPersistent
+            session_num = await _get_real_session_num(cls, fsc)
+        case "trigger":
+            sub_dict_k = "session_triggers"
+            cls = SessionTrigger
+            session_num = await _get_real_session_num(cls, fsc)
+        case _:
+            raise MaicaInputError("Type cannot be recognized")
+
+    session = _id_acquire_dbo(cls, sub_dict_k, user_id, session_num)
     session.fsc = fsc
+
+    match type:
+        case "session" if session_num <= 0:
+            # Temporary session, reset everytime
+            session.reset()
+
     return session
 
 @asynccontextmanager
-async def acquire_session(fsc: FullSocketsContainer, session_num):
+async def acquire_dbo(type: Literal["session", "persistent", "trigger"], fsc: FullSocketsContainer):
     """This should be used as context manager!"""
-    session = _fsc_acquire_session(fsc, session_num)
+    session = _fsc_acquire_dbo(type, fsc)
     async with session.lock:
         yield session
 
+def acquire_session(fsc):
+    """Just an alter-name now."""
+    return acquire_dbo("session", fsc)
+
 # To release some memory
-def sessions_gc(timestamp):
-    for k, v in _sessions_index.items():
-        if v[1] < timestamp and not v[0].lock.locked():
-            _sessions_index.pop(k)
+def dbos_gc(timestamp):
+    gced: List[Tuple] = []
+    for n, l in _sessions_index.items():
+        for k, v in l.items():
+            if v[1] < timestamp and not v[0].lock.locked():
+                v[0].destroy()
+                _sessions_index.pop(k)
+                gced.append((n, k))
+    return gced

@@ -15,7 +15,7 @@ from .base import register_provider
 prio = 43
 requires = ['SERPER_SERP']
 
-async def asearch(query, target_lang: Literal['zh', 'en']='zh'):
+async def asearch(query, target_lang: Literal['zh', 'en', 'auto']='zh'):
     host = "google.serper.dev"
     url = f"https://{host}/search"
     token = TpAPIKeys.SERPER_SERP

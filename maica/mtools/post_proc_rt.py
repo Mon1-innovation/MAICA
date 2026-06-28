@@ -256,7 +256,7 @@ class TalkSplitV2():
 class PPRTProcessor():
     """Post proc realtime processor."""
     @Decos.report_limit_warning
-    def __init__(self, pprt: Union[dict, bool]=True, target_lang: Literal['zh', 'en']='zh', mnerve_conn: Optional[AiConnectionManager]=None):
+    def __init__(self, fsc: FullSocketsContainer, pprt: Union[dict, bool]=True):
         self._pprt = {
             "yield_interval": [40, 20, 10, 5, 3, 1],
             "split_limit": 180,
@@ -274,8 +274,8 @@ class PPRTProcessor():
             check_type(self._pprt.get('yield_interval'), List[int])
             check_type(self._pprt.get('split_limit'), int)
 
-        self._target_lang = target_lang
-        self._mnerve_conn = mnerve_conn
+        self._target_lang = fsc.maica_settings.basic.target_lang
+        self._mnerve_conn = fsc.mnerve_conn
         if self._pprt.get('split_limit') > 0:
             self._buffer = TalkSplitV2(self._pprt.get('split_limit'))
         else:

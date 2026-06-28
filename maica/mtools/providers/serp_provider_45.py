@@ -15,7 +15,7 @@ from .base import register_provider
 prio = 45
 requires = ['SCRAPELESS_SERP']
 
-async def asearch(query, target_lang: Literal['zh', 'en']='zh'):
+async def asearch(query, target_lang: Literal['zh', 'en', 'auto']='zh'):
     host = "api.scrapeless.com"
     url = f"https://{host}/api/v1/scraper/request"
     token = TpAPIKeys.SCRAPELESS_SERP

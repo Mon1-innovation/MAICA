@@ -23,15 +23,13 @@ from maica.mtools.providers.base import get_providers
 from maica.mtools.providers import _activator
 
 @overload
-async def asearch(query: str, target_lang: Literal['zh', 'en']) -> list[dict[Literal['title', 'text'], Annotated[str, Desc('Content')]]]:...
+async def asearch(query: str, target_lang: Literal['zh', 'en', 'auto']) -> list[dict[Literal['title', 'text'], Annotated[str, Desc('Content')]]]:...
 
-available_list: list[tuple[int, Callable]]
+available_list: list[tuple[int, Callable]] = []
 last_used = -1
 
 def pkg_init_serp_provider():
     global available_list
-    serp_provider = None; asearch = None; requires = None
-    available_list = []
 
     if G.A.NO_SERP != '1':
         available_list = get_providers()
@@ -55,5 +53,4 @@ def get_asearch(avoid: Union[Literal['last'], int]=None, rand: bool=False) -> Ca
 
     return asearch
 
-# Normally you should not do 'from provider import ...' to keep it dynamic
 __all__ = ['get_asearch']

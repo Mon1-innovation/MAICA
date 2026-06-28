@@ -254,9 +254,10 @@ class ShortConnHandler(View):
 
         chat_session = valid_data.get('chat_session')
         assert 1 <= chat_session < 10, "chat_session out of bound"
+        self.settings.temp.update(chat_session=chat_session)
         rounds = int(valid_data.get('content', 0))
 
-        async with acquire_session(self.fsc, chat_session) as session:
+        async with acquire_session(self.fsc) as session:
             await session.from_db()
         history_json = session.json()
 
@@ -286,12 +287,13 @@ class ShortConnHandler(View):
 
         chat_session = valid_data.get('chat_session')
         assert 1 <= chat_session < 10, "chat_session out of bound"
+        self.settings.temp.update(chat_session=chat_session)
         content = valid_data.get('content')
 
         sigb64, history_json = content
         assert (await wrap_run_in_exc(None, verify_message, json.dumps(history_json, ensure_ascii=False, sort_keys=True), sigb64)), "Signature mismatch"
 
-        async with acquire_session(self.fsc, chat_session) as session:
+        async with acquire_session(self.fsc) as session:
             session.load(history_json)
             session.to_db()
 
@@ -424,7 +426,7 @@ class ShortConnHandler(View):
         content = json.loads(valid_data.get('content'))
 
         proc_type: Literal['norm', 'add'] = content.get('type') or 'norm'
-        proc_lang: Literal['zh', 'en'] = content.get('target_lang') or 'zh'
+        proc_lang: Literal['zh', 'en', 'auto'] = content.get('target_lang') or 'zh'
         emo = content.get('text')
         
         if proc_type == 'norm':

@@ -90,7 +90,8 @@ class CommonScheduler():
             earliest_timestamp = timestamp - datetime.timedelta(hours=keep_time)
             ftime = earliest_timestamp.timestamp()
 
-            sessions_gc(ftime)
+            gced = dbos_gc(ftime)
+            sync_messenger(info=f'Destroyed {len(gced)} session handlers', type=MsgType.LOG)
 
     @Decos.log_task
     async def rotate_mtts_cache(self):

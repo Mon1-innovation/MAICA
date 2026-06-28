@@ -4,7 +4,7 @@ from openai.types.chat import ChatCompletionMessage
 from typing import *
 from maica.maica_utils import *
 
-async def quality_chk(rnds: list[dict, ChatCompletionMessage], target_lang: Literal['zh', 'en']='zh', mnerve_conn: Optional[AiConnectionManager]=None) -> tuple[bool, float]:
+async def quality_chk(rnds: list[dict, ChatCompletionMessage], target_lang: Literal['zh', 'en', 'auto']='zh', mnerve_conn: Optional[AiConnectionManager]=None) -> tuple[bool, float]:
     """Detects if a session is descalated and should be reset."""
     if not mnerve_conn:
         return True, 0.1

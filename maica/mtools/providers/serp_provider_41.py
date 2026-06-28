@@ -18,7 +18,7 @@ requires = ['BRIGHTDATA_ZONE', 'BRIGHTDATA_KEY']
 
 _before_retry = 0
 
-async def asearch(query, target_lang: Literal['zh', 'en']='zh'):
+async def asearch(query, target_lang: Literal['zh', 'en', 'auto']='zh'):
     global _before_retry
     host = "api.brightdata.com"
     url = f"https://{host}/request"

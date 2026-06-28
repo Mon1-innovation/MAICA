@@ -28,7 +28,7 @@ class _G():
         Notice: anything under this is string!
         """
         def __getattr__(self, k):
-            return None
+            return ""
         
     @dataclass
     class _T():
@@ -37,7 +37,7 @@ class _G():
         Notice: anything under this is string!
         """
         def __getattr__(self, k):
-            return None
+            return ""
         
     def __post_init__(self):
         self.A = self._A()

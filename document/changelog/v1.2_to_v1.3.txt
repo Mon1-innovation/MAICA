@@ -17,3 +17,15 @@ If you want to read in English, use a translator.
     = pre_astp -> mf_disable_loop
     = post_astp -> mt_disable_loop
     = enforce_lang -> gen_enforce_lang
+
+= tz移动到常规设置
+
++ 添加RAG和embedding基建
+
++ 添加语言auto的支持
+
++ 添加高级设置mf_persistent_rag
+
++ 添加高级设置mt_concl_memory
+
++ 现在发送maica_mcore_gen_start标记断点续传介入

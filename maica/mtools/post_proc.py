@@ -82,7 +82,7 @@ zlist_ai = list(emotion_zte.keys())
 elist_ai = [i for i in elist_ai if not i in ('kawaii', )]
 zlist_ai = [i for i in zlist_ai if not i in ('可爱', )]
 
-def emo_proc(emo: str, target_lang: Literal['zh', 'en']='zh') -> tuple[str, float]:
+def emo_proc(emo: str, target_lang: Literal['zh', 'en', 'auto']='zh') -> tuple[str, float]:
     emo_clean = emo.strip().strip('[').strip(']').lower()
 
     res: Annotated[str, Desc('Final result')] = f'[{emo_clean}]'
@@ -120,7 +120,7 @@ def emo_proc(emo: str, target_lang: Literal['zh', 'en']='zh') -> tuple[str, floa
 
     return res, cfd
 
-async def emo_proc_llm(emo: str, target_lang: Literal['zh', 'en']='zh', mnerve_conn: Optional[AiConnectionManager]=None) -> tuple[str, float]:
+async def emo_proc_llm(emo: str, target_lang: Literal['zh', 'en', 'auto']='zh', mnerve_conn: Optional[AiConnectionManager]=None) -> tuple[str, float]:
     if not mnerve_conn:
         raise MaicaInputWarning("MNerve not implemented on this deployment")
     
@@ -149,7 +149,7 @@ You can only pick an emotion from the following list, no edition or translation:
     sync_messenger(info=f"Finished processing 'add' to phrase '{emo}': {resp_json}", type=MsgType.CARRIAGE)
     return f"[{resp_json.get('res', '微笑' if target_lang == 'zh' else 'smile')}]", resp_json.get('cfd', 0.1)
 
-async def emo_proc_auto(emo: str, target_lang: Literal['zh', 'en']='zh', mnerve_conn: Optional[AiConnectionManager]=None) -> tuple[str, float]:
+async def emo_proc_auto(emo: str, target_lang: Literal['zh', 'en', 'auto']='zh', mnerve_conn: Optional[AiConnectionManager]=None) -> tuple[str, float]:
     res = emo_proc(emo, target_lang)
     if res[1] <= 0.3 and mnerve_conn:
         res = await emo_proc_llm(emo, target_lang, mnerve_conn)
@@ -157,7 +157,7 @@ async def emo_proc_auto(emo: str, target_lang: Literal['zh', 'en']='zh', mnerve_
             return emo_proc(res[0], target_lang)
     return res
 
-async def post_proc(reply_appended: str, target_lang: Literal['zh', 'en']='zh', mnerve_conn: Optional[AiConnectionManager]=None):
+async def post_proc(reply_appended: str, target_lang: Literal['zh', 'en', 'auto']='zh', mnerve_conn: Optional[AiConnectionManager]=None):
 
     reply_all_signatures = ReUtils.re_findall_square_brackets.findall(reply_appended)
 

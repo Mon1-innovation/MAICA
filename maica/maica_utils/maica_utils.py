@@ -91,18 +91,24 @@ class MsgType():
     ERROR = 'error'
 
 class FakeChatCompletion():
-    """A fake OpenAI completion class. Do not use for context."""
-    class Message:
-        def __init__(self, role="assistant", content=""):
-            self.role = role
-            self.content = content
-
-    class Choice:
-        def __init__(self, message):
-            self.message = message
-
+    """
+    A fake OpenAI completion class. Do not use for context.
+    Be cautious that this class simulates Response instead of ChatCompletion since v1.3.
+    """
     def __init__(self, text):
-        self.choices = [self.Choice(self.Message(content=text))]
+        self.output_text = text
+        self.output = [
+            {
+                "type": "message",
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "output_text",
+                        "text": text
+                    }
+                ]
+            }
+        ]
 
 class CommonMaicaException(Exception):
     """This is a common MAICA exception."""
@@ -461,6 +467,23 @@ class ExplainUrl():
                     self.port = 21
                 case "ssh":
                     self.port = 22
+
+@dataclass
+class BilingualText():
+    zh: str
+    en: Optional[str]=None
+    def __post_init__(self):
+        if not self.en:
+            self.en = self.zh
+
+    def __str__(self):
+        return self.zh
+    
+    def to_str(self, target_lang: Literal['zh', 'en', 'auto']='zh'):
+        if target_lang == 'zh':
+            return self.zh
+        else:
+            return self.en
 
 @dataclass
 class Desc():
@@ -831,7 +854,11 @@ async def hash_sha256(str) -> str:
 
 def is_mcore_vl() -> bool:
     """If mcore is same model with mvista."""
-    return G.A.MCORE_ADDR == G.A.MVISTA_ADDR and G.A.MCORE_CHOICE == G.A.MVISTA_CHOICE
+    return bool(G.A.MCORE_ADDR == G.A.MVISTA_ADDR and G.A.MCORE_CHOICE == G.A.MVISTA_CHOICE)
+
+def is_rag_enabled() -> bool:
+    """If this server instance could utilize RAG."""
+    return bool(G.A.EMBEDDING_ADDR and G.A.MILVUS_ADDR)
 
 def sysstruct() -> Literal['Windows', 'Linux']:
     sysstruct = platform.system()

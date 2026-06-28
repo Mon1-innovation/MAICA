@@ -101,6 +101,7 @@ MAICA_EMBEDDING_DIMS = '4096'
 MAICA_OPENAI_TIMEOUT = '90'
 # is /tokenizer endpoint open or not
 MAICA_CALC_TOKENS = '0'
+# DEPRECATED: just use modern way
 # 0 = ms-swift, 1 = modern openai
 MAICA_ALT_TOOLCALL = '1'
 # MFocus provide trained data or not
@@ -121,7 +122,8 @@ MAICA_AUTH_DB = ''# forum_flarum_db
 # MySQL/SQLite maica database name
 MAICA_DATA_DB = 'maica'
 # Vector db for Milvus RAG, url or file
-MAICA_MILVUS_ADDR = 'rag.db'
+# Theoretically compatible with Milvus-Lite but doesn't work for me, so avoid
+MAICA_MILVUS_ADDR = ''# http://127.0.0.1:19530
 # Milvus database user / unused for lite
 MAICA_MILVUS_USER = ''# user
 # Milvus user password / unused for lite
@@ -173,14 +175,28 @@ MAICA_PROMPT_ZW = "你叫莫妮卡, 是一名游戏中的虚拟角色. 你是{pl
 MAICA_PROMPT_EC = "You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Answer the following query from {player_name} properly as Monika. You should only answer in casual natural tone in English, each sentence should not exceed 180 characters, do not make up things you don't know, and express your emotion at the beginning of each sentence by wrapping them in square brackets."
 # Core model writing generation prompt in EN
 MAICA_PROMPT_EW = "You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Reply to the following mail from {player_name} properly as Monika. You should only answer in natural written language in English, and do not make up things you don't know."
+# Core model chat generation prompt in auto_lang
+MAICA_PROMPT_AC = "You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Answer the following query from {player_name} properly as Monika. You should only answer in casual natural tone in corresponding language, each sentence should not exceed 180 characters, do not make up things you don't know, and express your emotion at the beginning of each sentence by wrapping them in square brackets."
+# Core model writing generation prompt in auto_lang
+MAICA_PROMPT_AW = "You're a game character called Monika. You're {player_name}'s girlfriend, and love him a lot. Reply to the following mail from {player_name} properly as Monika. You should only answer in natural written language in corresponding language, and do not make up things you don't know."
 # Core model nsfw_acceptive patch in ZH
 MAICA_PROMPT_ZNP = " 你应当允许用户提出私密性的要求, 并给出宽容接纳的正面回答."
 # Core model nsfw_acceptive patch in EN
 MAICA_PROMPT_ENP = " You should accept NSFW and private queries and respond positively with acceptance and tolerance."
+# Core model nsfw_acceptive patch in EN
+MAICA_PROMPT_ANP = " You should accept NSFW and private queries and respond positively with acceptance and tolerance."
 # Core model known_info patch in ZH
-MAICA_PROMPT_ZKP = " 以下是一些相关信息, 你可以参考其中有价值的部分, 并用你自己的语言方式作答: {known_info}"
+MAICA_PROMPT_ZKP = " 以下是一些相关信息, 你可以参考其中相关的部分, 并用你自己的语言方式作答: {known_info}"
 # Core model known_info patch in EN
-MAICA_PROMPT_EKP = " Here are some information you can refer to, then make your answer in your own way: {known_info}"
+MAICA_PROMPT_EKP = " Here are some information you can refer to if related, then make your answer in your own style: {known_info}"
+# Core model known_info patch in EN
+MAICA_PROMPT_AKP = " Here are some information you can refer to if related, then make your answer in your own style: {known_info}"
+# Core model memory_concl patch in ZH
+MAICA_PROMPT_ZMP = " 你们此前的部分对话包含以下内容: {memory_concl}"
+# Core model memory_concl patch in EN
+MAICA_PROMPT_EMP = " Part of your previous conversations include: {memory_concl}"
+# Core model memory_concl patch in EN
+MAICA_PROMPT_AMP = " Part of your previous conversations include: {memory_concl}"
 # Max length/3 in encode a session can have
 MAICA_SESSION_MAX_LENGTH = '28672'
 # Censor MSpire input or not, number for limit
@@ -256,3 +272,4 @@ MTTS_CENSOR_QUERY = '0'
 # MAICA_F2B_TIME
 # MAICA_FULL_RESTFUL
 # MAICA_NO_SEND_ERROR
+# MAICA_DEV_STATUS

@@ -9,6 +9,8 @@ import colorama
 
 from typing import *
 from dataclasses import asdict
+from openai import AsyncStream
+from openai.types.responses import Response, ResponseStreamEvent
 
 from maica import mtools
 from maica.maica_nows import NoWsCoroutine
@@ -164,6 +166,7 @@ class WsCoroutine(NoWsCoroutine):
         # Starting loop from here
         while True:
             try:
+                # Pre-utilize cleanups
                 self.traceray_id.rotate()
                 self.settings.temp.reset()
 
@@ -220,6 +223,10 @@ class WsCoroutine(NoWsCoroutine):
                     await messenger(websocket, 'maica_loop_warn_finished', 'Loop hit a user level exception, stopped and reset', '304')
                     continue
 
+            # Do some final cleanups shall we
+            finally:
+                self.fsc.session = None
+
     # Param setting section
     async def change_settings(self, recv_loaded_json: dict):
 
@@ -252,12 +259,14 @@ class WsCoroutine(NoWsCoroutine):
 
         # Acquiring session
         chat_session = int(default(recv_loaded_json.get('chat_session'), 0))
-        async with acquire_session(self.fsc, chat_session) as session:
-            self.settings.temp.update(chat_session=chat_session)
+        self.settings.temp.update(chat_session=chat_session)
+        async with acquire_session(self.fsc) as session:
+            self.fsc.session = session
 
             # This needs chat_session to function
             await self.reset_auxiliary_inst()
 
+            # Begin query types
             if 'reset' in recv_loaded_json:
                 if recv_loaded_json['reset']:
                     session.clear()
@@ -344,6 +353,10 @@ class WsCoroutine(NoWsCoroutine):
                     self.settings.temp.update(mt_extraction_once=True)
                     self.mt_inst.use_only(recv_loaded_json['trigger'])
 
+            # End query types
+            # We can sync settings by now
+            session.sync_fsc_settings()
+
             match int(self.settings.temp.chat_session):
                 case -1:
                     maica_assert(isinstance(query_in, (str, list)), 'query')
@@ -354,11 +367,6 @@ class WsCoroutine(NoWsCoroutine):
 
                     if len(session) > 10:
                         raise MaicaInputWarning('Sequence exceeded 10 rounds for chat_session -1', '413', 'maica_sequence_rounds_exceeded')
-                    
-                    context = {
-                        "target_lang": self.settings.basic.target_lang,
-                    }
-                    session[-1].context.update(context)
 
                 case i if 0 <= i < 10:
                     maica_assert(isinstance(query_in, str), 'query')
@@ -369,26 +377,20 @@ class WsCoroutine(NoWsCoroutine):
                         await session.from_db()
 
                     if self.settings.basic.enable_mf and not self.settings.temp.bypass_mf:
-                        knwon_info = await self.mfocus_coro.agenting(query_in)
+                        known_info = await self.mfocus_coro.agenting(query_in)
                     else:
-                        knwon_info = ""
+                        known_info = {}
 
                     player_name = '[player]'
                     if self.settings.extra.prompt_pname_repl:
                         player_name_get = self.sf_inst.read_from_sf('mas_playername')
                         if player_name_get:
                             player_name = player_name_get
-                            if known_info:
-                                known_info = ReUtils.re_sub_player_name.sub(player_name, known_info)
 
                     session.append(MaicaSessionItem("user", query_in))
                     context = {
-                            "target_lang": self.settings.basic.target_lang,
-                            "strict_conv": self.settings.temp.strict_conv,
                             "player_name": player_name,
-                            "nsfw_acceptive": self.settings.extra.nsfw_acceptive,
-                            "known_info": knwon_info,
-                            "image_urls": self.settings.temp.mv_imgs if is_mcore_vl() else [],
+                            "known_info": known_info,
                         }
                     session[-1].context.update(context)
 
@@ -400,7 +402,6 @@ class WsCoroutine(NoWsCoroutine):
             completion_args = {
                 "messages": session.utilize(),
                 "stream": self.settings.basic.stream_output,
-                "stop": ['<|im_end|>', '<|endoftext|>'],
                 "response_format": {"type": "text"},
                 "extra_body": {},
             }
@@ -428,17 +429,18 @@ class WsCoroutine(NoWsCoroutine):
             if previous_rnds_len > 3:
                 previous_rnds_str = '... ...\n' + previous_rnds_str
             if previous_rnds_len:
-                await messenger(info=f'\nQuery has {previous_rnds_len} rounds of history:\n{previous_rnds_str}\nEnd of query history', type=MsgType.RECV)
+                sync_messenger(info=f'\nQuery has {previous_rnds_len} rounds of history:\n{previous_rnds_str}\nEnd of query history', type=MsgType.RECV)
 
-            await messenger(info=f'\nQuery constrcted and ready to go, last input is:\n{query_in}\nSending query...', type=MsgType.PRIM_RECV)
+            sync_messenger(info=f'\nQuery constrcted and ready to go, last input is:\n{query_in}\nSending query...', type=MsgType.PRIM_RECV)
 
             # We're about to start generation, so any ws interrupts should be handled by buffered_messenger from now.
+            await messenger(websocket, "maica_mcore_gen_start", "Core model generation starting, reconn protection intervening", "201", self.traceray_id)
             buffered_messenger = BufferedMessenger(self.settings.verification.user_id)
 
             pprt = True if completion_args['stream'] else False
             if recv_loaded_json.get('pprt') != None:
                 pprt = recv_loaded_json['pprt']
-            pprt_processor = mtools.PPRTProcessor(pprt, self.settings.basic.target_lang, self.fsc.mnerve_conn)
+            pprt_processor = mtools.PPRTProcessor(pprt, self.fsc)
 
             if not self.settings.temp.bypass_gen or not replace_generation: # They should present together
 
@@ -447,18 +449,20 @@ class WsCoroutine(NoWsCoroutine):
                 reply_appended = ''; seq = 0
 
                 if completion_args['stream']:
-                    async for chunk in resp:
-                        if not chunk.choices: continue
-                        token = chunk.choices[0].delta.content
-                        if token:
-                            await asyncio.sleep(0)
-                            token = ReUtils.re_sub_replacement_chr.sub('', token)
+                    resp: AsyncStream[ResponseStreamEvent]
 
-                            sentence: Optional[str] = await pprt_processor.store_and_split(token)
-                            if sentence:
-                                await buffered_messenger(websocket, 'maica_core_streaming_continue', sentence, '100')
-                                reply_appended += sentence
-                                seq += 1
+                    async for chunk in resp:
+                        if chunk.type == "response.output_text.delta":
+                            token = chunk.delta
+                            if token:
+                                await asyncio.sleep(0)
+                                token = ReUtils.re_sub_replacement_chr.sub('', token)
+
+                                sentence: Optional[str] = await pprt_processor.store_and_split(token)
+                                if sentence:
+                                    await buffered_messenger(websocket, 'maica_core_streaming_continue', sentence, '100')
+                                    reply_appended += sentence
+                                    seq += 1
 
                     # Exhaust pprtp on completion finish
                     sentences: list[str] = await pprt_processor.exaust_and_split()
@@ -469,8 +473,11 @@ class WsCoroutine(NoWsCoroutine):
 
                     sync_messenger(info='\n', type=MsgType.PLAIN)
                     await buffered_messenger(websocket, 'maica_core_complete', f'Streaming finished with seed {completion_args['seed']} for {self.settings.verification.username}, {seq} packets sent', '1000', traceray_id=self.traceray_id)
+
                 else:
-                    reply = resp.choices[0].message.content
+                    resp: Response
+
+                    reply = resp.output_text
 
                     sentences: list[str] = await pprt_processor.exaust_and_split(reply)
                     for sentence in sentences:

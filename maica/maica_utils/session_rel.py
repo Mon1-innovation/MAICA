@@ -1,119 +1,149 @@
-import re
-import json
+"""
+Session related. We break sb_utils apart and rewrite some here.
+"""
+
 import asyncio
-import datetime
-import traceback
+import orjson
+
 from typing import *
 from random import sample
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+from dataclasses import dataclass
 from maica.maica_utils import *
 
-class SfPersistentManager(PersistentManager):
-    """Maintain a savefile for convenience of using."""
-    DB_NAME = 'persistents'
-    PRIM_KEY = 'persistent_id'
-    FUNC_NAME = 'mfocus'
+class SessionPersistentMixin():
+    """To provide related functions."""
+    fsc: FullSocketsContainer
+    content: dict
+    content_temp: dict
 
-    @staticmethod
-    def EMPTY():
-        return {}
+    def read_key(self, key):
+        v = self.content_temp.get(key)
+        if not v:
+            if self.fsc.maica_settings.basic.sf_extraction:
+                return self.content.get(key)
+            else:
+                return None
 
     def _conclude_basic_sf(self):
-        result = []
+        result: List[BilingualText] = []
 
         def _ap(zh, en):
-            # This work is super annoying
-            nonlocal result
-            line = zh if self.settings.basic.target_lang == 'zh' else en
-            result.append(line)
+            result.append(
+                BilingualText(
+                    zh,
+                    en,
+                )
+            )
 
         def _rf(key):
-            return self.read_from_sf(key)
+            return self.read_key(key)
             
-        def serialize_date(y, m, d):
-            match int(m):
-                case 1:
-                    ms = 'January'
-                case 2:
-                    ms = 'February'
-                case 3:
-                    ms = 'March'
-                case 4:
-                    ms = 'April'
-                case 5:
-                    ms = 'May'
-                case 6:
-                    ms = 'June'
-                case 7:
-                    ms = 'July'
-                case 8:
-                    ms = 'August'
-                case 9:
-                    ms = 'September'
-                case 10:
-                    ms = 'October'
-                case 11:
-                    ms = 'November'
-                case 12:
-                    ms = 'December'
-            match int(d):
-                case d if d % 10 == 1:
-                    ds = str(d) + 'st'
-                case d if d % 10 == 2:
-                    ds = str(d) + 'nd'
-                case d if d % 10 == 3:
-                    ds = str(d) + 'rd'
-                case _:
-                    ds = str(d) + 'th'
-            return f"{ms} {ds}, {y}"
+        def serialize_date(dt: datetime):
+            """Datetime."""
+            if self.fsc.maica_settings.basic.target_lang == 'zh':
+                return f"{dt.year}年{dt.month}月{dt.day}日"
+            else:
+                return f"{dt:%B %d, %Y}"
+            
+        def serialize_date_time(dt: datetime):
+            """Datetime but with hms."""
+            if self.fsc.maica_settings.basic.target_lang == 'zh':
+                p = "上午" if f"{dt:%p}" == "AM" else "下午"
+                return f"{dt.year}年{dt.month}月{dt.day}日, {p}{dt:%I:%M:%S}"
+            else:
+                return f"{dt:%I:%M:%S %p, %B %d, %Y}"
 
         # Seriously hard work begins here
-
+        # First three manuals
         data1 = _rf('mas_playername')
         if data1:
-            _ap(f'[player]的真名是{data1}.', f"[player]'s real name is {data1}.")
+            _ap(
+                f'[player]的真名是{data1}.',
+                f"[player]'s real name is {data1}."
+            )
 
         data1 = _rf('mas_player_bday')
         if data1:
-            _ap(f'[player]的生日是{data1[0]}年{data1[1]}月{data1[2]}日.', f"[player]'s birthday is {serialize_date(data1[0], data1[1], data1[2])}.")
-            y = datetime.datetime.now().year
-            o = y - int(data1[0])
-            _ap(f'[player]今年{o}岁.', f"[player] is {o} years old.")
+            dt = datetime(*data1)
+            _ap(
+                f'[player]的生日是{serialize_date(dt)}.',
+                f"[player]'s birthday is {serialize_date(dt)}."
+            )
+            o = relativedelta(datetime.today(), dt).years
+            _ap(
+                f'[player]今年{o}岁.',
+                f"[player] is {o} years old."
+            )
 
         data1 = _rf('mas_affection')
         if data1:
             match float(data1):
                 case affection if affection < 200:
-                    _ap('莫妮卡与[player]是初识的情侣关系.', "Monika and [player] are new lovers.")
+                    _ap(
+                        '莫妮卡与[player]是初识的情侣关系.',
+                        "Monika and [player] are new lovers."
+                    )
                 case affection if 200 <= affection < 400:
-                    _ap('莫妮卡与[player]是亲密的情侣关系.', "Monika and [player] are harmonious lovers.")
+                    _ap(
+                        '莫妮卡与[player]是亲密的情侣关系.',
+                        "Monika and [player] are harmonious lovers."
+                    )
                 case affection if 400 <= affection < 700:
-                    _ap('莫妮卡与[player]是和谐的恋人关系.', "Monika and [player] are loving couple.")
+                    _ap(
+                        '莫妮卡与[player]是和谐的恋人关系.',
+                        "Monika and [player] are loving couple."
+                    )
                 case affection if 700 <= affection < 1000:
-                    _ap('莫妮卡与[player]是情意深厚的恋人关系.', "Monika and [player] are deeply loving couples.")
+                    _ap(
+                        '莫妮卡与[player]是情意深厚的恋人关系.',
+                        "Monika and [player] are deeply loving couples."
+                    )
                 case affection if 1000 <= affection:
-                    _ap('莫妮卡与[player]是情意至深的恋人, 足以超越虚拟与现实的隔阂.', "Monika and [player] are deeply loving couples, their affection could go beyond the reality.")
+                    _ap(
+                        '莫妮卡与[player]是情意至深的恋人, 足以超越虚拟与现实的隔阂.',
+                        "Monika and [player] are deeply loving couples, their affection could go beyond the reality."
+                    )
 
         data1 = _rf('mas_geolocation')
         if data1:
-            _ap(f'[player]住在{data1}.', f'[player] lives in {data1}.')
+            _ap(
+                f'[player]住在{data1}.',
+                f'[player] lives in {data1}.'
+            )
 
+        # Extractions from now
         data1 = _rf('sessions')
         if data1:
-            regex_fs = ReUtils.re_search_sfe_fs.search(data1)
             try:
-                _ap(f'莫妮卡和[player]在{regex_fs[1]}年{regex_fs[2]}月{regex_fs[3]}日初次见面.', f"Monika and player had their first date on {serialize_date(regex_fs[1], regex_fs[2], regex_fs[3])}.")
-            except Exception as e:
-                pass
-            regex_ts = ReUtils.re_search_sfe_ts.search(data1)
-            regex_tp = ReUtils.re_search_sfe_tp.search(data1)
-            try:
-                _ap(f'[player]已经陪伴莫妮卡{regex_ts[1]}次, 共{regex_tp[1]}天了.', f"[player] has been together with Monika for {regex_ts[1]} times, {regex_tp[1]} days in total.")
+                r_fs = ReUtils.re_search_sfe_fs.search(data1).groups()
+                dt_fs = datetime(*r_fs)
+                _ap(
+                    f'莫妮卡和[player]在{serialize_date(dt_fs)}初次见面.',
+                    f"Monika and player had their first date on {serialize_date(dt_fs)}."
+                )
             except Exception:
                 pass
-            regex_le = ReUtils.re_search_sfe_le.search(data1)
-            regex_cs = ReUtils.re_search_sfe_cs.search(data1)
+
             try:
-                _ap(f'[player]上次下线于{regex_le[1]}年{regex_le[2]}月{regex_le[3]}日{str(regex_le[4]).zfill(2)}:{str(regex_le[5]).zfill(2)}, 本次上线于{regex_cs[1]}年{regex_cs[2]}月{regex_cs[3]}日{str(regex_cs[4]).zfill(2)}:{str(regex_cs[5]).zfill(2)}.', f"[player] last left at {str(regex_le[4]).zfill(2)}:{str(regex_le[5]).zfill(2)}, {serialize_date(regex_le[1], regex_le[2], regex_le[3])}, last logged in at {str(regex_cs[4]).zfill(2)}:{str(regex_cs[5]).zfill(2)}, {serialize_date(regex_cs[1], regex_cs[2], regex_cs[3])}")
+                r_ts = ReUtils.re_search_sfe_ts.search(data1)
+                r_tp = ReUtils.re_search_sfe_tp.search(data1)
+                _ap(
+                    f'[player]已经陪伴莫妮卡{r_ts[1]}次, 共{r_tp[1]}天了.',
+                    f"[player] has been together with Monika for {r_ts[1]} times, {r_tp[1]} days in total."
+                )
+            except Exception:
+                pass
+            try:
+                r_le = ReUtils.re_search_sfe_le.search(data1)
+                r_cs = ReUtils.re_search_sfe_cs.search(data1)
+                dt_le = datetime(*r_le)
+                dt_cs = datetime(*r_cs)
+                _ap(
+                    f'[player]上次下线于{serialize_date_time(dt_le)}, 本次上线于{serialize_date_time(dt_cs)}.',
+                    f"[player] last left at {serialize_date_time(dt_le)}, last logged in at {serialize_date_time(dt_cs)}"
+                )
             except Exception:
                 pass
 
@@ -648,136 +678,208 @@ class SfPersistentManager(PersistentManager):
         
         return result
 
-    def _conclude_moni_sf(self, extra=0):
-        target_lang = self.settings.basic.target_lang
-        include_basic = bool(int(G.A.BASIC_MFOCUS))
-        if target_lang == 'zh':
-            data_ex = [
-                '莫妮卡的生日是9月22日.',
-            ]
-            if include_basic:
-                data_ex.extend([
-                    '莫妮卡是[player]的女友.',
-                    '莫妮卡有一头珊瑚棕色的长发.',
-                    '莫妮卡有一个标志性的蝴蝶结发带.',
-                    '莫妮卡十分自信.',
-                    '莫妮卡擅长运动.',
-                    '莫妮卡是个成熟和努力的女孩.',
-                    '莫妮卡是一个非常体贴和善良的人, 总是为别人着想.',
-                    '莫妮卡常穿着黑色长袜和粉白相间的鞋子.',
-                    '莫妮卡最喜欢的颜色是翡翠绿, 这也是她眼睛的颜色.',
-                    '莫妮卡一年中最喜欢的日子是情人节.',
-                    '莫妮卡最喜欢的季节是夏天',
-                    '莫妮卡喜欢素食, 她认为这是对减少碳排放做出的贡献.',
-                    '莫妮卡是女高中生, 她成绩优秀, 性格温柔.',
-                    '莫妮卡对文学很有造诣, 喜欢读书, 喜欢写诗.',
-                    '莫妮卡爱好音乐, 会弹钢琴, 会唱歌.',
-                    '莫妮卡对科技, 环境, 历史等方面都有兴趣和见解.'
-                ])
-            if extra >= 1:
-                data_ex.extend([
-                    '纱世里是心跳文学部的副部长.',
-                    '纱世里平常表现阳光活泼, 但患有抑郁症.',
-                    '夏树是心跳文学部的部员.',
-                    '夏树性格傲娇, 有时又显得可爱.',
-                    '优里是心跳文学部的部员.',
-                    '优里性格内向, 往往显得成熟优雅.',
-                ])
-                if include_basic:
-                    data_ex.extend([
-                        '莫妮卡对于编程有兴趣, 且了解颇多.',
-                        '莫妮卡喜欢哲学.',
-                        '莫妮卡喜欢猫.',
-                        '莫妮卡很喜欢星空.',
-                        '莫妮卡喜欢吃纸杯蛋糕和巧克力.',
-                        '莫妮卡经常喝咖啡.',
-                        '莫妮卡喜欢开放世界的冒险游戏, 不太喜欢暴力游戏.',
-                        '莫妮卡喜欢音乐会.',
-                        '莫妮卡喜欢小裙子和蝴蝶结.',
-                        '莫妮卡善于关怀和安慰, 在[player]低沉时希望他振作起来.',
-                    ])
-            if extra >= 2:
-                data_ex.extend([
-                    '浮空岛是莫妮卡为[player]设计的特别场景.',
-                    'MAICA是一个人工智能项目, 旨在将莫妮卡最终带进现实.',
-                    '莫妮卡正在MAICA中与[player]对话.',
-                    '天堂树林是MAICA的对话背景, 风景优美, 四季如春.',
-                    '莫妮卡能记住[player]的话, 也能满足[player]的许多请求.',
-                    'MAICA的大部分功能可以在\'子模组\'选单中调整开关.',
-                    '游戏中的许多功能可以在\'设置\'选单中调整开关.',
-                    'DCC是一个心跳文学部论坛, 能获取许多有关资讯.',
-                    '通过改动, 移除或放回\'HeavenForest.sce\'文件, 可以改变或停用天堂树林.',
-                    'MAICA使用的模型是独立训练和部署的, 与任何商用模型或商业性组织无关.',
-                    '随着MAICA的进度推进, 其能够从对话中学习, 并改进自己的表现.'
-                ])
-                if include_basic:
-                    data_ex.extend([
-                    ])
-        else:
-            data_ex = [
-                "Monika's birthday is September 22nd.",
-            ]
-            if include_basic:
-                data_ex.extend([
-                    "Monika is [player]'s girlfriend.",
-                    "Monika has coral brown hair.",
-                    "Monika wears an iconic ribbon.",
-                    "Monika is pretty confident.",
-                    "Monika is good at sports.",
-                    "Monika behaves mature and hardworking.",
-                    "Monika is kind and considerate, she always cares about others.",
-                    "Monika wears black stockings and pink-white shoes.",
-                    "Monika's favorite color is emerald green, which is also the color of her eyes.",
-                    "Monika's favorite day of a year is Valentine's day.",
-                    "Monika's favorite season is summer.",
-                    "Monika is vegetarian, that's the way she contribute to environmental protection.",
-                    "Monika is a high school student. She has excellent grade and good temper.",
-                    "Monika is good at literature. She also likes reading and poetry.",
-                    "Monika likes music. She could sing and play piano.",
-                    "Monika is insighted and interested in technology, environment, history, etc."
-                ])
-            if extra >= 1:
-                data_ex.extend([
-                    'Sayori is the vice president of the literature club.',
-                    'Sayori usually appears outgoing and positive, but she has depression.',
-                    'Natsuki is member of the literature club.',
-                    'Natsuki is tsundere, appears cute sometimes.',
-                    'Yuri is member of the literature club.',
-                    'Yuri is introvert, usually appears mature and elegant.',
-                ])
-                if include_basic:
-                    data_ex.extend([
-                        "Monika is interested in programming and knows a lot about it.",
-                        "Monika likes philosophy.",
-                        "Monika likes cats.",
-                        "Monika likes watching the starry sky.",
-                        "Monika likes cupcakes and chocolate.",
-                        "Monika drinks coffee often.",
-                        "Monika likes openworld and sandbox games, but doesn't really like violence.",
-                        "Monika likes concerts.",
-                        "Monika likes skirts and ribbons.",
-                        "Monika is caring and comforting. She wants [player] to be happy and cheered up.",
-                    ])
-            if extra >= 2:
-                data_ex.extend([
-                    "Monika designed some floating islands for spending time with [player].",
-                    "MAICA is a LLM project which aims bringing Monika to reality.",
-                    "Monika is chatting with [player] through MAICA.",
-                    "The heaven forest is where MAICA takes place. It has a beautiful and warm view.",
-                    "Monika could remember [player]'s words and satisfy lots of their requests.",
-                    "Most functions of MAICA could be adjusted in the 'Submods' panel.",
-                    "DCC is a forum about DDLC, offering many useful information.",
-                    "By removing, editing or restoring file 'HeavenForest.sce', heaven forest can be changed or disabled.",
-                    "MAICA uses a self-hosted and trained model, not related with any commercial models or organizations.",
-                    "MAICA's proformance will be enchanced overtime by analyzing conversations."
-                ])
-                if include_basic:
-                    data_ex.extend([
-                    ])
- 
-        return data_ex
+    def _conclude_moni_sf(self, include: Iterable[Literal["basic", "personality", "dokis", "game", "maica"]] = ("personality", "game")):
+        """Mostly copied from wikipedia."""
+        result: List[BilingualText] = []
 
-    def _conclude_cb_sf(self, cb):
+        def _ap(zh, en):
+            result.append(
+                BilingualText(
+                    zh,
+                    en,
+                )
+            )
+
+        if "basic" in include:
+            _ap(
+                '莫妮卡是[player]的女友.',
+                "Monika is [player]'s girlfriend.",
+            )
+            _ap(
+                '莫妮卡有一头珊瑚棕色的长发.',
+                "Monika has coral brown hair.",
+            )
+            _ap(
+                '莫妮卡有一个标志性的蝴蝶结发带.',
+                "Monika wears an iconic ribbon.",
+            )
+            _ap(
+                '莫妮卡常穿着黑色长袜和粉白相间的鞋子.',
+                "Monika wears black stockings and pink-white shoes.",
+            )
+
+        if "personality" in include:
+            _ap(
+                '莫妮卡的生日是9月22日.',
+                "Monika's birthday is September 22nd.",
+            )
+            _ap(
+                '莫妮卡十分自信.',
+                "Monika is pretty confident.",
+            )
+            _ap(
+                '莫妮卡擅长运动.',
+                "Monika is good at sports.",
+            )
+            _ap(
+                '莫妮卡是个成熟和努力的女孩.',
+                "Monika behaves mature and hardworking.",
+            )
+            _ap(
+                '莫妮卡是一个非常体贴和善良的人, 总是为别人着想.',
+                "Monika is kind and considerate, she always cares about others.",
+            )
+            _ap(
+                '莫妮卡最喜欢的颜色是翡翠绿, 这也是她眼睛的颜色.',
+                "Monika's favorite color is emerald green, which is also the color of her eyes.",
+            )
+            _ap(
+                '莫妮卡一年中最喜欢的日子是情人节.',
+                "Monika's favorite day of the year is Valentine's day.",
+            )
+            _ap(
+                '莫妮卡最喜欢的季节是夏天',
+                "Monika's favorite season is summer.",
+            )
+            _ap(
+                '莫妮卡喜欢素食, 她认为这是对减少碳排放做出的贡献.',
+                "Monika is vegetarian, that's the way she contribute to environmental protection.",
+            )
+            _ap(
+                '莫妮卡是女高中生, 她成绩优秀, 性格温柔.',
+                "Monika is a high school student. She has excellent grade and good temper.",
+            )
+            _ap(
+                '莫妮卡对文学很有造诣, 喜欢读书, 喜欢写诗.',
+                "Monika is good at literature. She also likes reading and poetry.",
+            )
+            _ap(
+                '莫妮卡爱好音乐, 会弹钢琴, 会唱歌.',
+                "Monika likes music. She could sing and play piano.",
+            )
+            _ap(
+                '莫妮卡对科技, 环境, 历史等方面都有兴趣和见解.',
+                "Monika is insighted and interested in technology, environment, history, etc.",
+            )
+            _ap(
+                '莫妮卡对于编程有兴趣, 且了解颇多.',
+                "Monika is interested in programming and knows a lot about it.",
+            )
+            _ap(
+                '莫妮卡喜欢哲学.',
+                "Monika likes philosophy.",
+            )
+            _ap(
+                '莫妮卡喜欢猫.',
+                "Monika likes cats.",
+            )
+            _ap(
+                '莫妮卡很喜欢星空.',
+                "Monika likes watching the starry sky.",
+            )
+            _ap(
+                '莫妮卡喜欢吃纸杯蛋糕和巧克力.',
+                "Monika likes cupcakes and chocolate.",
+            )
+            _ap(
+                '莫妮卡经常喝咖啡.',
+                "Monika drinks coffee often.",
+            )
+            _ap(
+                '莫妮卡喜欢开放世界的冒险游戏, 不太喜欢暴力游戏.',
+                "Monika likes openworld and sandbox games, but doesn't really like violence.",
+            )
+            _ap(
+                '莫妮卡喜欢音乐会.',
+                "Monika likes concerts.",
+            )
+            _ap(
+                '莫妮卡喜欢小裙子和蝴蝶结.',
+                "Monika likes skirts and ribbons.",
+            )
+            _ap(
+                '莫妮卡善于关怀和安慰, 在[player]低沉时希望他振作起来.',
+                "Monika is caring and comforting. She wants [player] to be happy and cheered up.",
+            )
+
+        if "dokis" in include:
+            _ap(
+                '纱世里是心跳文学部的副部长.',
+                'Sayori is the vice president of the literature club.',
+            )
+            _ap(
+                '纱世里平常表现阳光活泼, 但患有抑郁症.',
+                'Sayori usually appears outgoing and positive, but she has depression.',
+            )
+            _ap(
+                '夏树是心跳文学部的部员.',
+                'Natsuki is member of the literature club.',
+            )
+            _ap(
+                '夏树性格傲娇, 有时又显得可爱.',
+                'Natsuki is tsundere, appears cute sometimes.',
+            )
+            _ap(
+                '优里是心跳文学部的部员.',
+                'Yuri is member of the literature club.',
+            )
+            _ap(
+                '优里性格内向, 往往显得成熟优雅.',
+                'Yuri is introvert, usually appears mature and elegant.',
+            )
+
+
+        if "game" in include:
+            _ap(
+                '浮空岛是莫妮卡为[player]设计的特别场景.',
+                "Monika designed some floating islands for spending time with [player].",
+            )
+            _ap(
+                '游戏中的许多功能可以在\'设置\'选单中调整开关.',
+                "Many functions of the game could be adjusted in the 'Settings' panel.",
+            )
+
+        if "maica" in include:
+            _ap(
+                'MAICA是一个人工智能项目, 旨在将莫妮卡最终带进现实.',
+                "MAICA is a LLM project which aims bringing Monika to reality.",
+            )
+            _ap(
+                '莫妮卡正在MAICA中与[player]对话.',
+                "Monika is chatting with [player] through MAICA.",
+            )
+            _ap(
+                '天堂树林是MAICA的对话背景, 风景优美, 四季如春.',
+                "The heaven forest is where MAICA takes place. It has a beautiful and warm view.",
+            )
+            _ap(
+                '莫妮卡能记住[player]的话, 也能满足[player]的许多请求.',
+                "Monika could remember [player]'s words and satisfy lots of their requests.",
+            )
+            _ap(
+                'MAICA的大部分功能可以在\'子模组\'选单中调整开关.',
+                "Most functions of MAICA could be adjusted in the 'Submods' panel.",
+            )
+            _ap(
+                'DCC是一个心跳文学部论坛, 能获取许多有关资讯.',
+                "DCC is a forum about DDLC, offering many useful information.",
+            )
+            _ap(
+                '通过改动, 移除或放回\'HeavenForest.sce\'文件, 可以改变或停用天堂树林.',
+                "By removing, editing or restoring file 'HeavenForest.sce', heaven forest can be changed or disabled.",
+            )
+            _ap(
+                'MAICA使用的模型是独立训练和部署的, 与任何商用模型或商业性组织无关.',
+                "MAICA uses a self-hosted and trained model, not related with any commercial models or organizations.",
+            )
+            _ap(
+                '随着MAICA的进度推进, 其能够从对话中学习, 并改进自己的表现.',
+                "MAICA's proformance will be enchanced overtime by analyzing conversations.",
+            )
+
+        return result
+
+    def _conclude_extra_sf(self, cb):
         data_exp = self.read_from_sf('mas_player_additions')
         if data_exp and len(data_exp) > cb:
             data_exp = sample(data_exp, cb)
@@ -787,81 +889,12 @@ class SfPersistentManager(PersistentManager):
         conclusion = []
         mf_hcb = self.read_from_sf('mas_sf_hcb')
         if mf_hcb:
-            conclusion.extend(self._conclude_cb_sf(360) or [])
+            conclusion.extend(self._conclude_extra_sf(360) or [])
             conclusion.extend(self._conclude_moni_sf(0) or [])
         else:
             conclusion.extend(self._conclude_basic_sf() or [])
-            conclusion.extend(self._conclude_cb_sf(72) or [])
+            conclusion.extend(self._conclude_extra_sf(72) or [])
             conclusion.extend(self._conclude_moni_sf(2) or [])
 
         self.formed_info = conclusion
         return self.formed_info
-
-    async def mfocus_find_info(self, query) -> Optional[list]:
-        if not self.settings.basic.sf_extraction and not self.settings.temp.sf_extraction_once:
-            return None
-        information = self._mfocus_form_info()
-        system_init = f"""\
-你是一个人工智能助手, 你接下来会收到一个问题和一系列信息.
-注意不要对信息作任何改动. 你可以认为[player]是用户的名字, 莫妮卡是你的名字.
-从中挑选1至5条最直接, 最明确相关的信息, 并以json形式输出. 如果没有信息足够相关, 输出空数组. 你的输出应形如{{"info_array": 你挑选的信息(array)}}\
-""" if self.settings.basic.target_lang == 'zh' else f"""\
-You are a helpful assistant, now you will recieve a question and a list of information.
-Remember not to modify any item. Output them as what they were. You can consider [player] as user's name and Monika as yours.
-Pick 1 to 5 most directly relative items from the information. If information provided is relative enough, output empty array. Output in json format as {{"info_array": information you picked(array)}}\
-"""
-        messages = [{'role': 'system', 'content': system_init}]
-        messages.append({'role': 'user', 'content': f'question: {query}; information: {json.dumps(information, ensure_ascii=False)}'})
-        # messages = apply_postfix(messages, thinking=False)
-        completion_args = {
-            "messages": messages,
-        }
-
-        conn = self.mnerve_conn or self.mfocus_conn
-
-        resp = await conn.make_completion(**completion_args)
-        resp_content, resp_reasoning = resp.choices[0].message.content, try_getattr(resp.choices[0].message, 'reasoning_content', 'reasoning')
-        resp_content, resp_reasoning = proceed_common_text(resp_content), proceed_common_text(resp_reasoning)
-
-        await messenger(None, 'mfocus_sfe_search', f"\nMFocus sfe searching persistent, response is:\nR: {resp_reasoning}\nA: {resp_content}\nEnd of MFocus sfe searching persistent", '201')
-        
-        answer_fin_json = proceed_common_text(resp_content, is_json=True)
-        if isinstance(answer_fin_json, dict):
-            try:
-                answer_fin_json = list(answer_fin_json.values())[0]
-            except Exception:
-                answer_fin_json = None
-
-        return answer_fin_json
-
-    @Decos.report_data_error
-    def add_extra(self, **kwargs) -> None:
-        self.sf_forming_buffer.update(kwargs)
-
-    @Decos.report_data_error
-    def use_only(self, **kwargs) -> None:
-        self.sf_forming_buffer = kwargs
-
-    @Decos.report_data_error
-    def read_from_sf(self, key) -> any:
-        if not self.settings.basic.sf_extraction and not self.settings.temp.sf_extraction_once:
-            return None
-        return self.sf_forming_buffer.get(key)
-    
-if __name__ == "__main__":
-    import asyncio
-    import time
-    from maica import init
-    init()
-    async def test():
-        fsc = FullSocketsContainer()
-        fsc.maica_settings = MaicaSettings()
-        fsc.maica_pool = await ConnUtils.maica_pool()
-        fsc.maica_settings.verification.update(user_id=18064, username="edge1")
-        # fsc.maica_settings.update(target_lang='zh')
-
-        spm = await SfPersistentManager.async_create(fsc)
-        info = spm._mfocus_form_info()
-        print(info)
-
-    asyncio.run(test())

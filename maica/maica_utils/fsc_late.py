@@ -1,24 +1,19 @@
 """Import layer 4"""
 from typing import *
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from websockets import ServerConnection
 from Crypto.Random import random as crandom
-from maica.maica_utils import *
+from .maica_utils import *
 from .setting_utils import MaicaSettings
 from .fsc_early import RealtimeSocketsContainer, TracerayId
-from .connection_utils import DbPoolManager, AiConnectionManager
+from .connection_utils import *
 
-def create_slink(name: str, inner: str):
-    """Just like a symlink."""
-    def getter(self):
-        return getattr(getattr(self, inner), name)
-    def setter(self, v: any):
-        setattr(getattr(self, inner), name, v)
-    return property(getter, setter)
+if TYPE_CHECKING:
+    from maica.maica_utils import *
 
 @dataclass
 class ConnSocketsContainer():
-    """Why so many connections!!!"""
+    """Why so many connections."""
     auth_pool: Optional[DbPoolManager]=None
     maica_pool: Optional[DbPoolManager]=None
     vector_pool: Optional[MilvusDbConnectionManager]=None
@@ -35,7 +30,31 @@ class ConnSocketsContainer():
 
 @dataclass
 class FullSocketsContainer():
-    """For all convenience consideration."""
+    """
+    For all convenience consideration.
+    This is, like an important concept since it carries almost everything around.
+    So when we add functions, we only need to pass in this. It's a live id card.
+    """
+
+    session: ClassVar[Optional[MaicaSession]]
+    websocket: ClassVar[Optional[ServerConnection]]
+    traceray_id: ClassVar[TracerayId]
+    maica_settings: ClassVar[MaicaSettings]
+    miscellaneous: dict = field(default_factory=lambda: {})
+    """
+    Why this?
+    We want to add extra flexibility to fsc, especially things like session_rel.
+    This way we easily track them through entire lifecycle. At least easier.
+    Also this way we don't need to manage way too many classes and instances, like mfocus_sfe.
+    If we implement mfocus_sfe as class for db + methods for build and sync, it might be prettier.
+    """
+    auth_pool: ClassVar[Optional[DbPoolManager]]
+    maica_pool: ClassVar[Optional[DbPoolManager]]
+    mcore_conn: ClassVar[Optional[AiConnectionManager]]
+    mfocus_conn: ClassVar[Optional[AiConnectionManager]]
+    mvista_conn: ClassVar[Optional[AiConnectionManager]]
+    mnerve_conn: ClassVar[Optional[AiConnectionManager]]
+
     rsc: Optional[RealtimeSocketsContainer]=None
     csc: Optional[ConnSocketsContainer]=None
 
@@ -45,18 +64,8 @@ class FullSocketsContainer():
         if not self.csc:
             self.csc = ConnSocketsContainer()
 
-    rsc_proxied = ['websocket', 'traceray_id', 'maica_settings']
+    rsc_proxied = ['session', 'websocket', 'traceray_id', 'maica_settings']
     csc_proxied = ['auth_pool', 'maica_pool', 'vector_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn', 'embedding_conn']
-
-    # websocket: ClassVar[Optional[ServerConnection]] = None
-    # traceray_id: ClassVar[TracerayId] = None
-    # maica_settings: ClassVar[MaicaSettings] = None
-    # auth_pool: ClassVar[Optional[AiConnectionManager]] = None
-    # maica_pool: ClassVar[Optional[AiConnectionManager]] = None
-    # mcore_conn: ClassVar[Optional[AiConnectionManager]] = None
-    # mfocus_conn: ClassVar[Optional[AiConnectionManager]] = None
-    # mvista_conn: ClassVar[Optional[AiConnectionManager]] = None
-    # mnerve_conn: ClassVar[Optional[AiConnectionManager]] = None
 
     def __getattr__(self, k):
         if k in self.rsc_proxied:

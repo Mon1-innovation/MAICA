@@ -230,11 +230,11 @@ class AgentTools():
             match [major_day_is_today, target_lang]:
                 case [p, t] if p and t == 'zh':
                     d0_this_day = "今天"
-                case [p, t] if p and t == 'en':
+                case [p, t] if p and t != 'zh':
                     d0_this_day = "Today"
                 case [p, t] if not p and t == 'zh':
                     d0_this_day = "这一天"
-                case [p, t] if not p and t == 'en':
+                case [p, t] if not p and t != 'zh':
                     d0_this_day = "This day"
             content = days_event = f"{major_day_is_today}不是特殊节日" if target_lang == 'zh' else f"{major_day_is_today} is not a special event or holiday"
 

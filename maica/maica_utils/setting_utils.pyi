@@ -66,20 +66,22 @@ class MaicaSettings:
         enable_mt: bool
         sf_extraction: bool
         mt_extraction: bool
-        target_lang: Literal['zh', 'en']
+        target_lang: Literal['zh', 'en', 'auto']
+        tz: Optional[str]
         max_length: int
 
     @dataclass
     class _Extra(_CommonFuncs):
         prompt_pname_repl: bool
         mf_llm_concl: bool
+        mf_persistent_rag: bool
         mf_constant_tools: int
         esearch_llm_concl: bool
         mf_precheck_mt: bool
+        mt_concl_memory: int
         nsfw_acceptive: bool
         mf_context_rnds: int
         mt_context_rnds: int
-        tz: Optional[str]
         gen_quality_chk: bool
         mf_disable_loop: bool
         mt_disable_loop: bool

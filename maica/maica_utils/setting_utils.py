@@ -166,6 +166,7 @@ class MaicaSettings():
         _sf_extraction: bool = True
         _mt_extraction: bool = True
         _target_lang: str = 'zh'
+        _tz: Optional[str] = None
         _max_length: int = 8192
 
         stream_output = create_prop('stream_output', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
@@ -180,8 +181,10 @@ class MaicaSettings():
         """Enable savefile extraction."""
         mt_extraction = create_prop('mt_extraction', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Enable trigger extraction."""
-        target_lang = create_prop('target_lang', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": ['zh', 'en']})
+        target_lang = create_prop('target_lang', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": ['zh', 'en', 'auto']})
         """Target language."""
+        tz = create_prop('tz', setter_ext=[set_instance], setter_kwargs={"types": [str, None]})
+        """Timezone. This is not fully checked, double check before use."""
         max_length = create_prop('max_length', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 512, "upper": 'SESSION_MAX_LENGTH', "soft_limit": True})
         """Max session length."""
 
@@ -189,38 +192,41 @@ class MaicaSettings():
     class _Extra(_CommonFuncs):
         """Params that aren't that important, but affect MAICA's behavior."""
 
-        _sfe_aggressive: bool = False
-        _mf_aggressive: bool = False
-        _tnd_aggressive: int = 1
-        _esc_aggressive: bool = True
-        _amt_aggressive: bool = True
+        _prompt_pname_repl: bool = False
+        _mf_llm_concl: bool = False
+        _mf_persistent_rag: bool = True
+        _mf_constant_tools: int = 1
+        _esearch_llm_concl: bool = True
+        _mf_precheck_mt: bool = True
+        _mt_concl_memory: int = 1
         _nsfw_acceptive: bool = True
-        _pre_additive: int = 0
-        _post_additive: int = 1
-        _tz: Optional[str] = None
-        _dscl_pvn: bool = False
-        _pre_astp: bool = True
-        _post_astp: bool = False
-        _enforce_lang: bool = True
+        _mf_context_rnds: int = 0
+        _mt_context_rnds: int = 1
+        _gen_quality_chk: bool = False
+        _mf_disable_loop: bool = True
+        _mt_disable_loop: bool = False
+        _gen_enforce_lang: bool = True
 
         prompt_pname_repl = create_prop('prompt_pname_repl', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Use name from savefile instead of [player] in prompts."""
         mf_llm_concl = create_prop('mf_llm_concl', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Use agent model's final output instead of instructed guidance."""
+        mf_persistent_rag = create_prop('mf_persistent_rag', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        """Use RAG to acquire info from persistent instead of traditional MFocus impl."""
         mf_constant_tools = create_prop('mf_constant_tools', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": [0, 1, 2, 3]})
         """Add information to MFocus instructed guidance even if no tool used."""
         esearch_llm_concl = create_prop('esearch_llm_concl', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Force agent to resort information acquired from Internet."""
         mf_precheck_mt = create_prop('mf_precheck_mt', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Add MTrigger toollist to MFocus tools for a precheck."""
+        mt_concl_memory = create_prop('mt_concl_memory', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": [0, 1, 2]})
+        """Conclude archived / purged sessions into summarizations."""
         nsfw_acceptive = create_prop('nsfw_acceptive', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Alter prompt to ask model to handle toxic topics positively."""
         mf_context_rnds = create_prop('mf_context_rnds', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": [0, 1, 2, 3, 4, 5]})
         """Add history rounds for MFocus to understand the conversation."""
         mt_context_rnds = create_prop('mt_context_rnds', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": [0, 1, 2, 3, 4, 5]})
         """Add history rounds for MFocus to understand the conversation."""
-        tz = create_prop('tz', setter_ext=[set_instance], setter_kwargs={"types": [str, None]})
-        """Timezone. This is not fully checked, double check before use."""
         gen_quality_chk = create_prop('gen_quality_chk', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Check and warn about context quality descalation using MNerve."""
         mf_disable_loop = create_prop('mf_disable_loop', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
@@ -288,6 +294,7 @@ class MaicaSettings():
         ms_cache = create_prop('ms_cache', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Cache the MSpire response."""
         mv_imgs = create_prop('mv_imgs', setter_ext=[set_instance], setter_kwargs={"types": [list, None]})
+        """List of MVista images urls."""
 
     def __init__(self):
         self.identity, self.verification, self.basic, self.extra, self.super, self.temp = self._Identity(), self._Verification(), self._Basic(), self._Extra(), self._Super(), self._Temp()

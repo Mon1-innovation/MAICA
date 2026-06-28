@@ -8,8 +8,8 @@ import json
 
 from typing import *
 from typing_extensions import deprecated
-from openai import AsyncOpenAI
-from openai.types.chat import ChatCompletion
+from openai import AsyncOpenAI, AsyncStream
+from openai.types.responses import Response, ResponseStreamEvent
 from openai.types.create_embedding_response import CreateEmbeddingResponse
 from .gvars import *
 from .maica_utils import *
@@ -469,10 +469,13 @@ class AiConnectionManager(AsyncCreator):
         self.gen_kwargs = {}
         self.caps = caps or ["completion"]
         """Capabilities. I don't know if there're models can both generate and embed but to be safe."""
-        self.sock_container: list[AsyncOpenAI, str] = []
+        self.sock_container: dict[str, Union[AsyncOpenAI, str, None]] = {
+            "client": None,
+            "choice": None
+        }
         """We use this thing to sync sub-instances' socks with mother instance."""
         self.lock = asyncio.Lock()
-        """Socket affecting actions are performed with lock acquired."""
+        """Client affecting actions are performed with lock acquired."""
 
     @Decos.catch_exceptions
     async def _ainit(self):
@@ -483,24 +486,24 @@ class AiConnectionManager(AsyncCreator):
             if not self.lock.locked():
                 async with self.lock:
                     await self.close()
-                    self._open_socket()
-                    await self._select_model()
+                    await self._connect()
             else:
                 async with self.lock:
                     return
 
-    def _open_socket(self):
-        self.socket = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
-        self.sock_container.append(self.socket)
+    async def _connect(self):
+        self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+        self.sock_container["client"] = self.client
 
-    async def _select_model(self):
-        model_list = await self.socket.models.list()
+        model_list = await self.client.models.list()
         models = model_list.data
+
         if isinstance(self.model, int):
             self.model_actual = models[0].id
         else:
             self.model_actual = self.model
-        self.sock_container.append(self.model_actual)
+
+        self.sock_container["choice"] = self.model_actual
 
     def default_params(self, **kwargs):
         """These params will always be applied to generations. Overwritten."""
@@ -509,15 +512,16 @@ class AiConnectionManager(AsyncCreator):
     @Decos.catch_exceptions
     async def keep_alive(self):
         """Check and maintain OpenAI connection."""
-        if self.socket.is_closed():
-            await messenger(info=f"Recreating {self.name} sock since is closed", type=MsgType.WARN)
+        if self.client.is_closed():
+            sync_messenger(info=f"Recreating {self.name} sock since is closed", type=MsgType.WARN)
             await self._ainit()
 
     @Decos.catch_exceptions
     @Decos.conn_retryer_factory()
-    async def make_completion(self, swallow: Union[bool, str]=False, **kwargs) -> ChatCompletion:
+    async def make_completion(self, swallow: Union[bool, str]=False, **kwargs) -> Response | AsyncStream[ResponseStreamEvent]:
         """
         Makes completion with arguments.
+        Be cautious that this method is implemented by responses.create instead of completion.create since v1.3.
         swallow: In case some cheap providers are unstable. str as default response.
         """
         assert "completion" in self.caps, "Connected model is not capable of completion"
@@ -527,14 +531,14 @@ class AiConnectionManager(AsyncCreator):
                 "model": self.model_actual
             }
         )
-        mixed_exbody = {**self.gen_kwargs.get('extra_body', {}), **kwargs.get('extra_body', {})}
-        mixed_kwargs = {**self.gen_kwargs, **kwargs}
+        mixed_exbody = self.gen_kwargs.get('extra_body', {}) | kwargs.get('extra_body', {})
+        mixed_kwargs = self.gen_kwargs | kwargs
         mixed_kwargs['extra_body'] = mixed_exbody
 
         await self.keep_alive()
 
         try:
-            task_stream_resp = asyncio.create_task(self.socket.chat.completions.create(**mixed_kwargs))
+            task_stream_resp = asyncio.create_task(self.client.responses.create(**mixed_kwargs))
             await asyncio.wait_for(task_stream_resp, timeout=int(G.A.OPENAI_TIMEOUT) if G.A.OPENAI_TIMEOUT != '0' else None)
             res = task_stream_resp.result()
 
@@ -566,7 +570,7 @@ class AiConnectionManager(AsyncCreator):
 
         await self.keep_alive()
 
-        task_resp = asyncio.create_task(self.socket.embeddings.create(**mixed_kwargs))
+        task_resp = asyncio.create_task(self.client.embeddings.create(**mixed_kwargs))
         await asyncio.wait_for(task_resp, timeout=int(G.A.OPENAI_TIMEOUT) if G.A.OPENAI_TIMEOUT != '0' else None)
         res = task_resp.result()
 
@@ -574,7 +578,7 @@ class AiConnectionManager(AsyncCreator):
 
     async def close(self):
         try:
-            await self.socket.close()
+            await self.client.close()
         except Exception:...
         finally:
             self.sock_container.clear()
@@ -598,7 +602,8 @@ class SubAiConnectionManager(AiConnectionManager):
     
     async def keep_alive(self):
         await self.parent.keep_alive()
-        self.socket, self.model_actual = self.parent.sock_container
+        self.client = self.parent.sock_container.get("client")
+        self.model_actual = self.parent.sock_container.get("choice")
 
     async def close(self):...
 
