@@ -7,6 +7,7 @@ import orjson
 import functools
 import types
 
+from abc import ABC, abstractmethod
 from typing import *
 from datetime import datetime
 from dataclasses import dataclass
@@ -43,19 +44,27 @@ class DbBoundObject(CheckDestroyed):
 
     Something to notice, this is designed to be session_num bound. WILL NOT change session_num on fsc change.
     """
-    TABLE: ClassVar[Optional[str]] = None
-    PRIM_KEY_NAME: ClassVar[Optional[str]] = None
-
     session_num: int = -1
     """fsc chat_session is flexible, we shouldn't depend on it if we want this to be session-unique."""
     fsc: Optional[FullSocketsContainer] = None
 
+    # Enforce implementations
+    @property
+    @abstractmethod
+    def TABLE() -> str: ...
+    @property
+    @abstractmethod
+    def PRIM_KEY_NAME() -> str: ...
+
     SESSION_DB_MIN: ClassVar[int] = 0
     SESSION_DB_BELOW: ClassVar[int] = 10
 
+    _empty = lambda: []
+    """To properly reset self. Override if necessary."""
+
     def clear(self):
-        self.text: Optional[str] = None
-        self.content: Optional[Union[dict, list]] = None
+        self.text: str = ''
+        self.content: Union[dict, list] = self._empty
 
     def reset(self):
         """Normally just use clear."""

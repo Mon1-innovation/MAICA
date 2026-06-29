@@ -1075,7 +1075,6 @@ mas_affection #int
 mas_geolocation #str
 
 mas_player_additions #["[player]喜欢吃寿司.", "[player]喜欢初音未来.", "[player]不喜欢猫"]
-mas_sf_hcb #bool
 
 _mas_pm_added_custom_bgm	Player has added custom music to the game before.
 _mas_pm_religious	Is the player religious?
@@ -1198,13 +1197,10 @@ sessions
 
 * mas_geolocation为str格式的玩家地理位置. 此条目应当尽可能简短到至多保留省名与城市名, 过长的条目会导致搜索引擎误解.
 
-* mas_player_additions为list格式的补充数据. 此条目应当为一个list中的若干str, 且至多检索72项, 超出则mfocus每次随机抽取72项. 每项应当为一个简单表述, 过长的项可能会导致失焦.
+* mas_player_additions为list格式的补充数据. 此条目应当为一个list中的若干str, 且至多检索256项, 超出则mfocus每次随机抽取256项. 每项应当为一个简单表述, 过长的项可能会导致失焦.
 
-* mas_sf_hcb为高可自定义性开关. 设为true后, MFocus将停止索引任何来自MAS存档的基本信息, 并能够同时检索至多360项补充数据.
-
-    * 若启用hcb, 你应当格外注意使补充数据简短精炼, 有序性强, 否则会极大地降低MFocus命中率.
-
-    * 启用hcb会缩减基本设定数据到最少, 以便用户提供针对性的补充.
+* ~~mas_sf_hcb为高可自定义性开关. 设为true后, MFocus将停止索引任何来自MAS存档的基本信息, 并能够同时检索至多360项补充数据.~~
+* mas_sf_hcb自v1.3后被弃用, 请直接管理上传的存档条目实现.
 
 原理上, 任何条目都是可缺省的. 缺省关键变量将使其被默认值替代, 缺省事件变量将使其退出MFocus索引.
 
@@ -1227,7 +1223,7 @@ sessions
 
 好感度调幅默认为不超过+3.0, 你可以自行设定乘幅. 简单地对其调幅举例, 日常的问好大约会输出+0.2, 对美貌的称赞大约会输出+0.8, 简短的示爱大约会输出+1.5, 长段的示爱大约会输出+3.0.
 
-输出范例: `{"code": "101", "status": "maica_mtrigger_trigger", "content": ["alter_affection", {"affection": "+1.5"}], "type": "carriage", "time_ms": 时间戳(毫秒)}`
+输出范例: `{"code": "101", "status": "maica_mtrigger_trigger", "content": ["alter_affection", {"alter_value": "+1.5"}], "type": "carriage", "time_ms": 时间戳(毫秒)}`
 
 该模板的触发器最多存在一个.
 

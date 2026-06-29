@@ -69,8 +69,9 @@ from .sb_utils import PersistentManager, AgentContextManager
 from .get_a_sentence import SentenceOfTheDay
 from .locater import locater, get_inner_path, get_outer_path
 from .gvars import online_dict, G
-from .session_mgr import MaicaSession, MaicaSessionItem, acquire_session, dbos_gc
+from .session_mgr import MaicaSession, MaicaSessionItem, SessionPersistent, SessionTrigger, acquire_dbo, acquire_session, dbos_gc
 from .db_bound_obj import DbBoundObject
+from .agent_tools import WrappedOpenAIToolProperty, WrappedOpenAITool, WrappedOpenAIToolNamespace
 
 __all__ = [
     'silent',
@@ -157,9 +158,15 @@ __all__ = [
     'G',
     'MaicaSession',
     'MaicaSessionItem',
+    'SessionPersistent',
+    'SessionTrigger',
+    'acquire_dbo',
     'acquire_session',
     'dbos_gc',
     'DbBoundObject',
+    'WrappedOpenAIToolProperty',
+    'WrappedOpenAITool',
+    'WrappedOpenAIToolNamespace',
 ]
 
 from .gvars import pkg_init_gvars

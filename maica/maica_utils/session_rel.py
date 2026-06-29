@@ -1,4 +1,5 @@
 """
+Import layer 1.1
 Session related. We break sb_utils apart and rewrite some here.
 """
 
@@ -10,7 +11,11 @@ from random import sample
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from dataclasses import dataclass
-from maica.maica_utils import *
+from .maica_utils import *
+from .trigger_class import *
+
+if TYPE_CHECKING:
+    from maica.maica_utils import *
 
 class SessionPersistentMixin():
     """To provide related functions."""
@@ -19,12 +24,19 @@ class SessionPersistentMixin():
     content_temp: dict
 
     def read_key(self, key):
-        v = self.content_temp.get(key)
-        if not v:
+        def _read_perm(key):
             if self.fsc.maica_settings.basic.sf_extraction:
                 return self.content.get(key)
             else:
                 return None
+            
+        v = self.content_temp.get(key)
+        if not v:
+            v = _read_perm(key)
+        elif isinstance(v, list) and key == "mas_player_additions":
+            v = v + _read_perm(key)
+            
+        return v
 
     def _conclude_basic_sf(self):
         result: List[BilingualText] = []
@@ -879,22 +891,73 @@ class SessionPersistentMixin():
 
         return result
 
-    def _conclude_extra_sf(self, cb):
-        data_exp = self.read_from_sf('mas_player_additions')
-        if data_exp and len(data_exp) > cb:
-            data_exp = sample(data_exp, cb)
-        return data_exp
+    def _conclude_extra_sf(self, limit: int = 256):
+        result: List[str] = self.read_key('mas_player_additions')
+        if result and len(result) > limit:
+            result = sample(result, limit)
+        return result
 
-    def _mfocus_form_info(self):
+    def form_info(self):
         conclusion = []
-        mf_hcb = self.read_from_sf('mas_sf_hcb')
-        if mf_hcb:
-            conclusion.extend(self._conclude_extra_sf(360) or [])
-            conclusion.extend(self._conclude_moni_sf(0) or [])
-        else:
-            conclusion.extend(self._conclude_basic_sf() or [])
-            conclusion.extend(self._conclude_extra_sf(72) or [])
-            conclusion.extend(self._conclude_moni_sf(2) or [])
+        conclusion.extend(self._conclude_basic_sf())
+        conclusion.extend(self._conclude_moni_sf())
+        conclusion.extend(self._conclude_extra_sf())
 
-        self.formed_info = conclusion
-        return self.formed_info
+        conclusion_strs = []
+        for i in conclusion:
+            if isinstance(i, BilingualText):
+                conclusion_strs.append(i.to_str(self.fsc.maica_settings.basic.target_lang))
+            else:
+                conclusion_strs.append(i)
+
+        return conclusion_strs
+    
+    async def to_milvus(self):
+        """As said, to milvus. Milvus is not considered persistent storage so only write."""
+
+
+
+
+
+
+
+        
+    
+class SessionTriggerMixin():
+    """To provide related functions."""
+    fsc: FullSocketsContainer
+    content: list
+    content_temp: list
+
+    def get_triggers(self):
+        aff_trigger_list: list[CommonAffectionTrigger] = []
+        switch_trigger_list: list[CommonSwitchTrigger] = []
+        meter_trigger_list: list[CommonMeterTrigger] = []
+        customized_trigger_list: list[CustomizedTrigger] = []
+
+        triggers_list = []
+        if self.settings.basic.mt_extraction:
+            triggers_list += self.content
+        triggers_list += self.content_temp
+
+        for trigger_dict in triggers_list:
+            match trigger_dict['template']:
+                case 'common_affection_template':
+                    trigger_inst = CommonAffectionTrigger(**trigger_dict)
+                    aff_trigger_list.append(trigger_inst)
+                case 'common_switch_template':
+                    trigger_inst = CommonSwitchTrigger(**trigger_dict)
+                    switch_trigger_list.append(trigger_inst)
+                case 'common_meter_template':
+                    trigger_inst = CommonMeterTrigger(**trigger_dict)
+                    meter_trigger_list.append(trigger_inst)
+                case _:
+                    trigger_inst = CustomizedTrigger(**trigger_dict)
+                    customized_trigger_list.append(trigger_inst)
+
+        aff_trigger_list = limit_length(aff_trigger_list, 1)
+        switch_trigger_list = limit_length(switch_trigger_list, 6)
+        meter_trigger_list = limit_length(meter_trigger_list, 6)
+        customized_trigger_list = limit_length(customized_trigger_list, 20)
+
+        return aff_trigger_list + switch_trigger_list + meter_trigger_list + customized_trigger_list

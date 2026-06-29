@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from .maica_utils import *
 from .fsc_late import *
 from .db_bound_obj import DbBoundObject
+from .session_rel import SessionPersistentMixin, SessionTriggerMixin
 
 @dataclass
 class MaicaSessionItem():
@@ -371,18 +372,29 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         )
 
 # These should be far more simple
-class SessionPersistent(DbBoundObject):
+class SessionPersistent(DbBoundObject, SessionPersistentMixin):
     TABLE: ClassVar[Optional[str]] = "persistents"
     PRIM_KEY_NAME: ClassVar[Optional[str]] = "persistent_id"
 
-    def __init__(self, session_num: int = 0, fsc: Optional[FullSocketsContainer] = None, *args, **kwargs):
-        # Initialize the base list class
-        DbBoundObject.__init__(self, session_num, fsc)
-        self.content_temp = {}
+    _empty = lambda: {}
 
-class SessionTrigger(DbBoundObject):
+    def clear(self):
+        self.content_temp = {}
+        return super().clear()
+    
+    def from_db(self):
+        return super().from_db()
+
+class SessionTrigger(DbBoundObject, SessionTriggerMixin):
     TABLE: ClassVar[Optional[str]] = "triggers"
     PRIM_KEY_NAME: ClassVar[Optional[str]] = "trigger_id"
+
+    def clear(self):
+        self.content_temp = []
+        return super().clear()
+    
+    def from_db(self):
+        return super().from_db()
     
 # That float is last acquired timestamp
 _sessions_index: Dict[

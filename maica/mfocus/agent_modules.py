@@ -11,25 +11,30 @@ from maica.maica_utils import *
 
 class AgentTools():
     """Packed so more convenient."""
-    def __init__(self, fsc: FullSocketsContainer, sf_inst: SfPersistentManager):
-        self.fsc, self.sf_inst = fsc, sf_inst
+    def __init__(self, fsc: FullSocketsContainer, sp: SessionPersistent):
+        self.fsc = fsc
+        self.sp = sp
 
-    def _time_tz(self, tz="zh"):
+    def _time_tz(self):
+        tz = self.fsc.maica_settings.basic.tz
+
         if tz == 'zh':
             tz = "Asia/Shanghai"
         elif tz == 'en':
             tz = "America/Indiana/Vincennes"
+
         try:
             time_now = datetime.datetime.now(tz=pytz.timezone(tz))
         except Exception:
             time_now = datetime.datetime.now()
+            
         return time_now
 
     async def time_acquire(self, *args, **kwargs) -> tuple[str, str]:
         """Gets current time. Requires fsc."""
         target_lang = self.fsc.maica_settings.basic.target_lang
         tz = self.fsc.maica_settings.extra.tz
-        time = self._time_tz(tz or target_lang)
+        time = self._time_tz()
         match time:
             case time if time.hour < 4:
                 time_range = '半夜' if target_lang == 'zh' else 'at midnight'
@@ -52,13 +57,13 @@ class AgentTools():
         return content, time_friendly
 
     async def date_acquire(self, *args, **kwargs) -> tuple[str, str]:
-        """Gets current date. Requires fsc and sf_inst."""
+        """Gets current date. Requires fsc and sp."""
         target_lang = self.fsc.maica_settings.basic.target_lang
         tz = self.fsc.maica_settings.extra.tz
-        date = self._time_tz(tz or target_lang)
+        date = self._time_tz()
         weeklist = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"] if target_lang == 'zh' else ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         weekday = weeklist[date.weekday()]
-        south = self.sf_inst.read_from_sf('_mas_pm_live_south_hemisphere')
+        south = self.sp.read_key('_mas_pm_live_south_hemisphere')
         if south:
             match date:
                 case date if 3 <= date.month < 6:
@@ -84,12 +89,12 @@ class AgentTools():
         return content, date_friendly
 
     async def weather_acquire(self, location: Optional[str]=None, *args, **kwargs) -> tuple[str, str]:
-        """Gets current weather. Requires fsc and (sf_inst or location)."""
+        """Gets current weather. Requires fsc and (sp or location)."""
         target_lang = self.fsc.maica_settings.basic.target_lang
         weather = None
 
         if not location:
-            location = self.sf_inst.read_from_sf('mas_geolocation')
+            location = self.sp.read_key('mas_geolocation')
 
         if location:
             try:
@@ -105,10 +110,10 @@ class AgentTools():
         return content, weather_friendly
 
     async def event_acquire(self, *args, **kwargs: dict[str: int]) -> tuple[str, str]:
-        """Gets meaningful events. Requires fsc and sf_inst, optional ymd and predict and importance."""
+        """Gets meaningful events. Requires fsc and sp, optional ymd and predict and importance."""
         target_lang = self.fsc.maica_settings.basic.target_lang
         tz = self.fsc.maica_settings.extra.tz
-        time_today = self._time_tz(tz or target_lang)
+        time_today = self._time_tz()
         date_cursor = EventsCollection()
 
         date_in = []
@@ -116,7 +121,7 @@ class AgentTools():
             date_in.append(kwargs[k] if kwargs.get(k) else getattr(time_today, k))
 
         try:
-            player_bday = self.sf_inst.read_from_sf('mas_player_bday')
+            player_bday = self.sp.read_key('mas_player_bday')
             player_bday = datetime.datetime(*vali_date(*player_bday))
         except Exception:
             player_bday = None
@@ -241,8 +246,12 @@ class AgentTools():
         return content, days_event
 
     async def persistent_acquire(self, query: str, *args, **kwargs) -> tuple[str, str]:
-        """Gets value from persistent. Requires fsc and sf_inst and query."""
-        response_json = await self.sf_inst.mfocus_find_info(query)
+        """Gets value from persistent. Requires fsc and sp and query."""
+        info = self.sp.form_info()
+
+
+
+        response_json = await self.sp.mfocus_find_info(query)
         if response_json:
             content = json.dumps(response_json, ensure_ascii=False)
         else:
@@ -250,10 +259,10 @@ class AgentTools():
         return content, response_json
 
     async def search_internet(self, query: str, original_query: str, location_req: Optional[str]=None, *args, **kwargs) -> tuple[str, str]:
-        """Searches result from internet. Requires fsc and location_req and query and original_query, optional sf_inst."""
+        """Searches result from internet. Requires fsc and location_req and query and original_query, optional sp."""
         if location_req:
             try:
-                geolocation = self.sf_inst.read_from_sf('mas_geolocation')
+                geolocation = self.sp.read_from_sf('mas_geolocation')
             except Exception:
                 geolocation = None
         else:
@@ -288,8 +297,8 @@ if __name__ == "__main__":
         fsc.maica_pool = await ConnUtils.maica_pool()
         fsc.mfocus_conn = await ConnUtils.mfocus_conn()
         # fsc.maica_settings.update(esearch_llm_concl=False)
-        sf_inst = await SfPersistentManager.async_create(fsc)
-        at = AgentTools(fsc, sf_inst)
+        sp = await SfPersistentManager.async_create(fsc)
+        at = AgentTools(fsc, sp)
         time0 = time.time()
         # res_d = asyncio.run(at.date_acquire())
         # res_e = asyncio.run(at.event_acquire(year=2025, month=10, day=1))

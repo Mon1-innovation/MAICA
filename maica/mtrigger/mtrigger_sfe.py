@@ -3,7 +3,7 @@ import json
 import asyncio
 import datetime
 import traceback
-from .trigger_class import *
+from maica.maica_utils.trigger_class import *
 from maica.maica_utils import *
 
 class MtPersistentManager(PersistentManager):

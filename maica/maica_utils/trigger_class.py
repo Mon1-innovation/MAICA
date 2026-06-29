@@ -1,8 +1,8 @@
+"""Import layer 1.1"""
+
 import traceback
 from typing import *
-from maica.maica_utils import *
-
-STRUCTURE_NOT_INTACT = MaicaInputWarning(f'Trigger structure not intact', '400', 'maica_mtrigger_item_bad')
+from .maica_utils import *
 
 class CommonTrigger():
     template = None

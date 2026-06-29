@@ -29,3 +29,7 @@ If you want to read in English, use a translator.
 + 添加高级设置mt_concl_memory
 
 + 现在发送maica_mcore_gen_start标记断点续传介入
+
+- 弃用mas_hf_hcb
+
+= affection trigger的参数键改为alter_value
