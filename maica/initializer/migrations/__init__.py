@@ -1,53 +1,15 @@
 """
 Some annoying migration stuff here.
 """
-import asyncio
-import importlib
-from typing import *
-from packaging.version import parse, Version
-from collections.abc import Callable
-from maica.maica_utils import *
-# from maica.initializer import create_marking
-from maica.initializer.migrations.base import get_migrations
-from maica.initializer.migrations import _activator
 
-available_list: list[tuple[Version, Callable]]
+from maica.maica_utils import *
+
+from maica.initializer.migrations.base import get_migrations, migrate, available_list
+from . import _activator
 
 def pkg_init_migrations():
     global available_list
-
     available_list = get_migrations()
-
     sync_messenger(info=f'[maica-mig] {len(available_list)} migrations found', type=MsgType.DEBUG)
 
-def migrate(version):
-    migrated = False
-
-    last_version_parsed = parse(version)
-    curr_version = load_env('MAICA_CURR_VERSION')
-    curr_version_parsed = parse(curr_version)
-
-    sync_messenger(info=f'[maica-mig] Last initialized version {version}, current version {curr_version}', type=MsgType.DEBUG)
-
-    for mig_item in available_list:
-        if curr_version_parsed >= mig_item[0] > last_version_parsed:
-            try:
-                sync_messenger(info=f'Running migration upper-version {str(mig_item[0])}...', type=MsgType.PRIM_LOG)
-                asyncio.run(mig_item[1]())
-                sync_messenger(info=f'Finished migration upper-version {str(mig_item[0])}', type=MsgType.PRIM_LOG)
-                migrated = True
-            except CommonMaicaException as ce:
-                if ce.is_critical:
-                    raise ce
-                else:
-                    sync_messenger(error=ce, no_raise=True)
-                    migrated = True
-    if migrated:
-        sync_messenger(info=f'[maica-mig] Migration finished, continuing launch procedure...', type=MsgType.LOG)
-    else:
-        sync_messenger(info=f'[maica-mig] No migration applied, continuing launch procedure...', type=MsgType.DEBUG)
-
-    return migrated
-
-if __name__ == "__main__":
-    print(parse("1.0") <= parse("1.1") < parse("1.2"))
+__all__ = ['migrate']

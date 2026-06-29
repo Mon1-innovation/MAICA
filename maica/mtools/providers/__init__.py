@@ -13,44 +13,14 @@ party apis. They're not ads.
 You can always implement your own SERP function by adding a submodule with higher priority 
 (smaller number).
 """
-import importlib
-import random
-from typing import *
-from collections.abc import Callable
 from maica.maica_utils import *
-# from maica.mtools.api_keys import TpAPIKeys
-from maica.mtools.providers.base import get_providers
-from maica.mtools.providers import _activator
-
-@overload
-async def asearch(query: str, target_lang: Literal['zh', 'en', 'auto']) -> list[dict[Literal['title', 'text'], Annotated[str, Desc('Content')]]]:...
-
-available_list: list[tuple[int, Callable]] = []
-last_used = -1
+from .base import get_providers, get_asearch, available_list
+from . import _activator
 
 def pkg_init_serp_provider():
     global available_list
-
     if G.A.NO_SERP != '1':
         available_list = get_providers()
     sync_messenger(info=f"[maica-serp] Available SERP providers: {', '.join([str(i[0]) for i in available_list]) or None}", type=MsgType.DEBUG)
-
-def get_asearch(avoid: Union[Literal['last'], int]=None, rand: bool=False) -> Callable:
-    global last_used
-
-    if avoid == 'last':
-        avoid = last_used
-
-    avail_temp = [e for e in available_list if e[0] != avoid]
-    if not avail_temp:
-        avail_temp = available_list
-    if rand:
-        selected = random.choice(avail_temp) if avail_temp else (-1, None)
-    else:
-        selected = avail_temp[0] if avail_temp else (-1, None)
-
-    last_used = selected[0]; asearch = selected[1]
-
-    return asearch
 
 __all__ = ['get_asearch']

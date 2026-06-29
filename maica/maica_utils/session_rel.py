@@ -914,6 +914,16 @@ class SessionPersistentMixin():
     
     async def to_milvus(self):
         """As said, to milvus. Milvus is not considered persistent storage so only write."""
+        vector_pool = self.fsc.vector_pool
+
+        old = await vector_pool.query(
+            collection_name="docs",
+            filter="",
+            output_fields=["text"]
+        )
+
+        old_texts = {x["text"] for x in old}
+        new_texts = set(new_data)
 
 
 
@@ -921,7 +931,6 @@ class SessionPersistentMixin():
 
 
 
-        
     
 class SessionTriggerMixin():
     """To provide related functions."""

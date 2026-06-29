@@ -25,7 +25,7 @@ class ConnSocketsContainer():
 
     def spawn_sub(self, rsc=None):
         """Spawns a per-user sub instance."""
-        sub_kwargs = {k: getattr(self, k).summon_sub(rsc) if getattr(self, k) else None for k in ['auth_pool', 'maica_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn']}
+        sub_kwargs = {k: getattr(self, k).summon_sub(rsc) if getattr(self, k) else None for k in ['auth_pool', 'maica_pool', 'vector_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn']}
         return ConnSocketsContainer(**sub_kwargs)
 
 @dataclass
@@ -50,6 +50,7 @@ class FullSocketsContainer():
     """
     auth_pool: ClassVar[Optional[DbPoolManager]]
     maica_pool: ClassVar[Optional[DbPoolManager]]
+    vector_pool: ClassVar[Optional[MilvusDbConnectionManager]]
     mcore_conn: ClassVar[Optional[AiConnectionManager]]
     mfocus_conn: ClassVar[Optional[AiConnectionManager]]
     mvista_conn: ClassVar[Optional[AiConnectionManager]]

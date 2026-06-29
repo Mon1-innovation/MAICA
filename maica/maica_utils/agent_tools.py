@@ -309,3 +309,5 @@ class BooleanTrigger(BaseTrigger):
                 f"Call this tool to trigger {item_name.en}",
             )
         )
+    
+    

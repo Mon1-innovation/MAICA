@@ -16,7 +16,7 @@ from maica import mtools
 from maica.maica_nows import NoWsCoroutine
 from maica.maica_utils import *
 
-_CONNS_LIST = ['auth_pool', 'maica_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn', 'embedding_conn']
+_CONNS_LIST = ['auth_pool', 'maica_pool', 'vector_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn', 'embedding_conn']
 
 async def drain_buffer(websocket, id: int):
     """Drains a buffer and send through ws."""
