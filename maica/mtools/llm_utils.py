@@ -11,87 +11,112 @@ from openai import AsyncStream
 from openai.types.responses import Response, ResponseStreamEvent
 from maica.maica_utils import *
 
-async def llm_request(conn: AiConnectionManager, *args, **kwargs) -> Tuple[str, str, List[Dict[str, Any]]]:
+async def parse_responses_output(
+    resp: Response | AsyncStream[ResponseStreamEvent],
+) -> Tuple[
+    AsyncIterator[str],
+    AsyncIterator[str],
+    AsyncIterator[Dict[str, Any]],
+]:
+    """
+    Returns:
+        reasoning_stream: async iterator[str]
+        content_stream: async iterator[str]
+        tool_call_stream: async iterator[dict]
+    """
+
+    reasoning_q: asyncio.Queue[str | None] = asyncio.Queue()
+    content_q: asyncio.Queue[str | None] = asyncio.Queue()
+    tool_q: asyncio.Queue[dict | None] = asyncio.Queue()
+
+    _tool_calls_ids: set[str] = set()
+
+    def handle_item(item: Response | ResponseStreamEvent):
+        t = getattr(item, "type", None)
+
+        # reasoning
+        if t and "reasoning" in t:
+            text = getattr(item, "text", None) or getattr(item, "delta", "")
+            if text:
+                reasoning_q.put_nowait(text)
+
+        # content
+        elif t in ("message", "output_text", "text"):
+            text = getattr(item, "text", None) or getattr(item, "delta", "")
+            if text:
+                content_q.put_nowait(text)
+
+        # tool call
+        elif t in ("tool_call", "function_call", "function"):
+            call_id = getattr(item, "id", None)
+            name = getattr(item, "name", None) or getattr(item, "function", None)
+            args = getattr(item, "arguments", None) or getattr(item, "input", None)
+
+            if call_id not in _tool_calls_ids:
+                _tool_calls_ids.add(call_id)
+                tool_call = {
+                    "type": "function_call",
+                    "call_id": call_id,
+                    "name": name,
+                    "arguments": json.loads(args),
+                }
+
+                tool_q.put_nowait(tool_call)
+
+        else:
+            delta = getattr(item, "delta", None)
+            if isinstance(delta, str):
+                content_q.put_nowait(delta)
+
+    async def runner():
+        try:
+            # streaming
+            if hasattr(resp, "__aiter__") or hasattr(resp, "__iter__"):
+                async for event in resp:
+                    item = getattr(event, "item", event)
+                    handle_item(item)
+            # non-streaming
+            else:
+                outputs = getattr(resp, "output", []) or []
+                for item in outputs:
+                    handle_item(item)
+
+        finally:
+            # close streams
+            await reasoning_q.put(None)
+            await content_q.put(None)
+            await tool_q.put(None)
+
+    asyncio.create_task(runner())
+
+    async def reasoning_stream() -> AsyncIterator[str]:
+        while True:
+            item = await reasoning_q.get()
+            if item is None:
+                break
+            yield item
+
+    async def content_stream() -> AsyncIterator[str]:
+        while True:
+            item = await content_q.get()
+            if item is None:
+                break
+            yield item
+
+    async def tool_stream() -> AsyncIterator[Dict[str, Any]]:
+        while True:
+            item = await tool_q.get()
+            if item is None:
+                break
+            yield item
+
+    return reasoning_stream(), content_stream(), tool_stream()
+
+async def llm_request(conn: AiConnectionManager, *args, **kwargs):
     """
     Send request to LLM and retrieves simple results.
     Is streaming compatible actually but I don't think we're using it.
     We implement it for possible future convenience anyway.
-    """
-
-    async def parse_responses_output(resp: Response | AsyncStream[ResponseStreamEvent]) -> Tuple[str, str, List[Dict[str, Any]]]:
-        """
-        Basically gpt wrote this, I don't want to bother myself.
-        Parse OpenAI Responses API output (streaming or non-streaming).
-
-        Returns:
-            reasoning_text: str
-            content_text: str
-            tool_calls: list of {id, name, arguments}
-        """
-
-        reasoning_parts = []
-        content_parts = []
-        tool_calls = {}
-
-        def handle_item(item: Response | ResponseStreamEvent):
-            """Handle a single output item or streamed delta."""
-            t = getattr(item, "type", None)
-
-            if t and "reasoning" in t:
-                text = getattr(item, "text", None) or getattr(item, "delta", "")
-                if text:
-                    reasoning_parts.append(text)
-
-            elif t in ("message", "output_text", "text"):
-                text = getattr(item, "text", None) or getattr(item, "delta", "")
-                if text:
-                    content_parts.append(text)
-
-            elif t in ("tool_call", "function_call", "function"):
-                call_id = getattr(item, "id", None)
-                name = getattr(item, "name", None) or getattr(item, "function", None)
-                args = getattr(item, "arguments", None) or getattr(item, "input", None)
-
-                if call_id not in tool_calls:
-                    tool_calls[call_id] = {
-                        "type": "function_call",
-                        "call_id": call_id,
-                        "name": name,
-                        "arguments": "",
-                    }
-
-                # streaming arguments may come in chunks
-                if isinstance(args, str):
-                    tool_calls[call_id]["arguments"] += args
-
-            else:
-                delta = getattr(item, "delta", None)
-                if isinstance(delta, str):
-                    content_parts.append(delta)
-
-        if hasattr(resp, "__aiter__") or hasattr(resp, "__iter__"):
-            async for event in resp:
-                # some SDKs wrap actual data in event.item
-                item = getattr(event, "item", event)
-                handle_item(item)
-
-        else:
-            outputs = getattr(resp, "output", []) or []
-            for item in outputs:
-                handle_item(item)
-
-        for tool_call in tool_calls.values():
-            try:
-                if tool_call.get("arguments"):
-                    tool_call["arguments"] = json.loads(tool_call.get("arguments"))
-            except Exception as e:
-                sync_messenger(info=f"Failed to parse tool arguments {tool_call.get("arguments")}: {str(e)}", type=MsgType.WARN)
-
-        return (
-            "".join(reasoning_parts).strip(),
-            "".join(content_parts).strip(),
-            list(tool_calls.values())
-        )
-    
+    """    
     resp = await conn.make_completion(*args, **kwargs)
     return await parse_responses_output(resp)

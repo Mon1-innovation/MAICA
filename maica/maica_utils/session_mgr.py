@@ -481,7 +481,7 @@ async def acquire_dbo(type: Literal["session", "persistent", "trigger"], fsc: Fu
         yield session
 
 def acquire_session(fsc):
-    """Just an alter-name now."""
+    """Just an alias now."""
     return acquire_dbo("session", fsc)
 
 # To release some memory

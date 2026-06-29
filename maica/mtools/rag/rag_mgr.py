@@ -61,13 +61,13 @@ if __name__ == "__main__":
             data=data,
         )
 
-        query = ["你喜欢吃什么"]
+        query = ["你喜欢吃什么", "你喜欢看什么书"]
         res2 = await embedding_conn.make_embedding(input=query)
-        query_embedded = res2.data[0].embedding
+        query_embedded = [i.embedding for i in res2.data]
 
         res3 = await vector_pool.search(
             collection_name=vector_pool.db,
-            data=[query_embedded],
+            data=query_embedded,
             output_fields=["raw_text"],
             limit=3,
             search_params={

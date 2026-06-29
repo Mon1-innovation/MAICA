@@ -74,11 +74,12 @@ class MaicaSettings:
     class _Extra(_CommonFuncs):
         prompt_pname_repl: bool
         mf_llm_concl: bool
-        mf_persistent_rag: bool
-        mf_constant_tools: int
+        mf_extraction_impl: Literal[0, 1, 2]
+        mf_constant_pers: Literal[0, 1, 2]
+        mf_constant_tools: Literal[0, 1, 2, 3]
         esearch_llm_concl: bool
         mf_precheck_mt: bool
-        mt_concl_memory: int
+        mt_concl_memory: Literal[0, 1, 2]
         nsfw_acceptive: bool
         mf_context_rnds: int
         mt_context_rnds: int

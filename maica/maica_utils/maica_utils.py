@@ -516,14 +516,14 @@ def wrap_ws_formatter(code, status, content, type, deformation=False, **kwargs) 
     output.update(kwargs)
     return json.dumps(output, ensure_ascii=deformation)
 
-def ellipsis_str(input: any, limit=80) -> str:
+def ellipsis_str(input: Any, limit=80) -> str:
     """It converts anything to str and ellipsis it."""
     text = str(input)
     if len(text) > limit:
         text = text[:limit] + '...'
     return text
 
-def ellipsis_large_str(input: any, limit=600) -> str:
+def ellipsis_large_str(input: Any, limit=600) -> str:
     """It converts anything large to str and ellipsis it."""
     text = str(input)
     if len(text) > limit:

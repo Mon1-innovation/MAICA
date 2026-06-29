@@ -217,7 +217,7 @@ class BaseTrigger():
                 raise MaicaInputWarning("template cannot be recognized")
 
     @abstractmethod 
-    def to_tool(self): ...
+    def to_tool(self) -> WrappedOpenAITool: ...
 
 class AffectionTrigger(BaseTrigger):
     TEMPLATE = "common_affection_template"
@@ -309,5 +309,4 @@ class BooleanTrigger(BaseTrigger):
                 f"Call this tool to trigger {item_name.en}",
             )
         )
-    
     

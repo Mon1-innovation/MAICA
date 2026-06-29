@@ -24,7 +24,7 @@ If you want to read in English, use a translator.
 
 + 添加语言auto的支持
 
-+ 添加高级设置mf_persistent_rag
++ 添加高级设置mf_extraction_impl
 
 + 添加高级设置mt_concl_memory
 
@@ -33,3 +33,5 @@ If you want to read in English, use a translator.
 - 弃用mas_hf_hcb
 
 = affection trigger的参数键改为alter_value
+
++ 添加高级设置mf_constant_pers

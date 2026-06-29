@@ -194,7 +194,8 @@ class MaicaSettings():
 
         _prompt_pname_repl: bool = False
         _mf_llm_concl: bool = False
-        _mf_persistent_rag: bool = True
+        _mf_extraction_impl: int = 1
+        _mf_constant_pers: int = 1
         _mf_constant_tools: int = 1
         _esearch_llm_concl: bool = True
         _mf_precheck_mt: bool = True
@@ -211,8 +212,10 @@ class MaicaSettings():
         """Use name from savefile instead of [player] in prompts."""
         mf_llm_concl = create_prop('mf_llm_concl', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
         """Use agent model's final output instead of instructed guidance."""
-        mf_persistent_rag = create_prop('mf_persistent_rag', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
-        """Use RAG to acquire info from persistent instead of traditional MFocus impl."""
+        mf_extraction_impl = create_prop('mf_extraction_impl', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": [0, 1, 2]})
+        """Use RAG/Reranker to acquire info from persistent instead of traditional MFocus impl."""
+        mf_constant_pers = create_prop('mf_constant_pers', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": [0, 1, 2]})
+        """Add persistent extraction to MFocus instructed guidance even if not called."""
         mf_constant_tools = create_prop('mf_constant_tools', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": [0, 1, 2, 3]})
         """Add information to MFocus instructed guidance even if no tool used."""
         esearch_llm_concl = create_prop('esearch_llm_concl', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})

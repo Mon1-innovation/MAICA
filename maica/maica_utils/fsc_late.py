@@ -2,14 +2,12 @@
 from typing import *
 from dataclasses import dataclass, field
 from websockets import ServerConnection
+from pymilvus import AsyncMilvusClient
 from Crypto.Random import random as crandom
 from .maica_utils import *
 from .setting_utils import MaicaSettings
 from .fsc_early import RealtimeSocketsContainer, TracerayId
 from .connection_utils import *
-
-if TYPE_CHECKING:
-    from maica.maica_utils import *
 
 @dataclass
 class ConnSocketsContainer():
@@ -22,6 +20,7 @@ class ConnSocketsContainer():
     mvista_conn: Optional[AiConnectionManager]=None
     mnerve_conn: Optional[AiConnectionManager]=None
     embedding_conn: Optional[AiConnectionManager]=None
+    reranking_conn: Optional[AiConnectionManager]=None
 
     def spawn_sub(self, rsc=None):
         """Spawns a per-user sub instance."""
@@ -50,11 +49,13 @@ class FullSocketsContainer():
     """
     auth_pool: ClassVar[Optional[DbPoolManager]]
     maica_pool: ClassVar[Optional[DbPoolManager]]
-    vector_pool: ClassVar[Optional[MilvusDbConnectionManager]]
+    vector_pool: ClassVar[Optional[MilvusDbConnectionManager | AsyncMilvusClient]]
     mcore_conn: ClassVar[Optional[AiConnectionManager]]
     mfocus_conn: ClassVar[Optional[AiConnectionManager]]
     mvista_conn: ClassVar[Optional[AiConnectionManager]]
     mnerve_conn: ClassVar[Optional[AiConnectionManager]]
+    embedding_conn: ClassVar[Optional[AiConnectionManager]]
+    reranking_conn: ClassVar[Optional[AiConnectionManager]]
 
     rsc: Optional[RealtimeSocketsContainer]=None
     csc: Optional[ConnSocketsContainer]=None
@@ -66,7 +67,7 @@ class FullSocketsContainer():
             self.csc = ConnSocketsContainer()
 
     rsc_proxied = ['session', 'websocket', 'traceray_id', 'maica_settings']
-    csc_proxied = ['auth_pool', 'maica_pool', 'vector_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn', 'embedding_conn']
+    csc_proxied = ['auth_pool', 'maica_pool', 'vector_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn', 'embedding_conn', 'reranking_conn']
 
     def __getattr__(self, k):
         if k in self.rsc_proxied:

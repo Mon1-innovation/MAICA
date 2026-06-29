@@ -7,6 +7,7 @@ import asyncio
 import orjson
 
 from typing import *
+from pydantic import BaseModel
 from random import sample
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -16,9 +17,12 @@ from .trigger_class import *
 
 if TYPE_CHECKING:
     from maica.maica_utils import *
+else:
+    class FullSocketsContainer(): ...
 
 class SessionPersistentMixin():
     """To provide related functions."""
+    session_num: int
     fsc: FullSocketsContainer
     content: dict
     content_temp: dict
@@ -37,6 +41,17 @@ class SessionPersistentMixin():
             v = v + _read_perm(key)
             
         return v
+    
+    @property
+    def pname(self):
+        """Just an alias."""
+        return self.read_key("mas_playername")
+
+    @property
+    def affection(self):
+        """Just an alias."""
+        return self.read_key("mas_affection")
+
 
     def _conclude_basic_sf(self):
         result: List[BilingualText] = []
@@ -912,19 +927,133 @@ class SessionPersistentMixin():
 
         return conclusion_strs
     
+    async def _embed(self, data: list[str]) -> List[Tuple[str, list]]:
+        """We write the embed method here, since milvus db should be directly under its management."""
+        embedding_conn = self.fsc.embedding_conn
+        resp = await embedding_conn.make_embedding(input=data)
+
+        embedded = [i.embedding for i in resp.data]
+        return zip(data, embedded)
+
     async def to_milvus(self):
         """As said, to milvus. Milvus is not considered persistent storage so only write."""
         vector_pool = self.fsc.vector_pool
+        user_id = self.fsc.maica_settings.verification.user_id
+        session_num = self.session_num
 
+        # First query and calcs
         old = await vector_pool.query(
             collection_name="docs",
-            filter="",
-            output_fields=["text"]
+            filter=f"user_id == {user_id} and chat_session_num == {session_num}",
+            output_fields=["raw_text"]
         )
 
-        old_texts = {x["text"] for x in old}
-        new_texts = set(new_data)
+        old_texts = {x["raw_text"] for x in old}
+        new_texts = set(self.form_info())
 
+        to_add = new_texts - old_texts
+        to_del = old_texts - new_texts
+
+        # Then procedures
+        packed_embedded = await self._embed(to_add)
+
+        if to_del:
+            escaped = ",".join(
+                f'"{x.replace("\"","\\\"")}"'
+                for x in to_del
+            )
+
+            await vector_pool.delete(
+                collection_name=vector_pool.db,
+                filter=f"text in [{escaped}]"
+            )
+
+        if packed_embedded:
+            await vector_pool.insert(
+                collection_name=vector_pool.db,
+                data=[
+                    {
+                        "user_id": user_id,
+                        "chat_session_num": session_num,
+                        "raw_text": t[0],
+                        "vector": t[1],
+                    }
+                    for t in packed_embedded
+                ]
+            )
+
+    async def filter_milvus(self, query: str, limit: int = 5):
+        """Embed and search query from milvus."""
+        vector_pool = self.fsc.vector_pool
+        user_id = self.fsc.maica_settings.verification.user_id
+        session_num = self.session_num
+
+        resp = await self._embed(query)
+        embedded_query = [i.embedding for i in resp.data]
+
+        res = await vector_pool.search(
+            data=embedded_query,
+            output_fields=["raw_text"],
+            limit=limit,
+            search_params={
+                "params": {"ef": 64},
+            },
+            # consistency_level="Strong",
+        )
+
+        # To keep the total at reasonable size
+        match len(res):
+            case 1:
+                prio_max = 5
+            case 2:
+                prio_max = 3
+            case 3:
+                prio_max = 2
+            case _:
+                prio_max = 1
+        cfd_min = 0.5
+        res_set: Set[str] = set()
+
+        for l in res:
+            for d in l[:prio_max]:
+                if d["distance"] >= cfd_min:
+                    res_set.add(d["entity"]["raw_text"])
+
+        return res_set
+
+    async def filter_reranker(self, query: str, limit: int = 2):
+        """More precisely filter results, suggest using filter_milvus first."""
+        reranking_conn = self.fsc.reranking_conn
+
+
+
+
+
+
+
+
+
+        
+
+    async def search_llm(self, query: str):
+        """Traditional MFocus sfe implementation."""
+        session = MaicaSession()
+        session.default_target_lang = self.fsc.maica_settings.basic.target_lang
+
+        system = MaicaSessionItem(
+            "system",
+            BilingualText(
+f"""\
+你是一个人工智能助手, 你的任务是从信息中查找与问题最相关的条目, 并将其输出.
+.\
+""",
+f"""\
+You are a helpful assistant, your task is finding and outputting most relevant items from provided information.
+.\
+"""
+            ),
+        )
+        session.append(system)
 
 
 
@@ -934,39 +1063,53 @@ class SessionPersistentMixin():
     
 class SessionTriggerMixin():
     """To provide related functions."""
+    session_num: int
     fsc: FullSocketsContainer
     content: list
     content_temp: list
 
-    def get_triggers(self):
-        aff_trigger_list: list[CommonAffectionTrigger] = []
-        switch_trigger_list: list[CommonSwitchTrigger] = []
-        meter_trigger_list: list[CommonMeterTrigger] = []
-        customized_trigger_list: list[CustomizedTrigger] = []
+    def _get_triggers(self):
+        aff_trigger_dict_list = []
+        switch_trigger_dict_list = []
+        meter_trigger_dict_list = []
+        boolean_trigger_dict_list = []
 
-        triggers_list = []
+        triggers_dict_list = []
         if self.settings.basic.mt_extraction:
-            triggers_list += self.content
-        triggers_list += self.content_temp
+            triggers_dict_list += self.content
+        triggers_dict_list += self.content_temp
 
-        for trigger_dict in triggers_list:
+        for trigger_dict in triggers_dict_list:
             match trigger_dict['template']:
                 case 'common_affection_template':
-                    trigger_inst = CommonAffectionTrigger(**trigger_dict)
-                    aff_trigger_list.append(trigger_inst)
+                    aff_trigger_dict_list.append(trigger_dict)
                 case 'common_switch_template':
-                    trigger_inst = CommonSwitchTrigger(**trigger_dict)
-                    switch_trigger_list.append(trigger_inst)
+                    switch_trigger_dict_list.append(trigger_dict)
                 case 'common_meter_template':
-                    trigger_inst = CommonMeterTrigger(**trigger_dict)
-                    meter_trigger_list.append(trigger_inst)
+                    meter_trigger_dict_list.append(trigger_dict)
                 case _:
-                    trigger_inst = CustomizedTrigger(**trigger_dict)
-                    customized_trigger_list.append(trigger_inst)
+                    boolean_trigger_dict_list.append(trigger_dict)
 
-        aff_trigger_list = limit_length(aff_trigger_list, 1)
-        switch_trigger_list = limit_length(switch_trigger_list, 6)
-        meter_trigger_list = limit_length(meter_trigger_list, 6)
-        customized_trigger_list = limit_length(customized_trigger_list, 20)
+        aff_trigger_dict_list = limit_length(aff_trigger_dict_list, 1)
+        switch_trigger_dict_list = limit_length(switch_trigger_dict_list, 6)
+        meter_trigger_dict_list = limit_length(meter_trigger_dict_list, 6)
+        boolean_trigger_dict_list = limit_length(boolean_trigger_dict_list, 20)
 
-        return aff_trigger_list + switch_trigger_list + meter_trigger_list + customized_trigger_list
+        triggers: List[BaseTrigger] = []
+        for l in (aff_trigger_dict_list, switch_trigger_dict_list, meter_trigger_dict_list, boolean_trigger_dict_list):
+            for i in l:
+                triggers.append(BaseTrigger.from_dict(i))
+
+        return triggers
+    
+    def form_jsc(self, curr_aff: Optional[int] = None):
+        triggers = self._get_triggers()
+        tools: List[WrappedOpenAITool] = []
+        for t in triggers:
+            if t.TEMPLATE == "common_affection_template":
+                tools.append(t.to_tool(curr_aff=curr_aff))
+            else:
+                tools.append(t.to_tool())
+
+        tools_jsc = [i.to_json_schema(self.fsc.maica_settings.basic.target_lang) for i in tools]
+        return tools_jsc

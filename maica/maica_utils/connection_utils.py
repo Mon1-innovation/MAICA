@@ -414,7 +414,7 @@ class MilvusDbConnectionManager(AsyncCreator):
     def __getattr__(self, k):
         @Decos.catch_exceptions
         @Decos.conn_retryer_factory()
-        async def _seq_exc(self, k, *args, **kwargs):
+        async def seq_exc(self, k, *args, **kwargs):
             await self.keep_alive()
 
             f = getattr(self.pool, k)
@@ -427,7 +427,7 @@ class MilvusDbConnectionManager(AsyncCreator):
                 pass
             return next_coro
         
-        f2 = functools.partial(_seq_exc, self, k)
+        f2 = functools.partial(seq_exc, self, k)
         return f2
             
     async def close(self):
@@ -463,7 +463,7 @@ class SubMilvusDbConnectionManager(MilvusDbConnectionManager):
 
 class AiConnectionManager(AsyncCreator):
     """Maintain an AI connection so you don't have to."""
-    def __init__(self, api_key, base_url, name='ai_conn', model: Union[int, str]=0, caps: Optional[List[Literal["completion", "embedding"]]]=None):
+    def __init__(self, api_key, base_url, name='ai_conn', model: Union[int, str]=0, caps: Optional[List[Literal["completion", "embedding", "reranking"]]]=None):
         self.test = False
         self.api_key, self.base_url, self.name, self.model = api_key, base_url, name, model
         self.gen_kwargs = {}
@@ -540,7 +540,7 @@ class AiConnectionManager(AsyncCreator):
         try:
             task_stream_resp = asyncio.create_task(self.client.responses.create(**mixed_kwargs))
             await asyncio.wait_for(task_stream_resp, timeout=int(G.A.OPENAI_TIMEOUT) if G.A.OPENAI_TIMEOUT != '0' else None)
-            res = task_stream_resp.result()
+            resp = task_stream_resp.result()
 
         except openai.InternalServerError as oe:
             if not swallow:
@@ -548,16 +548,16 @@ class AiConnectionManager(AsyncCreator):
             else:
                 # Create a fake response
                 fake_text = swallow if isinstance(swallow, str) else 'null'
-                res = FakeChatCompletion(fake_text)
+                resp = FakeChatCompletion(fake_text)
                 sync_messenger(info=f"Swallowed OpenAI api exception: {str(oe)}, returning default: {fake_text}")
 
-        return res
+        return resp
     
     @Decos.catch_exceptions
     @Decos.conn_retryer_factory()
     async def make_embedding(self, **kwargs) -> CreateEmbeddingResponse:
         """As above, just the embedding version."""
-        assert "embedding" in self.caps, "Connected model is not capable of completion"
+        assert "embedding" in self.caps, "Connected model is not capable of embedding"
 
         kwargs.update(
             {
@@ -572,9 +572,39 @@ class AiConnectionManager(AsyncCreator):
 
         task_resp = asyncio.create_task(self.client.embeddings.create(**mixed_kwargs))
         await asyncio.wait_for(task_resp, timeout=int(G.A.OPENAI_TIMEOUT) if G.A.OPENAI_TIMEOUT != '0' else None)
-        res = task_resp.result()
+        resp = task_resp.result()
 
-        return res
+        return resp
+    
+    @Decos.catch_exceptions
+    @Decos.conn_retryer_factory()
+    async def make_reranking(self, **kwargs) -> dict:
+        """Generate reranking. This is acutally not OpenAI but VLLM standard."""
+        assert "reranking" in self.caps, "Connected model is not capable of reranking"
+
+        kwargs.update(
+            {
+                "model": self.model_actual
+            }
+        )
+        mixed_exbody = {**self.gen_kwargs.get('extra_body', {}), **kwargs.get('extra_body', {})}
+        mixed_kwargs = {**self.gen_kwargs, **kwargs}
+        mixed_kwargs['extra_body'] = mixed_exbody
+
+        await self.keep_alive()
+
+        task_resp = asyncio.create_task(
+            self.client.post(
+                "rerank",
+                cast_to=dict[str, Any],
+                body=mixed_kwargs,
+            )
+        )
+
+        await asyncio.wait_for(task_resp, timeout=int(G.A.OPENAI_TIMEOUT) if G.A.OPENAI_TIMEOUT != '0' else None)
+        resp = task_resp.result()
+
+        return resp
 
     async def close(self):
         try:
@@ -652,8 +682,8 @@ class ConnUtils():
 
     @staticmethod
     async def mvista_conn():
-        """Disable if no addr provided."""
-        if G.A.MVISTA_ADDR:
+        """Disable if no addr provided, or is_mcore_vl."""
+        if G.A.MVISTA_ADDR and not is_mcore_vl():
             conn = await AiConnectionManager.async_create(
                 api_key=G.A.MVISTA_KEY,
                 base_url=G.A.MVISTA_ADDR,
@@ -690,6 +720,22 @@ class ConnUtils():
                 name='embedding_conn',
                 model=G.A.EMBEDDING_CHOICE or 0,
                 caps=["embedding"],
+            )
+            conn.default_params(**json.loads(G.A.EMBEDDING_EXTRA))
+            return conn
+        else:
+            return None
+        
+    @staticmethod
+    async def reranking_conn():
+        """Disable if no addr provided."""
+        if G.A.RERANKING_ADDR:
+            conn = await AiConnectionManager.async_create(
+                api_key=G.A.RERANKING_KEY,
+                base_url=G.A.RERANKING_ADDR,
+                name='reranking_conn',
+                model=G.A.RERANKING_CHOICE or 0,
+                caps=["reranking"],
             )
             conn.default_params(**json.loads(G.A.EMBEDDING_EXTRA))
             return conn

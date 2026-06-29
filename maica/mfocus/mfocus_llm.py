@@ -198,10 +198,7 @@ class MfLLMRouter():
         tools: List[Union[WrappedOpenAITool, WrappedOpenAIToolNamespace]] = []
         tools.extend([time_acquire, date_acquire, weather_acquire, event_acquire])
 
-        if not (
-            is_rag_enabled()
-            and self.fsc.maica_settings.extra.mf_persistent_rag
-        ):
+        if self.fsc.maica_settings.extra.mf_constant_pers < 2:
             tools.append(persistent_acquire)
 
         if providers.get_asearch():
@@ -267,7 +264,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
             "response_format": {"type": "text"},
         }
 
-        reasoning, content, tool_calls = await llm_request(**completion_args)
+        a_reasoning, a_content, a_tool_calls = await llm_request(**completion_args)
 
         async def tool_response(tool_name, arguments):
             """Tool router and caller."""
