@@ -9,17 +9,26 @@ import json
 import urllib.parse
 
 from typing import *
+from pydantic import model_validator
 from maica.maica_utils import *
 from maica.mtools.api_keys import TpAPIKeys
-from .base import register_provider
+from .base import register_provider, SerpResults
 
 prio = 41
 requires = ['BRIGHTDATA_ZONE', 'BRIGHTDATA_KEY']
 
-_before_retry = 0
+class BdSerpResults(SerpResults):
+    @model_validator(mode="before")
+    @classmethod
+    def auto_transform(cls, data: Any):
+        if isinstance(data, dict):
+            new_data = {}
+            new_data["results"] = data.get("organic")
+            data = new_data
+        return data
 
+@Decos.conn_retryer_factory()
 async def asearch(query, target_lang: Literal['zh', 'en', 'auto']='zh'):
-    global _before_retry
     host = "api.brightdata.com"
     url = f"https://{host}/request"
     zone = TpAPIKeys.BRIGHTDATA_ZONE
@@ -38,31 +47,15 @@ async def asearch(query, target_lang: Literal['zh', 'en', 'auto']='zh'):
     }
     json_payload = json.dumps(payload)
 
-    if _before_retry <= 0:
-        async with httpx.AsyncClient(proxy=G.A.PROXY_ADDR) as client:
-            response = await client.post(url, headers=headers, data=json_payload, timeout=30)
-            response_json = response.json()
-    else:
-        _before_retry -= 1
-        response_json = {}
+    async with httpx.AsyncClient(proxy=G.A.PROXY_ADDR) as client:
+        response = await client.post(url, headers=headers, data=json_payload, timeout=30)
+        response_json = response.json()
 
     # print(json.dumps(response_json, ensure_ascii=False, indent=2))
 
-    if not 'organic' in response_json and not response_json.get('general').get('empty'):
-        if getattr(TpAPIKeys, 'BRIGHTDATA_FB_ZONE', None):
-            sync_messenger(info=f"BD free tier seemingly out, trying fallback...", type=MsgType.WARN)
-            payload['zone'] = TpAPIKeys.BRIGHTDATA_FB_ZONE
-            json_payload = json.dumps(payload)
+    res_m = BdSerpResults.model_validate(response_json)
 
-            async with httpx.AsyncClient(proxy=G.A.PROXY_ADDR) as client:
-                response = await client.post(url, headers=headers, data=json_payload, timeout=30)
-                response_json = response.json()
-
-    try:
-        results_formatted = [{"title": it['title'], "text": it['description']} for it in response_json['organic'] if 'description' in it]
-    except Exception:
-        results_formatted = []
-    return results_formatted
+    return res_m
 
 register_provider(prio, requires, asearch)
 
@@ -72,7 +65,6 @@ if __name__ == "__main__":
         init()
         res = await asearch("pizza")
         print(res)
-        print(len(res))
 
     asyncio.run(main())
     

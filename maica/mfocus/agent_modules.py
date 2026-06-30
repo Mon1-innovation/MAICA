@@ -224,33 +224,23 @@ class AgentTools():
         return text, search_results
 
     async def persistent_acquire(self, query: str, *args, **kwargs) -> tuple[str, str]:
-        """Gets value from persistent. Requires fsc and sp and query."""
-        info = self.sp.form_info()
+        """Gets value from persistent."""
+        match self.fsc.maica_settings.extra.mf_extraction_impl:
+            case 0:
+                res = await self.sp.filter_llm(query)
+            case 1:
+                res = await self.sp.filter_reranker(query)
+            case 2:
+                res = await self.sp.filter_milvus(query)
 
+        text = '; '.join(res)
 
+        return text, res
 
-        response_json = await self.sp.mfocus_find_info(query)
-        if response_json:
-            content = json.dumps(response_json, ensure_ascii=False)
-        else:
-            content = None
-        return content, response_json
-
-    async def search_internet(self, query: str, original_query: str, location_req: Optional[str]=None, *args, **kwargs) -> tuple[str, str]:
-        """Searches result from internet. Requires fsc and location_req and query and original_query, optional sp."""
-        if location_req:
-            try:
-                geolocation = self.sp.read_from_sf('mas_geolocation')
-            except Exception:
-                geolocation = None
-        else:
-            geolocation = None
-        if geolocation:
-            query = geolocation + query
-            original_query = geolocation + original_query
-
+    async def search_internet(self, ser_query: str, org_query: str, *args, **kwargs) -> tuple[str, str]:
+        """Searches result from internet."""
         try:
-            return await internet_search(self.fsc, query, original_query)
+            return await internet_search(self.fsc, ser_query)
         except Exception:
             return None, None
     

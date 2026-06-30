@@ -41,3 +41,5 @@ If you want to read in English, use a translator.
 = traceray_id更名为tracker_id
 
 - 弃用mf_constant_tools == 3
+
+= 现在serp采用标准数据模型

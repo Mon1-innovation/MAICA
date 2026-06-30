@@ -951,7 +951,7 @@ class SessionPersistentMixin():
 
         # First query and calcs
         old = await vector_pool.query(
-            collection_name="docs",
+            collection_name=vector_pool.db,
             filter=f"user_id == {user_id} and chat_session_num == {session_num}",
             output_fields=["raw_text"]
         )
@@ -973,7 +973,7 @@ class SessionPersistentMixin():
 
             await vector_pool.delete(
                 collection_name=vector_pool.db,
-                filter=f"text in [{escaped}]"
+                filter=f"user_id == {user_id} and chat_session_num == {session_num} and text in [{escaped}]"
             )
 
         if packed_embedded:
@@ -1000,6 +1000,8 @@ class SessionPersistentMixin():
         embedded_query = [i.embedding for i in resp.data]
 
         res = await vector_pool.search(
+            collection_name=vector_pool.db,
+            filter=f"user_id == {user_id} and chat_session_num == {session_num}",
             data=embedded_query,
             output_fields=["raw_text"],
             limit=topk,

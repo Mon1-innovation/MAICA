@@ -7,7 +7,7 @@ import functools
 from maica.maica_utils import *
 from . import providers
 
-async def internet_search(fsc: FullSocketsContainer, query, original_query):
+async def internet_search(fsc: FullSocketsContainer, query):
     target_lang = fsc.maica_settings.basic.target_lang
 
     @Decos.conn_retryer_factory()

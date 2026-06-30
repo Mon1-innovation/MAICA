@@ -1,4 +1,5 @@
 """
+DEPRECATED: Not synced with v1.3 data model requirements
 This is third party (https://serper.dev/) implementation.
 Works okay, decent price, I know nothing else.
 """
@@ -37,7 +38,7 @@ async def asearch(query, target_lang: Literal['zh', 'en', 'auto']='zh'):
     results_formatted = [{"title": it['title'], "text": it['snippet']} for it in response_json['organic'] if 'snippet' in it]
     return results_formatted
 
-register_provider(prio, requires, asearch)
+# register_provider(prio, requires, asearch)
 
 if __name__ == "__main__":
     async def main():

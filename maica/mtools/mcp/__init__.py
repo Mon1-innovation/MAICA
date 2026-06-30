@@ -1,8 +1,8 @@
 
-from .mcp_serp import asearch
+from .mcp_serp import _asearch
 
 __all__ = [
-    'asearch',
+    '_asearch',
 ]
 
 from .mcp_serp import pkg_init_mcp_serp

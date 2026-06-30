@@ -171,16 +171,19 @@ class MaicaInternetWarning(CommonMaicaWarning):
     """This suggests the backend request action is not behaving normal."""
 
 RETRYABLE_EXCEPTIONS = (
-    aiomysql.OperationalError,
-    aiomysql.InterfaceError,
-    ConnectionError,
-    TimeoutError,
-    httpx.TransportError,
-    openai.APIConnectionError,
-    openai.APITimeoutError,
-    openai.RateLimitError,
-    json.JSONDecodeError,
-    MaicaInternetWarning,
+    # aiomysql.OperationalError,
+    # aiomysql.InterfaceError,
+    # ConnectionError,
+    # TimeoutError,
+    # httpx.TransportError,
+    # openai.APIConnectionError,
+    # openai.APITimeoutError,
+    # openai.RateLimitError,
+    # json.JSONDecodeError,
+    # MaicaInternetWarning,
+
+    # This is too unstable.
+    Exception,
 )
 
 class AsyncCreator(ABC):
@@ -476,7 +479,7 @@ class BilingualText():
     en: Optional[str] = None
 
     @model_validator(mode="after")
-    def autofill(self):
+    def auto_fill(self):
         if self.en is None:
             self.en = self.zh
 

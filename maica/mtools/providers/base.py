@@ -1,12 +1,24 @@
 import random
 
 from typing import *
+from pydantic import BaseModel, Field, model_validator
 from maica.maica_utils import *
 from maica.mtools.api_keys import TpAPIKeys
 
 _providers_raw: List[Tuple[int, List[str], Awaitable]] = []
 _providers_initialized = False
 _providers = []
+
+class SerpResults(BaseModel):
+
+    class SerpItem(BaseModel):
+        title: str
+        description: str
+        rank: Optional[int] = None
+        link: Optional[str] = None
+        source: Optional[str] = None
+
+    results: List[SerpItem]
 
 def register_provider(prio: int, requires: List[str], asearch):
     _providers_raw.append((prio, requires, asearch))
@@ -26,7 +38,7 @@ def get_providers():
     return sorted(_providers, key=lambda x: x[0])
 
 @overload
-async def asearch(query: str, target_lang: Literal['zh', 'en', 'auto']) -> list[dict[Literal['title', 'text'], Annotated[str, Desc('Content')]]]:...
+async def asearch(query: str, target_lang: Literal['zh', 'en', 'auto']) -> SerpResults:...
 
 available_list: list[tuple[int, asearch]] = []
 last_used = -1

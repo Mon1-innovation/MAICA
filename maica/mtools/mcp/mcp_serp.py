@@ -11,7 +11,7 @@ def pkg_init_mcp_serp():
     SERP_BIN = _serp_bin()
     prep_bin(SERP_BIN)
 
-async def asearch(query, target_lang='zh'):
+async def _asearch(query, target_lang='zh'):
     """
     Async google searcher with (somewhat) MCP protocol.
     Uses an external precompiled NodeJS project to scrape, refer to https://github.com/edgeinfinity1/mi-search-mcp
@@ -21,7 +21,7 @@ async def asearch(query, target_lang='zh'):
     serp_initiation_args = {
         "command": SERP_BIN,
         "args": [],
-        "env": {k: G.A.PROXY_ADDR for k in ['http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY']},
+        "env": {k: "http://192.168.9.152:7890" for k in ['http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY']},
     }
     serp_initiation_args["env"].update({
         "DISPLAY": (load_env("DISPLAY") or '') if bool(int(G.A.ENABLE_X11)) else ''
@@ -35,11 +35,12 @@ async def asearch(query, target_lang='zh'):
 
             # tools = await session.list_tools():
             response = await session.call_tool('search', {'queries': [query], "limit": 10, "locale": locale, "debug": False})
-            response_json = json.loads(response.content[0].text)
-            return [{"title": it['title'], "text": it['snippet']} for it in response_json['searches'][0]['results']]
+            # response_json = json.loads(response.content[0].text)
+            # return [{"title": it['title'], "text": it['snippet']} for it in response_json['searches'][0]['results']]
+            return response.content[0].text
 
 if __name__ == '__main__':
     from maica import init
     init()
     pkg_init_mcp_serp()
-    print(asyncio.run(asearch("测试")))
+    print(asyncio.run(_asearch("测试")))

@@ -14,7 +14,7 @@ You can always implement your own SERP function by adding a submodule with highe
 (smaller number).
 """
 from maica.maica_utils import *
-from .base import get_providers, get_asearch, available_list
+from .base import SerpResults, get_providers, get_asearch, available_list
 from . import _activator
 
 def pkg_init_serp_provider():
@@ -23,4 +23,7 @@ def pkg_init_serp_provider():
         available_list = get_providers()
     sync_messenger(info=f"[maica-serp] Available SERP providers: {', '.join([str(i[0]) for i in available_list]) or None}", type=MsgType.DEBUG)
 
-__all__ = ['get_asearch']
+__all__ = [
+    'SerpResults',
+    'get_asearch',
+]
