@@ -32,7 +32,7 @@ class NoWsCoroutine(AsyncCreator):
         self.auth_pool = fsc.auth_pool
         self.maica_pool = fsc.maica_pool
         self.websocket = fsc.websocket
-        self.traceray_id = fsc.traceray_id
+        self.tracker_id = fsc.tracker_id
         self.settings = fsc.maica_settings
         self.sessions: Dict[int, MaicaSession] = {}
         self.remote_addr = None
@@ -163,10 +163,10 @@ class NoWsCoroutine(AsyncCreator):
                         self.settings.verification.reset()
                         raise MaicaConnectionWarning('A connection was established already and kicking not enabled', '406', 'maica_connection_reuse_denied')
                     else:
-                        await messenger(self.websocket, "maica_connection_reuse_attempt", "A connection was established already", "300", self.traceray_id)
+                        await messenger(self.websocket, "maica_connection_reuse_attempt", "A connection was established already", "300", self.tracker_id)
                         stale_fsc, stale_lock = online_dict[self.settings.verification.user_id]
                         try:
-                            await messenger(stale_fsc.rsc.websocket, 'maica_connection_reuse_stale', 'A new connection has been established', '300', stale_fsc.rsc.traceray_id)
+                            await messenger(stale_fsc.rsc.websocket, 'maica_connection_reuse_stale', 'A new connection has been established', '300', stale_fsc.rsc.tracker_id)
                             await stale_fsc.rsc.websocket.close(1000, 'Displaced as stale')
                         except Exception:
                             await messenger(None, 'maica_connection_stale_dead', 'The stale connection has died already', '204')

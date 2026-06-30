@@ -145,7 +145,7 @@ class DbBoundObject(CheckDestroyed):
             sql_expression_2 = f"UPDATE {self.TABLE} SET content = %s WHERE {self.PRIM_KEY_NAME} = %s"
             result = await maica_pool.query_modify(expression=sql_expression_2, values=(self.content, prim_key_id))
         else:
-            await messenger(self.fsc.websocket, f'{self.i_name}_not_present', f"Determined {self.i_name} not exist, inserting new", "306", self.fsc.traceray_id)
+            await messenger(self.fsc.websocket, f'{self.i_name}_not_present', f"Determined {self.i_name} not exist, inserting new", "306", self.fsc.tracker_id)
             sql_expression_2 = f"INSERT INTO {self.TABLE} (user_id, chat_session_num, content) VALUES (%s, %s, %s)"
             result = await maica_pool.query_modify(expression=sql_expression_2, values=(user_id, session_num, self.content))
             prim_key_id = result[1]
@@ -172,11 +172,11 @@ class DbBoundObject(CheckDestroyed):
                 self.load(db_content)
             else:
                 self.clear()
-                await messenger(self.fsc.websocket, f'{self.i_name}_no_content', f"Determined {self.i_name} no content, using empty", "306", self.fsc.traceray_id)
+                await messenger(self.fsc.websocket, f'{self.i_name}_no_content', f"Determined {self.i_name} no content, using empty", "306", self.fsc.tracker_id)
         else:
             prim_key_id = None; db_content = ''
             self.clear()
-            await messenger(self.fsc.websocket, f'{self.i_name}_not_exist', f"Determined {self.i_name} not exist, using empty", "306", self.fsc.traceray_id)
+            await messenger(self.fsc.websocket, f'{self.i_name}_not_exist', f"Determined {self.i_name} not exist, using empty", "306", self.fsc.tracker_id)
 
         if not self.prim_key_id:
             self.prim_key_id = prim_key_id

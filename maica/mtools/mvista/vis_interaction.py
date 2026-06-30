@@ -30,7 +30,6 @@ Your reply should start with expressions like "In the image", and describe objec
     messages.append({'role': 'user', 'content': query_list})
     completion_args = {
         "messages": messages,
-        "response_format": {"type": "text"},
     }
 
     resp = await fsc.mvista_conn.make_completion(swallow=True, **completion_args)

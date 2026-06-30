@@ -29,7 +29,7 @@ class SfPersistentManager(PersistentManager):
         def _rf(key):
             return self.read_from_sf(key)
             
-        def serialize_date(y, m, d):
+        def parse_date(y, m, d):
             match int(m):
                 case 1:
                     ms = 'January'
@@ -74,7 +74,7 @@ class SfPersistentManager(PersistentManager):
 
         data1 = _rf('mas_player_bday')
         if data1:
-            _ap(f'[player]的生日是{data1[0]}年{data1[1]}月{data1[2]}日.', f"[player]'s birthday is {serialize_date(data1[0], data1[1], data1[2])}.")
+            _ap(f'[player]的生日是{data1[0]}年{data1[1]}月{data1[2]}日.', f"[player]'s birthday is {parse_date(data1[0], data1[1], data1[2])}.")
             y = datetime.datetime.now().year
             o = y - int(data1[0])
             _ap(f'[player]今年{o}岁.', f"[player] is {o} years old.")
@@ -101,7 +101,7 @@ class SfPersistentManager(PersistentManager):
         if data1:
             regex_fs = ReUtils.re_search_sfe_fs.search(data1)
             try:
-                _ap(f'莫妮卡和[player]在{regex_fs[1]}年{regex_fs[2]}月{regex_fs[3]}日初次见面.', f"Monika and player had their first date on {serialize_date(regex_fs[1], regex_fs[2], regex_fs[3])}.")
+                _ap(f'莫妮卡和[player]在{regex_fs[1]}年{regex_fs[2]}月{regex_fs[3]}日初次见面.', f"Monika and player had their first date on {parse_date(regex_fs[1], regex_fs[2], regex_fs[3])}.")
             except Exception as e:
                 pass
             regex_ts = ReUtils.re_search_sfe_ts.search(data1)
@@ -113,7 +113,7 @@ class SfPersistentManager(PersistentManager):
             regex_le = ReUtils.re_search_sfe_le.search(data1)
             regex_cs = ReUtils.re_search_sfe_cs.search(data1)
             try:
-                _ap(f'[player]上次下线于{regex_le[1]}年{regex_le[2]}月{regex_le[3]}日{str(regex_le[4]).zfill(2)}:{str(regex_le[5]).zfill(2)}, 本次上线于{regex_cs[1]}年{regex_cs[2]}月{regex_cs[3]}日{str(regex_cs[4]).zfill(2)}:{str(regex_cs[5]).zfill(2)}.', f"[player] last left at {str(regex_le[4]).zfill(2)}:{str(regex_le[5]).zfill(2)}, {serialize_date(regex_le[1], regex_le[2], regex_le[3])}, last logged in at {str(regex_cs[4]).zfill(2)}:{str(regex_cs[5]).zfill(2)}, {serialize_date(regex_cs[1], regex_cs[2], regex_cs[3])}")
+                _ap(f'[player]上次下线于{regex_le[1]}年{regex_le[2]}月{regex_le[3]}日{str(regex_le[4]).zfill(2)}:{str(regex_le[5]).zfill(2)}, 本次上线于{regex_cs[1]}年{regex_cs[2]}月{regex_cs[3]}日{str(regex_cs[4]).zfill(2)}:{str(regex_cs[5]).zfill(2)}.', f"[player] last left at {str(regex_le[4]).zfill(2)}:{str(regex_le[5]).zfill(2)}, {parse_date(regex_le[1], regex_le[2], regex_le[3])}, last logged in at {str(regex_cs[4]).zfill(2)}:{str(regex_cs[5]).zfill(2)}, {parse_date(regex_cs[1], regex_cs[2], regex_cs[3])}")
             except Exception:
                 pass
 

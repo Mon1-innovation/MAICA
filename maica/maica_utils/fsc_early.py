@@ -25,15 +25,15 @@ class RealtimeSocketsContainer():
     """For no-setting usage."""
     session: Optional[MaicaSession] = None
     websocket: Optional[ServerConnection]=None
-    traceray_id: TracerayId=None
+    tracker_id: TracerayId=None
     maica_settings: MaicaSettings=None
 
     def __post_init__(self):
-        if not self.traceray_id:
-            self.traceray_id = TracerayId()
+        if not self.tracker_id:
+            self.tracker_id = TracerayId()
         if not self.maica_settings:
             self.maica_settings = MaicaSettings()
 
     def rotate_tid(self):
-        """Rotate traceray_id."""
-        self.traceray_id.rotate()
+        """Rotate tracker_id."""
+        self.tracker_id.rotate()

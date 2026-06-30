@@ -28,7 +28,7 @@ class PersistentManager(AsyncCreator):
         self.settings: MaicaSettings = fsc.maica_settings
         self.mfocus_conn = fsc.mfocus_conn
         self.mnerve_conn = fsc.mnerve_conn
-        self.websocket, self.traceray_id = fsc.rsc.websocket, fsc.rsc.traceray_id
+        self.websocket, self.tracker_id = fsc.rsc.websocket, fsc.rsc.tracker_id
         self.maica_pool = fsc.maica_pool
         self.sf_forming_buffer = self.EMPTY()
         self.p_id = self.timestamp = None
@@ -82,7 +82,7 @@ class PersistentManager(AsyncCreator):
             except Exception as e:
                 self.p_id = self.timestamp = None
                 self.sf_content = self.EMPTY()
-                await messenger(self.websocket, f'{self.FUNC_NAME}_no_persistent', f'No persistent found for {self._cap_2(self.FUNC_NAME)}, using empty', '204', traceray_id=self.traceray_id)
+                await messenger(self.websocket, f'{self.FUNC_NAME}_no_persistent', f'No persistent found for {self._cap_2(self.FUNC_NAME)}, using empty', '204', tracker_id=self.tracker_id)
             self.sf_forming_buffer = self.EMPTY()
             self._add(self.sf_forming_buffer, self.sf_content)
         else:
@@ -94,7 +94,7 @@ class AgentContextManager(AsyncCreator):
     """This is just a template. Do not initialize!"""
     def __init__(self, fsc: FullSocketsContainer, sf_inst=None, mt_inst=None):
         self.settings = fsc.maica_settings
-        self.websocket, self.traceray_id = fsc.rsc.websocket, fsc.rsc.traceray_id
+        self.websocket, self.tracker_id = fsc.rsc.websocket, fsc.rsc.tracker_id
         self.mfocus_conn = fsc.mfocus_conn
         self.mnerve_conn = fsc.mnerve_conn
         self.sf_inst, self.mt_inst = sf_inst, mt_inst
@@ -157,7 +157,6 @@ class AgentContextManager(AsyncCreator):
         completion_args = {
             "messages": self.serial_messages,
             "tools": self.tools,
-            "response_format": {"type": "text"},
         }
         # print(completion_args)
 

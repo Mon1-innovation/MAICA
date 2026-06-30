@@ -1,6 +1,5 @@
 
 from .api_keys import TpAPIKeys
-from .llm_utils import llm_request
 from .mpostal import make_postmail
 from .mspire import make_inspire
 from .wiki_get import get_page
@@ -17,7 +16,6 @@ from .censor import has_censored
 
 __all__ = [
     'TpAPIKeys',
-    'llm_request',
     'make_postmail',
     'make_inspire',
     'weather_api_get',

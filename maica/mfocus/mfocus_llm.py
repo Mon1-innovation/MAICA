@@ -6,7 +6,7 @@ import asyncio
 
 from typing import *
 from dataclasses import dataclass
-from maica.mtools import providers, llm_request
+from maica.mtools import providers
 from maica.maica_utils import *
 
 _JSCType = Literal["string", "number", "integer", "object", "array", "boolean", "null"]
@@ -264,7 +264,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
             "response_format": {"type": "text"},
         }
 
-        a_reasoning, a_content, a_tool_calls = await llm_request(**completion_args)
+        task, a_reasoning, a_content, a_tool_calls = await llm_request(**completion_args)
 
         async def tool_response(tool_name, arguments):
             """Tool router and caller."""

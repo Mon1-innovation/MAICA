@@ -456,7 +456,7 @@ User input:
                     await messenger(self.websocket, 'maica_mfocus_using_conclusion', 'MFocus got conclusion and used', '200')
                     return conclusion_answer
                 
-                await messenger(self.websocket, 'maica_mfocus_no_conclusion', 'MFocus got no conclusion, falling back to instruction', '404', traceray_id=self.traceray_id)
+                await messenger(self.websocket, 'maica_mfocus_no_conclusion', 'MFocus got no conclusion, falling back to instruction', '404', tracker_id=self.tracker_id)
                 
             # Then if mfa not enabled or ignored
             if self.settings.extra.mf_constant_tools >= 1:
@@ -489,7 +489,7 @@ User input:
                                 v = ''
                         instructed_answer_str += v
                     except Exception as e:
-                        await messenger(self.websocket, 'maica_mfocus_corruption', 'MFocus got corrupted information, skipping to continue', '304', traceray_id=self.traceray_id, type=MsgType.WARN)
+                        await messenger(self.websocket, 'maica_mfocus_corruption', 'MFocus got corrupted information, skipping to continue', '304', tracker_id=self.tracker_id, type=MsgType.WARN)
             else:
                 # If there's really no instruction
                 return None

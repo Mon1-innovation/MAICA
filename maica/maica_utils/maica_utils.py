@@ -20,6 +20,8 @@ import websockets
 
 from typing import *
 from tenacity import *
+from pydantic import BaseModel, model_validator
+from pydantic.dataclasses import dataclass as pdataclass
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from openai.types.chat import ChatCompletionMessage
@@ -328,8 +330,8 @@ class Decos():
         async def log_retry(retry_state):
             self = retry_state.args[0] if retry_state else None
             rsc = getattr(self, 'rsc', None); name = getattr(self, 'name', 'anon_conn')
-            websocket = rsc.websocket if rsc else None; traceray_id = rsc.traceray_id if rsc else ''
-            await messenger(websocket=websocket, status=f'{name}_temp_failure', info=f'{name} temporary failure, retrying {retry_state.attempt_number} time...', code='304', traceray_id=traceray_id, type=MsgType.WARN)
+            websocket = rsc.websocket if rsc else None; tracker_id = rsc.tracker_id if rsc else ''
+            await messenger(websocket=websocket, status=f'{name}_temp_failure', info=f'{name} temporary failure, retrying {retry_state.attempt_number} time...', code='304', tracker_id=tracker_id, type=MsgType.WARN)
 
         retry_decorator = retry(
             stop=stop_after_attempt(max_attempts),
@@ -468,18 +470,41 @@ class ExplainUrl():
                 case "ssh":
                     self.port = 22
 
-@dataclass
+@pdataclass
 class BilingualText():
     zh: str
-    en: Optional[str]=None
-    def __post_init__(self):
-        if not self.en:
+    en: Optional[str] = None
+
+    @model_validator(mode="after")
+    def autofill(self):
+        if self.en is None:
             self.en = self.zh
 
     def __str__(self):
         return self.zh
     
-    def to_str(self, target_lang: Literal['zh', 'en', 'auto']='zh'):
+    def __add__(self, other):
+        if isinstance(other, str):
+            return self.__class__(
+                zh = self.zh + other,
+                en = self.en + other,
+            )
+        else:
+            return self.__class__(
+                zh = self.zh + other.zh,
+                en = self.en + other.en,
+            )
+    
+    def __iadd__(self, other):
+        if isinstance(other, str):
+            self.zh += other
+            self.en += other
+        else:
+            self.zh += other.zh
+            self.en += other.en
+        return self
+    
+    def to_str(self, target_lang: Literal['zh', 'en', 'auto']='zh') -> str:
         if target_lang == 'zh':
             return self.zh
         else:
@@ -629,7 +654,7 @@ def proceed_common_text(text: str, is_json=False) -> Union[str, list, dict]:
     return answer_fin
 
 @overload
-async def messenger(websocket=None, status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaException]=None, type='', color='', add_time=True, no_print=False, no_raise=False, **kwargs) -> None: ...
+async def messenger(websocket=None, status='', info='', code='0', tracker_id='', error: Optional[CommonMaicaException]=None, type='', color='', add_time=True, no_print=False, no_raise=False, **kwargs) -> None: ...
 
 async def messenger(websocket=None, *args, **kwargs) -> None:
     """Together with websocket.send()."""
@@ -637,7 +662,7 @@ async def messenger(websocket=None, *args, **kwargs) -> None:
     if websocket and ws_tuple:
         await websocket.send(wrap_ws_formatter(*ws_tuple))
 
-def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional[CommonMaicaException]=None, type='', color='', add_time=True, no_print=False, no_raise=False, **kwargs) -> tuple:
+def sync_messenger(status='', info='', code='0', tracker_id='', error: Optional[CommonMaicaException]=None, type='', color='', add_time=True, no_print=False, no_raise=False, **kwargs) -> tuple:
     """It could handle most log printing and exception raising jobs pretty automatically."""
     try:
         term_v = os.get_terminal_size().columns
@@ -677,12 +702,12 @@ def sync_messenger(status='', info='', code='0', traceray_id='', error: Optional
         msg_print += f"[{time.strftime('%Y-%m-%d %H:%M:%S')}]" if add_time else ''; msg_print += f"-[{str(code)}]" if code else ''
         msg_print = msg_print.ljust(40)
         msg_print += f": {str(info)}" if not str(info).startswith('\n') else f"{'-=' * rep1}{str(info)}\n{'-=' * rep2}"
-        msg_print += f"; traceray ID {traceray_id}" if traceray_id else ''
+        msg_print += f"; traceray ID {tracker_id}" if tracker_id else ''
         msg_send = info
         if type == 'error' and int(G.A.NO_SEND_ERROR):
             msg_send = "A critical exception happened serverside, contact administrator"
-        if traceray_id and isinstance(info, str):
-            msg_send += f" -- your traceray ID is {traceray_id}"
+        if tracker_id and isinstance(info, str):
+            msg_send += f" -- your traceray ID is {tracker_id}"
 
     frametrack_dict = {"error": 99, "warn": 1}
     if type in frametrack_dict:
@@ -845,6 +870,70 @@ def try_getattr(o, *names) -> Optional[any]:
         if res:
             break
     return res
+
+def beautify_time(dt: datetime.datetime, target_lang: Literal['zh', 'en', 'auto'] = 'zh'):
+    """Beautifies current time. No date."""
+    _Bt = BilingualText
+    match time:
+        case time if time.hour < 4:
+            time_range = _Bt('半夜', 'at midnight')
+        case time if 4 <= time.hour < 6:
+            time_range = _Bt('凌晨', 'before dawn')
+        case time if 6 <= time.hour < 8:
+            time_range = _Bt('早上', 'at dawn')
+        case time if 8 <= time.hour < 11:
+            time_range = _Bt('上午', 'in morning')
+        case time if 11 <= time.hour < 13:
+            time_range = _Bt('中午', 'at noon')
+        case time if 13 <= time.hour < 18:
+            time_range = _Bt('下午', 'in afternoon')
+        case time if 18 <= time.hour < 23:
+            time_range = _Bt('晚上', 'at night')
+        case time if 23 <= time.hour:
+            time_range = _Bt('深夜', 'at midnight')
+
+    time_friendly = f"{time_range.zh}{time:%H:%M:%S}" if target_lang == 'zh' else f"{time:%H:%M:%S} {time_range.en}"
+    return time_friendly
+
+def beautify_date(dt: datetime.datetime, target_lang: Literal['zh', 'en', 'auto'] = 'zh', hemisphere: Literal['N', 'S'] = 'N'):
+    """Beautifies current date. No time."""
+    _Bt = BilingualText
+
+    sp = _Bt("春季", "spring")
+    su = _Bt("夏季", "summer")
+    au = _Bt("秋季", "autumn")
+    wi = _Bt("冬季", "winter")
+
+    if hemisphere == 'S':
+        match dt.month:
+            case m if 3 <= m < 6:
+                season = au
+            case m if 6 <= m < 9:
+                season = wi
+            case m if 9 <= m < 12:
+                season = sp
+            case _:
+                season = su
+        sh = _Bt("(南半球)", "(South hemisphere)")
+    else:
+        match m:
+            case m if 3 <= m < 6:
+                season = sp
+            case m if 6 <= m < 9:
+                season = su
+            case m if 9 <= m < 12:
+                season = au
+            case _:
+                season = wi
+        sh = ''
+
+    season += sh
+
+    weeklist = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
+    weekday_zh = weeklist[dt.weekday()]
+
+    date_friendly = f"{dt.year}年{season.zh}{dt.month}月{dt.day}日, {weekday_zh}" if target_lang == 'zh' else f"{dt:%d %B %A, %Y} {season.en}"
+    return date_friendly
 
 async def hash_sha256(str) -> str:
     """Get SHA256 for a string."""

@@ -35,3 +35,7 @@ If you want to read in English, use a translator.
 = affection trigger的参数键改为alter_value
 
 + 添加高级设置mf_constant_pers
+
+= mt_disable_loop默认变为True
+
+= traceray_id更名为tracker_id

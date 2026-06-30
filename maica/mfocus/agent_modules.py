@@ -9,12 +9,15 @@ from maica.mtools import *
 from .mfocus_main import SfPersistentManager
 from maica.maica_utils import *
 
+_Bt = BilingualText
+
 class AgentTools():
     """Packed so more convenient."""
     def __init__(self, fsc: FullSocketsContainer, sp: SessionPersistent):
         self.fsc = fsc
         self.sp = sp
 
+    @property
     def _time_tz(self):
         tz = self.fsc.maica_settings.basic.tz
 
@@ -26,88 +29,66 @@ class AgentTools():
         try:
             time_now = datetime.datetime.now(tz=pytz.timezone(tz))
         except Exception:
-            time_now = datetime.datetime.now()
+            raise MaicaInputWarning("tz not recognizable")
             
         return time_now
 
     async def time_acquire(self, *args, **kwargs) -> tuple[str, str]:
-        """Gets current time. Requires fsc."""
+        """
+        Gets current time.
+
+        Returns:
+        - text
+        - raw result (datetime)
+        """
         target_lang = self.fsc.maica_settings.basic.target_lang
-        tz = self.fsc.maica_settings.extra.tz
-        time = self._time_tz()
-        match time:
-            case time if time.hour < 4:
-                time_range = '半夜' if target_lang == 'zh' else 'at midnight'
-            case time if 4 <= time.hour < 6:
-                time_range = '凌晨' if target_lang == 'zh' else 'before dawn'
-            case time if 6 <= time.hour < 8:
-                time_range = '早上' if target_lang == 'zh' else 'at dawn'
-            case time if 8 <= time.hour < 11:
-                time_range = '上午' if target_lang == 'zh' else 'in morning'
-            case time if 11 <= time.hour < 13:
-                time_range = '中午' if target_lang == 'zh' else 'at noon'
-            case time if 13 <= time.hour < 18:
-                time_range = '下午' if target_lang == 'zh' else 'in afternoon'
-            case time if 18 <= time.hour < 23:
-                time_range = '晚上' if target_lang == 'zh' else 'at night'
-            case time if 23 <= time.hour:
-                time_range = '深夜' if target_lang == 'zh' else 'at midnight'
-        time_friendly = f"现在是{time_range}{time.hour}点{str(time.minute).zfill(2)}分" if target_lang == 'zh' else f"It's now {str(time.hour).zfill(2)}:{str(time.minute).zfill(2)} {time_range}"
-        content = f'{str(time.hour).zfill(2)}:{str(time.minute).zfill(2)}'
-        return content, time_friendly
+
+        dt = self._time_tz()
+        text = beautify_time(dt, target_lang)
+        text = f"现在是{text}" if target_lang == 'zh' else f"It's now {text}"
+
+        return text, dt
 
     async def date_acquire(self, *args, **kwargs) -> tuple[str, str]:
-        """Gets current date. Requires fsc and sp."""
+        """
+        Gets current date.
+        
+        Returns:
+        - text
+        - raw result (datetime)
+        """
         target_lang = self.fsc.maica_settings.basic.target_lang
-        tz = self.fsc.maica_settings.extra.tz
-        date = self._time_tz()
-        weeklist = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"] if target_lang == 'zh' else ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-        weekday = weeklist[date.weekday()]
-        south = self.sp.read_key('_mas_pm_live_south_hemisphere')
-        if south:
-            match date:
-                case date if 3 <= date.month < 6:
-                    season = '秋季' if target_lang == 'zh' else 'autumn'
-                case date if 6 <= date.month < 9:
-                    season = '冬季' if target_lang == 'zh' else 'winter'
-                case date if 9 <= date.month < 12:
-                    season = '春季' if target_lang == 'zh' else 'spring'
-                case date if 12 <= date.month or date.month < 3:
-                    season = '夏季' if target_lang == 'zh' else 'summer'
-        else:
-            match date:
-                case date if 3 <= date.month < 6:
-                    season = '春季' if target_lang == 'zh' else 'spring'
-                case date if 6 <= date.month < 9:
-                    season = '夏季' if target_lang == 'zh' else 'summer'
-                case date if 9 <= date.month < 12:
-                    season = '秋季' if target_lang == 'zh' else 'autumn'
-                case date if 12 <= date.month or date.month < 3:
-                    season = '冬季' if target_lang == 'zh' else 'winter'
-        date_friendly = f"今天是{date.year}年{season}{date.month}月{date.day}日{weekday}" if target_lang == 'zh' else f"Today is {date.year}.{date.month}.{date.day} {season}, {weekday}"
-        content = f'{date.year}.{date.month}.{date.day}, {weekday}'
-        return content, date_friendly
+        
+        dt = self._time_tz()
+        text = beautify_date(dt, target_lang, 'S' if self.sp.read_key('_mas_pm_live_south_hemisphere') else 'N')
+        text = f"现在是{text}" if target_lang == 'zh' else f"Today is {text}"
+
+        return text, dt
 
     async def weather_acquire(self, location: Optional[str]=None, *args, **kwargs) -> tuple[str, str]:
-        """Gets current weather. Requires fsc and (sp or location)."""
+        """Gets current weather.
+        - location: reads from sp if not provided
+
+        Returns:
+        - text
+        - raw result (dict)
+        """
         target_lang = self.fsc.maica_settings.basic.target_lang
+        text = "天气未知" if target_lang == 'zh' else "Weather unknown"
         weather = None
 
+        location = location or self.sp.read_key('mas_geolocation')
         if not location:
-            location = self.sp.read_key('mas_geolocation')
+            await messenger(self.fsc.websocket, 'maica_mfocus_geoloc_absent', "Cannot use weather tool since no geolocation provided, skipping", '404', self.fsc.tracker_id)
 
-        if location:
-            try:
-                weather = await weather_api_get(location)
-                content = json.dumps(weather, ensure_ascii=False)
-                weather_friendly = f"当前气温是{weather['temperature']}度, 当前天气是{weather['weather']}, 当前湿度是{weather['humidity']}%" if target_lang == 'zh' else f"Current temperature is {weather['temperature']} degrees celsius, current weather is {weather['weather']}, current humidity is {weather['humidity']} percent"
-            except CommonMaicaException as ce:
-                await messenger(self.fsc.rsc.websocket, 'maica_mfocus_weather_failed', traceray_id=self.fsc.rsc.traceray_id, error=ce, no_raise=True)
+        try:
+            weather = await weather_api_get(location)
+            text = weather.to_friendly(target_lang)
 
-        if not weather:
-            content = '天气未知' if target_lang == 'zh' else "Weather unknown"
-            weather_friendly = content
-        return content, weather_friendly
+        except CommonMaicaException as ce:
+            await messenger(self.fsc.websocket, 'maica_mfocus_weather_failed', tracker_id=self.fsc.rsc.tracker_id, error=ce, no_raise=True)
+
+        return text, weather
 
     async def event_acquire(self, *args, **kwargs: dict[str: int]) -> tuple[str, str]:
         """Gets meaningful events. Requires fsc and sp, optional ymd and predict and importance."""

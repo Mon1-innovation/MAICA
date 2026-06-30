@@ -7,7 +7,8 @@ import asyncio
 import orjson
 
 from typing import *
-from pydantic import BaseModel
+from math import ceil
+from pydantic import BaseModel, Field, TypeAdapter
 from random import sample
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -67,20 +68,22 @@ class SessionPersistentMixin():
         def _rf(key):
             return self.read_key(key)
             
-        def serialize_date(dt: datetime):
+        def parse_date(dt: datetime.datetime):
             """Datetime."""
             if self.fsc.maica_settings.basic.target_lang == 'zh':
                 return f"{dt.year}年{dt.month}月{dt.day}日"
             else:
                 return f"{dt:%B %d, %Y}"
             
-        def serialize_date_time(dt: datetime):
+        def parse_date_time(dt: datetime.datetime):
             """Datetime but with hms."""
+            date = parse_date(dt)
             if self.fsc.maica_settings.basic.target_lang == 'zh':
-                p = "上午" if f"{dt:%p}" == "AM" else "下午"
-                return f"{dt.year}年{dt.month}月{dt.day}日, {p}{dt:%I:%M:%S}"
+                time = beautify_time(dt, 'zh')
+                return f"{date}{time}"
             else:
-                return f"{dt:%I:%M:%S %p, %B %d, %Y}"
+                time = beautify_time(dt, 'en')
+                return f"{time}, {date}"
 
         # Seriously hard work begins here
         # First three manuals
@@ -95,8 +98,8 @@ class SessionPersistentMixin():
         if data1:
             dt = datetime(*data1)
             _ap(
-                f'[player]的生日是{serialize_date(dt)}.',
-                f"[player]'s birthday is {serialize_date(dt)}."
+                f'[player]的生日是{parse_date(dt)}.',
+                f"[player]'s birthday is {parse_date(dt)}."
             )
             o = relativedelta(datetime.today(), dt).years
             _ap(
@@ -147,8 +150,8 @@ class SessionPersistentMixin():
                 r_fs = ReUtils.re_search_sfe_fs.search(data1).groups()
                 dt_fs = datetime(*r_fs)
                 _ap(
-                    f'莫妮卡和[player]在{serialize_date(dt_fs)}初次见面.',
-                    f"Monika and player had their first date on {serialize_date(dt_fs)}."
+                    f'莫妮卡和[player]在{parse_date(dt_fs)}初次见面.',
+                    f"Monika and player had their first date on {parse_date(dt_fs)}."
                 )
             except Exception:
                 pass
@@ -168,8 +171,8 @@ class SessionPersistentMixin():
                 dt_le = datetime(*r_le)
                 dt_cs = datetime(*r_cs)
                 _ap(
-                    f'[player]上次下线于{serialize_date_time(dt_le)}, 本次上线于{serialize_date_time(dt_cs)}.',
-                    f"[player] last left at {serialize_date_time(dt_le)}, last logged in at {serialize_date_time(dt_cs)}"
+                    f'[player]上次下线于{parse_date_time(dt_le)}, 本次上线于{parse_date_time(dt_cs)}.',
+                    f"[player] last left at {parse_date_time(dt_le)}, last logged in at {parse_date_time(dt_cs)}"
                 )
             except Exception:
                 pass
@@ -982,7 +985,7 @@ class SessionPersistentMixin():
                 ]
             )
 
-    async def filter_milvus(self, query: str, limit: int = 5):
+    async def filter_milvus(self, query: str, topk: int = 5):
         """Embed and search query from milvus."""
         vector_pool = self.fsc.vector_pool
         user_id = self.fsc.maica_settings.verification.user_id
@@ -994,23 +997,14 @@ class SessionPersistentMixin():
         res = await vector_pool.search(
             data=embedded_query,
             output_fields=["raw_text"],
-            limit=limit,
+            limit=topk,
             search_params={
                 "params": {"ef": 64},
             },
             # consistency_level="Strong",
         )
 
-        # To keep the total at reasonable size
-        match len(res):
-            case 1:
-                prio_max = 5
-            case 2:
-                prio_max = 3
-            case 3:
-                prio_max = 2
-            case _:
-                prio_max = 1
+        prio_max = ceil(topk / len(res))
         cfd_min = 0.5
         res_set: Set[str] = set()
 
@@ -1021,46 +1015,83 @@ class SessionPersistentMixin():
 
         return res_set
 
-    async def filter_reranker(self, query: str, limit: int = 2):
+    async def filter_reranker(self, query: str, documents: Optional[list] = None, topk: int = 2):
         """More precisely filter results, suggest using filter_milvus first."""
         reranking_conn = self.fsc.reranking_conn
 
+        if documents is None:
+            documents = await self.filter_milvus(query, 10)
+        if not documents:
+            return []
 
+        reranking_params = {
+            "query": query,
+            "documents": documents,
+            "top_n": topk,
+        }
 
+        resp = await reranking_conn.make_reranking(**reranking_params)
 
+        res_list = [i["document"]["text"] for i in resp["results"]]
+        return res_list
 
-
-
-
-
-        
-
-    async def search_llm(self, query: str):
+    async def filter_llm(self, query: str, documents: Optional[list] = None, topk: int = 3):
         """Traditional MFocus sfe implementation."""
         session = MaicaSession()
-        session.default_target_lang = self.fsc.maica_settings.basic.target_lang
+        target_lang = session.default_target_lang = self.fsc.maica_settings.basic.target_lang
+        conn = self.fsc.mnerve_conn or self.fsc.mfocus_conn
+
+        if documents is None:
+            documents = await self.filter_milvus(query, 10)
+        if not documents:
+            return []
+
+        class SelectionResult(BaseModel):
+            items: list[str] = Field(
+                min_length=0,
+                max_length=topk,
+                description=f"0到{topk}个最相关的条目, 原样输出." if target_lang == 'zh' else f"0 ~ {topk} most relevant items, output as-is."
+            )
 
         system = MaicaSessionItem(
             "system",
             BilingualText(
 f"""\
-你是一个人工智能助手, 你的任务是从信息中查找与问题最相关的条目, 并将其输出.
-.\
+你是一个人工智能助手, 你的任务是从信息中查找与问题最相关的条目.
+你是角色"莫妮卡". 你应选择0到{topk}条互不重复的条目, 并原样输出.
+如果没有任何条目与问题相关, 你可以输出空值.\
 """,
 f"""\
-You are a helpful assistant, your task is finding and outputting most relevant items from provided information.
-.\
+You are a helpful assistant, your task is finding most relevant items with the query from provided information.
+Your character is called "Monika". You should choose 0 ~ {topk} unique items and output them as-is.
+If none of the informations are relevant with query, you can output empty.\
 """
             ),
         )
         session.append(system)
 
+        user_query = MaicaSessionItem(
+            "user",
+            query,
+        )
+        session.append(user_query)
 
+        completion_args = {
+            "messages": session.utilize(),
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "name": "selection_result",
+                    "schema": SelectionResult.model_json_schema(),
+                }
+            },
+        }
 
+        resp = await conn.make_completion(**completion_args)
+        selection_result = SelectionResult.model_validate_json(resp.output_text)
 
+        return selection_result.items
 
-
-    
 class SessionTriggerMixin():
     """To provide related functions."""
     session_num: int
@@ -1098,7 +1129,7 @@ class SessionTriggerMixin():
         triggers: List[BaseTrigger] = []
         for l in (aff_trigger_dict_list, switch_trigger_dict_list, meter_trigger_dict_list, boolean_trigger_dict_list):
             for i in l:
-                triggers.append(BaseTrigger.from_dict(i))
+                triggers.append(TypeAdapter(TypeTrigger).validate_python(i))
 
         return triggers
     

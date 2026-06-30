@@ -2,6 +2,7 @@
 import asyncio
 
 from abc import ABC, abstractmethod
+from pydantic import BaseModel, Field
 from types import *
 from typing import *
 from dataclasses import dataclass, field
@@ -90,137 +91,83 @@ class WrappedOpenAIToolNamespace():
             "tools": [i.to_json_schema(target_lang) for i in self.tools]
         }
 
-@dataclass
-class _exprop():
+class _BaseTriggerExprop(BaseModel):
     """Extra props of MTrigger items."""
     type: Literal["switch", "meter", "boolean"]
     item_name: BilingualText
-    kwargs: dict = field(default_factory=lambda: {})
-
-    def __post_init__(self):
-        match self.type:
-            case "switch":
-                item_list: list = self.kwargs["item_list"]
-                assert item_list, "item_list is empty"
-                assert isinstance(item_list, list), "item_list is not list"
-                self.item_list = item_list
-
-                curr_item: str = self.kwargs.get("curr_item")
-                assert isinstance(curr_item, (str, NoneType)), "curr_item is not str or None"
-                self.curr_item = curr_item
-
-                self.suggestion = bool(self.kwargs.get("suggestion", False))
             
-            case "meter":
-                value_limits: list = self.kwargs["value_limits"]
-                assert isinstance(self.value_limits, list) and len(self.value_limits) == 2, "value_limits must be list with 2 elements"
-                self.value_limits = value_limits
+class _SwitchTriggerExprop(_BaseTriggerExprop):
+    _template: ClassVar[str] = "common_switch_template"
+    item_list: list
+    curr_item: Optional[str] = None
+    suggestion: bool = False
 
-                self.curr_value = float(self.kwargs.get("curr_value"))
-
-            case "boolean":
-                pass
-
-    @classmethod
-    def from_dict(cls, type: Literal["switch", "meter", "boolean"], d: dict):
-        item_name = BilingualText(
-            d["item_name"]["zh"],
-            d["item_name"]["en"],
-        )
-        return cls(type, item_name, d)
-    
     def to_properties(self):
-        match self.type:
-            case "switch":
-                item_name = self.item_name
-                item_list = self.item_list
-                suggestion = self.suggestion
-
-                required_params = [
-                    WrappedOpenAIToolProperty(
-                        "choice",
-                        ["string", "null"],
-                        _Bt(
-                            f"根据用户的要求, 从以下{item_name.zh}中选出最合适的一项. 如果没有任何一项合适, 则回答null.",
-                            f"According to user's request, choose the most proper {item_name.en} from the following list. Output null if none of them is proper."
-                        ),
-                        enum=item_list + [None],
+        required_params = [
+            WrappedOpenAIToolProperty(
+                "choice",
+                ["string", "null"],
+                _Bt(
+                    f"根据用户的要求, 从以下{self.item_name.zh}中选出最合适的一项. 如果没有任何一项合适, 则回答null.",
+                    f"According to user's request, choose the most proper {self.item_name.en} from the following list. Output null if none of them is proper."
+                ),
+                enum=self.item_list + [None],
+            )
+        ]
+        if self.suggestion:
+            required_params.append(
+                WrappedOpenAIToolProperty(
+                    "suggestion",
+                    ["string", "null"],
+                    _Bt(
+                        f"若你在choice中选择了null, 你需要回答最合适, 但上面未列出的{self.item_name.zh}. 否则回答null."
+                        f"If you chose null in the choice section, you should provide the most proper {self.item_name.en} not listed above. Otherwise output null."
                     )
-                ]
-                if suggestion:
-                    required_params.append(
-                        WrappedOpenAIToolProperty(
-                            "suggestion",
-                            ["string", "null"],
-                            _Bt(
-                                f"若你在choice中选择了null, 你需要回答最合适, 但上面未列出的{item_name.zh}. 否则回答null."
-                                f"If you chose null in the choice section, you should provide the most proper {item_name.en} not listed above. Otherwise output null."
-                            )
-                        )
-                    )
+                )
+            )
 
-                return required_params
-            
-            case "meter":
-                item_name = self.item_name
-                lower, upper = self.value_limits
+        return required_params
 
-                required_params = [
-                    WrappedOpenAIToolProperty(
-                        "value",
-                        ["number", "null"],
-                        _Bt(
-                            f"根据用户的要求, 为{item_name.zh}选择一个合适的值. 如果合适的值不存在, 则回答null.",
-                            f"According to user's request, choose a proper value for {item_name.en}. Output null if the proper value does not exist."
-                        ),
-                        minimum=lower,
-                        maximum=upper,
-                    )
-                ]
+class _MeterTriggerExprop(_BaseTriggerExprop):
+    _template: ClassVar[str] = "common_meter_template"
+    value_limits: list = Field(min_length=2, max_length=2)
+    curr_value: Optional[float] = None
 
-                return required_params
-            
-            case "boolean":
-                return []
-        
-@dataclass
-class BaseTrigger():
+    def to_properties(self):
+        lower, upper = self.value_limits
+
+        required_params = [
+            WrappedOpenAIToolProperty(
+                "value",
+                ["number", "null"],
+                _Bt(
+                    f"根据用户的要求, 为{self.item_name.zh}选择一个合适的值. 如果合适的值不存在, 则回答null.",
+                    f"According to user's request, choose a proper value for {self.item_name.en}. Output null if the proper value does not exist."
+                ),
+                minimum=lower,
+                maximum=upper,
+            )
+        ]
+
+        return required_params
+
+class _BooleanTriggerExprop(_BaseTriggerExprop):
+    _template: ClassVar[str] = "customized"
+
+    def to_properties(self):
+        return []
+
+class BaseTrigger(BaseModel):
     """Base class of MTrigger items."""
-    TEMPLATE: ClassVar[str]
+    template: ClassVar[str]
     name: str
-    exprop: Optional[_exprop] = None
-
-    @classmethod
-    def from_dict(cls, d: dict):
-        template = d["template"]
-        name = d["name"]
-        kwargs = d.get("exprop")
-        match template:
-            case "common_affection_template":
-                return AffectionTrigger(name)
-            case "common_switch_template":
-                return SwitchTrigger(
-                    name,
-                    _exprop.from_dict("switch", kwargs)
-                )
-            case "common_meter_template":
-                return MeterTrigger(
-                    name,
-                    _exprop.from_dict("meter", kwargs)
-                )
-            case "customized":
-                return BooleanTrigger(
-                    name,
-                    _exprop.from_dict("boolean", kwargs)
-                )
-            case _:
-                raise MaicaInputWarning("template cannot be recognized")
+    exprop: Optional[_BaseTriggerExprop] = None
 
     @abstractmethod 
     def to_tool(self) -> WrappedOpenAITool: ...
 
 class AffectionTrigger(BaseTrigger):
-    TEMPLATE = "common_affection_template"
+    template = "common_affection_template"
 
     def to_tool(self, curr_aff: Optional[int] = None):
         if curr_aff:
@@ -249,7 +196,8 @@ class AffectionTrigger(BaseTrigger):
         )
 
 class SwitchTrigger(BaseTrigger):
-    TEMPLATE = "common_switch_template"
+    template = "common_switch_template"
+    exprop: _SwitchTriggerExprop
 
     def to_tool(self):
         item_name = self.exprop.item_name
@@ -273,7 +221,8 @@ class SwitchTrigger(BaseTrigger):
         )
 
 class MeterTrigger(BaseTrigger):
-    TEMPLATE = "common_meter_template"
+    template = "common_meter_template"
+    exprop: _MeterTriggerExprop
 
     def to_tool(self):
         item_name = self.exprop.item_name
@@ -297,7 +246,8 @@ class MeterTrigger(BaseTrigger):
         )
 
 class BooleanTrigger(BaseTrigger):
-    TEMPLATE = "customized"
+    template = "customized"
+    exprop: _BooleanTriggerExprop
 
     def to_tool(self):
         item_name = self.exprop.item_name
@@ -310,3 +260,12 @@ class BooleanTrigger(BaseTrigger):
             )
         )
     
+TypeTrigger = Annotated[
+    Union[
+        AffectionTrigger,
+        SwitchTrigger,
+        MeterTrigger,
+        BooleanTrigger,
+    ],
+    Field(discriminator="template"),
+]

@@ -339,7 +339,7 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
             last_self_len = len(self)
 
             if cycle >= 100:
-                sync_messenger(f"Session cropper hit extreme fragmentation.\nSelf dump: {str(self)}\nArchiver dump: {str(archiver)}\nBreaking loop and trying to continue", traceray_id=self.fsc.traceray_id, type=MsgType.WARN)
+                sync_messenger(f"Session cropper hit extreme fragmentation.\nSelf dump: {str(self)}\nArchiver dump: {str(archiver)}\nBreaking loop and trying to continue", tracker_id=self.fsc.tracker_id, type=MsgType.WARN)
                 break
 
         # Now finished cropping

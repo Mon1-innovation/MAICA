@@ -1,4 +1,5 @@
 """
+Import layer 3.1
 Some convenience things, many minor LLM usages will need them.
 """
 
@@ -9,11 +10,13 @@ from typing import *
 from dataclasses import dataclass
 from openai import AsyncStream
 from openai.types.responses import Response, ResponseStreamEvent
-from maica.maica_utils import *
+from .connection_utils import AiConnectionManager
+from .maica_utils import *
 
 async def parse_responses_output(
     resp: Response | AsyncStream[ResponseStreamEvent],
 ) -> Tuple[
+    asyncio.Task,
     AsyncIterator[str],
     AsyncIterator[str],
     AsyncIterator[Dict[str, Any]],
@@ -87,7 +90,7 @@ async def parse_responses_output(
             await content_q.put(None)
             await tool_q.put(None)
 
-    asyncio.create_task(runner())
+    task = asyncio.create_task(runner())
 
     async def reasoning_stream() -> AsyncIterator[str]:
         while True:
@@ -110,7 +113,7 @@ async def parse_responses_output(
                 break
             yield item
 
-    return reasoning_stream(), content_stream(), tool_stream()
+    return task, reasoning_stream(), content_stream(), tool_stream()
 
 async def llm_request(conn: AiConnectionManager, *args, **kwargs):
     """

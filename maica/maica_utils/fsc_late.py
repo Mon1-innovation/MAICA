@@ -37,7 +37,7 @@ class FullSocketsContainer():
 
     session: ClassVar[Optional[MaicaSession]]
     websocket: ClassVar[Optional[ServerConnection]]
-    traceray_id: ClassVar[TracerayId]
+    tracker_id: ClassVar[TracerayId]
     maica_settings: ClassVar[MaicaSettings]
     miscellaneous: dict = field(default_factory=lambda: {})
     """
@@ -66,7 +66,7 @@ class FullSocketsContainer():
         if not self.csc:
             self.csc = ConnSocketsContainer()
 
-    rsc_proxied = ['session', 'websocket', 'traceray_id', 'maica_settings']
+    rsc_proxied = ['session', 'websocket', 'tracker_id', 'maica_settings']
     csc_proxied = ['auth_pool', 'maica_pool', 'vector_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn', 'embedding_conn', 'reranking_conn']
 
     def __getattr__(self, k):

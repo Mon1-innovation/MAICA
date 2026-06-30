@@ -44,7 +44,6 @@ MAICA_MFOCUS_EXTRA = '
     {
         "temperature": 0.2,
         "seed": 42,
-        "response_format": {"type": "json_object"},
         "extra_body": {
             "repetition_penalty": 1.05
         }
@@ -61,7 +60,6 @@ MAICA_MVISTA_CHOICE = ''
 # Not necessarily a part of OpenAI standard, may useful for vllm-like deployments
 MAICA_MVISTA_EXTRA = '
     {
-        "response_format": {"type": "json_object"},
         "extra_body": {
             "chat_template_kwargs": {"enable_thinking": false}
         }
@@ -77,7 +75,6 @@ MAICA_MNERVE_CHOICE = ''
 # Not necessarily a part of OpenAI standard, may useful for vllm-like deployments
 MAICA_MNERVE_EXTRA = '
     {
-        "response_format": {"type": "json_object"},
         "extra_body": {
             "chat_template_kwargs": {"enable_thinking": false}
         }

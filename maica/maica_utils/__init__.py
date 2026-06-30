@@ -50,6 +50,8 @@ from .maica_utils import (
     clean_text,
     try_load_json,
     try_getattr,
+    beautify_time,
+    beautify_date,
     hash_sha256,
     is_mcore_vl,
     is_rag_enabled,
@@ -71,7 +73,8 @@ from .locater import locater, get_inner_path, get_outer_path
 from .gvars import online_dict, G
 from .session_mgr import MaicaSession, MaicaSessionItem, SessionPersistent, SessionTrigger, acquire_dbo, acquire_session, dbos_gc
 from .db_bound_obj import DbBoundObject
-from .agent_tools import WrappedOpenAIToolProperty, WrappedOpenAITool, WrappedOpenAIToolNamespace, BaseTrigger, AffectionTrigger, SwitchTrigger, MeterTrigger, BooleanTrigger
+from .agent_tools import WrappedOpenAIToolProperty, WrappedOpenAITool, WrappedOpenAIToolNamespace, BaseTrigger, AffectionTrigger, SwitchTrigger, MeterTrigger, BooleanTrigger, TypeTrigger
+from .llm_utils import llm_request
 
 __all__ = [
     'silent',
@@ -128,6 +131,8 @@ __all__ = [
     'clean_text',
     'try_load_json',
     'try_getattr',
+    'beautify_time',
+    'beautify_date',
     'hash_sha256',
     'is_mcore_vl',
     'is_rag_enabled',
@@ -172,6 +177,8 @@ __all__ = [
     'SwitchTrigger',
     'MeterTrigger',
     'BooleanTrigger',
+    'TypeTrigger',
+    'llm_request',
 ]
 
 from .gvars import pkg_init_gvars

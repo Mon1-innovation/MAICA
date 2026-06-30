@@ -104,7 +104,7 @@ class WsCoroutine(NoWsCoroutine):
             try:
 
                 # Initiation
-                self.traceray_id.rotate()
+                self.tracker_id.rotate()
                 self.settings.identity.reset()
                 self.settings.verification.reset()
 
@@ -170,7 +170,7 @@ class WsCoroutine(NoWsCoroutine):
         while True:
             try:
                 # Pre-utilize cleanups
-                self.traceray_id.rotate()
+                self.tracker_id.rotate()
                 self.settings.temp.reset()
 
                 # Context security check first
@@ -274,7 +274,7 @@ class WsCoroutine(NoWsCoroutine):
                 if recv_loaded_json['reset']:
                     session.clear()
                     await session.to_db()
-                    await messenger(websocket, "maica_session_reset", "Determined chat_session reset", "204", self.traceray_id)
+                    await messenger(websocket, "maica_session_reset", "Determined chat_session reset", "204", self.tracker_id)
                     return
 
             if 'vision' in recv_loaded_json:
@@ -401,11 +401,9 @@ class WsCoroutine(NoWsCoroutine):
                     raise MaicaInputError("Using an out of bound session")
 
             # Construction part done, communication part started
-            # Notice: always do write response_format to override ability if must be text
             completion_args = {
                 "messages": session.utilize(),
                 "stream": self.settings.basic.stream_output,
-                "response_format": {"type": "text"},
                 "extra_body": {},
             }
             
@@ -437,7 +435,7 @@ class WsCoroutine(NoWsCoroutine):
             sync_messenger(info=f'\nQuery constrcted and ready to go, last input is:\n{query_in}\nSending query...', type=MsgType.PRIM_RECV)
 
             # We're about to start generation, so any ws interrupts should be handled by buffered_messenger from now.
-            await messenger(websocket, "maica_mcore_gen_start", "Core model generation starting, reconn protection intervening", "201", self.traceray_id)
+            await messenger(websocket, "maica_mcore_gen_start", "Core model generation starting, reconn protection intervening", "201", self.tracker_id)
             buffered_messenger = BufferedMessenger(self.settings.verification.user_id)
 
             pprt = True if completion_args['stream'] else False
@@ -475,7 +473,7 @@ class WsCoroutine(NoWsCoroutine):
                         seq += 1
 
                     sync_messenger(info='\n', type=MsgType.PLAIN)
-                    await buffered_messenger(websocket, 'maica_core_complete', f'Streaming finished with seed {completion_args['seed']} for {self.settings.verification.username}, {seq} packets sent', '1000', traceray_id=self.traceray_id)
+                    await buffered_messenger(websocket, 'maica_core_complete', f'Streaming finished with seed {completion_args['seed']} for {self.settings.verification.username}, {seq} packets sent', '1000', tracker_id=self.tracker_id)
 
                 else:
                     resp: Response
@@ -492,20 +490,20 @@ class WsCoroutine(NoWsCoroutine):
                         seq += 1
 
                     if len(sentences) == 1:
-                        await buffered_messenger(None, 'maica_core_complete', f'Reply sent with seed {completion_args['seed']} for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
+                        await buffered_messenger(None, 'maica_core_complete', f'Reply sent with seed {completion_args['seed']} for {self.settings.verification.username}', '1000', tracker_id=self.tracker_id)
                     else:
                         sync_messenger(info='\n', type=MsgType.PLAIN)
-                        await buffered_messenger(websocket, 'maica_core_complete', f'Streaming finished with seed {completion_args['seed']} for {self.settings.verification.username}, {seq} packets sent', '1000', traceray_id=self.traceray_id)
+                        await buffered_messenger(websocket, 'maica_core_complete', f'Streaming finished with seed {completion_args['seed']} for {self.settings.verification.username}, {seq} packets sent', '1000', tracker_id=self.tracker_id)
 
             else:
                 # We just pretend it was generated
                 reply_appended = replace_generation
                 if completion_args['stream']:
                     await buffered_messenger(websocket, 'maica_core_streaming_continue', reply_appended, '100'); await messenger(info='\n', type=MsgType.PLAIN)
-                    await buffered_messenger(websocket, 'maica_core_complete', f'Streaming finished with cache for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
+                    await buffered_messenger(websocket, 'maica_core_complete', f'Streaming finished with cache for {self.settings.verification.username}', '1000', tracker_id=self.tracker_id)
                 else:
                     await buffered_messenger(websocket, 'maica_core_nostream_reply', reply_appended, '200', type=MsgType.CARRIAGE)
-                    await buffered_messenger(None, 'maica_core_complete', f'Reply sent with cache for {self.settings.verification.username}', '1000', traceray_id=self.traceray_id)
+                    await buffered_messenger(None, 'maica_core_complete', f'Reply sent with cache for {self.settings.verification.username}', '1000', tracker_id=self.tracker_id)
 
             # Can be post-processed here
             session.append(MaicaSessionItem("assistant", reply_appended))
@@ -534,9 +532,9 @@ class WsCoroutine(NoWsCoroutine):
                     case 1:
                         await buffered_messenger(websocket, 'maica_history_slice_hint', f"Session {self.settings.temp.chat_session} of {self.settings.verification.username} exceeded {self.settings.basic.max_length * (2/3)} characters, will slice at {self.settings.basic.max_length}", '200', no_print=True)
 
-                await buffered_messenger(websocket, 'maica_chat_loop_finished', f'Finished chat loop from {self.settings.verification.username}', '200', traceray_id=self.traceray_id, type=MsgType.INFO)
+                await buffered_messenger(websocket, 'maica_chat_loop_finished', f'Finished chat loop from {self.settings.verification.username}', '200', tracker_id=self.tracker_id, type=MsgType.INFO)
             else:
-                await buffered_messenger(websocket, 'maica_chat_loop_finished', f'Finished non-recording chat loop from {self.settings.verification.username}', '200', traceray_id=self.traceray_id, type=MsgType.INFO)
+                await buffered_messenger(websocket, 'maica_chat_loop_finished', f'Finished non-recording chat loop from {self.settings.verification.username}', '200', tracker_id=self.tracker_id, type=MsgType.INFO)
 
             # Seal it finally
             await buffered_messenger.seal()
@@ -579,7 +577,7 @@ async def main_logic(
         except CommonMaicaException as ce:
             if ce.is_critical:
                 traceback.print_exc()
-            await messenger(websocket, error=ce, traceray_id=getattr(thread_instance, 'traceray_id', None), no_raise=True)
+            await messenger(websocket, error=ce, tracker_id=getattr(thread_instance, 'tracker_id', None), no_raise=True)
 
         except websockets.WebSocketException as we:
             try:

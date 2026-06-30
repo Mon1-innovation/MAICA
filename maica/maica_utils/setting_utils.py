@@ -205,7 +205,7 @@ class MaicaSettings():
         _mt_context_rnds: int = 1
         _gen_quality_chk: bool = False
         _mf_disable_loop: bool = True
-        _mt_disable_loop: bool = False
+        _mt_disable_loop: bool = True
         _gen_enforce_lang: bool = True
 
         prompt_pname_repl = create_prop('prompt_pname_repl', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
