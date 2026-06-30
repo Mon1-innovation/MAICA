@@ -5,12 +5,12 @@ Session related. We break sb_utils apart and rewrite some here.
 
 import asyncio
 import orjson
+import datetime
 
 from typing import *
 from math import ceil
 from pydantic import BaseModel, Field, TypeAdapter
 from random import sample
-from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from dataclasses import dataclass
 from .maica_utils import *
@@ -44,15 +44,19 @@ class SessionPersistentMixin():
         return v
     
     @property
-    def pname(self):
+    def pname(self) -> Optional[str]:
         """Just an alias."""
         return self.read_key("mas_playername")
 
     @property
-    def affection(self):
+    def pbday(self) -> Optional[Tuple[int, int, int]]:
+        """Just an alias."""
+        return self.read_key("mas_player_bday")
+
+    @property
+    def affection(self) -> Optional[int]:
         """Just an alias."""
         return self.read_key("mas_affection")
-
 
     def _conclude_basic_sf(self):
         result: List[BilingualText] = []
@@ -68,21 +72,22 @@ class SessionPersistentMixin():
         def _rf(key):
             return self.read_key(key)
             
-        def parse_date(dt: datetime.datetime):
+        def parse_date(dt: datetime.date):
             """Datetime."""
-            if self.fsc.maica_settings.basic.target_lang == 'zh':
-                return f"{dt.year}年{dt.month}月{dt.day}日"
-            else:
-                return f"{dt:%B %d, %Y}"
+            return beautify_date(
+                dt,
+                target_lang=self.fsc.maica_settings.basic.target_lang,
+                include_adj=False
+            )
             
         def parse_date_time(dt: datetime.datetime):
             """Datetime but with hms."""
             date = parse_date(dt)
             if self.fsc.maica_settings.basic.target_lang == 'zh':
-                time = beautify_time(dt, 'zh')
+                time = beautify_time(dt, 'zh', include_adj=False)
                 return f"{date}{time}"
             else:
-                time = beautify_time(dt, 'en')
+                time = beautify_time(dt, 'en', include_adj=False)
                 return f"{time}, {date}"
 
         # Seriously hard work begins here
@@ -96,12 +101,12 @@ class SessionPersistentMixin():
 
         data1 = _rf('mas_player_bday')
         if data1:
-            dt = datetime(*data1)
+            dt = datetime.date(*data1)
             _ap(
                 f'[player]的生日是{parse_date(dt)}.',
                 f"[player]'s birthday is {parse_date(dt)}."
             )
-            o = relativedelta(datetime.today(), dt).years
+            o = relativedelta(datetime.date.today(), dt).years
             _ap(
                 f'[player]今年{o}岁.',
                 f"[player] is {o} years old."
@@ -148,7 +153,7 @@ class SessionPersistentMixin():
         if data1:
             try:
                 r_fs = ReUtils.re_search_sfe_fs.search(data1).groups()
-                dt_fs = datetime(*r_fs)
+                dt_fs = datetime.date(*r_fs)
                 _ap(
                     f'莫妮卡和[player]在{parse_date(dt_fs)}初次见面.',
                     f"Monika and player had their first date on {parse_date(dt_fs)}."
@@ -168,8 +173,8 @@ class SessionPersistentMixin():
             try:
                 r_le = ReUtils.re_search_sfe_le.search(data1)
                 r_cs = ReUtils.re_search_sfe_cs.search(data1)
-                dt_le = datetime(*r_le)
-                dt_cs = datetime(*r_cs)
+                dt_le = datetime.datetime(*r_le)
+                dt_cs = datetime.datetime(*r_cs)
                 _ap(
                     f'[player]上次下线于{parse_date_time(dt_le)}, 本次上线于{parse_date_time(dt_cs)}.',
                     f"[player] last left at {parse_date_time(dt_le)}, last logged in at {parse_date_time(dt_cs)}"
@@ -915,18 +920,18 @@ class SessionPersistentMixin():
             result = sample(result, limit)
         return result
 
-    def form_info(self):
+    def form_info(self) -> Set:
         conclusion = []
         conclusion.extend(self._conclude_basic_sf())
         conclusion.extend(self._conclude_moni_sf())
         conclusion.extend(self._conclude_extra_sf())
 
-        conclusion_strs = []
+        conclusion_strs = set()
         for i in conclusion:
             if isinstance(i, BilingualText):
-                conclusion_strs.append(i.to_str(self.fsc.maica_settings.basic.target_lang))
+                conclusion_strs.add(i.to_str(self.fsc.maica_settings.basic.target_lang))
             else:
-                conclusion_strs.append(i)
+                conclusion_strs.add(i)
 
         return conclusion_strs
     
@@ -952,7 +957,7 @@ class SessionPersistentMixin():
         )
 
         old_texts = {x["raw_text"] for x in old}
-        new_texts = set(self.form_info())
+        new_texts = self.form_info()
 
         to_add = new_texts - old_texts
         to_del = old_texts - new_texts
@@ -985,7 +990,7 @@ class SessionPersistentMixin():
                 ]
             )
 
-    async def filter_milvus(self, query: str, topk: int = 5):
+    async def filter_milvus(self, query: str, topk: int = 5) -> Set:
         """Embed and search query from milvus."""
         vector_pool = self.fsc.vector_pool
         user_id = self.fsc.maica_settings.verification.user_id
@@ -1015,7 +1020,7 @@ class SessionPersistentMixin():
 
         return res_set
 
-    async def filter_reranker(self, query: str, documents: Optional[list] = None, topk: int = 2):
+    async def filter_reranker(self, query: str, documents: Optional[list] = None, topk: int = 2) -> list:
         """More precisely filter results, suggest using filter_milvus first."""
         reranking_conn = self.fsc.reranking_conn
 
@@ -1035,7 +1040,7 @@ class SessionPersistentMixin():
         res_list = [i["document"]["text"] for i in resp["results"]]
         return res_list
 
-    async def filter_llm(self, query: str, documents: Optional[list] = None, topk: int = 3):
+    async def filter_llm(self, query: str, documents: Optional[list] = None, topk: int = 3) -> list:
         """Traditional MFocus sfe implementation."""
         session = MaicaSession()
         target_lang = session.default_target_lang = self.fsc.maica_settings.basic.target_lang
@@ -1106,9 +1111,9 @@ class SessionTriggerMixin():
         boolean_trigger_dict_list = []
 
         triggers_dict_list = []
+        triggers_dict_list += self.content_temp
         if self.settings.basic.mt_extraction:
             triggers_dict_list += self.content
-        triggers_dict_list += self.content_temp
 
         for trigger_dict in triggers_dict_list:
             match trigger_dict['template']:
@@ -1127,9 +1132,13 @@ class SessionTriggerMixin():
         boolean_trigger_dict_list = limit_length(boolean_trigger_dict_list, 20)
 
         triggers: List[BaseTrigger] = []
+        trigger_names = set()
         for l in (aff_trigger_dict_list, switch_trigger_dict_list, meter_trigger_dict_list, boolean_trigger_dict_list):
             for i in l:
-                triggers.append(TypeAdapter(TypeTrigger).validate_python(i))
+                trigger_model: BaseTrigger = TypeAdapter(TypeTrigger).validate_python(i)
+                if not trigger_model.name in trigger_names:
+                    triggers.append(trigger_model)
+                    trigger_names.add(trigger_model.name)
 
         return triggers
     

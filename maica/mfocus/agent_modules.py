@@ -17,7 +17,6 @@ class AgentTools():
         self.fsc = fsc
         self.sp = sp
 
-    @property
     def _time_tz(self):
         tz = self.fsc.maica_settings.basic.tz
 
@@ -59,14 +58,15 @@ class AgentTools():
         """
         target_lang = self.fsc.maica_settings.basic.target_lang
         
-        dt = self._time_tz()
+        dt = self._time_tz().date()
         text = beautify_date(dt, target_lang, 'S' if self.sp.read_key('_mas_pm_live_south_hemisphere') else 'N')
-        text = f"现在是{text}" if target_lang == 'zh' else f"Today is {text}"
+        text = f"今天是{text}" if target_lang == 'zh' else f"Today is {text}"
 
         return text, dt
 
     async def weather_acquire(self, location: Optional[str]=None, *args, **kwargs) -> tuple[str, str]:
-        """Gets current weather.
+        """
+        Gets current weather.
         - location: reads from sp if not provided
 
         Returns:
@@ -74,7 +74,7 @@ class AgentTools():
         - raw result (dict)
         """
         target_lang = self.fsc.maica_settings.basic.target_lang
-        text = "天气未知" if target_lang == 'zh' else "Weather unknown"
+        text = "查询不到当前的天气." if target_lang == 'zh' else "Cannot acquire current weather."
         weather = None
 
         location = location or self.sp.read_key('mas_geolocation')
@@ -90,141 +90,138 @@ class AgentTools():
 
         return text, weather
 
-    async def event_acquire(self, *args, **kwargs: dict[str: int]) -> tuple[str, str]:
-        """Gets meaningful events. Requires fsc and sp, optional ymd and predict and importance."""
+    async def event_acquire(self, dt: Optional[datetime.date] = None, *args, **kwargs) -> tuple[str, str]:
+        """
+        Gets meaningful date events.
+        """
         target_lang = self.fsc.maica_settings.basic.target_lang
-        tz = self.fsc.maica_settings.extra.tz
-        time_today = self._time_tz()
-        date_cursor = EventsCollection()
 
-        date_in = []
-        for k in 'year', 'month', 'day':
-            date_in.append(kwargs[k] if kwargs.get(k) else getattr(time_today, k))
+        today_dt = self._time_tz().date()
+        dt = dt or today_dt
 
-        try:
-            player_bday = self.sp.read_key('mas_player_bday')
-            player_bday = datetime.datetime(*vali_date(*player_bday))
-        except Exception:
-            player_bday = None
+        ev_collection = EventsCollection()
 
-        major_day_is_today = False
-        target_date = datetime.datetime(*vali_date(*date_in))
+        pbday = self.sp.pbday
+        player_bday = (pbday[1], pbday[2]) if pbday else None
 
-        predict = kwargs.get('predict')
-        if is_today(target_date):
-            major_day_is_today = True
-            if predict is None:
-                predict = 2
-        elif predict is None:
-            predict = 0
+        # If you're asked "What is today" you probably just think if it's nye or birthday or what
+        # But if it's "What is 3.22" and you'll think a bit more. Since it's Monika, it isn't weird that she'd know
+        # it's world water day or what.
+        # So, if we're searching today:
+        # - We return today's awareness >= 1 events
+        # - We also return tomorrow's awareness >= 2 events
+        # - We can determine how many days those events should be awared in advance by awareness level
 
-        # The importance mechanism:
+        # If we're asking a precise date that's not today, we likely don't care its following days
+        # So in that case, we only return awareness >= 0 events on the exact day.
 
-        # When major day is today, we want to search a wider range of days, 
-        # but ignore the unimportant events since they aren't cared in daily
-        # lives
+        dt_is_today = dt == today_dt
+        days_to_search: List[Tuple[datetime.date, int]] = []
 
-        # But when major day is not today, we assume that user is asking a
-        # question about a percise date, so we'll dig deeper on that. The
-        # following days are usually not cared about
-
-        # Specifically, when mf_constant_tools is set to >= 3, we enable all
-        # importance levels to be represented on major day. This is not
-        # recommended
-
-        global_importance = kwargs.get('importance', 2)
-        if not major_day_is_today:
-            global_importance -= 2
-        if self.fsc.maica_settings.extra.mf_constant_tools >= 3:
-            global_importance -= 1
-        assert isinstance(global_importance, int), "Importance input not valid"
-
-        days_regs_list: list[list[RegEvent]] = []
-        days_events_list = []
-        for next_days in range(predict + 1):
-
-            target_next_day = target_date + datetime.timedelta(days=next_days)
-            days_regs_list.append(date_cursor.find(target_next_day.year, target_next_day.month, target_next_day.day))
-
-        day_seq = 0
-        for day_regs_list in days_regs_list:
-            day_seq += 1
-            is_major_day = day_seq == 1
-            local_importance = global_importance if (is_major_day or global_importance >= 2) else global_importance + 1
-
-            if major_day_is_today:
-                match day_seq:
-                    case 1:
-                        today = "今天" if target_lang == 'zh' else "Today"
-                    case 2:
-                        today = "明天" if target_lang == 'zh' else "Tomorrow"
-                    case 3:
-                        today = "后天" if target_lang == 'zh' else "The day after tomorrow"
-                    case _:
-                        today = f"{day_seq - 1}天后" if target_lang == 'zh' else f"{day_seq - 1} days later"
-            else:
-                match day_seq:
-                    case 1:
-                        today = "这一天" if target_lang == 'zh' else "This day"
-                    case 2:
-                        today = f"这一天后{day_seq - 1}天" if target_lang == 'zh' else f"{day_seq - 1} day after this day"
-                    case _:
-                        today = f"这一天后{day_seq - 1}天" if target_lang == 'zh' else f"{day_seq - 1} days after this day"
-
-            day = target_date + datetime.timedelta(days = day_seq - 1)
-            day_events_list = []
-
-            # Here we determine player's bday
-            if player_bday:
-                player_age = day.year - player_bday.year
-                if (day.month, day.day) == (player_bday.month, player_bday.day):
-                    # Happy birthday [player]!
-                    day_events_list.append(f"[player]的{player_age}岁生日" if target_lang == 'zh' else f"[player]'s {add_seq_suffix(player_age)} birthday")
-
-            # Here we determine Monika's bday
-            if (day.month, day.day) == (9, 22):
-                # Happy birthday Monika!
-                day_events_list.append(f"莫妮卡的生日" if target_lang == 'zh' else f"Monika's birthday")
-
-            # Here we handle every reg for today
-            for reg in day_regs_list:
-
-                # We ignore the unimportant regs
-                if reg.importance >= local_importance:
-                    if target_lang == 'zh':
-                        if reg.name:
-                            day_events_list.append(reg.name)
-                    else:
-
-                        # Most Chinese traditional festivals are not registered with ename
-                        # We don't add them since English users likely don't care
-                        if reg.ename:
-                            day_events_list.append(reg.ename)
-
-            if day_events_list:
-                today_is = f"{today}是" if target_lang == 'zh' else f"{today} is "
-                joint = ", 也是" if target_lang == 'zh' else ", and also "
-                day_event = today_is + joint.join(day_events_list)
-
-                days_events_list.append(day_event)
-            elif is_major_day:
-                days_events_list.append(f"{today}不是特殊节日" if target_lang == 'zh' else f"{today} is not a special event or holiday")
-
-        if days_events_list:
-            content = days_event = '; '.join(days_events_list)
+        if dt_is_today:
+            days_to_search.append((dt, 1))
+            for ext in range(1, 4):
+                days_to_search.append((dt + datetime.timedelta(ext), 1 + ext))
         else:
-            match [major_day_is_today, target_lang]:
-                case [p, t] if p and t == 'zh':
-                    d0_this_day = "今天"
-                case [p, t] if p and t != 'zh':
-                    d0_this_day = "Today"
-                case [p, t] if not p and t == 'zh':
-                    d0_this_day = "这一天"
-                case [p, t] if not p and t != 'zh':
-                    d0_this_day = "This day"
-            content = days_event = f"{major_day_is_today}不是特殊节日" if target_lang == 'zh' else f"{major_day_is_today} is not a special event or holiday"
+            days_to_search.append((dt, 0))
 
-        return content, days_event
+        # Register extras
+        bdays = (
+            RegEvent(md=(9, 22), name="莫妮卡的生日", ename="Monika's birthday", awareness=3),
+        )
+        if player_bday:
+            bdays.add(
+                RegEvent(md=player_bday, name="[player]的生日", ename="[player]'s birthday", awareness=5)
+            )
+        for bday in bdays:
+            ev_collection.add(bday)
+
+        # Search
+        search_results = []
+        for day in days_to_search:
+            search_results.append(ev_collection.search(day[0]))
+
+        # Friendly strings
+        def today_is(indice: int):
+            if dt_is_today:
+                match indice:
+                    case 0:
+                        today = _Bt(
+                            "今天",
+                            "Today",
+                        )
+                    case 1:
+                        today = _Bt(
+                            "明天",
+                            "Tomorrow",
+                        )
+                    case 2:
+                        today = _Bt(
+                            "后天",
+                            "The day after tomorrow",
+                        )
+                    case _:
+                        today = _Bt(
+                            f"{indice}天后",
+                            f"{indice} days later"
+                        )
+            else:
+                today = beautify_date(dt + datetime.timedelta(indice), target_lang, include_adj=False)
+            return today
+        
+        def and_is(indice: int):
+            """Mind the spaces here."""
+            return _Bt(
+                "是",
+                " is ",
+            ) if indice == 0 else _Bt(
+                "也是",
+                "and also ",
+            )
+
+        # Retrieve results
+        must_name = "name" if target_lang == 'zh' else "ename"
+        search_results = [
+            [
+                event
+                for event in events
+                if getattr(event, must_name, None)
+            ]
+            for events in search_results
+        ]
+
+        text = ""
+        for day_index, events in enumerate(search_results):
+
+            day_is_first = day_index == 0
+            day_is_last = day_index + 1 == len(search_results)
+
+            for ev_index, event in enumerate(events):
+
+                ev_is_first = ev_index == 0
+                ev_is_last = ev_index + 1 == len(events)
+
+                if ev_is_first:
+                    text += today_is(day_index).to_str(target_lang)
+
+                text += and_is(ev_index).to_str(target_lang)
+
+                text += getattr(event, must_name)
+
+                if not ev_is_last:
+                    text += ", "
+                elif not day_is_last:
+                    text += "; "
+                else:
+                    text += "."
+        
+        if not text:
+            if dt_is_today:
+                text = "今天没有特殊节日或事件." if target_lang == 'zh' else "Today is not special event or holiday."
+            else:
+                text = f"{today_is(0)}没有特殊节日或事件." if target_lang == 'zh' else f"{today_is(0)} is not special event or holiday."
+
+        return text, search_results
 
     async def persistent_acquire(self, query: str, *args, **kwargs) -> tuple[str, str]:
         """Gets value from persistent. Requires fsc and sp and query."""

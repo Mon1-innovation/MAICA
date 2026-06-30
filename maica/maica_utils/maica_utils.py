@@ -472,7 +472,7 @@ class ExplainUrl():
 
 @pdataclass
 class BilingualText():
-    zh: str
+    zh: str = ""
     en: Optional[str] = None
 
     @model_validator(mode="after")
@@ -772,7 +772,7 @@ async def wrap_run_in_exc(loop, func, *args, **kwargs) -> any:
     result = await loop.run_in_executor(None, functools.partial(func, *args, **kwargs))
     return result
 
-def limit_length(col: list, limit: int) -> list:
+def limit_length[T](col: list[T], limit: int) -> list[T]:
     return random.sample(col, limit) if limit < len(col) else col
 
 async def dld_json(url, use_proxy=True, ua_disguise=False, method='get', carriage=None) -> json:
@@ -871,32 +871,50 @@ def try_getattr(o, *names) -> Optional[any]:
             break
     return res
 
-def beautify_time(dt: datetime.datetime, target_lang: Literal['zh', 'en', 'auto'] = 'zh'):
-    """Beautifies current time. No date."""
+def beautify_time(dt: datetime.time, target_lang: Literal['zh', 'en', 'auto'] = 'zh', include_adj = True):
+    """
+    Beautifies current time. No date.
+
+    - dt: datetime object, time should be enough
+    - target_lang: you know, effectiveless if not include_adj
+    - include_adj: include adjective, like dawn or morning or what
+    """
     _Bt = BilingualText
+
     match time:
         case time if time.hour < 4:
-            time_range = _Bt('半夜', 'at midnight')
+            time_range = _Bt('半夜', ' at midnight')
         case time if 4 <= time.hour < 6:
-            time_range = _Bt('凌晨', 'before dawn')
+            time_range = _Bt('凌晨', ' before dawn')
         case time if 6 <= time.hour < 8:
-            time_range = _Bt('早上', 'at dawn')
+            time_range = _Bt('早上', ' at dawn')
         case time if 8 <= time.hour < 11:
-            time_range = _Bt('上午', 'in morning')
+            time_range = _Bt('上午', ' in morning')
         case time if 11 <= time.hour < 13:
-            time_range = _Bt('中午', 'at noon')
+            time_range = _Bt('中午', ' at noon')
         case time if 13 <= time.hour < 18:
-            time_range = _Bt('下午', 'in afternoon')
+            time_range = _Bt('下午', ' in afternoon')
         case time if 18 <= time.hour < 23:
-            time_range = _Bt('晚上', 'at night')
+            time_range = _Bt('晚上', ' at night')
         case time if 23 <= time.hour:
-            time_range = _Bt('深夜', 'at midnight')
+            time_range = _Bt('深夜', ' at midnight')
 
-    time_friendly = f"{time_range.zh}{time:%H:%M:%S}" if target_lang == 'zh' else f"{time:%H:%M:%S} {time_range.en}"
+    if include_adj:
+        time_friendly = f"{time_range.zh}{time:%H:%M:%S}" if target_lang == 'zh' else f"{time:%H:%M:%S}{time_range.en}"
+    else:
+        time_friendly = f"{time:%H:%M:%S}"
+
     return time_friendly
 
-def beautify_date(dt: datetime.datetime, target_lang: Literal['zh', 'en', 'auto'] = 'zh', hemisphere: Literal['N', 'S'] = 'N'):
-    """Beautifies current date. No time."""
+def beautify_date(dt: datetime.date, target_lang: Literal['zh', 'en', 'auto'] = 'zh', hemisphere: Literal['N', 'S'] = 'N', include_adj = True):
+    """
+    Beautifies current date. No time.
+    
+    - dt: datetime object, date should be enough
+    - target_lang: you know
+    - hemisphere: it affects season, effectiveless if not include_adj
+    - include_adj: include adjective, like spring or Monday or what
+    """
     _Bt = BilingualText
 
     sp = _Bt("春季", "spring")
@@ -932,7 +950,11 @@ def beautify_date(dt: datetime.datetime, target_lang: Literal['zh', 'en', 'auto'
     weeklist = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
     weekday_zh = weeklist[dt.weekday()]
 
-    date_friendly = f"{dt.year}年{season.zh}{dt.month}月{dt.day}日, {weekday_zh}" if target_lang == 'zh' else f"{dt:%d %B %A, %Y} {season.en}"
+    if include_adj:
+        date_friendly = f"{dt.year}年{season.zh}{dt.month}月{dt.day}日, {weekday_zh}" if target_lang == 'zh' else f"{dt:%d %B, %A, %Y} {season.en}"
+    else:
+        date_friendly = f"{dt.year}年{dt.month}月{dt.day}日" if target_lang == 'zh' else f"{dt:%d %B, %Y}"
+
     return date_friendly
 
 async def hash_sha256(str) -> str:

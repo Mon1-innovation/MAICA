@@ -5,7 +5,7 @@ from .mspire import make_inspire
 from .wiki_get import get_page
 from .weather_get import weather_api_get
 from .serp_get import internet_search
-from .event_get import RegEvent, EventsCollection
+from .date_event_get import RegEvent, EventsCollection
 from .post_proc import emo_proc, emo_proc_llm, emo_proc_auto, post_proc, zlist, elist
 from .post_proc_rt import PPRTProcessor
 from .nv_watcher import NvWatcher

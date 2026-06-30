@@ -39,3 +39,5 @@ If you want to read in English, use a translator.
 = mt_disable_loop默认变为True
 
 = traceray_id更名为tracker_id
+
+- 弃用mf_constant_tools == 3
