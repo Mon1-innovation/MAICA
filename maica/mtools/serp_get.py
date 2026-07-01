@@ -4,69 +4,97 @@ import asyncio
 import traceback
 import functools
 
+from typing import *
+from pydantic import BaseModel, Field
+
 from maica.maica_utils import *
 from . import providers
 
+_Bt = BilingualText
+
 async def internet_search(fsc: FullSocketsContainer, query):
-    target_lang = fsc.maica_settings.basic.target_lang
+    session = MaicaSession()
+    target_lang = session.default_target_lang = fsc.maica_settings.basic.target_lang
+    conn = fsc.mnerve_conn or fsc.mfocus_conn
 
     @Decos.conn_retryer_factory()
     async def _search(fake_self, query, target_lang):
-        results_sync = await (providers.get_asearch())(query, target_lang)
-        assert len(results_sync), 'Search result is empty'
-        return results_sync
+        res_m = await (providers.get_asearch())(query, target_lang)
+        assert res_m.results, 'Search result is empty'
+        return res_m
 
-    results_sync = await _search(DummyClass(name="serp"), query, target_lang)
+    results_list = []
+    try:
+        res_m = await _search(DummyClass(name="serp"), query, target_lang)
 
-    results_full = []
-    results_short = []
-    results_humane = ''
-    rank = 0
-    for item in results_sync:
-        rank += 1
-        title, text = clean_text(item['title']), clean_text(item['text'])
-        results_full.append({'rank': rank, 'title': title, 'text': text})
-        if rank <= 5:
-            results_short.append({'rank': rank, 'title': title, 'text': text})
-        if rank <= 3:
-            humane_text = ReUtils.re_sub_serp_datetime.sub('', text, 1)
-            results_humane += f'信息{rank}\n标题:{title}\n内容:{humane_text}\n'
+        for index, res_i in enumerate(res_m.results):
+            results_list += (
+                f"{index + 1}. "
+                f"({res_i.source})" if res_i.source else ""
+                f"{res_i.title}: {res_i.description}"
+            )
 
-    await messenger(info=f'MFocus got {rank} information lines from search engine', type=MsgType.INFO)
+        await messenger(info=f'MFocus got {len(res_m.results)} information lines from search engine', type=MsgType.INFO)
 
-    results_full_str = str(results_full).strip('[').strip(']')
-    results_short_str = str(results_short).strip('[').strip(']')
-    if not fsc.maica_settings.extra.esearch_llm_concl:
-        return results_short_str, results_humane
+    except Exception as e:
+        res_m = None
+        await messenger(fsc.websocket, "mfocus_serp_failed", f"MFocus serp failed: {str(e)}", '408', fsc.tracker_id)
 
-    system_init = """\
-你是一个人工智能助手, 你接下来会收到一个问题和一些来自互联网的信息.
-以单行不换行的自然语言的形式, 简洁地整理提供相关的信息, 长度不要超过一个自然句. 如果你最终认为提供的信息与问题相关性不足, 返回false.\
-""" if target_lang == 'zh' else """\
-You are a helpful assistant, now you will recieve a question and some information from the Internet.
-Conclude related information briefly in a single line of natural language, and do not exceed the length of a natural sentence. If you think the provided information is not related enough to the question, return false.\
-"""
+    # Early return if llm conc not required
+    if not results_list:
+        text = ''
 
-    messages = [{'role': 'system', 'content': system_init}]
-    messages.append({'role': 'user', 'content': f'question: {query}; information: {results_full_str}'})
-    # messages = apply_postfix(messages, thinking=False)
-    completion_args = {
-        "messages": messages,
-    }
-
-    conn = fsc.mnerve_conn or fsc.mfocus_conn
-
-    resp = await conn.make_completion(**completion_args)
-    resp_content, resp_reasoning = resp.choices[0].message.content, try_getattr(resp.choices[0].message, 'reasoning_content', 'reasoning')
-    resp_content, resp_reasoning = proceed_common_text(resp_content), proceed_common_text(resp_reasoning)
-        
-    await messenger(None, 'mfocus_internet_search', f"\nMFocus toolchain searching internet, response is:\nR: {resp_reasoning}\nA: {resp_content}\nEnd of MFocus toolchain searching internet", '201')
+    elif not fsc.maica_settings.extra.esearch_llm_concl:
+        text = '; '.join(results_list[:5])
     
-    answer_post_think = proceed_common_text(resp_content)
-    if answer_post_think:
-        return answer_post_think, f"参考资料: {answer_post_think}" if target_lang == 'zh' else f"References: {answer_post_think}"
     else:
-        return None, None
+        class EnetSearchConcl(BaseModel):
+            conclusion: Optional[str] = Field(
+                description="你总结出的内容, 应是一个单行自然句." if target_lang == 'zh' else "Your conclusion, should be a single line of nature sentence."
+            )
+
+        system = MaicaSessionItem(
+            "system",
+            _Bt("""\
+你是一个人工智能助手, 你接下来会收到一些来自互联网的信息和一个问题.
+你应将信息中与问题相关的部分整理总结成一个自然句, 保持内容简洁有效, 并将其输出.
+如果没有任何信息与问题相关, 你可以输出null.\
+""",
+"""\
+You are a helpful assistant, now you will recieve some information from the Internet and a question.
+Conclude information related with query briefly in a natural sentence, while keeping it concise and useful, then output.
+If none of the information is relevant with query, you can output null.\
+"""
+            )
+        )
+        session.append(system)
+
+        user_query = MaicaSessionItem(
+            "user",
+            f'Information: {'; '.join(results_list)}\nQuestion: {query}'
+        )
+        session.append(user_query)
+
+        completion_args = {
+            "messages": session.utilize(),
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "name": "selection_result",
+                    "schema": EnetSearchConcl.model_json_schema(),
+                }
+            },
+        }
+
+        resp = await conn.make_completion(**completion_args)
+        selection_result = EnetSearchConcl.model_validate_json(resp.output_text)
+
+        text = selection_result.conclusion
+
+    if not text:
+        text = "未搜索到相关信息." if target_lang == 'zh' else "No relevant information found."
+
+    return text, res_m
 
 if __name__ == '__main__':
     async def test():
@@ -74,7 +102,7 @@ if __name__ == '__main__':
         fsc.maica_settings.basic.target_lang = 'zh'
         # fsc.maica_settings.extra.esearch_llm_concl = False
         fsc.mnerve_conn = await ConnUtils.mnerve_conn()
-        print(await internet_search(fsc, "花谱上海演唱会取消", "花谱上海演唱会取消了，难过"))
+        print(await internet_search(fsc, "花谱上海演唱会取消"))
     from maica import init
     init()
     asyncio.run(test())

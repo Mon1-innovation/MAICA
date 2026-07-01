@@ -1053,7 +1053,7 @@ class SessionPersistentMixin():
         if not documents:
             return []
 
-        class SelectionResult(BaseModel):
+        class PersSelectionResults(BaseModel):
             items: list[str] = Field(
                 min_length=0,
                 max_length=topk,
@@ -1071,7 +1071,7 @@ f"""\
 f"""\
 You are a helpful assistant, your task is finding most relevant items with the query from provided information.
 Your character is called "Monika". You should choose 0 ~ {topk} unique items and output them as-is.
-If none of the informations are relevant with query, you can output empty.\
+If none of the information is relevant with query, you can output empty.\
 """
             ),
         )
@@ -1089,13 +1089,13 @@ If none of the informations are relevant with query, you can output empty.\
                 "format": {
                     "type": "json_schema",
                     "name": "selection_result",
-                    "schema": SelectionResult.model_json_schema(),
+                    "schema": PersSelectionResults.model_json_schema(),
                 }
             },
         }
 
         resp = await conn.make_completion(**completion_args)
-        selection_result = SelectionResult.model_validate_json(resp.output_text)
+        selection_result = PersSelectionResults.model_validate_json(resp.output_text)
 
         return selection_result.items
 

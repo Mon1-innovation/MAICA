@@ -27,7 +27,6 @@ class BdSerpResults(SerpResults):
             data = new_data
         return data
 
-@Decos.conn_retryer_factory()
 async def asearch(query, target_lang: Literal['zh', 'en', 'auto']='zh'):
     host = "api.brightdata.com"
     url = f"https://{host}/request"

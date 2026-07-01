@@ -7,11 +7,28 @@ import asyncio
 import json
 
 from typing import *
+from pydantic import BaseModel, Field, model_validator
 from dataclasses import dataclass
 from openai import AsyncStream
 from openai.types.responses import Response, ResponseStreamEvent
 from .connection_utils import AiConnectionManager
 from .maica_utils import *
+
+class ToolCall(BaseModel):
+    type: str = "function_call"
+    call_id: str
+    name: str
+    arguments: dict = Field(default_factory=lambda: {})
+
+    @model_validator(mode="before")
+    @classmethod
+    def auto_compat(cls, data: Any):
+        if isinstance(data, dict):
+            if data.get("input") and not data.get("arguments"):
+                data["arguments"] = data["input"]
+            if data.get("function") and not data.get("name"):
+                data["name"] = data["function"]
+        return data
 
 async def parse_responses_output(
     resp: Response | AsyncStream[ResponseStreamEvent],
@@ -19,7 +36,7 @@ async def parse_responses_output(
     asyncio.Task,
     AsyncIterator[str],
     AsyncIterator[str],
-    AsyncIterator[Dict[str, Any]],
+    AsyncIterator[ToolCall],
 ]:
     """
     Returns:
@@ -51,19 +68,10 @@ async def parse_responses_output(
 
         # tool call
         elif t in ("tool_call", "function_call", "function"):
-            call_id = getattr(item, "id", None)
-            name = getattr(item, "name", None) or getattr(item, "function", None)
-            args = getattr(item, "arguments", None) or getattr(item, "input", None)
-
-            if call_id not in _tool_calls_ids:
-                _tool_calls_ids.add(call_id)
-                tool_call = {
-                    "type": "function_call",
-                    "call_id": call_id,
-                    "name": name,
-                    "arguments": json.loads(args),
-                }
-
+            tool_call = ToolCall.model_validate(item)
+            
+            if not tool_call.call_id in _tool_calls_ids:
+                _tool_calls_ids.add(tool_call.call_id)
                 tool_q.put_nowait(tool_call)
 
         else:

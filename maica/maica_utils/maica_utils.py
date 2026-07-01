@@ -380,7 +380,7 @@ class Decos():
                     case i if getattr(i, "db_type", None) in ("mysql", "sqlite"):
                         exception_cls = MaicaDbError
                         conn_type = 'db_conn'
-                    case i if getattr(i, "db_type", None) in ("milvus"):
+                    case i if getattr(i, "db_type", None) in ("milvus",):
                         exception_cls = MaicaDbError
                         conn_type = 'vdb_conn'
                     case _:

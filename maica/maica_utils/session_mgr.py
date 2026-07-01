@@ -47,12 +47,18 @@ class MaicaSessionItem():
             data["content"] = data["content"].to_str(self.target_lang)
         return data
     
-    def utilize(self, text_only=False) -> dict:
+    def utilize(self, text_only: Literal[False, None, True] = None) -> dict:
+        """
+        text_only:
+        False: force image
+        None: auto decide (for core model)
+        True: disable image
+        """
         if self.role in ["system", "user", "assistant"]:
             d = {"role": self.role}
             content = self.content if isinstance(self.content, str) else self.content.to_str(self.target_lang)
 
-            if is_mcore_vl() and not text_only:
+            if is_mcore_vl() and not text_only is True:
                 image_urls = self.context.get(image_urls)
                 if image_urls:
                     content = [
@@ -231,7 +237,7 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         return [i.json() for i in self]
     
     @overload
-    def utilize(self, text_only=False) -> list: ...
+    def utilize(self, text_only: Literal[False, None, True] = None) -> list: ...
 
     def utilize(self, *args, **kwargs):
         # If session == -1, we shall preserve the prompt

@@ -5,6 +5,7 @@ import re
 import traceback
 
 from typing import *
+from dateutil import parser
 from maica.mtools import *
 from .mfocus_main import SfPersistentManager
 from maica.maica_utils import *
@@ -64,7 +65,7 @@ class AgentTools():
 
         return text, dt
 
-    async def weather_acquire(self, location: Optional[str]=None, *args, **kwargs) -> tuple[str, str]:
+    async def weather_acquire(self, location: Optional[str] = None, *args, **kwargs) -> tuple[str, str]:
         """
         Gets current weather.
         - location: reads from sp if not provided
@@ -74,8 +75,6 @@ class AgentTools():
         - raw result (dict)
         """
         target_lang = self.fsc.maica_settings.basic.target_lang
-        text = "查询不到当前的天气." if target_lang == 'zh' else "Cannot acquire current weather."
-        weather = None
 
         location = location or self.sp.read_key('mas_geolocation')
         if not location:
@@ -86,15 +85,19 @@ class AgentTools():
             text = weather.to_friendly(target_lang)
 
         except CommonMaicaException as ce:
+            text = "查询不到当前的天气." if target_lang == 'zh' else "Cannot acquire current weather."
+            weather = None
             await messenger(self.fsc.websocket, 'maica_mfocus_weather_failed', tracker_id=self.fsc.rsc.tracker_id, error=ce, no_raise=True)
 
         return text, weather
 
-    async def event_acquire(self, dt: Optional[datetime.date] = None, *args, **kwargs) -> tuple[str, str]:
+    async def event_acquire(self, dt_str: Optional[str] = None, *args, **kwargs) -> tuple[str, str]:
         """
         Gets meaningful date events.
         """
         target_lang = self.fsc.maica_settings.basic.target_lang
+
+        dt = parser.parse(dt_str) if dt_str else None
 
         today_dt = self._time_tz().date()
         dt = dt or today_dt
@@ -220,11 +223,14 @@ class AgentTools():
                 text = "今天没有特殊节日或事件." if target_lang == 'zh' else "Today is not special event or holiday."
             else:
                 text = f"{today_is(0)}没有特殊节日或事件." if target_lang == 'zh' else f"{today_is(0)} is not special event or holiday."
+            search_results = None
 
         return text, search_results
 
     async def persistent_acquire(self, query: str, *args, **kwargs) -> tuple[str, str]:
         """Gets value from persistent."""
+        target_lang = self.fsc.maica_settings.basic.target_lang
+
         match self.fsc.maica_settings.extra.mf_extraction_impl:
             case 0:
                 res = await self.sp.filter_llm(query)
@@ -233,24 +239,35 @@ class AgentTools():
             case 2:
                 res = await self.sp.filter_milvus(query)
 
-        text = '; '.join(res)
+        if res:
+            text = '; '.join(res)
+        else:
+            text = "没有找到相关记忆, 可能是没有记录." if target_lang == 'zh' else "Relevant memory not found, possibly not recorded."
 
         return text, res
 
-    async def search_internet(self, ser_query: str, org_query: str, *args, **kwargs) -> tuple[str, str]:
+    async def search_internet(self, ser_query: str, org_query: Optional[str] = None, *args, **kwargs) -> tuple[str, str]:
         """Searches result from internet."""
-        try:
-            return await internet_search(self.fsc, ser_query)
-        except Exception:
-            return None, None
-    
-    async def vista_acquire(self, img_list: list[str], query: Optional[str]=None, *args, **kwargs) -> tuple[str, str]:
-        """Gets information from image. Requires fsc and img_list and query."""
-        target_lang = self.fsc.maica_settings.basic.target_lang
-        if not query:
-            query = "简要地描述图片的整体内容" if target_lang == 'zh' else "Briefly summarize content of the pictures"
+        text, res_m = await internet_search(self.fsc, ser_query)
 
-        return await query_vlm(self.fsc, query, img_list)
+        if not text:
+            res_m = None
+
+        return text, res_m
+    
+    async def vista_acquire(self, query: Optional[str] = None, *args, **kwargs) -> tuple[str, str]:
+        """Gets information from image."""
+        img_list = self.fsc.maica_settings.temp.mv_imgs
+
+        if not query:
+            query = _Bt(
+                "简要地描述图片的整体内容",
+                "Briefly summarize content of the pictures",
+            )
+
+        text = await query_vlm(self.fsc, query, img_list)
+
+        return text, text
 
 if __name__ == "__main__":
     import asyncio

@@ -43,7 +43,7 @@ async def asearch(query: str, target_lang: Literal['zh', 'en', 'auto']) -> SerpR
 available_list: list[tuple[int, asearch]] = []
 last_used = -1
 
-def get_asearch(avoid: Union[Literal['last'], int]=None, rand: bool=False) -> asearch:
+def get_asearch(avoid: Union[Literal['last'], int]=None, rand: bool=False) -> Callable[[str, str], Coroutine[Any, Any, SerpResults]]:
     global last_used
 
     if avoid == 'last':

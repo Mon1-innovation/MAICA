@@ -74,7 +74,7 @@ from .gvars import online_dict, G
 from .session_mgr import MaicaSession, MaicaSessionItem, SessionPersistent, SessionTrigger, acquire_dbo, acquire_session, dbos_gc
 from .db_bound_obj import DbBoundObject
 from .agent_tools import WrappedOpenAIToolProperty, WrappedOpenAITool, WrappedOpenAIToolNamespace, BaseTrigger, AffectionTrigger, SwitchTrigger, MeterTrigger, BooleanTrigger, TypeTrigger
-from .llm_utils import llm_request
+from .llm_utils import ToolCall, llm_request
 
 __all__ = [
     'silent',
@@ -178,6 +178,7 @@ __all__ = [
     'MeterTrigger',
     'BooleanTrigger',
     'TypeTrigger',
+    'ToolCall',
     'llm_request',
 ]
 

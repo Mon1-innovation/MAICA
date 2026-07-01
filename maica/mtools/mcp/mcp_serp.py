@@ -21,7 +21,7 @@ async def _asearch(query, target_lang='zh'):
     serp_initiation_args = {
         "command": SERP_BIN,
         "args": [],
-        "env": {k: "http://192.168.9.152:7890" for k in ['http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY']},
+        "env": {k: G.A.PROXY_ADDR for k in ['http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY']},
     }
     serp_initiation_args["env"].update({
         "DISPLAY": (load_env("DISPLAY") or '') if bool(int(G.A.ENABLE_X11)) else ''
