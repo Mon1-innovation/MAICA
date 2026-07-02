@@ -98,7 +98,7 @@ class _BaseTriggerExprop(BaseModel):
             
 class _SwitchTriggerExprop(_BaseTriggerExprop):
     _template: ClassVar[str] = "common_switch_template"
-    item_list: list
+    item_list: list[str]
     curr_item: Optional[str] = None
     suggestion: bool = False
 
@@ -130,7 +130,7 @@ class _SwitchTriggerExprop(_BaseTriggerExprop):
 
 class _MeterTriggerExprop(_BaseTriggerExprop):
     _template: ClassVar[str] = "common_meter_template"
-    value_limits: list = Field(min_length=2, max_length=2)
+    value_limits: list[float] = Field(min_length=2, max_length=2)
     curr_value: Optional[float] = None
 
     def to_properties(self):
@@ -157,6 +157,8 @@ class _BooleanTriggerExprop(_BaseTriggerExprop):
     def to_properties(self):
         return []
 
+_Ct = str | BilingualText
+
 class BaseTrigger(BaseModel):
     """Base class of MTrigger items."""
     template: ClassVar[str]
@@ -165,6 +167,10 @@ class BaseTrigger(BaseModel):
 
     @abstractmethod 
     def to_tool(self) -> WrappedOpenAITool: ...
+
+    # This could be defaulted
+    def to_descr(self) -> Tuple[Optional[_Ct], list[_Ct]]:
+        return None, []
 
 class AffectionTrigger(BaseTrigger):
     template = "common_affection_template"
@@ -194,6 +200,12 @@ class AffectionTrigger(BaseTrigger):
                 )
             ]
         )
+    
+    def to_descr(self):
+
+        # We do not want user saying "Give me 5 affection" actually work.
+        # Or at least, actually misleading the core model.
+        return super().to_descr()
 
 class SwitchTrigger(BaseTrigger):
     template = "common_switch_template"
@@ -219,6 +231,27 @@ class SwitchTrigger(BaseTrigger):
             ),
             requiredParams=required_params
         )
+    
+    def to_descr(self):
+        choose = _Bt(
+            "选择",
+            "choose ",
+        )
+        choose_list = [
+            choose + i
+            for i in self.exprop.item_list
+        ]
+
+        text = _Bt(
+            "切换",
+            "Change ",
+        )\
+        + self.exprop.item_name\
+        + ": "\
+        + ", ".join(choose_list)
+
+        l = choose_list
+        return text, l
 
 class MeterTrigger(BaseTrigger):
     template = "common_meter_template"
@@ -244,6 +277,23 @@ class MeterTrigger(BaseTrigger):
             ),
             requiredParams=required_params
         )
+    
+    def to_descr(self):
+        t1 = _Bt(
+            "调整",
+            "Adjust ",
+        )\
+        + self.exprop.item_name
+
+        text = t1 + ": "\
+        + _Bt(
+            "范围",
+            "range ",
+        )\
+        + f"{self.exprop.value_limits[0]}~{self.exprop.value_limits[1]}"
+
+        l = [t1]
+        return text, l
 
 class BooleanTrigger(BaseTrigger):
     template = "customized"
@@ -259,6 +309,16 @@ class BooleanTrigger(BaseTrigger):
                 f"Call this tool to trigger {item_name.en}",
             )
         )
+    
+    def to_descr(self):
+        text = _Bt(
+            "触发",
+            "Trigger ",
+        )\
+        + self.exprop.item_name
+
+        l = [text]
+        return text, l
     
 TypeTrigger = Annotated[
     Union[

@@ -49,7 +49,7 @@ If none of the images is relevant with query, you can output null.\
         "text": {
             "format": {
                 "type": "json_schema",
-                "name": "selection_result",
+                "strict": True,
                 "schema": VistaSearchConcl.model_json_schema(),
             }
         },

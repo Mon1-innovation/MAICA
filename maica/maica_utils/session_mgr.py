@@ -74,18 +74,29 @@ class MaicaSessionItem():
             return self.preserved
 
     def form_known_info(self) -> str:
-        """Form the known_info dict into a str. Maybe we use markdown since it's more modern."""
-        known_info = self.context.get("known_info"); known_str = ""
+        """
+        Form the known_info dict into a str. Maybe we use markdown since it's more modern.
+        Note that in v1.3, we have unified known_info, so it's completely dict[str, str].
+        """
+        known_info: dict = self.context.get("known_info")
         # {
         #     "time_acquire": "现在是...",
         #     "date_acquire": "今天是...",
-        #     "persistent_acquire": ["莫妮卡...", "[player]..."]
+        #     "persistent_acquire": "莫妮卡...; [player]...",
+
+        # Specially but not that specially, mf_llm_concl is also here:
+        #     "generated_guidance": "总的来说, ...",
+        # Also:
+        #     "mt_prediction": "用户的请求是可以完成的...",
+        
+        # But these don't have to be explicitly handled, so we leave it be.
         # }
-        for k, v in known_info.items():
-            if isinstance(v, list):
-                v = "; ".join(v)
-            known_str += f"\n- {v}"
-        known_str += "\n"
+        if known_info:
+            known_str = "\n- " + "\n- ".join(
+                [i for i in known_info.values()]
+            ) + "\n"
+        else:
+            known_str = ""
         return known_str
 
 class MaicaSession(list[MaicaSessionItem], DbBoundObject):
@@ -185,6 +196,7 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         prompt = _basic_gen_system(curr_item.target_lang, curr_context['strict_conv'])
         exprompt = ""; format_kvs = {}; strip_following_spaces = False
 
+        # Extend the prompt for conditions
         if curr_context['nsfw_acceptive']:
             if curr_item.target_lang == 'zh':
                 prompt += G.A.PROMPT_ZNP
@@ -371,7 +383,7 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         self.default_target_lang = fsc.maica_settings.basic.target_lang
         self.default_context.update({
                 "strict_conv": fsc.maica_settings.temp.strict_conv,
-                "player_name": "[player]",
+                # "player_name": "[player]",
                 "nsfw_acceptive": fsc.maica_settings.extra.nsfw_acceptive,
                 "image_urls": fsc.maica_settings.temp.mv_imgs if is_mcore_vl() else [],
             }
@@ -482,7 +494,7 @@ async def _fsc_acquire_dbo(type: Literal["session", "persistent", "trigger"], fs
 @asynccontextmanager
 async def acquire_dbo(type: Literal["session", "persistent", "trigger"], fsc: FullSocketsContainer):
     """This should be used as context manager!"""
-    session = _fsc_acquire_dbo(type, fsc)
+    session = await _fsc_acquire_dbo(type, fsc)
     async with session.lock:
         yield session
 

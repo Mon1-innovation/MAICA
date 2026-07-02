@@ -18,7 +18,7 @@ _Wtp = WrappedOpenAIToolProperty
 _Wt = WrappedOpenAITool
 _Wtn = WrappedOpenAIToolNamespace
 
-class MfLLMRouter():
+class MfPipeliner():
     """
     MFocus only works single-round, so maybe not required to implement multiple query rounds.
     We will make it if possible anyway.
@@ -35,8 +35,9 @@ class MfLLMRouter():
         self._reset_tools()
         self._reset_session()
 
-    def __init__(self, fsc: FullSocketsContainer):
+    def __init__(self, fsc: FullSocketsContainer, sp: SessionPersistent):
         self.fsc = fsc
+        self.sp = sp
         self.reset()
 
     @property
@@ -291,72 +292,71 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
             tools_looped_rnds += 1
 
             # Prepare a toolbox
-            async with acquire_dbo('persistent', self.fsc) as sp:
-                toolbox = AgentTools(self.fsc, sp)
+            toolbox = AgentTools(self.fsc, self.sp)
 
-                async def tool_respond(tool_call: ToolCall) -> Union[str, False]:
-                    """
-                    Tool router and caller.
+            async def tool_respond(tool_call: ToolCall) -> Union[str, False]:
+                """
+                Tool router and caller.
+                
+                Return:
+                - False for stopping, str for tool response creating
+                """
+                nonlocal generated_guidance
+
+                tool_name = tool_call.name
+                arguments = tool_call.arguments
+
+                # Some special tools handled explicitly
+                match tool_name:
+                    case "conclude_information":
+                        conclusion = arguments["conclusion"]
+                        if conclusion:
+                            generated_guidance = conclusion
+                        return False
                     
-                    Return:
-                    - False for stopping, str for tool response creating
-                    """
-                    nonlocal generated_guidance
+                    case "agent_finished":
+                        return False
+                    
+                    # Common tools here
+                    case _:
+                        tool = getattr(toolbox, tool_name)
 
-                    tool_name = tool_call.name
-                    arguments = tool_call.arguments
+                        # We designed all tools to return Tuple[readable_result, actual_values]
+                        # Item should not be added to final results if actual_values bool is false.
+                        text, body = await tool(**arguments)
 
-                    # Some special tools handled explicitly
-                    match tool_name:
-                        case "conclude_information":
-                            conclusion = arguments["conclusion"]
-                            if conclusion:
-                                generated_guidance = conclusion
-                            return False
-                        
-                        case "agent_finished":
-                            return False
-                        
-                        # Common tools here
-                        case _:
-                            tool = getattr(toolbox, tool_name)
+                        # Do not record it for mcore if the tool actually failed
+                        if body:
 
-                            # We designed all tools to return Tuple[readable_result, actual_values]
-                            # Item should not be added to final results if actual_values bool is false.
-                            text, body = await tool(**arguments)
+                            # We can theoretically keep all resps, but that's not useful I think.
+                            # In case that's really necessary, just use mf_llm_concl
+                            tools_results["tool_name"] = (text, body)
 
-                            # Do not record it for mcore if the tool actually failed
-                            if body:
+                        return text
+                    
+            async for tool_call in a_tool_calls:
 
-                                # We can theoretically keep all resps, but that's not useful I think.
-                                # In case that's really necessary, just use mf_llm_concl
-                                tools_results["tool_name"] = (text, body)
+                # Create maica compatible item
+                maica_tool_call = MaicaSessionItem(
+                    preserved=tool_call.model_dump()
+                )
+                self.mf_session.append(maica_tool_call)
 
-                            return text
-                        
-                async for tool_call in a_tool_calls:
+                # Then if we need to respond
+                tool_response = await tool_respond(tool_call)
+                if not tool_response:
+                    conversation_rnd_end = True
+                    break
 
-                    # Create maica compatible item
-                    maica_tool_call = MaicaSessionItem(
-                        preserved=tool_call.model_dump()
-                    )
-                    self.mf_session.append(maica_tool_call)
-
-                    # Then if we need to respond
-                    tool_response = await tool_respond(tool_call)
-                    if not tool_response:
-                        conversation_rnd_end = True
-                        break
-
-                    # Then create the tool response item
-                    maica_tool_response = MaicaSessionItem(
-                        preserved={
-                            "type": "function_call_output",
-                            "call_id": tool_call.call_id,
-                            "output": tool_response,
-                        }
-                    )
-                    self.mf_session.append(maica_tool_response)
+                # Then create the tool response item
+                maica_tool_response = MaicaSessionItem(
+                    preserved={
+                        "type": "function_call_output",
+                        "call_id": tool_call.call_id,
+                        "output": tool_response,
+                    }
+                )
+                self.mf_session.append(maica_tool_response)
 
         conn = self.fsc.mfocus_conn
         while (
@@ -374,9 +374,33 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
             task, a_reasoning, a_content, a_tool_calls = await llm_request(conn, **completion_args)
             tl = await tools_loop(a_tool_calls)
 
+        def sort_dict(d: dict, seq: list[str]) -> dict:
+            """Sorts keys of dict into given list seq."""
+            nd = {}
+            unlisted_ks = d.keys() - set(seq)
+            for k in seq:
+                if k in d:
+                    nd[k] = d[k]
+            for k in unlisted_ks:
+                nd[k] = d[k]
+            return nd
+        
+        tools_results = sort_dict(
+            tools_results,
+            [
+                "time_acquire",
+                "date_acquire",
+                "weather_acquire",
+                "event_acquire",
+                "persistent_acquire",
+                "search_internet",
+                "vista_acquire",
+            ]
+        )
+
         return generated_guidance, tools_results
     
-    async def mf_pipeliner_unit(self, query: str):
+    async def run_mf_pipeline(self, query: str):
         """
         This wraps _query_response, since it's designed to be multiple-rounds compatible.
         This wrapping is single-round, fits the actual use case.

@@ -80,7 +80,7 @@ If none of the information is relevant with query, you can output null.\
             "text": {
                 "format": {
                     "type": "json_schema",
-                    "name": "selection_result",
+                    "strict": True,
                     "schema": EnetSearchConcl.model_json_schema(),
                 }
             },

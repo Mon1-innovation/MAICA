@@ -134,7 +134,7 @@ class AgentTools():
         )
         if player_bday:
             bdays.add(
-                RegEvent(md=player_bday, name="[player]的生日", ename="[player]'s birthday", awareness=5)
+                RegEvent(md=player_bday, name="{player_name}的生日", ename="{player_name}'s birthday", awareness=5)
             )
         for bday in bdays:
             ev_collection.add(bday)
