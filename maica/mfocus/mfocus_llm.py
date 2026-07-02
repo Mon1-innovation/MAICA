@@ -203,7 +203,7 @@ class MfPipeliner():
         tools: List[Union[WrappedOpenAITool, WrappedOpenAIToolNamespace]] = []
         tools.extend([time_acquire, date_acquire, weather_acquire, event_acquire])
 
-        if self.fsc.maica_settings.extra.mf_constant_pers < 2:
+        if self.fsc.maica_settings.extra.mf_const_sf_access < 2:
             tools.append(persistent_acquire)
 
         if providers.get_asearch():

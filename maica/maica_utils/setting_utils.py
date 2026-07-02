@@ -1,44 +1,21 @@
 """Import layer 2"""
 import asyncio
 from typing import *
-from typing_extensions import deprecated
-from dataclasses import dataclass
+from pydantic import (
+    BaseModel,
+    PrivateAttr,
+    Field,
+    ConfigDict,
+    model_validator,
+)
 from .gvars import *
 from .maica_utils import *
 
-@dataclass
-class _CommonFuncs():
-    """Just a template. Do not initialize!"""
-
-    def reset(self):
-        self.__init__()
-
-    def _dict(self):
-        return {k.removeprefix('_'): getattr(self, k.removeprefix('_')) for k in vars(self).keys()}
-    
-    def __iter__(self):
-        return iter(self._dict().items())
-    
-    @deprecated("Use dict(instance) instead")
-    def __call__(self, *args, **kwargs):
-        return self._dict()
-
-    def update(self, **kwargs):
-        accepted_params = 0
-        for k, v in kwargs.items():
-            if hasattr(self, f'_{k}'):
-                setattr(self, k, v)
-                accepted_params += 1
-        return accepted_params
-
-    @classmethod
-    def default(cls, key=None):
-        inst = cls()
-        defaults = dict(inst)
-        if not key:
-            return defaults
-        else:
-            return defaults[key]
+class SettingModel(BaseModel):
+    """Just a template."""
+    model_config = ConfigDict(
+        validate_assignment=True
+    )
 
 def create_prop(
         name: str,
@@ -47,21 +24,21 @@ def create_prop(
         setter_ext: list[Callable]=None,
         setter_kwargs: dict=None,
     ):
-    """Creates a verificated property."""
+    """We still have to use the old way somewhere, because pydantic does not offer a better solution."""
     private_name = f"_{name}"
     if not isinstance(getter_kwargs, dict):
         getter_kwargs = {}
     if not isinstance(setter_kwargs, dict):
         setter_kwargs = {}
     
-    def getter(self: _CommonFuncs):
+    def getter(self: SettingModel):
         value = getattr(self, private_name, None)
         if getter_ext:
             for func in getter_ext:
                 value = func(self, n=name, v=value, **getter_kwargs)
         return value
     
-    def setter(self: _CommonFuncs, value):
+    def setter(self: SettingModel, value):
         if setter_ext:
             for func in setter_ext:
                 value = func(self, n=name, v=value, **setter_kwargs)
@@ -69,13 +46,11 @@ def create_prop(
     
     return property(getter, setter)
 
-@Decos.report_reading_error
 def read_exist(self, n, v, **kwargs):
     """Value must exist on get."""
     assert v
     return v
 
-@Decos.report_limit_error
 def set_locked(self, n, v, **kwargs):
     """Value can only be rewritten from None."""
     prv_n = f"_{n}"
@@ -84,13 +59,11 @@ def set_locked(self, n, v, **kwargs):
     assert getattr(self, prv_n) is None
     return v
 
-@Decos.report_limit_warning
 def set_literal(self, n, v, valid: list[any], **kwargs):
     """Value must in valid list on set."""
     assert v in valid
     return v
 
-@Decos.report_limit_warning
 def set_range(self, n, v, lower: Union[int, float], upper: Union[int, float], soft_limit: bool=False, **kwargs):
     """Value must in range on set."""
     if isinstance(lower, str):
@@ -109,7 +82,6 @@ def set_range(self, n, v, lower: Union[int, float], upper: Union[int, float], so
     assert lower <= v <= upper
     return v
 
-@Decos.report_limit_warning
 def set_instance(self, n, v, types: list[type], **kwargs):
     """Value must be of desired type."""
     for t in types:
@@ -123,17 +95,29 @@ def set_instance(self, n, v, types: list[type], **kwargs):
         raise AssertionError
     return v
 
-def set_spec_default(self, n, v, defaults: tuple=(None, ), **kwargs):
-    """Value to default if specificated value passed in."""
-    if v in defaults:
-        v = self.default(n)
-    return v
+class ConfigurableSettingModel(SettingModel):
+    """Do not use on cridentials."""
+    @model_validator(mode="before")
+    @classmethod
+    def none_is_default(cls, data: Any):
+        if isinstance(data, dict):
+            for field_name, field_info in cls.model_fields.items():
+                default = field_info.default
+                expected_type = field_info.annotation
 
-class MaicaSettings():
+                value = data.get(field_name)
+                if (
+                    field_name in data
+                    and value == None
+                    and not isinstance(value, expected_type)
+                ):
+                    data[field_name] = default
+        return data
+
+class MaicaSettings(BaseModel):
     """All the per-client settings for MAICA."""
 
-    @dataclass
-    class _Identity(_CommonFuncs):
+    class Identity(SettingModel):
         """Note that this identity is not verified and not safe to use in most cases. Use verification for those."""
 
         _user_id: int = None
@@ -146,199 +130,148 @@ class MaicaSettings():
         nickname = create_prop('nickname', setter_ext=[set_instance], setter_kwargs={"types": [str, None]})
         email = create_prop('email', getter_ext=[read_exist], setter_ext=[set_instance], setter_kwargs={"types": [str]})
 
-    @dataclass
-    class _Verification(_Identity):
+    class Verification(Identity):
         """Verified identity, safe to use."""
 
         user_id = create_prop('user_id', getter_ext=[read_exist], setter_ext=[set_locked, set_instance], setter_kwargs={"types": [int]})
         username = create_prop('username', getter_ext=[read_exist], setter_ext=[set_locked, set_instance], setter_kwargs={"types": [str]})
-        nickname = create_prop('nickname', setter_ext=[set_locked, set_instance], setter_kwargs={"types": [str, None]})
+        # nickname = create_prop('nickname', setter_ext=[set_instance], setter_kwargs={"types": [str, None]})
         email = create_prop('email', getter_ext=[read_exist], setter_ext=[set_locked, set_instance], setter_kwargs={"types": [str]})
 
-    @dataclass
-    class _Basic(_CommonFuncs):
+    class Basic(ConfigurableSettingModel):
         """Major params that decide MAICA's behavior."""
 
-        _stream_output: bool = True
-        _deformation: bool = False
-        _enable_mf: bool = True
-        _enable_mt: bool = True
-        _sf_extraction: bool = True
-        _mt_extraction: bool = True
-        _target_lang: str = 'zh'
-        _tz: Optional[str] = None
-        _max_length: int = 8192
-
-        stream_output = create_prop('stream_output', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        stream_output: bool = True
         """Use stream output."""
-        deformation = create_prop('deformation', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
-        """Deprecated."""
-        enable_mf = create_prop('enable_mf', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        enable_mf: bool = True
         """Enable MFocus."""
-        enable_mt = create_prop('enable_mt', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        enable_mt: bool = True
         """Enable MTrigger."""
-        sf_extraction = create_prop('sf_extraction', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        savefile_access: bool = True
         """Enable savefile extraction."""
-        mt_extraction = create_prop('mt_extraction', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
-        """Enable trigger extraction."""
-        target_lang = create_prop('target_lang', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": ['zh', 'en', 'auto']})
+        target_lang: Literal['zh', 'en', 'auto'] = 'zh'
         """Target language."""
-        tz = create_prop('tz', setter_ext=[set_instance], setter_kwargs={"types": [str, None]})
-        """Timezone. This is not fully checked, double check before use."""
-        max_length = create_prop('max_length', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 512, "upper": 'SESSION_MAX_LENGTH', "soft_limit": True})
+        tz: Optional[str] = None
+        """Timezone."""
+        session_len_limit: int = Field(
+            default=8192,
+            ge=512,
+            le=28672,
+        )
         """Max session length."""
 
-    @dataclass
-    class _Extra(_CommonFuncs):
+    class Extra(ConfigurableSettingModel):
         """Params that aren't that important, but affect MAICA's behavior."""
 
-        _prompt_pname_repl: bool = False
-        _mf_llm_concl: bool = False
-        _mf_extraction_impl: int = 1
-        _mf_constant_pers: int = 1
-        _mf_constant_tools: int = 1
-        _esearch_llm_concl: bool = True
-        _mf_precheck_mt: bool = True
-        _mt_concl_memory: int = 1
-        _nsfw_acceptive: bool = True
-        _mf_context_rnds: int = 0
-        _mt_context_rnds: int = 1
-        _gen_quality_chk: bool = False
-        _mf_disable_loop: bool = True
-        _mt_disable_loop: bool = True
-        _gen_enforce_lang: bool = True
-
-        prompt_pname_repl = create_prop('prompt_pname_repl', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        prompt_pname_repl: bool = False
         """Use name from savefile instead of [player] in prompts."""
-        mf_llm_concl = create_prop('mf_llm_concl', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        mf_llm_concl: bool = False
         """Use agent model's final output instead of instructed guidance."""
-        mf_extraction_impl = create_prop('mf_extraction_impl', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": [0, 1, 2]})
+        mf_sf_access_impl: Literal[0, 1, 2] = 1
         """Use RAG/Reranker to acquire info from persistent instead of traditional MFocus impl."""
-        mf_constant_pers = create_prop('mf_constant_pers', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": [0, 1, 2]})
+        mf_const_sf_access: Literal[0, 1, 2] = 1
         """Add persistent extraction to MFocus instructed guidance even if not called."""
-        mf_constant_tools = create_prop('mf_constant_tools', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": [0, 1, 2, 3]})
+        mf_const_tools: Literal[0, 1, 2] = 1
         """Add information to MFocus instructed guidance even if no tool used."""
-        esearch_llm_concl = create_prop('esearch_llm_concl', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        esearch_llm_concl: bool = True
         """Force agent to resort information acquired from Internet."""
-        mf_precheck_mt = create_prop('mf_precheck_mt', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        mf_precheck_mt: bool = True
         """Add MTrigger toollist to MFocus tools for a precheck."""
-        mt_concl_memory = create_prop('mt_concl_memory', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": [0, 1, 2]})
+        mt_concl_memory: Literal[0, 1, 2] = 1
         """Conclude archived / purged sessions into summarizations."""
-        nsfw_acceptive = create_prop('nsfw_acceptive', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        nsfw_acceptive: bool = True
         """Alter prompt to ask model to handle toxic topics positively."""
-        mf_context_rnds = create_prop('mf_context_rnds', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": [0, 1, 2, 3, 4, 5]})
+        mf_context_rnds: Literal[0, 1, 2, 3, 4, 5] = 0
         """Add history rounds for MFocus to understand the conversation."""
-        mt_context_rnds = create_prop('mt_context_rnds', setter_ext=[set_spec_default, set_literal], setter_kwargs={"valid": [0, 1, 2, 3, 4, 5]})
+        mt_context_rnds: Literal[0, 1, 2, 3, 4, 5] = 1
         """Add history rounds for MFocus to understand the conversation."""
-        gen_quality_chk = create_prop('gen_quality_chk', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        gen_quality_chk: bool = False
         """Check and warn about context quality descalation using MNerve."""
-        mf_disable_loop = create_prop('mf_disable_loop', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        mf_disable_loop: bool = True
         """Disable MFocus sequential toolcall to save time."""
-        mt_disable_loop = create_prop('mt_disable_loop', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        mt_disable_loop: bool = True
         """Disable MTrigger sequential toolcall to save time."""
-        gen_enforce_lang = create_prop('gen_enforce_lang', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        gen_enforce_lang: bool = True
         """Enforce target language (only applies to English currently)."""
 
-
-    @dataclass
-    class _Super(_CommonFuncs):
+    class Super(ConfigurableSettingModel):
         """Passthrough params to core LLM."""
 
-        _max_tokens: int = 1600
-        _seed: Optional[int] = None
-        _top_p: float = 0.7
-        _temperature: float = 0.22
-        _frequency_penalty: float = 0.44
-        _presence_penalty: float = 0.34
+        max_tokens: int = Field(
+            default=1600,
+            ge=1,
+            le=2048,
+        )
+        seed: Optional[int] = None
+        top_p: float = Field(
+            default=0.7,
+            ge=0.1,
+            le=1.0,
+        )
+        temperature: float = Field(
+            default=0.22,
+            ge=0.0,
+            le=1.0,
+        )
+        frequency_penalty: float = Field(
+            default=0.44,
+            ge=0.0,
+            le=1.0,
+        )
+        presence_penalty: float = Field(
+            default=0.34,
+            ge=0.0,
+            le=1.0,
+        )
 
-        max_tokens = create_prop('max_tokens', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 1, "upper": 2048})
-        seed = create_prop('seed', setter_ext=[set_instance], setter_kwargs={"types": [int, None]})
-        top_p = create_prop('top_p', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 0.1, "upper": 1.0})
-        temperature = create_prop('temperature', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 0.0, "upper": 1.0})
-        frequency_penalty = create_prop('frequency_penalty', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 0.0, "upper": 1.0})
-        presence_penalty = create_prop('presence_penalty', setter_ext=[set_spec_default, set_range], setter_kwargs={"lower": 0.0, "upper": 1.0})
-
-    @dataclass
-    class _Temp(_CommonFuncs):
+    class Temp(SettingModel):
         """Should be reset after each round of completion."""
 
-        _chat_session: int=0
-        _sf_extraction_once: bool=False
-        _mt_extraction_once: bool=False
-        _bypass_mf: bool=False
-        _bypass_mt: bool=False
-        _bypass_stream: bool=False
-        _bypass_sup: bool=False
-        _bypass_gen: bool=False
-        _ic_prep: bool=False
-        _strict_conv: bool=True
-        _ms_cache: bool=False
-        _mv_imgs: Optional[list]=None
-
-        chat_session = create_prop('chat_session', setter_ext=[set_spec_default, set_instance, set_range], setter_kwargs={"types": [int], "lower": -1, "upper": 9})
-        sf_extraction_once = create_prop('sf_extraction_once', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
-        """Enable sf_extraction once while sf provided with query."""
-        mt_extraction_once = create_prop('mt_extraction_once', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
-        """Enable mt_extraction once while mt provided with query"""
-        bypass_mf = create_prop('bypass_mf', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        chat_session: int = Field(
+            default=0,
+            ge=-1,
+            le=9,
+        )
+        bypass_mf: bool = False
         """Bypass MFocus once."""
-        bypass_mt = create_prop('bypass_mt', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        bypass_mt: bool = False
         """Bypass MTrigger once."""
-        bypass_stream = create_prop('bypass_stream', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
+        bypass_stream: bool = False
         """Bypass stream output once."""
-        bypass_sup = create_prop('bypass_sup', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
-        """Bypass super params once."""
-        bypass_gen = create_prop('bypass_gen', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
-        """Bypass generation once."""
-        ic_prep = create_prop('ic_prep', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
-        """Adjust generation params once, basically for MPostal."""
-        strict_conv = create_prop('strict_conv', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
-        """Strict conversation prompt."""
-        ms_cache = create_prop('ms_cache', setter_ext=[set_spec_default, set_instance], setter_kwargs={"types": [bool]})
-        """Cache the MSpire response."""
-        mv_imgs = create_prop('mv_imgs', setter_ext=[set_instance], setter_kwargs={"types": [list, None]})
+        mv_imgs: Optional[list] = None
         """List of MVista images urls."""
 
-    def __init__(self):
-        self.identity, self.verification, self.basic, self.extra, self.super, self.temp = self._Identity(), self._Verification(), self._Basic(), self._Extra(), self._Super(), self._Temp()
-
-    def _dict(self):
-        d = dict(self.identity)
-        for k, v in dict(self.verification).items():
-            if v is not None:
-                d[k] = v
-        d.update(dict(self.basic))
-        d.update(dict(self.extra))
-        d.update(dict(self.super))
-        d.update(dict(self.temp))
-        return d
-    
-    def __iter__(self):
-        return iter(self._dict().items())
-
-    def reset(self):
-        """This resets identity stuff too!"""
-        self.__init__()
+    identity: Identity = Field(default_factory=Identity)
+    verification: Verification = Field(default_factory=Verification)
+    basic: Basic = Field(default_factory=Basic)
+    extra: Extra = Field(default_factory=Extra)
+    super: Super = Field(default_factory=Super)
+    temp: Temp = Field(default_factory=Temp)
 
     def soft_reset(self):
         """This resets only passable params."""
-        self.basic, self.extra, self.super = self._Basic(), self._Extra(), self._Super()
+        self.basic, self.extra, self.super = self.Basic(), self.Extra(), self.Super()
 
-    def update(self, secure=None, **kwargs):
-        """Used for handling manual settings."""
-        if secure is False:
-            accepted_params = self.identity.update(**kwargs)
-        elif secure is True:
-            accepted_params = self.verification.update(**kwargs)
-        else:
-            accepted_params = self.basic.update(**kwargs) + self.extra.update(**kwargs) + self.super.update(**kwargs)
-            # We do not accept temps to be manually set
-        return accepted_params
+    def update_settings(self, **kwargs):
+        """
+        Used for handling manual settings.
+        """
+        accepted_params = set()
+
+        for k, v in kwargs.items():
+            for settings_name in ('basic', 'extra', 'super'):
+                settings: ConfigurableSettingModel = getattr(self, settings_name)
+                field_names = settings.__class__.model_fields.keys()
+                if k in field_names:
+                    setattr(settings, k, v)
+                    accepted_params.add(k)
+
+        return len(accepted_params)
 
 if __name__ == "__main__":
+    from maica import init
+    init()
     ms = MaicaSettings()
-    # ms.temp.chat_session = 1
-    print(dict(ms.super))
-    print(dict(ms.basic))
-    # ms2 = MaicaSettings()
-    print(dict(ms.temp))
+    print(ms.super.top_p)
+
+    # ms.basic.savefile_access = 123

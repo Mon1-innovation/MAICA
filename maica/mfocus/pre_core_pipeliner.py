@@ -69,3 +69,4 @@ async def pre_core_pipelines(
 
     async def precheck_mp_pipeline():
         """We have a tiny clever design to let mn detect if mp is poem or letter. Now we do it here."""
+        

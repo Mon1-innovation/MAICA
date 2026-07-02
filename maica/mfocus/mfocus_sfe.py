@@ -798,7 +798,7 @@ class SfPersistentManager(PersistentManager):
         return self.formed_info
 
     async def mfocus_find_info(self, query) -> Optional[list]:
-        if not self.settings.basic.sf_extraction and not self.settings.temp.sf_extraction_once:
+        if not self.settings.basic.savefile_access and not self.settings.temp.savefile_access_once:
             return None
         information = self._mfocus_form_info()
         system_init = f"""\
@@ -844,7 +844,7 @@ Pick 1 to 5 most directly relative items from the information. If information pr
 
     @Decos.report_data_error
     def read_from_sf(self, key) -> any:
-        if not self.settings.basic.sf_extraction and not self.settings.temp.sf_extraction_once:
+        if not self.settings.basic.savefile_access and not self.settings.temp.savefile_access_once:
             return None
         return self.sf_forming_buffer.get(key)
     

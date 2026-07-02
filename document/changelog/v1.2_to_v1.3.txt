@@ -8,7 +8,7 @@ If you want to read in English, use a translator.
 = 更改部分高级设置命名:
     = sfe_aggressive -> prompt_pname_repl
     = mf_aggressive -> mf_llm_concl
-    = tnd_aggressive -> mf_constant_tools
+    = tnd_aggressive -> mf_const_tools
     = esc_aggressive -> esearch_llm_concl
     = amt_aggressive -> mf_precheck_mt
     = pre_additive -> mf_context_rnds
@@ -24,7 +24,7 @@ If you want to read in English, use a translator.
 
 + 添加语言auto的支持
 
-+ 添加高级设置mf_extraction_impl
++ 添加高级设置mf_sf_access_impl
 
 + 添加高级设置mt_concl_memory
 
@@ -34,12 +34,18 @@ If you want to read in English, use a translator.
 
 = affection trigger的参数键改为alter_value
 
-+ 添加高级设置mf_constant_pers
++ 添加高级设置mf_const_sf_access
 
 = mt_disable_loop默认变为True
 
 = traceray_id更名为tracker_id
 
-- 弃用mf_constant_tools == 3
+- 弃用mf_const_tools == 3
 
 = 现在serp采用标准数据模型
+
+= sf_extraction更名为savefile_access
+
+- 弃用mt_extraction
+
+= max_length更名为session_len_limit, 上限改回28672

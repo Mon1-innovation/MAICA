@@ -30,7 +30,7 @@ class SessionPersistentMixin():
 
     def read_key(self, key):
         def _read_perm(key):
-            if self.fsc.maica_settings.basic.sf_extraction:
+            if self.fsc.maica_settings.basic.savefile_access:
                 return self.content.get(key)
             else:
                 return None
@@ -1112,10 +1112,7 @@ class SessionTriggerMixin():
         meter_trigger_dict_list = []
         boolean_trigger_dict_list = []
 
-        triggers_dict_list = []
-        triggers_dict_list += self.content_temp
-        if self.settings.basic.mt_extraction:
-            triggers_dict_list += self.content
+        triggers_dict_list = self.content_temp + self.content
 
         for trigger_dict in triggers_dict_list:
             match trigger_dict['template']:

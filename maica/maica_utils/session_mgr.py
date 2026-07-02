@@ -294,7 +294,7 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
     async def crop_length(self) -> Tuple[list, Literal[0, 1, 2]]:
         """Making it V2 style."""
         use_api = bool(int(G.A.CALC_TOKENS))
-        max_length = self.fsc.maica_settings.basic.max_length
+        max_length = self.fsc.maica_settings.basic.session_len_limit
         warn_length = int(max_length * (2/3))
         generate_length = self.fsc.maica_settings.super.max_tokens
 

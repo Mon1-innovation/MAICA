@@ -231,7 +231,7 @@ class AgentTools():
         """Gets value from persistent."""
         target_lang = self.fsc.maica_settings.basic.target_lang
 
-        match self.fsc.maica_settings.extra.mf_extraction_impl:
+        match self.fsc.maica_settings.extra.mf_sf_access_impl:
             case 0:
                 res = await self.sp.filter_llm(query)
             case 1:
@@ -270,26 +270,4 @@ class AgentTools():
         return text, text
 
 if __name__ == "__main__":
-    import asyncio
-    import time
-    from maica import init
-    init()
-    async def test():
-        fsc = FullSocketsContainer()
-        fsc.maica_settings = MaicaSettings()
-        fsc.maica_settings.verification.update(user_id=18064, username="edge1")
-        fsc.maica_settings.update(target_lang='en')
-        fsc.maica_pool = await ConnUtils.maica_pool()
-        fsc.mfocus_conn = await ConnUtils.mfocus_conn()
-        # fsc.maica_settings.update(esearch_llm_concl=False)
-        sp = await SfPersistentManager.async_create(fsc)
-        at = AgentTools(fsc, sp)
-        time0 = time.time()
-        # res_d = asyncio.run(at.date_acquire())
-        # res_e = asyncio.run(at.event_acquire(year=2025, month=10, day=1))
-        res_i = await at.search_internet('24年奥运会', False, '24年奥运会在哪里')
-        
-        # res_p = await at.persistent_acquire('你喜欢吃什么')
-        print(f'Time consumed: {time.time() - time0}')
-        print(res_i)
-    asyncio.run(test())
+    pass

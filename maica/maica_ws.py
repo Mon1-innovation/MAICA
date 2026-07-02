@@ -241,7 +241,7 @@ class WsCoroutine(NoWsCoroutine):
             if recv_loaded_json.get('reset'):
                 self.settings.soft_reset()
             
-            accepted_params = self.settings.update(**chat_params)
+            accepted_params = self.settings.update_settings(**chat_params)
             await messenger(websocket, 'maica_params_accepted', f"{accepted_params} out of {len(chat_params)} settings accepted", "200")
         
         # Handle input errors here
@@ -344,10 +344,10 @@ class WsCoroutine(NoWsCoroutine):
                     sync_messenger(info=f"Input query has censored words or phrases but ignored: {query_censor}", type=MsgType.DEBUG)
 
             if 'savefile' in recv_loaded_json:
-                if self.settings.basic.sf_extraction:
+                if self.settings.basic.savefile_access:
                     self.sf_inst.add_extra(**recv_loaded_json['savefile'])
                 else:
-                    self.settings.temp.update(sf_extraction_once=True)
+                    self.settings.temp.update(savefile_access_once=True)
                     self.sf_inst.use_only(**recv_loaded_json['savefile'])
             if 'trigger' in recv_loaded_json:
                 if self.settings.basic.mt_extraction:
@@ -528,9 +528,9 @@ class WsCoroutine(NoWsCoroutine):
                 stored = await session.wrapped_save()
                 match stored:
                     case 2:
-                        await buffered_messenger(websocket, 'maica_history_sliced', f"Session {self.settings.temp.chat_session} of {self.settings.verification.username} exceeded {self.settings.basic.max_length} characters and sliced", '204')
+                        await buffered_messenger(websocket, 'maica_history_sliced', f"Session {self.settings.temp.chat_session} of {self.settings.verification.username} exceeded {self.settings.basic.session_len_limit} characters and sliced", '204')
                     case 1:
-                        await buffered_messenger(websocket, 'maica_history_slice_hint', f"Session {self.settings.temp.chat_session} of {self.settings.verification.username} exceeded {self.settings.basic.max_length * (2/3)} characters, will slice at {self.settings.basic.max_length}", '200', no_print=True)
+                        await buffered_messenger(websocket, 'maica_history_slice_hint', f"Session {self.settings.temp.chat_session} of {self.settings.verification.username} exceeded {self.settings.basic.session_len_limit * (2/3)} characters, will slice at {self.settings.basic.session_len_limit}", '200', no_print=True)
 
                 await buffered_messenger(websocket, 'maica_chat_loop_finished', f'Finished chat loop from {self.settings.verification.username}', '200', tracker_id=self.tracker_id, type=MsgType.INFO)
             else:
