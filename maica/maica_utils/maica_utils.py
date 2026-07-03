@@ -281,7 +281,7 @@ class Combiner():
         return self.str_buffer
 
 class ReUtils():
-    """Do not initialize."""
+    """Just a collection."""
     IS = re.I | re.S
     re_sub_password_spoiler = re.compile(r'"password"\s*:\s*"(.*?)"')
     re_search_sfe_fs = re.compile(r"first_session.*?datetime\(([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\s*,\s*([0-9]*?)\)", re.I)
@@ -320,6 +320,7 @@ class ReUtils():
     re_findall_zh_characters = re.compile(r'([一-龥].*[一-龥])')
     re_sub_multi_spaces = re.compile(r'\s{2,}')
     re_sub_ellipsis = re.compile(r'\.\.\.')
+    re_sub_strip_spaces = re.compile(r"\s*(.*?)\s*$", re.M)
 
 class Decos():
     """Do not initialize."""
@@ -475,13 +476,20 @@ class ExplainUrl():
 
 @pdataclass
 class BilingualText():
+    """Should we call it trilingual?"""
     zh: str = ""
     en: Optional[str] = None
+    auto: Optional[str] = None
 
     @model_validator(mode="after")
     def auto_fill(self):
         if self.en is None:
             self.en = self.zh
+        if self.auto is None:
+            self.auto = self.en
+
+    def __bool__(self):
+        return bool(self.zh or self.en or self.auto)
 
     def __str__(self):
         return self.zh
@@ -491,27 +499,33 @@ class BilingualText():
             return self.__class__(
                 zh = self.zh + other,
                 en = self.en + other,
+                auto = self.auto + other,
             )
         else:
             return self.__class__(
                 zh = self.zh + other.zh,
                 en = self.en + other.en,
+                auto = self.auto + other.auto,
             )
     
     def __iadd__(self, other):
         if isinstance(other, str):
             self.zh += other
             self.en += other
+            self.auto += other
         else:
             self.zh += other.zh
             self.en += other.en
+            self.auto += other.auto
         return self
     
     def to_str(self, target_lang: Literal['zh', 'en', 'auto']='zh') -> str:
         if target_lang == 'zh':
             return self.zh
-        else:
+        elif target_lang == 'en':
             return self.en
+        else:
+            return self.auto
 
 @dataclass
 class Desc():
@@ -966,13 +980,20 @@ async def hash_sha256(str) -> str:
         return hashlib.new('sha256', str).hexdigest()
     return await wrap_run_in_exc(None, hash_sync, str)
 
-def is_mcore_vl() -> bool:
+def is_mcore_vl():
     """If mcore is same model with mvista."""
     return bool(G.A.MCORE_ADDR == G.A.MVISTA_ADDR and G.A.MCORE_CHOICE == G.A.MVISTA_CHOICE)
 
-def is_rag_enabled() -> bool:
+def is_rag_enabled():
     """If this server instance could utilize RAG."""
     return bool(G.A.EMBEDDING_ADDR and G.A.MILVUS_ADDR)
+
+def to_str(obj: str | BilingualText, target_lang: Literal['zh', 'en', 'auto']='zh'):
+    """Call to_str if bt, else as-is."""
+    if isinstance(obj, BilingualText):
+        return obj.to_str(target_lang)
+    else:
+        return obj
 
 def sysstruct() -> Literal['Windows', 'Linux']:
     sysstruct = platform.system()

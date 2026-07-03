@@ -44,6 +44,7 @@ class WeatherResults(BaseModel):
 
     current: Current
     daily: List[Forecast]
+    geoloc: Optional[GeoResults.GeoLoc] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -153,6 +154,8 @@ async def weather_api_get(location):
 
         loc = locs.results[0]
         weather = await _loc_to_weather(loc)
+        
+        weather.geoloc = loc
         return weather
     
     except CommonMaicaException as ce:

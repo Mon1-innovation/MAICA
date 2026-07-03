@@ -45,7 +45,11 @@ If none of the images is relevant with query, you can output null.\
     session.append(user_query)
 
     completion_args = {
-        "messages": session.utilize(text_only=False),
+        "messages": session.utilize(
+            text_only=False,
+            manual_prompt=True,
+            ignore_additions=True,
+        ),
         "text": {
             "format": {
                 "type": "json_schema",

@@ -1,8 +1,5 @@
-import re
-import json
 import asyncio
 import traceback
-import functools
 
 from typing import *
 from pydantic import BaseModel, Field
@@ -76,7 +73,10 @@ If none of the information is relevant with query, you can output null.\
         session.append(user_query)
 
         completion_args = {
-            "messages": session.utilize(),
+            "messages": session.utilize(
+                manual_prompt=True,
+                ignore_additions=True,
+            ),
             "text": {
                 "format": {
                     "type": "json_schema",

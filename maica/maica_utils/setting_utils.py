@@ -11,7 +11,7 @@ from pydantic import (
 from .gvars import *
 from .maica_utils import *
 
-class SettingModel(BaseModel):
+class SettingsModel(BaseModel):
     """Just a template."""
     model_config = ConfigDict(
         validate_assignment=True
@@ -31,14 +31,14 @@ def create_prop(
     if not isinstance(setter_kwargs, dict):
         setter_kwargs = {}
     
-    def getter(self: SettingModel):
+    def getter(self: SettingsModel):
         value = getattr(self, private_name, None)
         if getter_ext:
             for func in getter_ext:
                 value = func(self, n=name, v=value, **getter_kwargs)
         return value
     
-    def setter(self: SettingModel, value):
+    def setter(self: SettingsModel, value):
         if setter_ext:
             for func in setter_ext:
                 value = func(self, n=name, v=value, **setter_kwargs)
@@ -95,7 +95,7 @@ def set_instance(self, n, v, types: list[type], **kwargs):
         raise AssertionError
     return v
 
-class ConfigurableSettingModel(SettingModel):
+class ConfigurableSettingsModel(SettingsModel):
     """Do not use on cridentials."""
     @model_validator(mode="before")
     @classmethod
@@ -113,11 +113,17 @@ class ConfigurableSettingModel(SettingModel):
                 ):
                     data[field_name] = default
         return data
+    
+    def update(self, m):
+        """Updating from a dict, or something alike."""
+        for k, v in m.items():
+            if k in self.__class__.model_fields:
+                setattr(self, k, v)
 
 class MaicaSettings(BaseModel):
     """All the per-client settings for MAICA."""
 
-    class Identity(SettingModel):
+    class Identity(SettingsModel):
         """Note that this identity is not verified and not safe to use in most cases. Use verification for those."""
 
         _user_id: int = None
@@ -138,7 +144,7 @@ class MaicaSettings(BaseModel):
         # nickname = create_prop('nickname', setter_ext=[set_instance], setter_kwargs={"types": [str, None]})
         email = create_prop('email', getter_ext=[read_exist], setter_ext=[set_locked, set_instance], setter_kwargs={"types": [str]})
 
-    class Basic(ConfigurableSettingModel):
+    class Basic(ConfigurableSettingsModel):
         """Major params that decide MAICA's behavior."""
 
         stream_output: bool = True
@@ -160,7 +166,7 @@ class MaicaSettings(BaseModel):
         )
         """Max session length."""
 
-    class Extra(ConfigurableSettingModel):
+    class Extra(ConfigurableSettingsModel):
         """Params that aren't that important, but affect MAICA's behavior."""
 
         prompt_pname_repl: bool = False
@@ -194,7 +200,7 @@ class MaicaSettings(BaseModel):
         gen_enforce_lang: bool = True
         """Enforce target language (only applies to English currently)."""
 
-    class Super(ConfigurableSettingModel):
+    class Super(ConfigurableSettingsModel):
         """Passthrough params to core LLM."""
 
         max_tokens: int = Field(
@@ -224,22 +230,35 @@ class MaicaSettings(BaseModel):
             le=1.0,
         )
 
-    class Temp(SettingModel):
+    class Temp(SettingsModel):
         """Should be reset after each round of completion."""
+
+        class MPostal(ConfigurableSettingsModel):
+            """We add this because mp settings is complex."""
+            header: Optional[str] = None
+            content: Optional[str] = None
+            twk_super: bool = True
+            strict_conv: bool = False
+
+        class Common(ConfigurableSettingsModel):
+            """These are used by several m-things."""
+            bypass_mf: bool = False
+            """Bypass MFocus once."""
+            bypass_mt: bool = False
+            """Bypass MTrigger once."""
+            bypass_stream: bool = False
+            """Bypass stream output once."""
 
         chat_session: int = Field(
             default=0,
             ge=-1,
             le=9,
         )
-        bypass_mf: bool = False
-        """Bypass MFocus once."""
-        bypass_mt: bool = False
-        """Bypass MTrigger once."""
-        bypass_stream: bool = False
-        """Bypass stream output once."""
         mv_imgs: Optional[list] = None
         """List of MVista images urls."""
+
+        mpostal: MPostal = Field(default_factory=MPostal)
+        common: Common = Field(default_factory=Common)
 
     identity: Identity = Field(default_factory=Identity)
     verification: Verification = Field(default_factory=Verification)
@@ -248,21 +267,40 @@ class MaicaSettings(BaseModel):
     super: Super = Field(default_factory=Super)
     temp: Temp = Field(default_factory=Temp)
 
+    @property
+    def use_mf_now(self):
+        return (
+            self.basic.enable_mf
+            and not self.temp.common.bypass_mf
+        )
+
+    @property
+    def use_mt_now(self):
+        return (
+            self.basic.enable_mt
+            and not self.temp.common.bypass_mt
+        )
+
+    def reset(self):
+        """This resets temp together with soft_reset."""
+        self.temp = self.Temp()
+        self.soft_reset()
+
     def soft_reset(self):
         """This resets only passable params."""
         self.basic, self.extra, self.super = self.Basic(), self.Extra(), self.Super()
 
     def update_settings(self, **kwargs):
         """
-        Used for handling manual settings.
+        Used for handling manual settings. Note that this is different with update().
         """
         accepted_params = set()
 
         for k, v in kwargs.items():
             for settings_name in ('basic', 'extra', 'super'):
-                settings: ConfigurableSettingModel = getattr(self, settings_name)
-                field_names = settings.__class__.model_fields.keys()
-                if k in field_names:
+                settings: ConfigurableSettingsModel = getattr(self, settings_name)
+                model_fields = settings.__class__.model_fields
+                if k in model_fields:
                     setattr(settings, k, v)
                     accepted_params.add(k)
 
@@ -273,5 +311,15 @@ if __name__ == "__main__":
     init()
     ms = MaicaSettings()
     print(ms.super.top_p)
+
+    some_data = {
+        "bypass_stream": True,
+        "mpostal": {
+            "strict_conv": True,
+        }
+    }
+    
+    ms.temp.update(some_data)
+    print(ms.temp)
 
     # ms.basic.savefile_access = 123

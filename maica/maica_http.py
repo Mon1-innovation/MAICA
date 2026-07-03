@@ -418,8 +418,8 @@ class ShortConnHandler(View):
             assert object and value, 'Empty in input'
             match object:
                 case 'geolocation':
-                    res = await weather_api_get(value)
-                    result = res
+                    weather = await weather_api_get(value)
+                    result = weather.geoloc.model_dump()
 
                 case _:
                     raise MaicaInputWarning(f"'{object}' is not valid object")

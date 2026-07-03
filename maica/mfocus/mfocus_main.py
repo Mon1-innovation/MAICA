@@ -465,7 +465,7 @@ User input:
                     _instructed_add('time_acquire', (await self.agent_tools.time_acquire())[1], False)
                 if not instructed_answer.get('event_acquire'):
                     _instructed_add('event_acquire', (await self.agent_tools.event_acquire())[1], False)
-            if self.settings.extra.mf_const_tools >= 2 or self.settings.temp.ic_prep:
+            if self.settings.extra.mf_const_tools >= 2 or self.settings.temp.twk_super:
                 # Add date and weather
                 if not instructed_answer.get('date_acquire'):
                     _instructed_add('date_acquire', (await self.agent_tools.date_acquire())[1], False)

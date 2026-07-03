@@ -6,6 +6,8 @@ import time
 import orjson
 import types
 from typing import *
+from pydantic import BaseModel, Field, model_validator
+from pydantic.dataclasses import dataclass as pdataclass
 from dataclasses import dataclass, field
 from contextlib import asynccontextmanager
 from .maica_utils import *
@@ -13,28 +15,36 @@ from .fsc_late import *
 from .db_bound_obj import DbBoundObject
 from .session_rel import SessionPersistentMixin, SessionTriggerMixin
 
-@dataclass
+_Bt = BilingualText
+
+@pdataclass
 class MaicaSessionItem():
+    """Element of MaicaSession."""
+    class Context(BaseModel):
+        """Specifically context object of MaicaSessionItem."""
+        strict_conv: bool = True
+        player_name: str = "[player]"
+        nsfw_acceptive: bool = True
+        known_info: dict[
+            str,
+            Union[
+                str,
+                BilingualText,
+            ]
+        ] = Field(default_factory=lambda: {})
+        image_urls: list[str] = Field(default_factory=lambda: [])
+        memory_concl: Optional[str] = None
+
     role: Literal["system", "user", "assistant", "misc"] = 'misc'
     content: str | BilingualText = ''
     target_lang: Optional[Literal['zh', 'en', 'auto']] = None
-    # There might be other things here, like tool_call_id
-    context: dict = field(default_factory=lambda: {})
-        # "strict_conv": True,
-        # "player_name": "[player]",
-        # "nsfw_acceptive": True,
-        # "known_info": {},
-        # "image_urls": [],
-        # "memory_concl": "",
-        # Extra kvs are valid here, expect them in procedures
+    context: Context = Field(default_factory=Context)
 
     # If item role is misc, we stop using maica format and store entire object.
     preserved: dict = field(default_factory=lambda: {})
 
-    timestamp = time.time()
-
     def __post_init__(self):
-        assert self.role in ["system", "user", "assistant", "misc"], f"Role not recognizable: {self.role}"
+        self.timestamp = time.time()
 
     def load(self, item: dict):
         assert isinstance(item, dict), f"Session item can only load from dict, {type(item)} {str(item)} found"
@@ -42,10 +52,7 @@ class MaicaSessionItem():
             setattr(self, k, v)
 
     def json(self) -> dict:
-        data = dict(vars(self))
-        if isinstance(data["content"], BilingualText):
-            data["content"] = data["content"].to_str(self.target_lang)
-        return data
+        return self.model_dump()
     
     def utilize(self, text_only: Literal[False, None, True] = None) -> dict:
         """
@@ -56,10 +63,16 @@ class MaicaSessionItem():
         """
         if self.role in ["system", "user", "assistant"]:
             d = {"role": self.role}
-            content = self.content if isinstance(self.content, str) else self.content.to_str(self.target_lang)
+            content = to_str(self.content, self.target_lang)
 
-            if is_mcore_vl() and not text_only is True:
-                image_urls = self.context.get(image_urls)
+            if (
+                (
+                    is_mcore_vl()
+                    and not text_only is True
+                ) or
+                text_only is False
+            ):
+                image_urls = self.context.image_urls
                 if image_urls:
                     content = [
                         {"type": "text", "text": content}
@@ -73,31 +86,45 @@ class MaicaSessionItem():
         else:
             return self.preserved
 
-    def form_known_info(self) -> str:
+    def form_known_info(self):
         """
         Form the known_info dict into a str. Maybe we use markdown since it's more modern.
         Note that in v1.3, we have unified known_info, so it's completely dict[str, str].
         """
-        known_info: dict = self.context.get("known_info")
+        known_info = self.context.known_info
         # {
         #     "time_acquire": "现在是...",
         #     "date_acquire": "今天是...",
         #     "persistent_acquire": "莫妮卡...; [player]...",
-
-        # Specially but not that specially, mf_llm_concl is also here:
-        #     "generated_guidance": "总的来说, ...",
-        # Also:
         #     "mt_prediction": "用户的请求是可以完成的...",
-        
-        # But these don't have to be explicitly handled, so we leave it be.
+
+        # Specially, mf_llm_concl is also here:
+        #     "generated_guidance": "总的来说, ...",
+        # If generated_guidance exist, we ignore everything else.
         # }
+
         if known_info:
-            known_str = "\n- " + "\n- ".join(
-                [i for i in known_info.values()]
-            ) + "\n"
+            if "generated_guidance" in known_info:
+                known_str = known_info["generated_guidance"]
+
+            else:
+                known_str = _Bt()
+                for t in known_info.values():
+                    known_str += "\n- "
+                    known_str += t
+                known_str += "\n"
         else:
             known_str = ""
         return known_str
+    
+    def context_from_fsc(self, fsc: FullSocketsContainer):
+        """Gets basic context from a fsc."""
+        self.target_lang = fsc.maica_settings.basic.target_lang
+
+        context = self.context
+        context.strict_conv = fsc.maica_settings.temp.mpostal.strict_conv
+        context.nsfw_acceptive = fsc.maica_settings.extra.nsfw_acceptive
+        context.image_urls = fsc.maica_settings.temp.mv_imgs
 
 class MaicaSession(list[MaicaSessionItem], DbBoundObject):
     """
@@ -115,42 +142,37 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         super().reset()
 
         self.default_target_lang: Literal['zh', 'en', 'auto'] = 'zh'
-        self.default_context: dict = {
-            "strict_conv": True,
-            "player_name": "[player]",
-            "nsfw_acceptive": True,
-            # We make it dict to be flexible
-            "known_info": {},
-            "image_urls": [],
-            "memory_concl": "",
-        }
+        self.default_context = MaicaSessionItem.Context()
 
-    def __init__(self, session_num: int = -1, fsc: Optional[FullSocketsContainer] = None, *args, **kwargs):
+    def __init__(self, session_num: int = 0, fsc: Optional[FullSocketsContainer] = None, *args, **kwargs):
         # Initialize the base list class
         list.__init__(self, *args, **kwargs)
         DbBoundObject.__init__(self, session_num, fsc)
         # It should also autorun DbBoundObject.__post_init__()
+        # which also runs self.reset()
+
+    def _sync_session_item(self, object: MaicaSessionItem):
+        object.target_lang = object.target_lang or self.default_target_lang
+        for field in self.default_context.__class__.model_fields.keys() - object.model_fields_set:
+            setattr(object, field, getattr(self.default_context, field))
 
     # We override append to automatically manage context
     def append(self, object):
         if isinstance(object, MaicaSessionItem):
-            object.target_lang = object.target_lang or self.default_target_lang
-            object.context = self.default_context | object.context
+            self._sync_session_item(object)
         return super().append(object)
     
     # Well we have to use insert sometimes
     def insert(self, index, object):
         if isinstance(object, MaicaSessionItem):
-            object.target_lang = object.target_lang or self.default_target_lang
-            object.context = self.default_context | object.context
+            self._sync_session_item(object)
         return super().insert(index, object)
     
     # Just doing it for safety
     def extend(self, iterable):
         for object in iterable:
             if isinstance(object, MaicaSessionItem):
-                object.target_lang = object.target_lang or self.default_target_lang
-                object.context = self.default_context | object.context
+                self._sync_session_item(object)
         return super().extend(iterable)
     
     def load(self, item: Union[list, str]):
@@ -165,100 +187,110 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         if not len(self) or not self[0].role == "system":
             self.insert(0, MaicaSessionItem("system"))
 
-    def _prepare_context(self):
-        def _basic_gen_system(target_lang, strict_conv):
-            if target_lang == 'zh':
-                if strict_conv:
-                    prompt = G.A.PROMPT_ZC
-                else:
-                    prompt = G.A.PROMPT_ZW
-            elif target_lang == 'en':
-                if strict_conv:
-                    prompt = G.A.PROMPT_EC
-                else:
-                    prompt = G.A.PROMPT_EW
-            else:
-                if strict_conv:
-                    prompt = G.A.PROMPT_AC
-                else:
-                    prompt = G.A.PROMPT_AW
-            return prompt
-        
+    def _utilize_context(
+            self,
+            manual_prompt: Optional[Literal[True] | str | BilingualText] = None,
+            ignore_additions: bool = False,
+        ):
+        """
+        Parses corresponding contexts into prompt information, and automatically replaces it.
+        Manual prompt mainly for tool LLMs. This way we make messages construction look prettier.
+        """
+
         # First sanitize
         self.sanitize()
-        assert len(self) > 1, "No query could be utilized"
+        assert len(self) > 1, "No item could be utilized"
 
         # Then acquire context
         curr_item = self[-1]
         curr_context = curr_item.context
+        prompt_item = self[0]
+        prompt_context = prompt_item.context
+        target_lang = curr_item.target_lang
 
         # Then generate system prompt from context
-        prompt = _basic_gen_system(curr_item.target_lang, curr_context['strict_conv'])
-        exprompt = ""; format_kvs = {}; strip_following_spaces = False
+        if curr_context.strict_conv:
+            prompt = _Bt(
+                G.A.PROMPT_ZC,
+                G.A.PROMPT_EC,
+                G.A.PROMPT_AC,
+            )
+        else:
+            prompt = _Bt(
+                G.A.PROMPT_ZW,
+                G.A.PROMPT_EW,
+                G.A.PROMPT_AW,
+            )
 
         # Extend the prompt for conditions
-        if curr_context['nsfw_acceptive']:
-            if curr_item.target_lang == 'zh':
-                prompt += G.A.PROMPT_ZNP
-            elif curr_item.target_lang == 'en':
-                prompt += G.A.PROMPT_ENP
+        if curr_context.nsfw_acceptive:
+            prompt += _Bt(
+                G.A.PROMPT_ZNP,
+                G.A.PROMPT_ENP,
+                G.A.PROMPT_ANP
+            )
+
+        # At this point, manual_prompt should kick in
+        # If manual_prompt is provided, we ignore strict_conv, nsfw_acceptive
+        if manual_prompt:
+            if not isinstance(manual_prompt, _Bt):
+                prompt = _Bt(manual_prompt)
+            elif isinstance(manual_prompt, str):
+                prompt = manual_prompt
             else:
-                prompt += G.A.PROMPT_ANP
+                # Set to True, we take the actual current context as manual
+                prompt = prompt_item.content
 
-        if curr_context['known_info']:
-            if curr_item.target_lang == 'zh':
-                exprompt = G.A.PROMPT_ZKP
-            elif curr_item.target_lang == 'en':
-                exprompt = G.A.PROMPT_EKP
-            else:
-                exprompt = G.A.PROMPT_AKP
+        # For later formatting, like {known_info}
+        format_kvs = {}
 
-            if strip_following_spaces:
-                exprompt = exprompt.strip()
-            
-            prompt += exprompt
-            format_kvs['known_info'] = curr_item.form_known_info()
-            strip_following_spaces = True
+        if not ignore_additions:
+            # Parse known info
+            if curr_context.known_info:
+                prompt += "\n"
+                prompt += _Bt(
+                    G.A.PROMPT_ZKP,
+                    G.A.PROMPT_EKP,
+                    G.A.PROMPT_AKP,
+                )
+                format_kvs["known_info"] = curr_item.form_known_info()
 
-        prompt_item = self[0]
-        prompt_context = prompt_item.content
+            # Add memory conclusion
+            if prompt_context.memory_concl:
+                prompt += _Bt(
+                    G.A.PROMPT_ZMP,
+                    G.A.PROMPT_EMP,
+                    G.A.PROMPT_AMP,
+                )
+                format_kvs['memory_concl'] = prompt_context.memory_concl
 
-        if prompt_context['memory_concl']:
-            if curr_item.target_lang == 'zh':
-                exprompt += G.A.PROMPT_ZMP
-            elif curr_item.target_lang == 'en':
-                exprompt += G.A.PROMPT_EMP
-            else:
-                exprompt += G.A.PROMPT_AMP
+            for k, v in format_kvs:
+                format_kvs[k] = to_str(v, target_lang)
 
-            if strip_following_spaces:
-                exprompt = exprompt.strip()
-            
-            prompt += exprompt
-            format_kvs['memory_concl'] = prompt_context['memory_concl']
-            strip_following_spaces = True
-
-        prompt = prompt.format(player_name=curr_context['player_name'], **format_kvs)
+        prompt = prompt.format(player_name=curr_context.player_name, **format_kvs)
 
         # Then inject
         # Note that system prompt item should not be modified from external
         self[0].content = prompt
 
     def json(self) -> list:
-        self._prepare_context()
+        self._utilize_context()
         return [i.json() for i in self]
     
-    @overload
-    def utilize(self, text_only: Literal[False, None, True] = None) -> list: ...
-
-    def utilize(self, *args, **kwargs):
-        # If session == -1, we shall preserve the prompt
+    def utilize(
+            self,
+            text_only: Literal[False, None, True] = None,
+            manual_prompt: Optional[Literal[True] | str | BilingualText] = None,
+            ignore_additions: bool = False,
+        ):
+        # If session == -1, we shall preserve the prompt as-is
+        # If using custom inner sessions, override params insead of using -1
         session_num = self.session_num
         if session_num >= 0:
-            self._prepare_context()
+            self._utilize_context(manual_prompt, ignore_additions)
         else:
             self.sanitize()
-        return [i.utilize(*args, **kwargs) for i in self]
+        return [i.utilize(text_only) for i in self]
     
     async def to_archive(self) -> int:
         """This requires self.prim_key_id to function."""
@@ -370,24 +402,6 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         if len(archiver):
             await archiver.to_archive()
         return stat
-    
-    def sync_fsc_settings(self, fsc: Optional[FullSocketsContainer] = None):
-        """Syncs fsc settings into self default. Only use for main session."""
-        if not fsc:
-            # If syncing with pre-inserted fsc, this is likely a managed session
-            # That's why we add a check here
-            fsc = self.fsc
-            assert self.session_num == fsc.maica_settings.temp.chat_session, "This is NOT the session you want, re-acquire first"
-        assert fsc, "fsc must exist to sync"
-
-        self.default_target_lang = fsc.maica_settings.basic.target_lang
-        self.default_context.update({
-                "strict_conv": fsc.maica_settings.temp.strict_conv,
-                # "player_name": "[player]",
-                "nsfw_acceptive": fsc.maica_settings.extra.nsfw_acceptive,
-                "image_urls": fsc.maica_settings.temp.mv_imgs if is_mcore_vl() else [],
-            }
-        )
 
 # These should be far more simple
 class SessionPersistent(DbBoundObject, SessionPersistentMixin):

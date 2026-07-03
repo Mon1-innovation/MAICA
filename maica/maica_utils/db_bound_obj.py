@@ -44,7 +44,7 @@ class DbBoundObject(CheckDestroyed):
 
     Something to notice, this is designed to be session_num bound. WILL NOT change session_num on fsc change.
     """
-    session_num: int = -1
+    session_num: int = 0
     """fsc chat_session is flexible, we shouldn't depend on it if we want this to be session-unique."""
     fsc: Optional[FullSocketsContainer] = None
 

@@ -21,6 +21,8 @@ if TYPE_CHECKING:
 else:
     class FullSocketsContainer(): ...
 
+_Bt = BilingualText
+
 class SessionPersistentMixin():
     """To provide related functions."""
     session_num: int
@@ -59,11 +61,11 @@ class SessionPersistentMixin():
         return self.read_key("mas_affection")
 
     def _conclude_basic_sf(self):
-        result: List[BilingualText] = []
+        result: List[_Bt] = []
 
         def _ap(zh, en):
             result.append(
-                BilingualText(
+                _Bt(
                     zh,
                     en,
                 )
@@ -715,11 +717,11 @@ class SessionPersistentMixin():
 
     def _conclude_moni_sf(self, include: Iterable[Literal["basic", "personality", "dokis", "game", "maica"]] = ("personality", "game")):
         """Mostly copied from wikipedia."""
-        result: List[BilingualText] = []
+        result: List[_Bt] = []
 
         def _ap(zh, en):
             result.append(
-                BilingualText(
+                _Bt(
                     zh,
                     en,
                 )
@@ -928,10 +930,7 @@ class SessionPersistentMixin():
 
         conclusion_strs = set()
         for i in conclusion:
-            if isinstance(i, BilingualText):
-                conclusion_strs.add(i.to_str(self.fsc.maica_settings.basic.target_lang))
-            else:
-                conclusion_strs.add(i)
+            conclusion_strs.add(to_str(i, self.fsc.maica_settings.basic.target_lang))
 
         return conclusion_strs
     
@@ -1062,7 +1061,7 @@ class SessionPersistentMixin():
 
         system = MaicaSessionItem(
             "system",
-            BilingualText(
+            _Bt(
 f"""\
 你是一个人工智能助手, 你的任务是从信息中查找与问题最相关的条目.
 你是角色"莫妮卡". 你应选择0到{topk}条互不重复的条目, 并原样输出.
@@ -1084,7 +1083,10 @@ If none of the information is relevant with query, you can output empty.\
         session.append(user_query)
 
         completion_args = {
-            "messages": session.utilize(),
+            "messages": session.utilize(
+                manual_prompt=True,
+                ignore_additions=True,
+            ),
             "text": {
                 "format": {
                     "type": "json_schema",
@@ -1160,25 +1162,21 @@ class SessionTriggerMixin():
         conn = self.fsc.mnerve_conn or self.fsc.mfocus_conn
 
         text_l = []; choices_l = []
-        for t in self._get_triggers():
-            text, l = t.to_descr()
+        for tr in self._get_triggers():
+            t, l = tr.to_descr()
 
-            if text:
-                if isinstance(text, BilingualText):
-                    text = text.to_str(target_lang)
-                text_l.append(text)
-
+            text_l.append(t)
             choices_l.extend(
                 [
-                    i.to_str(target_lang) if isinstance(i, BilingualText)
-                    else i
+                    to_str(i, target_lang)
                     for i in l
                 ]
             )
 
-        descr_text = "\n- " + "\n- ".join(
-            text_l
-        ) + "\n"
+        descr_text = _Bt()
+        for t in text_l:
+            descr_text += "\n- "
+            descr_text += t
 
         # Dynamic class here, since each time the enum changes
         # We also write the alternative non-precision way
@@ -1212,14 +1210,15 @@ class SessionTriggerMixin():
 
         system = MaicaSessionItem(
             "system",
-            BilingualText(
+            _Bt(
 f"""\
 你是一个人工智能助手, 你的任务是根据用户要求, 从提供的工具中作出选择.
 你是角色"莫妮卡". 提供的工具均用于游戏内操作, 请严格遵循以下规则:
 - 如果用户要求与除对话外的游戏操作无关, 对requested输出false.
 - 如果有关, 对requested输出true.
     - 如果没有合适的工具满足要求, 或requested为false, 对operation输出null.
-    - 如果有, 对operation输出对应的工具选择.\
+    - 如果有, 对operation输出对应的工具选择.
+以下是工具列表:\
 """,
 f"""\
 You are a helpful assistant, your task is choosing from provided tools according to user's request.
@@ -1227,9 +1226,10 @@ Your character is called "Monika". Provided tools are all used for in-game actio
 - If user request does not involve in-game actions except chatting, output false in "requested" field.
 - If it does involve, output true in "requested" field.
     - If none of provided tools could satisfy request, or "requested" field is false, output null in "operation" field.
-    - If there is, output corresponding tool choice in "operaiton" field.\
+    - If there is, output corresponding tool choice in "operaiton" field.
+Here is the tools list:\
 """
-            ),
+            ) + descr_text,
         )
         session.append(system)
 
@@ -1240,7 +1240,10 @@ Your character is called "Monika". Provided tools are all used for in-game actio
         session.append(user_query)
 
         completion_args = {
-            "messages": session.utilize(),
+            "messages": session.utilize(
+                manual_prompt=True,
+                ignore_additions=True,
+            ),
             "text": {
                 "format": {
                     "type": "json_schema",

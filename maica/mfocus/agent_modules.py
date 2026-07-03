@@ -33,7 +33,7 @@ class AgentTools():
             
         return time_now
 
-    async def time_acquire(self, *args, **kwargs) -> tuple[str, str]:
+    async def time_acquire(self, *args, **kwargs):
         """
         Gets current time.
 
@@ -49,7 +49,7 @@ class AgentTools():
 
         return text, dt
 
-    async def date_acquire(self, *args, **kwargs) -> tuple[str, str]:
+    async def date_acquire(self, *args, **kwargs):
         """
         Gets current date.
         
@@ -65,7 +65,7 @@ class AgentTools():
 
         return text, dt
 
-    async def weather_acquire(self, location: Optional[str] = None, *args, **kwargs) -> tuple[str, str]:
+    async def weather_acquire(self, location: Optional[str] = None, *args, **kwargs):
         """
         Gets current weather.
         - location: reads from sp if not provided
@@ -91,7 +91,7 @@ class AgentTools():
 
         return text, weather
 
-    async def event_acquire(self, dt_str: Optional[str] = None, *args, **kwargs) -> tuple[str, str]:
+    async def event_acquire(self, dt_str: Optional[str] = None, *args, **kwargs):
         """
         Gets meaningful date events.
         """
@@ -193,7 +193,7 @@ class AgentTools():
             for events in search_results
         ]
 
-        text = ""
+        text = _Bt()
         for day_index, events in enumerate(search_results):
 
             day_is_first = day_index == 0
@@ -205,9 +205,9 @@ class AgentTools():
                 ev_is_last = ev_index + 1 == len(events)
 
                 if ev_is_first:
-                    text += today_is(day_index).to_str(target_lang)
+                    text += today_is(day_index)
 
-                text += and_is(ev_index).to_str(target_lang)
+                text += and_is(ev_index)
 
                 text += getattr(event, must_name)
 
@@ -217,6 +217,8 @@ class AgentTools():
                     text += "; "
                 else:
                     text += "."
+
+        text = text.to_str(target_lang)
         
         if not text:
             if dt_is_today:
@@ -227,7 +229,7 @@ class AgentTools():
 
         return text, search_results
 
-    async def persistent_acquire(self, query: str, *args, **kwargs) -> tuple[str, str]:
+    async def persistent_acquire(self, query: str, *args, **kwargs):
         """Gets value from persistent."""
         target_lang = self.fsc.maica_settings.basic.target_lang
 
@@ -246,7 +248,7 @@ class AgentTools():
 
         return text, res
 
-    async def search_internet(self, ser_query: str, org_query: Optional[str] = None, *args, **kwargs) -> tuple[str, str]:
+    async def search_internet(self, ser_query: str, org_query: Optional[str] = None, *args, **kwargs):
         """Searches result from internet."""
         text, res_m = await internet_search(self.fsc, ser_query)
 
@@ -255,7 +257,7 @@ class AgentTools():
 
         return text, res_m
     
-    async def vista_acquire(self, query: Optional[str] = None, *args, **kwargs) -> tuple[str, str]:
+    async def vista_acquire(self, query: Optional[str] = None, *args, **kwargs):
         """Gets information from image."""
         img_list = self.fsc.maica_settings.temp.mv_imgs
 

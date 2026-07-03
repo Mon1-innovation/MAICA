@@ -258,9 +258,10 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         )
         self.mf_session.append(query_item)
 
-    async def _query_response(self, query):
+    async def _query_response(self, query, known_info: Optional[str] = None):
         """
         Now that we have tools and messages, we can finally launch completion.
+        - known_info: we already have something known while calling this, so we let MFocus know it too.
         
         Returns:
         - str: generated_guidance
@@ -270,7 +271,11 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         self._construct_messages(query)
 
         completion_args = {
-            "messages": self.mf_session.utilize(),
+            "messages": self.mf_session.utilize(
+                manual_prompt=True,
+                # He needs these informations
+                # ignore_additions=True,
+            ),
             "tools": self.tools,
             "response_format": {"type": "text"},
 
@@ -279,7 +284,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
             "tool_choice": "required",
         }
 
-        generated_guidance = ""
+        generated_guidance: str = ""
         tools_results: dict[
             str,
             Tuple[str, Any],
@@ -374,6 +379,10 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
             task, a_reasoning, a_content, a_tool_calls = await llm_request(conn, **completion_args)
             tl = await tools_loop(a_tool_calls)
 
+        return generated_guidance, tools_results
+    
+    @staticmethod
+    def parse_tools_results(tools_results: dict[str, Tuple[str, Any]]):
         def sort_dict(d: dict, seq: list[str]) -> dict:
             """Sorts keys of dict into given list seq."""
             nd = {}
@@ -385,7 +394,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
                 nd[k] = d[k]
             return nd
         
-        tools_results = sort_dict(
+        sorted_tools_results = sort_dict(
             tools_results,
             [
                 "time_acquire",
@@ -398,7 +407,13 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
             ]
         )
 
-        return generated_guidance, tools_results
+        cleaned_tools_results = {
+            k: v[0]
+            for k, v in sorted_tools_results.items()
+            if v[1]
+        }
+
+        return cleaned_tools_results
     
     async def run_mf_pipeline(self, query: str):
         """
@@ -406,5 +421,6 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         This wrapping is single-round, fits the actual use case.
         """
         generated_guidance, tools_results = await self._query_response(query)
+        parsed_results = self.parse_tools_results(tools_results)
         self.reset()
-        return generated_guidance, tools_results
+        return generated_guidance, parsed_results

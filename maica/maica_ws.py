@@ -317,13 +317,13 @@ class WsCoroutine(NoWsCoroutine):
                             self.settings.temp.update(bypass_mt=True)
                         if default(recv_loaded_json['postmail'].get('bypass_stream'), True):
                             self.settings.temp.update(bypass_stream=True)
-                        if default(recv_loaded_json['postmail'].get('ic_prep'), True):
-                            self.settings.temp.update(ic_prep=True)
+                        if default(recv_loaded_json['postmail'].get('twk_super'), True):
+                            self.settings.temp.update(twk_super=True)
                         if not default(recv_loaded_json['postmail'].get('strict_conv'), False):
                             self.settings.temp.update(strict_conv=False)
                     elif isinstance(recv_loaded_json['postmail'], str):
                         query_insp = await mtools.make_postmail(content=recv_loaded_json['postmail'], fsc=self.fsc)
-                        self.settings.temp.update(bypass_stream=True, ic_prep=True, strict_conv=False)
+                        self.settings.temp.update(bypass_stream=True, twk_super=True, strict_conv=False)
                     else:
                         maica_assert(False, "postmail")
                     
@@ -357,8 +357,6 @@ class WsCoroutine(NoWsCoroutine):
                     self.mt_inst.use_only(recv_loaded_json['trigger'])
 
             # End query types
-            # We can sync settings by now
-            session.sync_fsc_settings()
 
             match int(self.settings.temp.chat_session):
                 case -1:
@@ -390,7 +388,9 @@ class WsCoroutine(NoWsCoroutine):
                         if player_name_get:
                             player_name = player_name_get
 
-                    session.append(MaicaSessionItem("user", query_in))
+                    user_query = MaicaSessionItem("user", query_in)
+                    user_query.context_from_fsc(self.fsc)
+                    session.append(user_query)
                     context = {
                             "player_name": player_name,
                             "known_info": known_info,
@@ -415,7 +415,7 @@ class WsCoroutine(NoWsCoroutine):
             if self.settings.temp.bypass_stream:
                 completion_args['stream'] = False
 
-            if self.settings.temp.ic_prep:
+            if self.settings.temp.twk_super:
                 completion_args['presence_penalty'] = 1.0 - (1.0 - completion_args['presence_penalty']) * (2/3)
 
             if self.settings.extra.gen_enforce_lang:

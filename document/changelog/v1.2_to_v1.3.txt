@@ -49,3 +49,7 @@ If you want to read in English, use a translator.
 - 弃用mt_extraction
 
 = max_length更名为session_len_limit, 上限改回28672
+
+= MPostal ic_prep更名为twk_super
+
+= legality接口查询地址现在返回经纬度
