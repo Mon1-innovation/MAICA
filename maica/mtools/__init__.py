@@ -1,8 +1,7 @@
 
 from .api_keys import TpAPIKeys
 from .mpostal import make_postmail
-from .mspire import make_inspire
-from .wiki_get import get_page
+from .mspire import make_inspire, ms_from_cache, ms_to_cache
 from .weather_get import weather_api_get
 from .serp_get import internet_search
 from .date_event_get import RegEvent, EventsCollection
@@ -11,13 +10,14 @@ from .post_proc_rt import PPRTProcessor
 from .nv_watcher import NvWatcher
 from .mvista import ProcessingImg, query_vlm
 from .quality_chk import quality_chk, ws_quality_chk
-from .stream_buffer import BufferDict, StreamBuffer, buffer_dict
 from .censor import has_censored
 
 __all__ = [
     'TpAPIKeys',
     'make_postmail',
     'make_inspire',
+    'ms_from_cache',
+    'ms_to_cache',
     'weather_api_get',
     'internet_search',
     'RegEvent',
@@ -34,9 +34,6 @@ __all__ = [
     'query_vlm',
     'quality_chk',
     'ws_quality_chk',
-    'BufferDict',
-    'StreamBuffer',
-    'buffer_dict',
     'has_censored',
     ]
 

@@ -1,5 +1,3 @@
+from pre_core_pipeliner import pre_core_pipelines
 
-from .mfocus_main import MFocusManager
-from .mfocus_sfe import SfPersistentManager
-
-__all__ = ['MFocusManager', 'SfPersistentManager']
+__all__ = ['pre_core_pipelines']

@@ -38,7 +38,8 @@ class NoWsCoroutine(AsyncCreator):
         self.remote_addr = None
 
     async def _ainit(self):
-        self.hasher = await AccountCursor.async_create(self.settings, self.auth_pool, self.maica_pool)
+        pass
+        # self.hasher = await AccountCursor.async_create(self.settings, self.auth_pool, self.maica_pool)
 
     def _check_essentials(self) -> None:
         if not self.settings.verification.user_id:
@@ -50,10 +51,10 @@ class NoWsCoroutine(AsyncCreator):
         sql_expression_1 = "SELECT content FROM ms_cache WHERE hash = %s"
         result = await self.maica_pool.query_get(expression=sql_expression_1, values=(hash, ))
         if result:
-            await messenger(None, 'maica_spire_cache_hit', 'Hit a stored cache for MSpire', '200')
+            await messenger(None, 'maica_spire_cache_hit', 'Hit a stored cache for MSpire', 200)
             return result[0]
         else:
-            await messenger(None, 'maica_spire_cache_missed', 'No stored cache for MSpire', '200')
+            await messenger(None, 'maica_spire_cache_missed', 'No stored cache for MSpire', 200)
             return None
 
     async def store_ms_cache(self, hash: str, content: str) -> int:
@@ -62,7 +63,7 @@ class NoWsCoroutine(AsyncCreator):
 
         sql_expression_1 = "INSERT INTO ms_cache (user_id, hash, content) VALUES (%s, %s, %s)"
         spire_id = (await self.maica_pool.query_modify(expression=sql_expression_1, values=(self.settings.verification.user_id, hash, content)))[1]
-        await messenger(None, 'maica_spire_cache_stored', 'Stored a cache for MSpire', '200')
+        await messenger(None, 'maica_spire_cache_stored', 'Stored a cache for MSpire', 200)
         return spire_id
 
     @overload
@@ -131,18 +132,6 @@ class NoWsCoroutine(AsyncCreator):
         result_list = [l[0] for l in result]
         return result_list
 
-    async def populate_auxiliary_inst(self) -> None:
-        self.sf_inst, self.mt_inst = await asyncio.gather(SfPersistentManager.async_create(self.fsc), MtPersistentManager.async_create(self.fsc))
-        self.mfocus_coro, self.mtrigger_coro = await asyncio.gather(MFocusManager.async_create(self.fsc, self.sf_inst, self.mt_inst), MTriggerManager.async_create(self.fsc, self.mt_inst, self.sf_inst))
-
-    async def reset_auxiliary_inst(self) -> None:
-        sb_list = []
-        for sb_name in ['sf_inst', 'mt_inst', 'mfocus_coro', 'mtrigger_coro']:
-            sb = getattr(self, sb_name, None)
-            if sb:
-                sb_list.append(sb.reset())
-        await asyncio.gather(*sb_list)
-
     async def hash_and_login(self, access_token: str=None, logged_in_already: bool=False, check_online: bool=False) -> bool:
         """Use this to login a NoWs instance."""
         if not logged_in_already:
@@ -163,19 +152,19 @@ class NoWsCoroutine(AsyncCreator):
                         self.settings.verification.reset()
                         raise MaicaConnectionWarning('A connection was established already and kicking not enabled', '406', 'maica_connection_reuse_denied')
                     else:
-                        await messenger(self.websocket, "maica_connection_reuse_attempt", "A connection was established already", "300", self.tracker_id)
+                        await messenger(self.websocket, "maica_connection_reuse_attempt", "A connection was established already", 300, self.tracker_id)
                         stale_fsc, stale_lock = online_dict[self.settings.verification.user_id]
                         try:
-                            await messenger(stale_fsc.rsc.websocket, 'maica_connection_reuse_stale', 'A new connection has been established', '300', stale_fsc.rsc.tracker_id)
+                            await messenger(stale_fsc.rsc.websocket, 'maica_connection_reuse_stale', 'A new connection has been established', 300, stale_fsc.rsc.tracker_id)
                             await stale_fsc.rsc.websocket.close(1000, 'Displaced as stale')
                         except Exception:
-                            await messenger(None, 'maica_connection_stale_dead', 'The stale connection has died already', '204')
+                            await messenger(None, 'maica_connection_stale_dead', 'The stale connection has died already', 204)
                         try:
                             online_dict.pop(self.settings.verification.user_id)
                         except Exception:
                             pass
                         async with stale_lock:
-                            await messenger(None, 'maica_connection_stale_kicked', 'The stale connection is kicked', '204')
+                            await messenger(None, 'maica_connection_stale_kicked', 'The stale connection is kicked', 204)
             return True
 
         else:

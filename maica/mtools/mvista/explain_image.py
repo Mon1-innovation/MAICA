@@ -64,7 +64,7 @@ If none of the images is relevant with query, you can output null.\
 
     text = reply_result.reply
         
-    await messenger(None, 'mfocus_mvista_acquire', f"\nMFocus toolchain calling MVista, response is:\n{text}\nEnd of MFocus toolchain calling MVista", '201')
+    await messenger(None, 'mfocus_mvista_acquire', f"\nMFocus toolchain calling MVista, response is:\n{text}\nEnd of MFocus toolchain calling MVista", 201)
     
     return text
 

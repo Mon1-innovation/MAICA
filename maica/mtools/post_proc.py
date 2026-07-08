@@ -157,16 +157,16 @@ async def emo_proc_auto(emo: str, target_lang: Literal['zh', 'en', 'auto']='zh',
             return emo_proc(res[0], target_lang)
     return res
 
-async def post_proc(reply_appended: str, target_lang: Literal['zh', 'en', 'auto']='zh', mnerve_conn: Optional[AiConnectionManager]=None):
+async def post_proc(reply_joined: str, target_lang: Literal['zh', 'en', 'auto']='zh', mnerve_conn: Optional[AiConnectionManager]=None):
 
-    reply_all_signatures = ReUtils.re_findall_square_brackets.findall(reply_appended)
+    reply_all_signatures = ReUtils.re_findall_square_brackets.findall(reply_joined)
 
     for signature in reply_all_signatures:
         if not signature == '[player]' and not signature.strip('[').strip(']') in (zlist if target_lang == 'zh' else elist):
             realword = emo_proc(signature, target_lang)[0] if not mnerve_conn else (await emo_proc_auto(signature, target_lang, mnerve_conn))[0]
-            reply_appended = re.sub(re.escape(signature), realword, reply_appended, flags = re.I)
+            reply_joined = re.sub(re.escape(signature), realword, reply_joined, flags = re.I)
     
-    return reply_appended
+    return reply_joined
 
 if __name__ == '__main__':
     # ra = '[理解 ]没关系, [player]. [微笑 ]我知[fear]道[womble]你很[adaifgnashioufoiusahdfoiua]忙[a1]. [心]你能抽空[slash我]陪我就[害怕]很好啦!'

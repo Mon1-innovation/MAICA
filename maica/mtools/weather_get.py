@@ -17,15 +17,16 @@ class GeoResults(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def compat_gaode(cls, data: dict):
-        if isinstance(data.get("geocodes"), list):
-            data["results"] = [
-                {
-                    "latitude": i["location"].split(',')[1],
-                    "longitude": i["location"].split(',')[0],
-                }
-                for i in data["geocodes"]
-            ]
+    def compat_gaode(cls, data: Any):
+        if isinstance(data, dict):
+            if isinstance(data.get("geocodes"), list):
+                data["results"] = [
+                    {
+                        "latitude": i["location"].split(',')[1],
+                        "longitude": i["location"].split(',')[0],
+                    }
+                    for i in data["geocodes"]
+                ]
         return data
 
 class WeatherResults(BaseModel):
@@ -48,22 +49,23 @@ class WeatherResults(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def reshape_daily(cls, data: dict):
-        if isinstance(data.get("daily"), dict):
+    def reshape_daily(cls, data: Any):
+        if isinstance(data, dict):
+            if isinstance(data.get("daily"), dict):
 
-            daily = data["daily"]
-            keys = [
-                "time",
-                "temperature_2m_max",
-                "temperature_2m_min",
-                "precipitation_probability_max",
-            ]
-            rows = [
-                dict(zip(keys, values))
-                for values in zip(*(daily[k] for k in keys))
-            ]
+                daily = data["daily"]
+                keys = [
+                    "time",
+                    "temperature_2m_max",
+                    "temperature_2m_min",
+                    "precipitation_probability_max",
+                ]
+                rows = [
+                    dict(zip(keys, values))
+                    for values in zip(*(daily[k] for k in keys))
+                ]
 
-            data["daily"] = rows
+                data["daily"] = rows
 
         return data
     

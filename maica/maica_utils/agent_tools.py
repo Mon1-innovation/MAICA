@@ -8,8 +8,8 @@ from typing import *
 from dataclasses import dataclass, field
 from .maica_utils import *
 
-_JSCType = Literal["string", "number", "integer", "object", "array", "boolean", "null"]
-JSCType = List[_JSCType] | _JSCType
+type _JSCType = Literal["string", "number", "integer", "object", "array", "boolean", "null"]
+type JSCType = List[_JSCType] | _JSCType
 
 _Bt = BilingualText
 
@@ -159,7 +159,7 @@ class _BooleanTriggerExprop(_BaseTriggerExprop):
 
 _Ct = str | BilingualText
 
-class BaseTrigger(BaseModel):
+class BaseTrigger(BaseModel, ABC):
     """Base class of MTrigger items."""
     template: ClassVar[str]
     name: str
@@ -184,8 +184,8 @@ class AffectionTrigger(BaseTrigger):
         return WrappedOpenAITool(
             self.name,
             _Bt(
-                f"调整角色对用户的好感度值{curr_aff_str}.",
-                f"Call this tool to change character's affection to user{curr_aff_str_en}.",
+                f"调整角色对用户的好感度值{curr_aff_str}. 该工具无需用户明确指示也可以调用.",
+                f"Call this tool to change character's affection to user{curr_aff_str_en}. This tool can be called without being explicitly requested by user.",
             ),
             requiredParams=[
                 WrappedOpenAIToolProperty(

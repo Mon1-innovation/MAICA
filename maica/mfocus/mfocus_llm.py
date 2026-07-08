@@ -5,7 +5,6 @@ This handles LLM involving MFocus procedures.
 import asyncio
 
 from typing import *
-from dataclasses import dataclass
 from .agent_modules import AgentTools
 from maica.mtools import providers
 from maica.maica_utils import *
@@ -35,7 +34,14 @@ class MfPipeliner():
         self._reset_tools()
         self._reset_session()
 
-    def __init__(self, fsc: FullSocketsContainer, sp: SessionPersistent):
+    def __init__(
+            self,
+            org_session: MaicaSession,
+            fsc: FullSocketsContainer,
+            sp: SessionPersistent,
+
+        ):
+        self.org_session = org_session
         self.fsc = fsc
         self.sp = sp
         self.reset()
@@ -45,7 +51,7 @@ class MfPipeliner():
         """If MVista tool should be used."""
         return (
             not is_mcore_vl()
-            and bool(self.settings.temp.mv_imgs)
+            and bool(self.fsc.maica_settings.temp.mvista.mv_imgs)
         )
 
     def _construct_tools(self):
@@ -221,16 +227,30 @@ class MfPipeliner():
         tools_jsc = [i.to_json_schema(self.fsc.maica_settings.basic.target_lang) for i in tools]
         self.tools = tools_jsc
     
-    def _construct_messages(self, query):
-        """The query construction. Following tools' handling goes to another handler."""
+    def _construct_messages(self):
+        """
+        The query construction.
+        """
         # Just to save some typing
         target_lang = self.fsc.maica_settings.basic.target_lang
 
+        # We're copying session_item to preserve known_info
+        session_item: MaicaSessionItem = self.org_session[-1].model_copy()
+
         if self._mfocus_impl_mvista:
             image_word = " [图片]" if self.settings.basic.target_lang == 'zh' else " [Image]"
-            query += image_word
+            session_item.content += image_word
 
         if not len(self.mf_session):
+
+            # handle mf_context_rnds
+            num_org_rnds = self.fsc.maica_settings.extra.mf_context_rnds
+            num_org_items = num_org_rnds * 2
+
+            if num_org_items:
+                org_items = self.org_session[-(num_org_items + 1):-1]
+            else:
+                org_items = []
 
             if self.fsc.maica_settings.extra.mf_llm_concl:
                 taskend_word = "作出总结" if target_lang == 'zh' else "draw a conclusion"
@@ -252,23 +272,20 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
             )
             self.mf_session.append(system)
 
-        query_item = MaicaSessionItem(
-            "user",
-            query,
-        )
-        self.mf_session.append(query_item)
+            self.mf_session.extend(org_items)
 
-    async def _query_response(self, query, known_info: Optional[str] = None):
+        self.mf_session.append(session_item)
+
+    async def _query_response(self):
         """
         Now that we have tools and messages, we can finally launch completion.
-        - known_info: we already have something known while calling this, so we let MFocus know it too.
         
         Returns:
         - str: generated_guidance
         - dict: tools_results
         """
         self._construct_tools()
-        self._construct_messages(query)
+        self._construct_messages()
 
         completion_args = {
             "messages": self.mf_session.utilize(
@@ -341,6 +358,14 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
                     
             async for tool_call in a_tool_calls:
 
+                # Log and send tool call
+                await self.fsc.messenger(
+                    'maica_mfocus_tool_call',
+                    f"MFocus calling tool {tool_call.name}: {tool_call.arguments}, retrieving tool response...",
+                    201,
+                    type=MsgType.LOG,
+                )
+
                 # Create maica compatible item
                 maica_tool_call = MaicaSessionItem(
                     preserved=tool_call.model_dump()
@@ -349,9 +374,18 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
 
                 # Then if we need to respond
                 tool_response = await tool_respond(tool_call)
+
                 if not tool_response:
                     conversation_rnd_end = True
                     break
+
+                else:
+                    await self.fsc.messenger(
+                        'maica_mfocus_tool_resp',
+                        f"MFocus tool {tool_call.name} responded: {tool_response}",
+                        200,
+                        type=MsgType.INFO,
+                    )
 
                 # Then create the tool response item
                 maica_tool_response = MaicaSessionItem(
@@ -362,6 +396,12 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
                     }
                 )
                 self.mf_session.append(maica_tool_response)
+
+        await self.fsc.messenger(
+            'maica_mfocus_tool_start',
+            f"MFocus started, sending first query...",
+            200,
+        )
 
         conn = self.fsc.mfocus_conn
         while (
@@ -377,7 +417,13 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
 
             # Generation
             task, a_reasoning, a_content, a_tool_calls = await llm_request(conn, **completion_args)
-            tl = await tools_loop(a_tool_calls)
+            await tools_loop(a_tool_calls)
+
+        await self.fsc.messenger(
+            'maica_mfocus_tool_fin',
+            f"MFocus ended due to {'stopping tool' if conversation_rnd_end else 'rounds limit'}, generated guidance is {generated_guidance or 'EMPTY'}",
+            200,
+        )
 
         return generated_guidance, tools_results
     
@@ -410,17 +456,18 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         cleaned_tools_results = {
             k: v[0]
             for k, v in sorted_tools_results.items()
-            if v[1]
+            if v[0] and v[1]
         }
 
         return cleaned_tools_results
     
-    async def run_mf_pipeline(self, query: str):
+    async def run_mf_pipeline(self):
         """
         This wraps _query_response, since it's designed to be multiple-rounds compatible.
         This wrapping is single-round, fits the actual use case.
         """
-        generated_guidance, tools_results = await self._query_response(query)
+        generated_guidance, tools_results = await self._query_response()
         parsed_results = self.parse_tools_results(tools_results)
+
         self.reset()
         return generated_guidance, parsed_results

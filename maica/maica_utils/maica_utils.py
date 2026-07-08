@@ -128,12 +128,12 @@ class CommonMaicaException(Exception):
     
 class CommonMaicaError(CommonMaicaException):
     """This is a common MAICA error."""
-    def __init__(self, message=None, error_code='500', status='maica_unidentified_error', send=None, print=None):
+    def __init__(self, message=None, error_code=500, status='maica_unified_error', send=None, print=None):
         super().__init__(message, error_code, status, send, print)
     
 class CommonMaicaWarning(CommonMaicaException):
     """This is a common MAICA warning."""
-    def __init__(self, message=None, error_code='400', status='maica_unidentified_warning', send=None, print=None):
+    def __init__(self, message=None, error_code=400, status='maica_unified_warning', send=None, print=None):
         super().__init__(message, error_code, status, send, print)
 
     @property
@@ -334,8 +334,8 @@ class Decos():
         async def log_retry(retry_state):
             self = retry_state.args[0] if retry_state else None
             rsc = getattr(self, 'rsc', None); name = getattr(self, 'name', 'anon_conn')
-            websocket = rsc.websocket if rsc else None; tracker_id = rsc.tracker_id if rsc else ''
-            await messenger(websocket=websocket, status=f'{name}_temp_failure', info=f'{name} temporary failure, retrying {retry_state.attempt_number} time...', code='304', tracker_id=tracker_id, type=MsgType.WARN)
+            websocket = getattr(rsc, 'websocket', None); tracker_id = getattr(rsc, 'tracker_id', None)
+            await messenger(websocket=websocket, status=f'{name}_temp_failure', info=f'{name} temporary failure, retrying {retry_state.attempt_number} time...', code=304, tracker_id=tracker_id, type=MsgType.WARN)
 
         retry_decorator = retry(
             stop=stop_after_attempt(max_attempts),
@@ -488,6 +488,8 @@ class BilingualText():
         if self.auto is None:
             self.auto = self.en
 
+        return self
+
     def __bool__(self):
         return bool(self.zh or self.en or self.auto)
 
@@ -527,6 +529,36 @@ class BilingualText():
         else:
             return self.auto
 
+class PydUpdateMixin(BaseModel):
+    """This adds update() method to pydantic models."""
+    def update(self, m):
+        """Updating from a dict, a pydantic object, or something alike."""
+        if isinstance(m, BaseModel):
+            m = m.model_dump()
+
+        updated = set()
+        for k, v in m.items():
+            if k in self.__class__.model_fields:
+                setattr(self, k, v)
+                updated.add(k)
+        return updated
+
+class PydHardResetMixin(BaseModel):
+    """This adds reset() method to pydantic models (id/vfc)."""
+    def reset(self):
+        """Hard reset all id/vfc values to default."""
+        _crd_fields = ('_user_id', '_username', '_nickname', '_email')
+        for f in _crd_fields:
+            if hasattr(self, f):
+                setattr(self, f, None)
+
+class PydSoftResetMixin(BaseModel):
+    """This adds reset() method to pydantic models (norm)."""
+    def reset(self):
+        for k, v in self.__class__.model_fields.items():
+            setattr(self, k, v.get_default(call_default_factory=True))
+        self.model_fields_set.clear()
+
 @dataclass
 class Desc():
     """Just a description."""
@@ -545,9 +577,15 @@ def default(exp, default, default_list: list=[None]) -> any:
     """If exp is in default list(normally None), use default."""
     return default if exp in default_list else exp
 
-def wrap_ws_formatter(code, status, content, type, deformation=False, **kwargs) -> str:
-    if not (isinstance(content, (str, list, dict, bool)) or content is None):
+def wrap_ws_formatter(code, status, content, type, **kwargs) -> str:
+    if not (
+        isinstance(
+            content,
+            (str, list, dict, bool)
+        ) or content is None
+    ):
         content = str(content)
+
     output = {
         "code" : code,
         "status" : status,
@@ -555,8 +593,9 @@ def wrap_ws_formatter(code, status, content, type, deformation=False, **kwargs) 
         "type" : type,
         "timestamp" : time.time(),
     }
+
     output.update(kwargs)
-    return json.dumps(output, ensure_ascii=deformation)
+    return json.dumps(output)
 
 def ellipsis_str(input: Any, limit=80) -> str:
     """It converts anything to str and ellipsis it."""
@@ -671,7 +710,7 @@ def proceed_common_text(text: str, is_json=False) -> Union[str, list, dict]:
     return answer_fin
 
 @overload
-async def messenger(websocket=None, status='', info='', code='0', tracker_id='', error: Optional[CommonMaicaException]=None, type='', color='', add_time=True, no_print=False, no_raise=False, **kwargs) -> None: ...
+async def messenger(websocket=None, status='', info='', code=0, tracker_id='', error: Optional[CommonMaicaException]=None, type='', color='', add_time=True, no_print=False, no_raise=False, **kwargs) -> None: ...
 
 async def messenger(websocket=None, *args, **kwargs) -> None:
     """Together with websocket.send()."""
@@ -679,7 +718,7 @@ async def messenger(websocket=None, *args, **kwargs) -> None:
     if websocket and ws_tuple:
         await websocket.send(wrap_ws_formatter(*ws_tuple))
 
-def sync_messenger(status='', info='', code='0', tracker_id='', error: Optional[CommonMaicaException]=None, type='', color='', add_time=True, no_print=False, no_raise=False, **kwargs) -> tuple:
+def sync_messenger(status='', info='', code=0, tracker_id='', error: Optional[CommonMaicaException]=None, type='', color='', add_time=True, no_print=False, no_raise=False, **kwargs) -> tuple:
     """It could handle most log printing and exception raising jobs pretty automatically."""
     try:
         term_v = os.get_terminal_size().columns
@@ -687,6 +726,8 @@ def sync_messenger(status='', info='', code='0', tracker_id='', error: Optional[
         term_v = 40
     rep2 = int(term_v / 2)
     rep1 = int(rep2 - 20)
+
+    code = int(code)
 
     if error:
         status = error.status if not status else status; info = error.message if not info else info; code = error.error_code if code == "0" else code
@@ -716,15 +757,16 @@ def sync_messenger(status='', info='', code='0', tracker_id='', error: Optional[
     else:
         msg_print = f"<{prefix}>"
         msg_print = msg_print.ljust(10)
-        msg_print += f"[{time.strftime('%Y-%m-%d %H:%M:%S')}]" if add_time else ''; msg_print += f"-[{str(code)}]" if code else ''
+        msg_print += f"[{time.strftime('%Y-%m-%d %H:%M:%S')}]" if add_time else ''; msg_print += f"-[{code}]"
         msg_print = msg_print.ljust(40)
-        msg_print += f": {str(info)}" if not str(info).startswith('\n') else f"{'-=' * rep1}{str(info)}\n{'-=' * rep2}"
-        msg_print += f"; traceray ID {tracker_id}" if tracker_id else ''
+        msg_print += f": {str(info)}" if not str(info).startswith('\n') else f"{'-=' * rep1}{str(info)}"
+        msg_print += f" <{tracker_id}>" if tracker_id else ''
+        msg_print += "" if not str(info).startswith('\n') else f"{'-=' * rep2}"
         msg_send = info
         if type == 'error' and int(G.A.NO_SEND_ERROR):
             msg_send = "A critical exception happened serverside, contact administrator"
         if tracker_id and isinstance(info, str):
-            msg_send += f" -- your traceray ID is {tracker_id}"
+            msg_send += f" <{tracker_id}>"
 
     frametrack_dict = {"error": 99, "warn": 1}
     if type in frametrack_dict:
@@ -792,18 +834,22 @@ async def wrap_run_in_exc(loop, func, *args, **kwargs) -> any:
 def limit_length[T](col: list[T], limit: int) -> list[T]:
     return random.sample(col, limit) if limit < len(col) else col
 
-async def dld_json(url, use_proxy=True, ua_disguise=False, method='get', carriage=None) -> json:
-    """Get JSON context from an endpoint."""
-    if ua_disguise:
+def get_ua(disguise = False):
+    """Gets an UA for web requests."""
+    if disguise:
         ua = f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36"
     else:
         ua = f"MaicaDataFetcher/1.0 (dcc@monika.love) httpx/{httpx.__version__}"
-    headers = {'User-Agent': ua}
+    return ua
+
+async def dld_json(url, use_proxy=True, ua_disguise=False, method='get', carriage=None) -> json:
+    """Get JSON context from an endpoint."""
+    headers = {'User-Agent': get_ua(ua_disguise)}
 
     @Decos.conn_retryer_factory()
     async def _dld_json(fake_self, url):
         nonlocal headers
-        async with httpx.AsyncClient(proxy=G.A.PROXY_ADDR if use_proxy else None) as client:
+        async with httpx.AsyncClient(proxy=(G.A.PROXY_ADDR or None) if use_proxy else None) as client:
             exparams = {"params": carriage} if method == 'get' else {"json": carriage}
             res = (await getattr(client, method)(url, headers=headers, **exparams)).json()
             return res
@@ -978,7 +1024,7 @@ async def hash_sha256(str) -> str:
     """Get SHA256 for a string."""
     def hash_sync(str):
         return hashlib.new('sha256', str).hexdigest()
-    return await wrap_run_in_exc(None, hash_sync, str)
+    return await asyncio.to_thread(hash_sync, str)
 
 def is_mcore_vl():
     """If mcore is same model with mvista."""

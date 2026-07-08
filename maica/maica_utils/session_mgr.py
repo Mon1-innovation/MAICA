@@ -24,6 +24,7 @@ class MaicaSessionItem():
         """Specifically context object of MaicaSessionItem."""
         strict_conv: bool = True
         player_name: str = "[player]"
+        apply_nickname: bool = True
         nsfw_acceptive: bool = True
         known_info: dict[
             str,
@@ -122,9 +123,9 @@ class MaicaSessionItem():
         self.target_lang = fsc.maica_settings.basic.target_lang
 
         context = self.context
-        context.strict_conv = fsc.maica_settings.temp.mpostal.strict_conv
+        context.strict_conv = fsc.maica_settings.temp.common.strict_conv
         context.nsfw_acceptive = fsc.maica_settings.extra.nsfw_acceptive
-        context.image_urls = fsc.maica_settings.temp.mv_imgs
+        context.image_urls = fsc.maica_settings.temp.mvista.mv_imgs
 
 class MaicaSession(list[MaicaSessionItem], DbBoundObject):
     """
@@ -143,6 +144,13 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
 
         self.default_target_lang: Literal['zh', 'en', 'auto'] = 'zh'
         self.default_context = MaicaSessionItem.Context()
+
+        # Should we load fsc settings into defaults here?
+        # We probably should.
+        self.default_target_lang = self.fsc.maica_settings.basic.target_lang
+        self.default_context.strict_conv = self.fsc.maica_settings.temp.common.strict_conv
+        self.default_context.apply_nickname = self.fsc.maica_settings.extra.prompt_allow_nickname
+        self.default_context.nsfw_acceptive = self.fsc.maica_settings.extra.nsfw_acceptive
 
     def __init__(self, session_num: int = 0, fsc: Optional[FullSocketsContainer] = None, *args, **kwargs):
         # Initialize the base list class
@@ -267,7 +275,11 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
             for k, v in format_kvs:
                 format_kvs[k] = to_str(v, target_lang)
 
-        prompt = prompt.format(player_name=curr_context.player_name, **format_kvs)
+        prompt = prompt.format(
+            player_name=curr_context.player_name,
+            player_nickname="[player_nickname]" if curr_context.apply_nickname else "",
+            **format_kvs,
+        )
 
         # Then inject
         # Note that system prompt item should not be modified from external
@@ -411,22 +423,22 @@ class SessionPersistent(DbBoundObject, SessionPersistentMixin):
     _empty = lambda: {}
 
     def clear(self):
-        self.content_temp = {}
+        self.clear_temp()
         return super().clear()
     
-    def from_db(self):
-        return super().from_db()
+    def clear_temp(self):
+        self.content_temp = {}
 
 class SessionTrigger(DbBoundObject, SessionTriggerMixin):
     TABLE: ClassVar[Optional[str]] = "triggers"
     PRIM_KEY_NAME: ClassVar[Optional[str]] = "trigger_id"
 
     def clear(self):
-        self.content_temp = []
+        self.clear_temp()
         return super().clear()
     
-    def from_db(self):
-        return super().from_db()
+    def clear_temp(self):
+        self.content_temp = []
     
 # That float is last acquired timestamp
 _sessions_index: Dict[
@@ -496,21 +508,27 @@ async def _fsc_acquire_dbo(type: Literal["session", "persistent", "trigger"], fs
             raise MaicaInputError("Type cannot be recognized")
 
     session = _id_acquire_dbo(cls, sub_dict_k, user_id, session_num)
+    # If former fsc is already destroyed
     session.fsc = fsc
 
     match type:
         case "session" if session_num <= 0:
             # Temporary session, reset everytime
             session.reset()
+        case "persistent" | "trigger":
+            session.clear_temp()
 
     return session
 
 @asynccontextmanager
 async def acquire_dbo(type: Literal["session", "persistent", "trigger"], fsc: FullSocketsContainer):
     """This should be used as context manager!"""
-    session = await _fsc_acquire_dbo(type, fsc)
-    async with session.lock:
-        yield session
+    session: MaicaSession | SessionPersistent | SessionTrigger = await _fsc_acquire_dbo(type, fsc)
+    try:
+        async with session.lock:
+            yield session
+    finally:
+        session.fsc = None
 
 def acquire_session(fsc):
     """Just an alias now."""

@@ -37,7 +37,7 @@ async def asearch(query, target_lang: Literal['zh', 'en', 'auto']='zh'):
         "waiting": True
     })
 
-    async with httpx.AsyncClient(proxy=G.A.PROXY_ADDR) as client:
+    async with httpx.AsyncClient(proxy=G.A.PROXY_ADDR or None) as client:
         response = await client.post(url, headers=headers, data=json_payload, timeout=30)
         response_json = response.json()
 

@@ -12,7 +12,23 @@ _ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/bmp', 'image/webp']
 _base_path: str = get_inner_path('fs_storage/mv_img')
 
 class ProcessingImg():
-    """A wrapped picture to process."""
+    """
+    A wrapped picture to process.
+    Usage:
+        - Read:
+            pi = ProcessingImg(path)
+            pi.read()
+            img_bytes = pi.get_bio()
+        - Write:
+            pi = ProcessingImg(bytes)
+            pi.save()
+        - Delete:
+            pi = ProcessingImg()
+            pi.uuid = uuid
+            pi.delete()
+    Note that this does not involve database (ownership), do that separately.
+    """
+
     _bio: Optional[BytesIO] = None
     _uuid: Optional[str] = None
 
@@ -143,6 +159,6 @@ class ProcessingImg():
         assert os.path.isfile(self.real_path), f"File {self.file_name} not exist"
         os.remove(self.real_path)
 
-    def to_bio(self):
+    def get_bio(self):
         """Get stored bio."""
         return self._bio

@@ -95,10 +95,15 @@ class SentenceOfTheDay():
         "幻象引擎: MAICA websocket连接已建立."
     ]
 
+    en_sentence = "Illuminator: MAICA websocket connection established."
+
     def get_sentence(self):
         match random.random():
             case x if x < 0.9:
-                choice = random.choice(self.common_sentences)
+                zh = random.choice(self.common_sentences)
             case _:
-                choice = random.choice(self.special_sentences)
-        return choice
+                zh = random.choice(self.special_sentences)
+
+        en = self.en_sentence
+        bl = f"{zh}|{en}"
+        return bl

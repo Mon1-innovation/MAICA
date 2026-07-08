@@ -7,7 +7,6 @@ import traceback
 from typing import *
 from dateutil import parser
 from maica.mtools import *
-from .mfocus_main import SfPersistentManager
 from maica.maica_utils import *
 
 _Bt = BilingualText
@@ -78,7 +77,7 @@ class AgentTools():
 
         location = location or self.sp.read_key('mas_geolocation')
         if not location:
-            await messenger(self.fsc.websocket, 'maica_mfocus_geoloc_absent', "Cannot use weather tool since no geolocation provided, skipping", '404', self.fsc.tracker_id)
+            await messenger(self.fsc.websocket, 'maica_mfocus_geoloc_absent', "Cannot use weather tool since no geolocation provided, skipping", 404, self.fsc.tracker_id)
 
         try:
             weather = await weather_api_get(location)
@@ -233,7 +232,7 @@ class AgentTools():
         """Gets value from persistent."""
         target_lang = self.fsc.maica_settings.basic.target_lang
 
-        match self.fsc.maica_settings.extra.mf_sf_access_impl:
+        match self.fsc.real_sf_access_impl:
             case 0:
                 res = await self.sp.filter_llm(query)
             case 1:
@@ -259,7 +258,7 @@ class AgentTools():
     
     async def vista_acquire(self, query: Optional[str] = None, *args, **kwargs):
         """Gets information from image."""
-        img_list = self.fsc.maica_settings.temp.mv_imgs
+        img_list = self.fsc.maica_settings.temp.mvista.mv_imgs
 
         if not query:
             query = _Bt(
@@ -269,7 +268,7 @@ class AgentTools():
 
         text = await query_vlm(self.fsc, query, img_list)
 
-        return text, text
+        return text, img_list
 
 if __name__ == "__main__":
     pass

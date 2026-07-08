@@ -36,9 +36,9 @@ def pkg_init_censor():
     except Exception as e:
         sync_messenger(info=f"[maica-cnsr] Censor patterns may not exist: {str(e)}, ignoring and continuing", type=MsgType.DEBUG)
 
-async def has_censored(text) -> list:
+async def has_censored(text):
     """If there are censored words in text, or how many."""
-    found = await wrap_run_in_exc(None, kp.extract_keywords, text)
+    found = await asyncio.to_thread(kp.extract_keywords, text)
     return set(found)
 
 __all__ = ['has_censored']

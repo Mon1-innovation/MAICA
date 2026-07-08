@@ -35,7 +35,7 @@ async def internet_search(fsc: FullSocketsContainer, query):
 
     except Exception as e:
         res_m = None
-        await messenger(fsc.websocket, "mfocus_serp_failed", f"MFocus serp failed: {str(e)}", '408', fsc.tracker_id)
+        await messenger(fsc.websocket, "mfocus_serp_failed", f"MFocus serp failed: {str(e)}", 408, fsc.tracker_id)
 
     # Early return if llm conc not required
     if not results_list:

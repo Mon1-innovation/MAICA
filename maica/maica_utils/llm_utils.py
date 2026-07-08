@@ -125,9 +125,7 @@ async def parse_responses_output(
 
 async def llm_request(conn: AiConnectionManager, *args, **kwargs):
     """
-    Send request to LLM and retrieves simple results.
-    Is streaming compatible actually but I don't think we're using it.
-    We implement it for possible future convenience anyway.
+    Send request to LLM and retrieves parsed results.
     """    
     resp = await conn.make_completion(*args, **kwargs)
     return await parse_responses_output(resp)

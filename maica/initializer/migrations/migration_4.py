@@ -65,4 +65,23 @@ async def migrate():
     else:
         sync_messenger(info="[maica-db] Milvus databse is not enabled, skipping...", type=MsgType.WARN)
 
+    maica_pool = await ConnUtils.maica_pool()
+    try:
+        if maica_pool.db_type == 'mysql':
+            await maica_pool.query_modify("ALTER TABLE `account_status` CHANGE `status` `status` JSON NULL DEFAULT NULL; ")
+            await maica_pool.query_modify("ALTER TABLE `account_status` CHANGE `preferences` `preferences` JSON NULL DEFAULT NULL; ")
+        else:
+            # There's no actual json at all in sqlite
+            pass
+
+    except Exception as e:
+        raise MaicaDbWarning(f'Couldn\'t alter lines TEXT to JSON: {str(e)}, maybe manually done already?') from e
+    finally:
+        await maica_pool.close()
+
 register_migration(upper_version, migrate)
+
+if __name__ == "__main__":
+    from maica import init
+    init()
+    asyncio.run(migrate())

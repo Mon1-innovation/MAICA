@@ -30,7 +30,7 @@ If you want to read in English, use a translator.
 
 + 现在发送maica_mcore_gen_start标记断点续传介入
 
-- 弃用mas_hf_hcb
+- 弃用mas_sf_hcb
 
 = affection trigger的参数键改为alter_value
 
@@ -42,7 +42,7 @@ If you want to read in English, use a translator.
 
 - 弃用mf_const_tools == 3
 
-= 现在serp采用标准数据模型
+= 现在第三方serp注册采用标准数据模型
 
 = sf_extraction更名为savefile_access
 
@@ -53,3 +53,29 @@ If you want to read in English, use a translator.
 = MPostal ic_prep更名为twk_super
 
 = legality接口查询地址现在返回经纬度
+
+- 弃用websocket不传入type的自动类型推断
+
++ MSpire添加参数ctg_weight
+
+= MSpire的use_cache参数变为条目内参数
+
++ 整理mp部分配置为MSpire, MPostal通用高级配置
+
+- 弃用了ms, mp的简单模式. 对于ms, 现在传空字典{}以采用默认配置
+
+= websocket信息中的code现在是int
+
+- 弃用了反劫持cookie, 纯自欺欺人来的
+
+= maica_model_mvista等变为maica_feature_mvista等
+
+= maica_loop_warn_continue变为maica_loop_warn_reset
+
+= 应该还有更多状态码变了, 具体根据用的找吧
+
+= 非流式输出的状态码与流式输出统一
+
++ 添加高级参数prompt_allow_nickname
+
+= 现在连接初始化消息原生双语(用|分隔)

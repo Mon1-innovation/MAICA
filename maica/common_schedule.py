@@ -92,6 +92,8 @@ class CommonScheduler():
 
             gced = dbos_gc(ftime)
             sync_messenger(info=f'Destroyed {len(gced)} session handlers', type=MsgType.LOG)
+            gced2 = buffers_gc(ftime)
+            sync_messenger(info=f'Destroyed {len(gced2)} websocket buffers', type=MsgType.LOG)
 
     @Decos.log_task
     async def rotate_mtts_cache(self):
@@ -119,7 +121,7 @@ class CommonScheduler():
         if keep_time:
             timestamp = datetime.datetime.now()
             earliest_timestamp_float = (timestamp - datetime.timedelta(hours=keep_time)).timestamp()
-            deleted_count, all_count = await wrap_run_in_exc(None, sync_rotation, earliest_timestamp_float)
+            deleted_count, all_count = await asyncio.to_thread(sync_rotation, earliest_timestamp_float)
 
             sync_messenger(info=f'Removed {deleted_count} MTTS caches, {all_count} remaining', type=MsgType.LOG)
 

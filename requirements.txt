@@ -17,6 +17,7 @@ openai>=2.24.0
 orjson>=3.11
 pillow>=12.0
 pycryptodome==3.20.0
+pydantic[email]>=2.11
 pymilvus[milvus_lite]>=3.0.0
 python-dotenv>=1.0.1
 python-magic>=0.4
@@ -27,5 +28,6 @@ tenacity>=9.0.0
 typeguard>=4.4.0
 websocket==0.2.1
 websockets>=12.0
+wikipedia-api>=0.15.0
 wrapt>=1.17.3
 zhconv==1.4.3

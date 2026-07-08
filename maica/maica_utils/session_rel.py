@@ -992,6 +992,9 @@ class SessionPersistentMixin():
     async def filter_milvus(self, query: str, topk: int = 5) -> Set:
         """Embed and search query from milvus."""
         vector_pool = self.fsc.vector_pool
+        if not self.fsc.is_vector_ready:
+            return []
+
         user_id = self.fsc.maica_settings.verification.user_id
         session_num = self.session_num
 
@@ -1024,9 +1027,17 @@ class SessionPersistentMixin():
     async def filter_reranker(self, query: str, documents: Optional[list] = None, topk: int = 2) -> list:
         """More precisely filter results, suggest using filter_milvus first."""
         reranking_conn = self.fsc.reranking_conn
+        if not self.fsc.is_reranking_ready:
+            return []
 
-        if documents is None:
+        if (
+            documents is None
+            and self.fsc.is_vector_ready
+        ):
             documents = await self.filter_milvus(query, 10)
+        elif documents is None:
+            documents = self.form_info()
+
         if not documents:
             return []
 
@@ -1047,8 +1058,14 @@ class SessionPersistentMixin():
         target_lang = session.default_target_lang = self.fsc.maica_settings.basic.target_lang
         conn = self.fsc.mnerve_conn or self.fsc.mfocus_conn
 
-        if documents is None:
+        if (
+            documents is None
+            and self.fsc.is_vector_ready
+        ):
             documents = await self.filter_milvus(query, 10)
+        elif documents is None:
+            documents = self.form_info()
+
         if not documents:
             return []
 

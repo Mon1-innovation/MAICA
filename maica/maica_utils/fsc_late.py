@@ -6,8 +6,9 @@ from pymilvus import AsyncMilvusClient
 from Crypto.Random import random as crandom
 from .maica_utils import *
 from .setting_utils import MaicaSettings
-from .fsc_early import RealtimeSocketsContainer, TracerayId
+from .fsc_early import RealtimeSocketsContainer, TrackerId
 from .connection_utils import *
+from .users_utils import FscUsersFuncMixin
 
 @dataclass
 class ConnSocketsContainer():
@@ -28,7 +29,7 @@ class ConnSocketsContainer():
         return ConnSocketsContainer(**sub_kwargs)
 
 @dataclass
-class FullSocketsContainer():
+class FullSocketsContainer(FscUsersFuncMixin):
     """
     For all convenience consideration.
     This is, like an important concept since it carries almost everything around.
@@ -36,8 +37,10 @@ class FullSocketsContainer():
     """
 
     session: ClassVar[Optional[MaicaSession]]
+    """This is currently unused."""
     websocket: ClassVar[Optional[ServerConnection]]
-    tracker_id: ClassVar[TracerayId]
+    tracker_id: ClassVar[TrackerId]
+    messenger: ClassVar[RealtimeSocketsContainer.RscMessenger]
     maica_settings: ClassVar[MaicaSettings]
     miscellaneous: dict = field(default_factory=lambda: {})
     """
@@ -66,7 +69,7 @@ class FullSocketsContainer():
         if not self.csc:
             self.csc = ConnSocketsContainer()
 
-    rsc_proxied = ['session', 'websocket', 'tracker_id', 'maica_settings']
+    rsc_proxied = ['session', 'websocket', 'tracker_id', 'messenger', 'maica_settings']
     csc_proxied = ['auth_pool', 'maica_pool', 'vector_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn', 'embedding_conn', 'reranking_conn']
 
     def __getattr__(self, k):
@@ -84,3 +87,24 @@ class FullSocketsContainer():
             setattr(self.csc, k, v)
         else:
             super().__setattr__(k, v)
+
+    @property
+    def is_vector_ready(self):
+        return bool(
+            self.vector_pool
+            and self.embedding_conn
+        )
+    
+    @property
+    def is_reranking_ready(self):
+        return bool(self.reranking_conn)
+    
+    @property
+    def real_sf_access_impl(self):
+        match self.fsc.maica_settings.extra.mf_sf_access_impl:
+            case 1 if self.fsc.is_reranking_ready:
+                return 1
+            case 2 if self.fsc.is_vector_ready:
+                return 2
+            case _:
+                return 0

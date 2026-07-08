@@ -1,5 +1,3 @@
+from .post_core_pipeliner import post_core_pipelines
 
-from .mtrigger_main import MTriggerManager
-from .mtrigger_sfe import MtPersistentManager
-
-__all__ = ['MTriggerManager', 'MtPersistentManager']
+__all__ = ['post_core_pipelines']

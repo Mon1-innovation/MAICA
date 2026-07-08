@@ -8,12 +8,15 @@ import traceback
 import colorama
 
 from typing import *
+from pydantic import BaseModel, RootModel, Field, field_validator, model_validator, TypeAdapter
 from dataclasses import asdict
 from openai import AsyncStream
 from openai.types.responses import Response, ResponseStreamEvent
 
 from maica import mtools
 from maica.maica_nows import NoWsCoroutine
+from maica.mfocus import pre_core_pipelines
+from maica.mtrigger import post_core_pipelines
 from maica.maica_utils import *
 
 _CONNS_LIST = [
@@ -21,60 +24,7 @@ _CONNS_LIST = [
     'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn', 'embedding_conn', 'reranking_conn',
 ]
 
-async def drain_buffer(websocket, id: int):
-    """Drains a buffer and send through ws."""
-    buffer: mtools.StreamBuffer = mtools.buffer_dict.get(id)
-    if not buffer:
-        await messenger(websocket, 'maica_reconn_buffer_empty', f"Reconnection buffer not present for user id {id}.", '204')
-        return
-
-    sent = 0
-    async for ws_tuple in buffer:
-        sent += 1
-        await websocket.send(wrap_ws_formatter(*ws_tuple))
-
-    await messenger(websocket, 'maica_reconn_buffer_drained', f"Reconnection buffer drained for user id {id}, {sent} packets sent.", '200', type=MsgType.INFO)
-
-class BufferedMessenger():
-    """As name."""
-    @staticmethod
-    def _dummy_messenger(websocket=None, *args, **kwargs):
-        return sync_messenger(*args, **kwargs)
-    
-    def __init__(self, id: int):
-        """Unlinks previous buffer on initialization."""
-        self.id = id
-        self.wsint = False
-        self.we = None
-
-        mtools.buffer_dict.del_id(id)
-
-    async def __call__(self, *args, **kwargs):
-        if not self.wsint:
-            try:
-                return await messenger(*args, **kwargs)
-            except websockets.WebSocketException as we:
-                self.wsint = True
-                self.we = we
-                sync_messenger(info="<WSINT, storing remaining to buffer>", type=MsgType.PLAIN, color=colorama.Fore.LIGHTYELLOW_EX)
-
-                mtools.buffer_dict.add_id(self.id)
-                self._buffer: mtools.StreamBuffer = mtools.buffer_dict[self.id]
-                self._timestamp = self._buffer.timestamp
-
-        if self.wsint:
-            ws_tuple = self._dummy_messenger(*args, **kwargs)
-            await self._buffer.aappend(ws_tuple)
-
-    async def seal(self):
-        """
-        Announce corresponding buffer exhausted.
-        Also raises ws exception if captured, remains the destroying procedure intact.
-        """
-        if self.wsint:
-            sync_messenger(info=f"Sealed {len(self._buffer)} packets into buffer, sending original interrupt...", type=MsgType.INFO)
-            await self._buffer.aexhaust()
-            raise self.we
+_Bt = BilingualText
 
 class WsCoroutine(NoWsCoroutine):
     """
@@ -88,16 +38,22 @@ class WsCoroutine(NoWsCoroutine):
         ):
         super().__init__(fsc=fsc)
 
-    # Stage 1 permission check
+
+    # ====================================================== Stage 1 permission check ======================================================
+
+
     async def check_permit(self):
+
+        # The ip part
         websocket = self.websocket
         xff = websocket.request.headers.get("X-Forwarded-For")
         if xff:
             self.remote_addr = xff.split(',')[0].strip()
         else:
             self.remote_addr = str(websocket.remote_address[0])
-        sync_messenger(info=f'An anonymous connection initiated, IP {self.remote_addr}', type=MsgType.PRIM_LOG)
-        sync_messenger(info=f'Current online users: {list(online_dict.keys())}', type=MsgType.DEBUG)
+        sync_messenger(info=f'An anonymous connection initiated', type=MsgType.PRIM_LOG)
+        sync_messenger(info=f'From IP {self.remote_addr}', type=MsgType.DEBUG)
+        sync_messenger(info=f'Current online users: {online_dict.keys()}', type=MsgType.DEBUG)
 
         # Starting loop from here
         while True:
@@ -105,531 +61,558 @@ class WsCoroutine(NoWsCoroutine):
 
                 # Initiation
                 self.tracker_id.rotate()
-                self.settings.identity.reset()
-                self.settings.verification.reset()
 
+                # Recieve text
                 recv_text = await websocket.recv()
-                if not ReUtils.re_search_type_sping.search(recv_text):
-                    sync_messenger(info=f'Recieved an input on stage1: {colorama.Back.CYAN}{recv_text}{colorama.Back.RESET}', type=MsgType.RECV)
-                    sync_messenger(info=f'From IP {self.remote_addr}', type=MsgType.DEBUG)
-                recv_loaded_json = await validate_input(recv_text, 4096, self.fsc.rsc)
+                # Validate text
+                try:
+                    ws_config: UnionStage1Settings = TypeAdapter(Stage1Settings).validate_json(recv_text)
+                except Exception as e:
+                    # We can test if it's caused by wrong stage
+                    try:
+                        _ws_config: UnionStage2Settings = TypeAdapter(Stage2Settings).validate_json(recv_text)
+                        raise MaicaPermissionWarning(f"Query type {_ws_config.type} now allowed pre-auth")
+                    except Exception as e2:
+                        raise MaicaInputWarning(f"Query parsing failed: {str(e)}") from e
 
-                recv_type = recv_loaded_json.get('type', 'auth')
-
-                match recv_type.lower():
-                    case 'ping':
-                        await messenger(websocket, "pong", f"Ping recieved from anonymous and responded", "200")
-                    case 'sping':
+                match ws_config.type:
+                    case "sping":
                         pass
-                    case 'auth':
-                        recv_loaded_json = await validate_input(recv_loaded_json, 0, self.fsc.rsc, must=['access_token'])
-                        login_success = await self.hash_and_login(recv_loaded_json['access_token'], check_online=True)
+                    case "ping":
+                        await self.fsc.messenger("pong", f"Ping recieved from anonymous and responded", 200)
+                    case "auth":
+                        sync_messenger(info=f'Recieved auth request on stage1: {colorama.Back.CYAN}{recv_text}{colorama.Back.RESET}', type=MsgType.RECV)
+                        sync_messenger(info=f'From IP {self.remote_addr}', type=MsgType.DEBUG)
 
-                        if login_success:
+                        # The login procedure
+                        try:
+                            await self.fsc.login(ws_config.access_token)
+                        except CommonMaicaException as ce:
+                            raise ce
+                        except Exception as e:
+                            raise MaicaPermissionWarning(f"Exception happened logging in: {str(e)}, check your schema") from e
 
-                            # From here we can assume the user has logged in successfully
-                            self.cookie = cookie = str(uuid.uuid4())
-                            self.enforce_cookie = False
 
-                            await self.populate_auxiliary_inst()
+                        # Cookies are deprecated
+                        sync_messenger(info=f'Authentication passed: {self.settings.verification.username}({self.settings.verification.user_id})', type=MsgType.LOG)
+                        await self.fsc.messenger('maica_login_id', f"{self.settings.verification.user_id}", 200, no_print=True)
+                        await self.fsc.messenger('maica_login_user', f"{self.settings.verification.username}", 200, no_print=True)
+                        await self.fsc.messenger('maica_login_nickname', f"{self.settings.verification.nickname}", 200, no_print=True)
 
-                            await messenger(info=f'Authentication passed: {self.settings.verification.username}({self.settings.verification.user_id})', type=MsgType.LOG)
-                            await messenger(websocket, 'maica_login_id', f"{self.settings.verification.user_id}", '200', no_print=True)
-                            await messenger(websocket, 'maica_login_user', f"{self.settings.verification.username}", '200', no_print=True)
-                            await messenger(websocket, 'maica_login_nickname', f"{self.settings.verification.nickname}", '200', no_print=True)
-                            await messenger(websocket, 'maica_connection_security_cookie', cookie, '200', no_print=True)
-
-                            return {'id': self.settings.verification.user_id, 'username': self.settings.verification.username}
-                    
-                    case 'reconn' | 'params' | 'query':
-                        raise MaicaInputWarning('You have not logged in in current session', '403', 'maica_request_login_required')
-
-                    case _:
-                        raise MaicaInputWarning('Type cannot be determined', '422', 'maica_request_type_unknown')
+                        return {'id': self.settings.verification.user_id, 'username': self.settings.verification.username}
 
             # Handle expected exceptions
             except CommonMaicaException as ce:
                 if ce.is_critical or ce.is_breaking:
                     raise ce
                 else:
-                    await messenger(websocket, error=ce, no_raise=True)
+                    await self.fsc.messenger(error=ce, no_raise=True)
+                    # await messenger(websocket, 'maica_loop_warn_finished', 'Loop hit a user level exception, stopped and reset', 304)
                     continue
-    
-    # Stage 2 function router
+
+
+    # ====================================================== Stage 1 ends ======================================================
+
+
+    # ====================================================== Stage 2 function router ======================================================
+
+
+    # Yes nowadays we can actually merge the two stages into one
+    # But since it's not necessary and this old way offers lower level control
+    # We'll just leave it be
     async def function_switch(self):
         websocket = self.websocket
-        await messenger(websocket, "maica_connection_established", "MAICA connection established", "201", type=MsgType.INFO, no_print=True)
-        await messenger(websocket, "maica_provider_anno", f"Current service provider is {G.A.DEV_IDENTITY or 'UNKNOWN'}", "200", type=MsgType.INFO, no_print=True)
-        await messenger(websocket, "maica_model_anno", f"Main model is {self.fsc.mcore_conn.model_actual}, MFocus model is {self.fsc.mfocus_conn.model_actual}", "200", type=MsgType.INFO, no_print=True)
+        
+        # Announcements
+        await self.fsc.messenger("maica_connection_established", "MAICA connection established", 201, type=MsgType.INFO, no_print=True)
+        await self.fsc.messenger("maica_provider_anno", f"Current service provider is {G.A.DEV_IDENTITY or 'UNKNOWN'}", 200, type=MsgType.INFO, no_print=True)
+        await self.fsc.messenger("maica_model_anno", f"Main model is {self.fsc.mcore_conn.model_actual}, MFocus model is {self.fsc.mfocus_conn.model_actual}", 200, type=MsgType.INFO, no_print=True)
+
         if self.fsc.mvista_conn:
-            await messenger(websocket, "maica_model_mvista", f"MVista enabled on server, model is {self.fsc.mvista_conn.model_actual}", "200", type=MsgType.INFO, no_print=True)
+            await self.fsc.messenger("maica_feature_mvista", f"MVista enabled on server, model is {self.fsc.mvista_conn.model_actual}", 200, type=MsgType.INFO, no_print=True)
+        elif is_mcore_vl():
+            await self.fsc.messenger("maica_feature_mvista", f"MVista enabled on server, using core model implementation", 200, type=MsgType.INFO, no_print=True)
+
         if self.fsc.mnerve_conn:
-            await messenger(websocket, "maica_model_mnerve", f"MNerve enabled on server, model is {self.fsc.mnerve_conn.model_actual}", "200", type=MsgType.INFO, no_print=True)
+            await self.fsc.messenger("maica_feature_mnerve", f"MNerve enabled on server, model is {self.fsc.mnerve_conn.model_actual}", 200, type=MsgType.INFO, no_print=True)
+        if self.fsc.is_vector_ready:
+            await self.fsc.messenger("maica_feature_rag", f"MFocus RAG enabled on server, model is {self.fsc.embedding_conn.model_actual}", 200, type=MsgType.INFO, no_print=True)
+        if self.fsc.is_reranking_ready:
+            await self.fsc.messenger("maica_feature_reranker", f"MFocus reranking enabled on server, model is {self.fsc.reranking_conn.model_actual}", 200, type=MsgType.INFO, no_print=True)
 
         # Starting loop from here
         while True:
             try:
-                # Pre-utilize cleanups
+
+                # Per-loop cleanups
                 self.tracker_id.rotate()
                 self.settings.temp.reset()
 
-                # Context security check first
-                await self.hash_and_login(logged_in_already=True)
+                # Run common check, like banned or what
+                await self.fsc.login()
 
                 # Then we examine the input
                 recv_text = await websocket.recv()
-                if not ReUtils.re_search_type_sping.search(recv_text):
-                    sync_messenger(info=f'Recieved an input on stage2: {recv_text}', type=MsgType.RECV)
-                    sync_messenger(info=f'From IP {self.remote_addr}, user {self.settings.verification.username}', type=MsgType.DEBUG)
-                recv_loaded_json = await validate_input(recv_text, 4096, self.fsc.rsc, warn=['type'])
-
-                recv_type = recv_loaded_json.get('type', 'unknown')
-
-                # Handle this cookie thing
-                if recv_loaded_json.get('cookie'):
-                    if str(recv_loaded_json['cookie']) == self.cookie:
-                        if not self.enforce_cookie:
-                            await messenger(websocket, "security_cookie_accepted", "Cookie verification passed, enabling strict mode", "200", no_print=True)
-                            self.enforce_cookie = True
-                        else:
-                            await messenger(websocket, "security_cookie_correct", "Cookie verification passed", "200", no_print=True)
-                    else:
-                        raise MaicaPermissionError('Cookie provided but mismatch', '403', 'maica_security_cookie_mismatch')
-                elif self.enforce_cookie:
-                    raise MaicaPermissionError('Cookie enforced but missing', '403', 'maica_security_cookie_missing')
-
-                # Route request
-                match recv_type.lower():
-                    case 'ping':
-                        await messenger(websocket, "pong", f"Ping recieved from {self.settings.verification.username} and responded", "200")
-                    case 'sping':
+                try:
+                    ws_config: UnionStage2Settings = TypeAdapter(Stage2Settings).validate_json(recv_text)
+                except Exception as e:
+                    # We can test if it's caused by wrong stage
+                    try:
+                        _ws_config: UnionStage1Settings = TypeAdapter(Stage1Settings).validate_json(recv_text)
+                        raise MaicaPermissionWarning(f"Query type {_ws_config.type} now allowed post-auth")
+                    except Exception as e2:
+                        raise MaicaInputWarning(f"Query parsing failed: {str(e)}") from e
+                    
+                match ws_config.type:
+                    case "sping":
                         pass
-                    case 'reconn':
-                        await drain_buffer(websocket, self.settings.verification.user_id)
-                    case 'params':
-                        await self.change_settings(recv_loaded_json)
-                    case 'query':
-                        await self.do_communicate(recv_loaded_json)
-                    case placeholder if "chat_params" in recv_loaded_json:
-                        await self.change_settings(recv_loaded_json)
-                    case placeholder if "chat_session" in recv_loaded_json:
-                        await self.do_communicate(recv_loaded_json)
-                    case _:
-                        raise MaicaInputWarning('Type cannot be determined', '422', 'maica_request_type_unknown')
+                    case "ping":
+                        await self.fsc.messenger("pong", f"Ping recieved from {self.settings.verification.username} and responded", 200)
+                    case "reconn":
+                        await self.fsc.messenger.exhaust_buffer()
+                    case "params":
+                        sync_messenger(info=f'Recieved params request on stage2: {recv_text}', type=MsgType.RECV)
+                        sync_messenger(info=f'From IP {self.remote_addr}, user {self.settings.verification.username}', type=MsgType.DEBUG)
+                        await self.change_settings(ws_config)
+                    case "query":
+                        sync_messenger(info=f'Recieved query request on stage2: {recv_text}', type=MsgType.RECV)
+                        sync_messenger(info=f'From IP {self.remote_addr}, user {self.settings.verification.username}', type=MsgType.DEBUG)
+                        await self.generate_response(ws_config)
 
             # Handle expected exceptions
             except CommonMaicaException as ce:
                 if ce.is_critical or ce.is_breaking:
                     raise ce
                 else:
-                    await messenger(websocket, error=ce, no_raise=True)
-                    await messenger(websocket, 'maica_loop_warn_finished', 'Loop hit a user level exception, stopped and reset', '304')
+                    await self.fsc.messenger(error=ce, no_raise=True)
+                    await self.fsc.messenger('maica_loop_warn_reset', 'Loop hit a user level exception, reset in stage 2', 400)
                     continue
 
             # Do some final cleanups shall we
+            # We release its reference for safety
             finally:
                 self.fsc.session = None
 
+
+    # ====================================================== Stage 2 ends ======================================================
+
+
+    # ====================================================== Utilities ======================================================
+
+
     # Param setting section
-    async def change_settings(self, recv_loaded_json: dict):
+    async def change_settings(self, ws_config: WsSettingsConfig):
 
-        # Initiations
-        websocket = self.websocket
-        try:
-            chat_params: dict = recv_loaded_json.get('chat_params', {})
-
-            if recv_loaded_json.get('reset'):
-                self.settings.soft_reset()
-            
-            accepted_params = self.settings.update_settings(**chat_params)
-            await messenger(websocket, 'maica_params_accepted', f"{accepted_params} out of {len(chat_params)} settings accepted", "200")
+        if ws_config.reset:
+            self.settings.soft_reset()
+            await self.fsc.messenger('maica_params_reset', f"Settings reset accepted", 200)
         
-        # Handle input errors here
-        except Exception as e:
-            if not isinstance(e, CommonMaicaException):
-                raise MaicaInputWarning(str(e), '405', 'maica_params_denied') from e
-            else:
-                raise e
+        accepted_params = self.settings.update_settings(**ws_config.chat_params)
+        await self.fsc.messenger('maica_params_accepted', f"{accepted_params} out of {len(ws_config.chat_params)} settings accepted", 200)
 
     # Completion section
-    async def do_communicate(self, recv_loaded_json: dict):
+    async def generate_response(self, ws_config: WsQueryConfig):
 
         # Initiations
         websocket = self.websocket
-        query_in = ''
-        replace_generation = ''
-        ms_cache_identity = ''
+        chat_session = self.settings.temp.chat_session = ws_config.chat_session
 
-        # Acquiring session
-        chat_session = int(default(recv_loaded_json.get('chat_session'), 0))
-        self.settings.temp.update(chat_session=chat_session)
-        async with acquire_session(self.fsc) as session:
-            self.fsc.session = session
+        async with (
+            acquire_dbo("persistent", self.fsc) as sp,
+            acquire_dbo("trigger", self.fsc) as st,
+            acquire_session(self.fsc) as session,
+        ):
+            fdb1 = set()
+            
+            # They're not required at all if just resetting session
+            if not ws_config.reset:
+                # We skip sp.from_db if sf_access is not enabled at all
+                if self.settings.basic.savefile_access:
+                    fdb1.add(sp.from_db())
+                fdb1.add(st.from_db())
+                if chat_session >= 1:
+                    fdb1.add(session.from_db())
+            else:
+                session.clear()
+                await session.to_db()
+                await self.fsc.messenger(
+                    "maica_session_reset",
+                    "Determined chat_session reset",
+                    204,
+                )
+                return
 
-            # This needs chat_session to function
-            await self.reset_auxiliary_inst()
+            await asyncio.gather(*fdb1)
 
-            # Begin query types
-            if 'reset' in recv_loaded_json:
-                if recv_loaded_json['reset']:
-                    session.clear()
-                    await session.to_db()
-                    await messenger(websocket, "maica_session_reset", "Determined chat_session reset", "204", self.tracker_id)
-                    return
+            user_query = MaicaSessionItem("user")
+            session.append(user_query)
 
-            if 'vision' in recv_loaded_json:
-                if recv_loaded_json['vision']:
-                    if isinstance(recv_loaded_json['vision'], str):
-                        recv_loaded_json['vision'] = [recv_loaded_json['vision']]
-                    if isinstance(recv_loaded_json['vision'], list):
-                        self.settings.temp.update(mv_imgs=recv_loaded_json['vision'])
-
-            if 'inspire' in recv_loaded_json and not query_in:
-                if recv_loaded_json['inspire']:
-                    maica_assert(0 <= chat_session < 10, "chat_session")
-                    if isinstance(recv_loaded_json['inspire'], dict):
-                        query_insp = await mtools.make_inspire(title_in=recv_loaded_json['inspire'], target_lang=self.settings.basic.target_lang)
+            match ws_config.activated:
+                case "query":
+                    if chat_session <= -1:
+                        # Overrides it
+                        session.load(ws_config.query)
+                        user_query = session[-1]
+                        str_query = user_query.content
                     else:
-                        query_insp = await mtools.make_inspire(target_lang=self.settings.basic.target_lang)
-                    if recv_loaded_json.get('use_cache') and self.settings.temp.chat_session == 0:
-                        self.settings.temp.update(ms_cache=True)
-                    self.settings.temp.update(bypass_mf=True, bypass_mt=True)
+                        str_query = user_query.content = ws_config.query
 
-                    if self.settings.temp.ms_cache:
-                        self.settings.temp.update(bypass_sup=True)
-                        ms_cache_identity = query_insp[1]
-                        cache_insp = await self.find_ms_cache(ms_cache_identity)
-                        if cache_insp:
-                            self.settings.temp.update(bypass_gen=True)
-                            replace_generation = cache_insp
-                            
-                    query_in = query_insp[0]
+                case "mspire":
+                    self.settings.temp.activated = "mspire"
+                    self.settings.temp.mspire.update(ws_config.inspire)
+                    self.settings.temp.common.update(ws_config.inspire)
+                    str_query = ", ".join(ws_config.inspire.title)
 
-            if 'postmail' in recv_loaded_json and not query_in:
-                if recv_loaded_json['postmail']:
-                    maica_assert(0 <= chat_session < 10, "chat_session")
-                    if isinstance(recv_loaded_json['postmail'], dict):
-                        query_insp = await mtools.make_postmail(**recv_loaded_json['postmail'], fsc=self.fsc)
-                        # We're using the old school way to avoid using eval()
-                        if default(recv_loaded_json['postmail'].get('bypass_mf'), True):
-                            self.settings.temp.update(bypass_mf=True)
-                        if default(recv_loaded_json['postmail'].get('bypass_mt'), True):
-                            self.settings.temp.update(bypass_mt=True)
-                        if default(recv_loaded_json['postmail'].get('bypass_stream'), True):
-                            self.settings.temp.update(bypass_stream=True)
-                        if default(recv_loaded_json['postmail'].get('twk_super'), True):
-                            self.settings.temp.update(twk_super=True)
-                        if not default(recv_loaded_json['postmail'].get('strict_conv'), False):
-                            self.settings.temp.update(strict_conv=False)
-                    elif isinstance(recv_loaded_json['postmail'], str):
-                        query_insp = await mtools.make_postmail(content=recv_loaded_json['postmail'], fsc=self.fsc)
-                        self.settings.temp.update(bypass_stream=True, twk_super=True, strict_conv=False)
-                    else:
-                        maica_assert(False, "postmail")
-                    
-                    query_in = query_insp
+                case "mpostal":
+                    self.settings.temp.activated = "mpostal"
+                    self.settings.temp.mpostal.update(ws_config.postmail)
+                    self.settings.temp.common.update(ws_config.postmail)
+                    str_query = (ws_config.postmail.header or "") + ws_config.postmail.content
 
-            if not query_in:
-                maica_assert(recv_loaded_json.get('query'), 'query')
-                query_in = recv_loaded_json['query']
+            # Acquire procedure already clears temp, so write here directly
+            if ws_config.savefile:
+                sp.content_temp = ws_config.savefile
+            if ws_config.triggers:
+                st.content_temp = ws_config.triggers
 
+            # MVista
+            if ws_config.vision:
+                self.settings.temp.mvista.mv_imgs = ws_config.vision.root
+
+            # Query censor
             if G.A.CENSOR_QUERY != '0':
                 tolerance = int(G.A.CENSOR_QUERY)
-                query_censor = await mtools.has_censored(query_in)
+                query_censor = await mtools.has_censored(str_query)
+
                 if len(query_censor) >= tolerance:
-                    sync_messenger(info=f"Query has censored words: {query_censor}", type=MsgType.DEBUG)
-                    raise MaicaInputWarning("Input query has censored words or phrases", "403", "maica_input_query_censored")
+                    sync_messenger(info=f"Query has censored words: {query_censor}", type=MsgType.WARN)
+                    raise MaicaInputWarning("Input query has censored words or phrases", 403, "maica_input_query_censored")
                 
                 elif len(query_censor):
                     sync_messenger(info=f"Input query has censored words or phrases but ignored: {query_censor}", type=MsgType.DEBUG)
 
-            if 'savefile' in recv_loaded_json:
-                if self.settings.basic.savefile_access:
-                    self.sf_inst.add_extra(**recv_loaded_json['savefile'])
-                else:
-                    self.settings.temp.update(savefile_access_once=True)
-                    self.sf_inst.use_only(**recv_loaded_json['savefile'])
-            if 'trigger' in recv_loaded_json:
-                if self.settings.basic.mt_extraction:
-                    self.mt_inst.add_extra(*recv_loaded_json['trigger'])
-                else:
-                    self.settings.temp.update(mt_extraction_once=True)
-                    self.mt_inst.use_only(recv_loaded_json['trigger'])
+            # session knows session_num already when acquiring
+            # Here we should start pre_core_pipeline
+            await pre_core_pipelines(
+                session=session,
+                fsc=self.fsc,
+                sp=sp,
+                st=st,
+            )
 
-            # End query types
-
-            match int(self.settings.temp.chat_session):
-                case -1:
-                    maica_assert(isinstance(query_in, (str, list)), 'query')
-                    # chat_session == -1 means query contains an entire chat history(sequence mode)
-                    session_type = -1
-                    session.load(query_in)
-                    query_in = session[-1].content
-
-                    if len(session) > 10:
-                        raise MaicaInputWarning('Sequence exceeded 10 rounds for chat_session -1', '413', 'maica_sequence_rounds_exceeded')
-
-                case i if 0 <= i < 10:
-                    maica_assert(isinstance(query_in, str), 'query')
-                    # chat_session == 0 means single round, else normal
-                    session_type = 0 if i == 0 else 1
-
-                    if session_type:
-                        await session.from_db()
-
-                    if self.settings.basic.enable_mf and not self.settings.temp.bypass_mf:
-                        known_info = await self.mfocus_coro.agenting(query_in)
-                    else:
-                        known_info = {}
-
-                    player_name = '[player]'
-                    if self.settings.extra.prompt_pname_repl:
-                        player_name_get = self.sf_inst.read_from_sf('mas_playername')
-                        if player_name_get:
-                            player_name = player_name_get
-
-                    user_query = MaicaSessionItem("user", query_in)
-                    user_query.context_from_fsc(self.fsc)
-                    session.append(user_query)
-                    context = {
-                            "player_name": player_name,
-                            "known_info": known_info,
-                        }
-                    session[-1].context.update(context)
-
-                case _:
-                    raise MaicaInputError("Using an out of bound session")
+            # We update str_query here for ms and mp
+            str_query = user_query.content
 
             # Construction part done, communication part started
             completion_args = {
                 "messages": session.utilize(),
-                "stream": self.settings.basic.stream_output,
+                "stream": self.settings.use_stream_now,
                 "extra_body": {},
             }
-            
-            if not self.settings.temp.bypass_sup:
-                completion_args.update(dict(self.settings.super))
+
+            # Super params apply
+            if self.settings.super_writable:
+                super_args = self.settings.super.model_copy()
+
+                if self.settings.temp.common.twk_super:
+                    super_args.presence_penalty = 1.0 - (1.0 - super_args.presence_penalty) * (2/3)
+
             else:
-                completion_args.update(self.settings.super.default())
+                super_args = MaicaSettings.Super()
 
-            if self.settings.temp.bypass_stream:
-                completion_args['stream'] = False
+            completion_args.update(super_args.model_dump())
 
-            if self.settings.temp.twk_super:
-                completion_args['presence_penalty'] = 1.0 - (1.0 - completion_args['presence_penalty']) * (2/3)
-
+            # Enforce lang (guided regex)
             if self.settings.extra.gen_enforce_lang:
                 if self.settings.basic.target_lang == 'en':
                     completion_args['extra_body']["structured_outputs"] = {"regex": r"^[^\u4e00-\u9fa5]*$"}
 
             # Add context log
-            previous_rnds = session.utilize(text_only=True)[1:-1]
+            previous_rnds = session.utilize(text_only=True)[1:]
             previous_rnds_len = int(len(previous_rnds) / 2)
             previous_rnds_ellipsed = previous_rnds[-6:]
-            previous_rnds_str = '\n'.join([(('Q: ' if d['role'] == 'user' else 'A: ') + d['content']) for d in previous_rnds_ellipsed])
+
+            previous_rnds_str = '\n'.join(
+                [
+                    (('Q: ' if d['role'] == 'user' else 'A: ') + d['content'])
+                    for d in previous_rnds_ellipsed
+                ]
+            )
+
             if previous_rnds_len > 3:
                 previous_rnds_str = '... ...\n' + previous_rnds_str
+
             if previous_rnds_len:
                 sync_messenger(info=f'\nQuery has {previous_rnds_len} rounds of history:\n{previous_rnds_str}\nEnd of query history', type=MsgType.RECV)
 
-            sync_messenger(info=f'\nQuery constrcted and ready to go, last input is:\n{query_in}\nSending query...', type=MsgType.PRIM_RECV)
+            sync_messenger(info=f'\nQuery constructed and ready to go, last input is:\n{str_query}\nSending query...', type=MsgType.PRIM_RECV)
 
-            # We're about to start generation, so any ws interrupts should be handled by buffered_messenger from now.
-            await messenger(websocket, "maica_mcore_gen_start", "Core model generation starting, reconn protection intervening", "201", self.tracker_id)
-            buffered_messenger = BufferedMessenger(self.settings.verification.user_id)
+            # By default, pprt is disabled on non-streaming output
+            if (
+                not "pprt" in ws_config.model_fields_set
+                and not self.settings.use_stream_now
+            ):
+                ws_config.pprt = False
 
-            pprt = True if completion_args['stream'] else False
-            if recv_loaded_json.get('pprt') != None:
-                pprt = recv_loaded_json['pprt']
-            pprt_processor = mtools.PPRTProcessor(pprt, self.fsc)
+            pprt_processor = mtools.PPRTProcessor(self.fsc, ws_config.pprt)
 
-            if not self.settings.temp.bypass_gen or not replace_generation: # They should present together
+            # From now on, we add try finally block to ensure release_buffer called
+            try:
 
-                # Generation here
-                resp = await self.fsc.mcore_conn.make_completion(**completion_args)
-                reply_appended = ''; seq = 0
+                # We're about to start generation, so any ws interrupts should be handled by buffered_messenger from now.
+                await self.fsc.messenger(
+                    "maica_mcore_gen_start",
+                    "Core model generation starting, reconn protection intervening",
+                    201,
+                )
+                await self.fsc.messenger.acquire_buffer()
 
-                if completion_args['stream']:
-                    resp: AsyncStream[ResponseStreamEvent]
+                reply_joined = ''
+                seq = 0
 
-                    async for chunk in resp:
-                        if chunk.type == "response.output_text.delta":
-                            token = chunk.delta
-                            if token:
-                                await asyncio.sleep(0)
-                                token = ReUtils.re_sub_replacement_chr.sub('', token)
+                async def send_delta(delta):
+                    nonlocal reply_joined, seq
+                    await self.fsc.messenger('maica_core_streaming_continue', delta, 100)
+                    reply_joined += delta
+                    seq += 1
 
-                                sentence: Optional[str] = await pprt_processor.store_and_split(token)
-                                if sentence:
-                                    await buffered_messenger(websocket, 'maica_core_streaming_continue', sentence, '100')
-                                    reply_appended += sentence
-                                    seq += 1
+                # If not skipping generation, we generate it ofc
+                if not self.settings.skip_generation:
 
-                    # Exhaust pprtp on completion finish
-                    sentences: list[str] = await pprt_processor.exaust_and_split()
-                    for sentence in sentences:
-                        await buffered_messenger(websocket, 'maica_core_streaming_continue', sentence, '100')
-                        reply_appended += sentence
-                        seq += 1
+                    # Starting generation
+                    conn = self.fsc.mcore_conn
+                    task, a_reasoning, a_content, a_tool_calls = await llm_request(conn, **completion_args)
+
+                    async for content_delta in a_content:
+                        await asyncio.sleep(0)
+                        content_delta: Optional[str] = await pprt_processor.store_and_split(content_delta)
+                        if content_delta:
+                            await send_delta(content_delta)
+
+                    content_left = await pprt_processor.exaust_and_split()
+                    for content_delta in content_left:
+                        await send_delta(content_delta)
+
+                    # Apply correct linewarp on terminal
+                    sync_messenger(info='\n', type=MsgType.PLAIN)
+                    await self.fsc.messenger(
+                        'maica_core_complete',
+                        f'Streaming finished for {self.settings.verification.username}, {seq} packets sent',
+                        1000,
+                    )
+
+                # If skipping generation, we get result from skip_generation and just send it
+                else:
+
+                    await send_delta(self.settings.skip_generation)
 
                     sync_messenger(info='\n', type=MsgType.PLAIN)
-                    await buffered_messenger(websocket, 'maica_core_complete', f'Streaming finished with seed {completion_args['seed']} for {self.settings.verification.username}, {seq} packets sent', '1000', tracker_id=self.tracker_id)
+                    await self.fsc.messenger(
+                        'maica_core_complete',
+                        f'Streaming finished (from cache) for {self.settings.verification.username}, {seq} packets sent',
+                        1000,
+                    )
 
-                else:
-                    resp: Response
+                # Can be post-processed here
+                session.append(MaicaSessionItem("assistant", reply_joined))
 
-                    reply = resp.output_text
+                # Here we should start post_core_pipelines
+                await post_core_pipelines(
+                    session=session,
+                    fsc=self.fsc,
+                    sp=sp,
+                    st=st,
+                )
 
-                    sentences: list[str] = await pprt_processor.exaust_and_split(reply)
-                    for sentence in sentences:
-                        if len(sentences) == 1:
-                            await buffered_messenger(websocket, 'maica_core_nostream_reply', sentence, '200')
-                        else:
-                            await buffered_messenger(websocket, 'maica_core_streaming_continue', sentence, '100')
-                        reply_appended += sentence
-                        seq += 1
+                await self.fsc.messenger(
+                    'maica_chat_loop_finished',
+                    f'Finished chat loop from {self.settings.verification.username}',
+                    200,
+                    type=MsgType.INFO,
+                )
 
-                    if len(sentences) == 1:
-                        await buffered_messenger(None, 'maica_core_complete', f'Reply sent with seed {completion_args['seed']} for {self.settings.verification.username}', '1000', tracker_id=self.tracker_id)
-                    else:
-                        sync_messenger(info='\n', type=MsgType.PLAIN)
-                        await buffered_messenger(websocket, 'maica_core_complete', f'Streaming finished with seed {completion_args['seed']} for {self.settings.verification.username}, {seq} packets sent', '1000', tracker_id=self.tracker_id)
+            finally:
+                # Recycle messenger buffer
+                await self.fsc.messenger.release_buffer()
 
-            else:
-                # We just pretend it was generated
-                reply_appended = replace_generation
-                if completion_args['stream']:
-                    await buffered_messenger(websocket, 'maica_core_streaming_continue', reply_appended, '100'); await messenger(info='\n', type=MsgType.PLAIN)
-                    await buffered_messenger(websocket, 'maica_core_complete', f'Streaming finished with cache for {self.settings.verification.username}', '1000', tracker_id=self.tracker_id)
-                else:
-                    await buffered_messenger(websocket, 'maica_core_nostream_reply', reply_appended, '200', type=MsgType.CARRIAGE)
-                    await buffered_messenger(None, 'maica_core_complete', f'Reply sent with cache for {self.settings.verification.username}', '1000', tracker_id=self.tracker_id)
 
-            # Can be post-processed here
-            session.append(MaicaSessionItem("assistant", reply_appended))
+    # ====================================================== Utilities ends ======================================================
 
-            # Trigger process
-            # We should start post processes simultaneously
-            post_coros = []
 
-            if len(session) >= 3 * 2 + 1 and self.settings.extra.gen_quality_chk:
-                post_coros.append(mtools.ws_quality_chk(session.utilize(text_only=True)[-4:], self.fsc, bm=buffered_messenger))
+# ====================================================== Per-connection driver ======================================================
 
-            if self.settings.basic.enable_mt and not self.settings.temp.bypass_mt:
-                post_coros.append(self.mtrigger_coro.triggering(query_in, reply_appended, bm=buffered_messenger))
 
-            if self.settings.temp.ms_cache and not self.settings.temp.bypass_gen and not replace_generation:
-                post_coros.append(self.store_ms_cache(ms_cache_identity, reply_appended))
-
-            await asyncio.gather(*post_coros)
-
-            # Store history here
-            if session_type == 1:
-                stored = await session.wrapped_save()
-                match stored:
-                    case 2:
-                        await buffered_messenger(websocket, 'maica_history_sliced', f"Session {self.settings.temp.chat_session} of {self.settings.verification.username} exceeded {self.settings.basic.session_len_limit} characters and sliced", '204')
-                    case 1:
-                        await buffered_messenger(websocket, 'maica_history_slice_hint', f"Session {self.settings.temp.chat_session} of {self.settings.verification.username} exceeded {self.settings.basic.session_len_limit * (2/3)} characters, will slice at {self.settings.basic.session_len_limit}", '200', no_print=True)
-
-                await buffered_messenger(websocket, 'maica_chat_loop_finished', f'Finished chat loop from {self.settings.verification.username}', '200', tracker_id=self.tracker_id, type=MsgType.INFO)
-            else:
-                await buffered_messenger(websocket, 'maica_chat_loop_finished', f'Finished non-recording chat loop from {self.settings.verification.username}', '200', tracker_id=self.tracker_id, type=MsgType.INFO)
-
-            # Seal it finally
-            await buffered_messenger.seal()
-
-# Reserved for whatever
-def callback_func_switch(future):
-    pass
-def callback_check_permit(future):
-    pass
-
-# Main app driver
+# Main app driver, runs per-connection
 async def main_logic(
         websocket: websockets.ServerConnection,
         root_csc: ConnSocketsContainer,
     ):
-    rsc = RealtimeSocketsContainer(websocket)
+
+    # Initializing
+    rsc = RealtimeSocketsContainer(websocket=websocket)
     csc = root_csc.spawn_sub(rsc)
     fsc = FullSocketsContainer(rsc, csc)
     
     unique_lock = asyncio.Lock()
     async with unique_lock:
         try:
+
+            # This tiny welcome
             sentence_of_the_day = SentenceOfTheDay().get_sentence()
-            await messenger(websocket, 'maica_connection_initiated', sentence_of_the_day, '200', type=MsgType.INFO, no_print=True)
+            await fsc.messenger(
+                'maica_connection_initiated',
+                sentence_of_the_day,
+                200,
+                type=MsgType.INFO,
+                no_print=True,
+            )
 
             thread_instance = await WsCoroutine.async_create(
                 fsc,
             )
 
+            # This is stage 1
             permit = await thread_instance.check_permit()
-            assert isinstance(permit, dict) and permit['id'], permit
+            assert permit['id'], permit
 
+            # Lock login status
             online_dict[permit['id']] = [thread_instance.fsc, unique_lock]
-            await messenger(info=f"Locking session for {permit['id']} named {permit['username']}", type=MsgType.LOG)
+            sync_messenger(info=f"Locking session for {permit['id']} named {permit['username']}", type=MsgType.LOG)
 
-            return_status = await thread_instance.function_switch()
-            # We let the exception router to handle that
-            raise Exception(return_status)
+            # Runs until break
+            await thread_instance.function_switch()
         
         except CommonMaicaException as ce:
+
+            # We print original info if is critical
             if ce.is_critical:
                 traceback.print_exc()
-            await messenger(websocket, error=ce, tracker_id=getattr(thread_instance, 'tracker_id', None), no_raise=True)
+
+            await fsc.messenger(
+                error=ce,
+                no_raise=True,
+            )
 
         except websockets.WebSocketException as we:
+
             try:
                 we_code, we_reason = we.code, we.reason
-                await messenger(info=f'Connection closed with {we_code}: {we_reason or 'No reason provided'}', type=MsgType.PRIM_LOG)
+                sync_messenger(info=f'Connection closed with {we_code}: {we_reason or 'No reason provided'}', type=MsgType.PRIM_LOG)
+
             except Exception:
-                await messenger(info=f'Connection establishment failed: {str(we)}', type=MsgType.PRIM_LOG)
+                sync_messenger(info=f'Connection establishment failed: {str(we)}', type=MsgType.PRIM_LOG)
 
         except Exception as e:
-            traceback.print_exc()
-            await messenger(info=f'Coroutine broke by an unknown exception: {str(e)}', type=MsgType.ERROR)
 
+            # We should catch and convert all expected issues in procedure
+            # So unconverted exceptions are treated as errors
+            traceback.print_exc()
+            await fsc.messenger(
+                'maica_uncaught_exception',
+                f'Coroutine broke by an unknown exception: {str(e)}',
+                500,
+            )
+
+        # Cleanups
         finally:
             try:
                 online_dict.pop(permit['id'])
-                await messenger(info=f"Lock released for {permit['username']}({permit['id']})", type=MsgType.LOG)
-            except Exception:
-                await messenger(info=f"No lock for this connection", type=MsgType.DEBUG)
+                sync_messenger(info=f"Lock released for {permit['username']}({permit['id']})", type=MsgType.LOG)
+
+            except Exception as e:
+                # Should just be caused by not locked yet
+                sync_messenger(info=f"No lock for this connection", type=MsgType.DEBUG)
+                
             await websocket.close()
             await websocket.wait_closed()
-            await messenger(info=f"Closing connection gracefully", type=MsgType.DEBUG)
+            sync_messenger(info=f"Closing connection gracefully", type=MsgType.DEBUG)
+
+
+# ====================================================== Per-connection driver ends ======================================================
+
+
+# ====================================================== Task starter ======================================================
+
 
 async def prepare_thread(**kwargs):
 
     # Construct csc first
-    root_csc_kwargs = {k: kwargs.get(k) for k in _CONNS_LIST}
+    root_csc_kwargs = {
+        k: kwargs.get(k)
+        for k in _CONNS_LIST
+    }
     root_csc = ConnSocketsContainer(**root_csc_kwargs)
 
-    await messenger(info='MAICA WS server started!' if G.A.DEV_STATUS == 'serving' else 'MAICA WS server started in development mode!', type=MsgType.PRIM_SYS)
+    sync_messenger(info='MAICA WS server started!' if G.A.DEV_STATUS == 'serving' else 'MAICA WS server started in development mode!', type=MsgType.PRIM_SYS)
+
     try:
-        await messenger(info=f"Main model is {root_csc.mcore_conn.model_actual}, MFocus model is {root_csc.mfocus_conn.model_actual}", type=MsgType.SYS)
-        try:
-            sync_messenger(info=f"MVista activated, model is {root_csc.mvista_conn.model_actual}")
-        except Exception:...
-        try:
-            sync_messenger(info=f"MNerve activated, model is {root_csc.mnerve_conn.model_actual}")
-        except Exception:...
-    except Exception:
-        await messenger(info=f"Major model deployment cannot be reached -- running in minimal testing mode", type=MsgType.SYS)
+        models_info = "\n"
+        models_info += f"Main model: {root_csc.mcore_conn.model_actual}\n"
+        models_info += f"MFocus model: {root_csc.mfocus_conn.model_actual}\n"
+
+        if root_csc.mvista_conn:
+            if not is_mcore_vl:
+                models_info += f"MVista model: {root_csc.mvista_conn.model_actual}\n"
+            else:
+                models_info += f"MVista model: Native implementation\n"
+        else:
+            models_info += f"MVista model: Disabled\n"
+
+        if root_csc.mnerve_conn:
+            models_info += f"MNerve model: {root_csc.mnerve_conn.model_actual}\n"
+        else:
+            models_info += f"MNerve model: Disabled\n"
+
+        models_info += "\n"
+
+        if root_csc.vector_pool:
+            models_info += f"Vector database: Enabled\n"
+        else:
+            models_info += f"Vector database: Disabled\n"
+
+        if root_csc.embedding_conn:
+            models_info += f"Embedding model: {root_csc.embedding_conn.model_actual}\n"
+        else:
+            models_info += f"Embedding model: Disabled\n"
+
+        if root_csc.reranking_conn:
+            models_info += f"Reranking model: {root_csc.reranking_conn.model_actual}\n"
+        else:
+            models_info += f"Reranking model: Disabled\n"
+
+        models_info = models_info.rstrip("\n")
+
+        sync_messenger(info=models_info, type=MsgType.PRIM_LOG)
+
+    except Exception as e:
+
+        await messenger(info=f"Major model deployment cannot be reached: {str(e)}, running in minimal testing mode", type=MsgType.SYS)
     
     try:
-        server = await websockets.serve(functools.partial(
-            main_logic,
-            root_csc=root_csc,
-        ), '0.0.0.0', 5000)
+        server = await websockets.serve(
+            functools.partial
+            (
+                main_logic,
+                root_csc=root_csc,
+            ),
+            '0.0.0.0',
+            5000,
+        )
         await server.wait_closed()
-    except BaseException as be:
-        if isinstance(be, Exception):
-            error = CommonMaicaError(str(be), '504')
-            await messenger(error=error, no_raise=True)
+
+    except Exception as e:
+        error = CommonMaicaError(str(e), '504')
+        sync_messenger(error=error, no_raise=True)
+
     finally:
         await messenger(info='MAICA WS server stopped!', type=MsgType.PRIM_SYS)
+
+
+# ====================================================== Task starter ends ======================================================
+
+
+# ====================================================== Debuggings ======================================================
+
 
 async def _run_ws():
     """

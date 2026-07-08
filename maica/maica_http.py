@@ -476,7 +476,7 @@ class ShortConnHandler(View):
             uuid: str = content
             processing_img = ProcessingImg(uuid)
 
-            return_bio = processing_img.to_bio()
+            return_bio = processing_img.get_bio()
             file_name = processing_img.file_name
 
             return await send_file(

@@ -9,6 +9,8 @@ import types
 
 from abc import ABC, abstractmethod
 from typing import *
+from pydantic import Field
+from pydantic.dataclasses import dataclass as pdataclass
 from datetime import datetime
 from dataclasses import dataclass
 from maica.mtools import providers
@@ -36,15 +38,18 @@ class CheckDestroyed():
             ):
                 setattr(cls, attr_name, cls._check_destroyed_before_use(attr_value))
 
-@dataclass
-class DbBoundObject(CheckDestroyed):
+@pdataclass
+class DbBoundObject(CheckDestroyed, ABC):
     """
     A basic db-bound object.
     table, prim_key_name and fsc are required to function, fill in sub objects.
 
     Something to notice, this is designed to be session_num bound. WILL NOT change session_num on fsc change.
     """
-    session_num: int = 0
+    session_num: int = Field(
+        frozen=True,
+        default=0,
+    )
     """fsc chat_session is flexible, we shouldn't depend on it if we want this to be session-unique."""
     fsc: Optional[FullSocketsContainer] = None
 
@@ -78,7 +83,7 @@ class DbBoundObject(CheckDestroyed):
         self.reset()
 
     def load(self, item: list | dict | str):
-        """Load from item, like uploading or what"""
+        """Load from item, like uploading or what."""
         if not isinstance(item, str):
             self.text = orjson.dumps(item).decode()
             self.content = item
@@ -145,7 +150,7 @@ class DbBoundObject(CheckDestroyed):
             sql_expression_2 = f"UPDATE {self.TABLE} SET content = %s WHERE {self.PRIM_KEY_NAME} = %s"
             result = await maica_pool.query_modify(expression=sql_expression_2, values=(self.content, prim_key_id))
         else:
-            await messenger(self.fsc.websocket, f'{self.i_name}_not_present', f"Determined {self.i_name} not exist, inserting new", "306", self.fsc.tracker_id)
+            await messenger(self.fsc.websocket, f'{self.i_name}_not_present', f"Determined {self.i_name} not exist, inserting new", 306, self.fsc.tracker_id)
             sql_expression_2 = f"INSERT INTO {self.TABLE} (user_id, chat_session_num, content) VALUES (%s, %s, %s)"
             result = await maica_pool.query_modify(expression=sql_expression_2, values=(user_id, session_num, self.content))
             prim_key_id = result[1]
@@ -172,11 +177,11 @@ class DbBoundObject(CheckDestroyed):
                 self.load(db_content)
             else:
                 self.clear()
-                await messenger(self.fsc.websocket, f'{self.i_name}_no_content', f"Determined {self.i_name} no content, using empty", "306", self.fsc.tracker_id)
+                await messenger(self.fsc.websocket, f'{self.i_name}_no_content', f"Determined {self.i_name} no content, using empty", 306, self.fsc.tracker_id)
         else:
             prim_key_id = None; db_content = ''
             self.clear()
-            await messenger(self.fsc.websocket, f'{self.i_name}_not_exist', f"Determined {self.i_name} not exist, using empty", "306", self.fsc.tracker_id)
+            await messenger(self.fsc.websocket, f'{self.i_name}_not_exist', f"Determined {self.i_name} not exist, using empty", 306, self.fsc.tracker_id)
 
         if not self.prim_key_id:
             self.prim_key_id = prim_key_id

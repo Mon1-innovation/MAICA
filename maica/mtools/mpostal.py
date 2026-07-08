@@ -6,7 +6,7 @@ from maica.maica_utils import *
 
 _Bt = BilingualText
 
-async def make_postmail(fsc: FullSocketsContainer, **kwargs):
+async def make_postmail(fsc: FullSocketsContainer):
     """Everything needed are now in fsc."""
     session = MaicaSession()
     target_lang = session.default_target_lang = fsc.maica_settings.basic.target_lang
@@ -23,7 +23,7 @@ async def make_postmail(fsc: FullSocketsContainer, **kwargs):
 
     async def is_poem(letter: str) -> bool:
         """If this is a letter or poem."""
-        sync_messenger(info=f"Proceeding 'is_poem' to letter...", type=MsgType.PRIM_RECV)
+        sync_messenger(info=f"Detecting if letter is poem...", type=MsgType.DEBUG)
         session = MaicaSession()
 
         class PoemDetectResult(BaseModel):
@@ -74,12 +74,12 @@ Please decide if it's a poem or normal letter.\
 
         res = detection_result.is_poem; cfd = detection_result.confidence
 
-        sync_messenger(info=f"\nFinished processing 'is_poem' to letter:\n{letter}\nIs poem: {res}, confidence: {cfd}", type=MsgType.CARRIAGE)
+        sync_messenger(info=f"Finished processing is_poem to letter. Is poem: {res}, confidence: {cfd}", type=MsgType.INFO)
         return res
 
     letter = form_letter(mp_m.content, mp_m.header)
     letter_ispoem = await is_poem(letter)
-    letter_hasimg = bool(fsc.maica_settings.temp.mv_imgs)
+    letter_hasimg = bool(fsc.maica_settings.temp.mvista.mv_imgs)
 
     img = _Bt(
         ", 并附有图片",

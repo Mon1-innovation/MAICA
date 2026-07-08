@@ -12,23 +12,22 @@ from typing import *
 
 from .mfocus_llm import MfPipeliner
 from .agent_modules import AgentTools
-from maica.mtools import make_postmail
+from maica.mtools import make_postmail, make_inspire, ms_from_cache
 from maica.maica_utils import *
 
 _Bt = BilingualText
 
 async def pre_core_pipelines(
-        query: str,
         session: MaicaSession,
         fsc: FullSocketsContainer,
         sp: SessionPersistent,
         st: SessionTrigger,
     ):
     """Schedule everything here."""
-    mfp = MfPipeliner(fsc, sp)
-
     session_item = session[-1]
 
+    # We want it to exist and be empty
+    # If this behavior changes in the future, remember to modify this
     if not (
         isinstance(
             session_item.context.known_info,
@@ -50,9 +49,11 @@ async def pre_core_pipelines(
             if fsc.maica_settings.extra.prompt_pname_repl:
                 pname = sp.pname
                 if pname:
+                    sync_messenger(info=f"Using pname {pname} due to prompt_pname_repl", type=MsgType.DEBUG)
                     session_item.context.player_name = pname
 
-            generated_guidance, parsed_results = await MfPipeliner.run_mf_pipeline(query)
+            mfp = MfPipeliner(session, fsc, sp)
+            generated_guidance, parsed_results = await mfp.run_mf_pipeline()
 
             # Then we inject what we got into session
             if (
@@ -67,10 +68,13 @@ async def pre_core_pipelines(
         """Former react_trigger. Pre-detects if request could be satisfied by mt."""
         if (
             # This does not actually require mf, suprisingly
-            fsc.maica_settings.use_mt_now
+            # But still we need to confirm prompt writable
+            fsc.maica_settings.prompt_writable
+            and fsc.maica_settings.use_mt_now
             and fsc.maica_settings.extra.mf_precheck_mt
         ):
-            requested, operation = await st.predict_trigger(query)
+            requested, operation = await st.predict_trigger(session_item.content)
+            sync_messenger(info=f"Precheck mt responded, requested: {requested}, operation: {operation}", type=MsgType.DEBUG)
 
             if requested:
                 if operation:
@@ -91,46 +95,75 @@ async def pre_core_pipelines(
         We have a tiny clever design to let mn detect if mp is poem or letter. Now we do it here together with letter forming.
         """
         if (
-            fsc.maica_settings.temp.mpostal.content
+            fsc.maica_settings.temp.activated == "mpostal"
         ):
             prompt_text = await make_postmail(fsc)
             session_item.content = prompt_text
 
+    async def form_ms_pipeline():
+        """Basically same position with mp_pipeline."""
+        if (
+            fsc.maica_settings.temp.activated == "mspire"
+        ):
+            prompt_text = await make_inspire(fsc)
+            session_item.content = prompt_text
+
+            # MSpire has cache mechs
+            if fsc.maica_settings.temp.mspire.use_cache:
+                mfc_m = await ms_from_cache(prompt_text, fsc)
+                fsc.maica_settings.temp.mspire._mfc_m = mfc_m
+
     async def const_mf_pipeline():
         """Call tools for mf_const_tools and mf_const_sf_access."""
-        mf_const_tools = fsc.maica_settings.extra.mf_const_tools
-        mf_sf_access_impl = fsc.maica_settings.extra.mf_sf_access_impl
-        mf_const_sf_access = fsc.maica_settings.extra.mf_const_sf_access
+        if (
+            # Still, we need to confirm prompt writable
+            fsc.maica_settings.prompt_writable
+        ):
 
-        tools_results: dict[
-            str,
-            Tuple[str, Any],
-        ] = {}
+            mf_const_tools = fsc.maica_settings.extra.mf_const_tools
+            mf_const_sf_access = fsc.maica_settings.extra.mf_const_sf_access
 
-        if mf_const_tools >= 1:
+            tools_results: dict[
+                Optional[str],
+                Tuple[str, Any],
+            ] = {}
 
             toolbox = AgentTools(fsc, sp)
 
-            for tool_name in ("time_acquire", "event_acquire"):
-                tools_results[tool_name] = await getattr(toolbox, tool_name)()
+            if mf_const_tools >= 1:
 
-        if mf_const_tools >= 2:
-            for tool_name in ("date_acquire", "weather_acquire"):
-                tools_results[tool_name] = await getattr(toolbox, tool_name)()
+                sync_messenger(info="MFocus calling mf_const_tools level 1", type=MsgType.DEBUG)
+                for tool_name in ("time_acquire", "event_acquire"):
+                    tools_results[tool_name] = await getattr(toolbox, tool_name)()
 
-        if (
-            mf_const_sf_access >= 1
-            and not mf_sf_access_impl <= 0
-        ):
-            tool_name = "persistent_acquire"
-            tools_results[tool_name] = await getattr(toolbox, tool_name)(query=query)
+            if mf_const_tools >= 2:
 
-        parsed_results = MfPipeliner.parse_tools_results(tools_results)
-        session_item.context.known_info.update(parsed_results)
+                sync_messenger(info="MFocus calling mf_const_tools level 2", type=MsgType.DEBUG)
+                for tool_name in ("date_acquire", "weather_acquire"):
+                    tools_results[tool_name] = await getattr(toolbox, tool_name)()
+
+            if (
+                mf_const_sf_access >= 1
+                and fsc.real_sf_access_impl >= 1
+            ):
+                sync_messenger(info="MFocus calling mf_const_sf_access", type=MsgType.DEBUG)
+                tool_name = "persistent_acquire"
+                text, body = await getattr(toolbox, tool_name)(query=session_item.content)
+                
+                sync_messenger(info=f"MFocus mf_const_sf_access responded: {text}", type=MsgType.INFO)
+                tools_results[tool_name] = (text, body)
+
+            parsed_results = MfPipeliner.parse_tools_results(tools_results)
+            session_item.context.known_info.update(parsed_results)
+
+    async def std_content_pipeline():
+        """A simple pipeline to make session_item.content str, to avoid confusion."""
+        session_item.content = to_str(session_item.content, fsc.maica_settings.basic.target_lang)
 
     # Finally, form all these together
     tasks_stages: list[list[Callable[[], Awaitable]]] = [
-        [form_mp_pipeline],
+        [form_mp_pipeline, form_ms_pipeline],
+        [std_content_pipeline],
         [precheck_mt_pipeline, const_mf_pipeline],
         [mf_pipeline],
     ]
