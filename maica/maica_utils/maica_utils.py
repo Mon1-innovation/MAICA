@@ -761,7 +761,7 @@ def sync_messenger(status='', info='', code=0, tracker_id='', error: Optional[Co
         msg_print = msg_print.ljust(40)
         msg_print += f": {str(info)}" if not str(info).startswith('\n') else f"{'-=' * rep1}{str(info)}"
         msg_print += f" <{tracker_id}>" if tracker_id else ''
-        msg_print += "" if not str(info).startswith('\n') else f"{'-=' * rep2}"
+        msg_print += "" if not str(info).startswith('\n') else f"\n{'-=' * rep2}"
         msg_send = info
         if type == 'error' and int(G.A.NO_SEND_ERROR):
             msg_send = "A critical exception happened serverside, contact administrator"

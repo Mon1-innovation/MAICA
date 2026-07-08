@@ -69,7 +69,7 @@ from .maica_utils import (
 )
 from .connection_utils import DbPoolManager, SqliteDbPoolManager, MilvusDbConnectionManager, ConnUtils, AiConnectionManager, validate_input, apply_postfix
 from .setting_utils import MaicaSettings
-from .fsc_early import RealtimeSocketsContainer
+from .fsc_early import AllowArb, RealtimeSocketsContainer
 from .encryption_utils import CryptoObject, crypto_object, encrypt_token, sign_message, verify_message
 from .fsc_late import ConnSocketsContainer, FullSocketsContainer
 from .sb_utils import PersistentManager, AgentContextManager
@@ -162,6 +162,7 @@ __all__ = [
     'PersistentManager',
     'AgentContextManager',
     'MaicaSettings',
+    'AllowArb',
     'RealtimeSocketsContainer',
     'CryptoObject',
     'crypto_object',

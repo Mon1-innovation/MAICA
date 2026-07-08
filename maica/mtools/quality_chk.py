@@ -6,15 +6,16 @@ from maica.maica_utils import *
 
 _Bt = BilingualText
 
-async def quality_chk(session: MaicaSession, fsc: FullSocketsContainer):
+async def quality_chk(org_session: MaicaSession, fsc: FullSocketsContainer):
     """Detects if a session is descalated and should be reset."""
+    session = MaicaSession()
     target_lang = fsc.maica_settings.basic.target_lang
 
     conn = fsc.mnerve_conn
     if not conn:
         return True, 0.1
     
-    messages_j = session.utilize(
+    messages_j = org_session.utilize(
         text_only=True,
     )
 

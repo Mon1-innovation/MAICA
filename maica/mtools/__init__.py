@@ -9,7 +9,7 @@ from .post_proc import emo_proc, emo_proc_llm, emo_proc_auto, post_proc, zlist, 
 from .post_proc_rt import PPRTProcessor
 from .nv_watcher import NvWatcher
 from .mvista import ProcessingImg, query_vlm
-from .quality_chk import quality_chk, ws_quality_chk
+from .quality_chk import quality_chk
 from .censor import has_censored
 
 __all__ = [
@@ -33,7 +33,6 @@ __all__ = [
     'ProcessingImg',
     'query_vlm',
     'quality_chk',
-    'ws_quality_chk',
     'has_censored',
     ]
 

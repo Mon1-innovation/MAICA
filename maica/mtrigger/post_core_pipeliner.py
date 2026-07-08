@@ -79,3 +79,15 @@ async def post_core_pipelines(
                     no_print=True,
                 )
 
+    # Finally, form all these together
+    tasks_stages: list[list[Callable[[], Awaitable]]] = [
+        [mt_pipeline, quality_chk_pipeline, save_ms_pipeline],
+        [save_session_pipeline],
+    ]
+
+    for stage in tasks_stages:
+        await asyncio.gather(
+            *[task() for task in stage]
+        )
+
+    # And we should be good to move on

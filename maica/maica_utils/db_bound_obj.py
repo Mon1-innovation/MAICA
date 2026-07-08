@@ -11,9 +11,6 @@ from abc import ABC, abstractmethod
 from typing import *
 from pydantic import Field
 from pydantic.dataclasses import dataclass as pdataclass
-from datetime import datetime
-from dataclasses import dataclass
-from maica.mtools import providers
 from maica.maica_utils import *
 
 class CheckDestroyed():

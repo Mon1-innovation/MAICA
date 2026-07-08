@@ -188,11 +188,6 @@ class WsCoroutine(NoWsCoroutine):
                     await self.fsc.messenger('maica_loop_warn_reset', 'Loop hit a user level exception, reset in stage 2', 400)
                     continue
 
-            # Do some final cleanups shall we
-            # We release its reference for safety
-            finally:
-                self.fsc.session = None
-
 
     # ====================================================== Stage 2 ends ======================================================
 
@@ -232,6 +227,7 @@ class WsCoroutine(NoWsCoroutine):
                 fdb1.add(st.from_db())
                 if chat_session >= 1:
                     fdb1.add(session.from_db())
+
             else:
                 session.clear()
                 await session.to_db()

@@ -6,8 +6,6 @@ from typing import *
 from Crypto.Random import random as crandom
 
 from maica.mtools import ProcessingImg
-from maica.mfocus import MFocusManager, SfPersistentManager
-from maica.mtrigger import MTriggerManager, MtPersistentManager
 from maica.maica_utils import *
 
 class NoWsCoroutine(AsyncCreator):
@@ -16,14 +14,7 @@ class NoWsCoroutine(AsyncCreator):
     Also no AI socket.
     """
 
-    # To be populated or not
-    sf_inst: Optional[SfPersistentManager] = None
-    mt_inst: Optional[MtPersistentManager] = None
-    mfocus_coro: Optional[MFocusManager] = None
-    mtrigger_coro: Optional[MTriggerManager] = None
-
     # Initialization
-
     def __init__(
             self,
             fsc: FullSocketsContainer

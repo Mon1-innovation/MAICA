@@ -1,18 +1,22 @@
 """Import layer 2.5"""
+from __future__ import annotations
+
 import colorama
+
 from typing import *
-from functools import partial
+from pydantic import BaseModel, Field, ConfigDict, model_validator
+from pydantic.dataclasses import dataclass as pdataclass
 from dataclasses import dataclass, field
 from websockets import ServerConnection, WebSocketException
 from Crypto.Random import random as crandom
 from .setting_utils import MaicaSettings
 from .maica_utils import *
 
-if TYPE_CHECKING:
-    from maica.maica_utils import *
-else:
-    class MaicaSession(): ...
-    class RealtimeSocketsContainer(): ...
+class AllowArb(BaseModel):
+    """Enable arbitrary_types_allowed."""
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+    )
 
 class TrackerId():
     """String-like."""
@@ -24,8 +28,7 @@ class TrackerId():
     def __str__(self):
         return self.var
 
-@dataclass
-class RealtimeSocketsContainer():
+class RealtimeSocketsContainer(AllowArb):
     """For no-setting usage."""
     class RscMessenger():
         """
@@ -135,13 +138,16 @@ class RealtimeSocketsContainer():
                 )
                 self._w_buffer.put_nowait(ws_packet)
 
-    session: Optional[MaicaSession] = None
+    # Discarded, do not use
+    # session: Any = None
+
     websocket: Optional[ServerConnection] = None
     tracker_id: TrackerId = field(default_factory=TrackerId)
     messenger: Optional[RscMessenger] = None
     maica_settings: MaicaSettings = field(default_factory=MaicaSettings)
 
-    def __post_init__(self):
+    @model_validator(mode="after")
+    def spawn_messenger(self):
         if not self.messenger:
             self.messenger = self.RscMessenger(self)
 

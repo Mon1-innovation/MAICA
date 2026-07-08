@@ -215,23 +215,27 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, **kwar
             exit(1)
 
 def check_data_init():
-    last_version = check_marking()
-    if parse(last_version) <= parse("1.0.000"):
-        generate_rsa_keys()
-        pkg_init_maica()
-        if int(load_env('MAICA_IS_REAL_ENV')):
-            asyncio.run(create_tables())
-        else:
-            print('''No real env detected, is this workflow?
+    if not int(load_env('MAICA_IS_REAL_ENV')):
+        print('''\
+No real env detected, is this workflow?
 If it is, at least the imports and grammar are good if you see this.
 If not:
     If you're running MAICA for deployment, pass in "--envdir path/to/.env".
     If you're developing with MAICA as dependency, call maica.init(envdir='path/to/.env') after import.
     If you really want to use without manual configuration, call maica.init(ignore_envc=True) after import.
     Or, you can manually set the necessary env vars.
-Quitting...'''
-                )
-            quit(0)
+Quitting...\
+'''
+        )
+        quit(0)
+
+    last_version = check_marking()
+    if parse(last_version) <= parse("1.0.000"):
+        generate_rsa_keys()
+        pkg_init_maica()
+
+        asyncio.run(create_tables())
+
         create_marking()
         sync_messenger(info="[maica-init] MAICA Illuminator initialization finished", type=MsgType.PRIM_SYS)
     else:
