@@ -398,6 +398,7 @@ class Decos():
 
             expression_new = ReUtils.re_sub_sqlite_escape.sub('?', expression)
             expression_new = expression_new.replace('JSON_SET', 'json_set')
+            expression_new = expression_new.replace('ON DUPLICATE KEY UPDATE', 'ON CONFLICT(user_id) DO UPDATE SET')
 
             return func(self, expression_new, *args, **kwargs)
         return wrapper

@@ -12,6 +12,8 @@ class MaicaTransaction():
     """
     The concept of this is using with context manager, and making database objects work pythonic.
     It starts a transaction, and freezes row while we're operating with the values.
+
+    result_l: length = jsonks is jsonks, else 1 for entire unit.
     """
 
     def __init__(
@@ -106,10 +108,13 @@ class MaicaTransaction():
 
         vst = tuple(vs)
 
-        if exist:
+        if exist is True:
             sql_expression_1 = f"UPDATE {self.table} SET {self.column} = {set_j_exp} WHERE {where_exp}"
-        else:
+        elif exist is False:
             sql_expression_1 = f"INSERT INTO {self.table} SET {self.column} = {set_j_exp}, {where_exp}"
+        else:
+            # INSERT INTO ... ON DUPLICATE KEY
+            sql_expression_1 = f"INSERT INTO {self.table} SET {self.column} = {set_j_exp}, {where_exp} ON DUPLICATE KEY UPDATE {self.column} = {set_j_exp}"
 
         result = await self.fsc.maica_pool.query_modify(expression=sql_expression_1, values=vst, inherit_conn=conn)
 
@@ -126,3 +131,10 @@ class MaicaTransaction():
                     yield result_l
                 finally:
                     await self._modify(conn, result_l, exist)
+
+    async def get_oneshot(self):
+        result_l, exist = await self._acquire(conn=None)
+        return result_l
+    
+    async def set_oneshot(self, result_l):
+        await self._modify(conn=None, result_l=result_l, exist=None)

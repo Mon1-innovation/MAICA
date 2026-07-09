@@ -47,59 +47,37 @@ class FscUsersFuncMixin():
     class UserStatModel(RootModel):
         root: dict
 
-    async def get_stat(self, column: Literal["status", "preferences"], k: Hashable = None, **kwargs) -> dict | str:
+    async def get_stat(self, column: Literal["status", "preferences"], ks: list):
         """
         Get account status / preferences.
         Notice: Use MaicaTransaction for integrity sensitive cases.
         """
-        user_id = self.rsc.maica_settings.verification.user_id
 
-        # MySQL json query
-        if k is not None:
-            qk = f"->>'$.%s'"
-            values = (k, user_id, )
-            empty = None
-        else:
-            qk = ""
-            values = (user_id, )
-            empty = "{}"
+        transaction = MaicaTransaction(
+            self,
+            table="account_status",
+            column=column,
+            jsonks=ks,
+            where={"user_id": self.rsc.maica_settings.verification.user_id},
+        )
+        
+        await transaction.get_oneshot()
 
-        sql_expression = f"SELECT {column}{qk} FROM account_status WHERE user_id = %s"
-        result = await self.csc.maica_pool.query_get(expression=sql_expression, values=values, **kwargs)
-        if result:
-            result_j = result[0] or empty
-        else:
-            result_j = empty
-
-        if k is not None:
-            stat_object = self.UserStatModel.model_validate_json(result_j)
-            return stat_object.root
-        else:
-            return result_j
-
-    async def set_stat(self, column: Literal["status", "preferences"], k: Hashable = None, v: Any = "{}", **kwargs):
+    async def set_stat(self, column: Literal["status", "preferences"], kvs: dict):
         """
         Set account status / preferences.
         Notice: Use MaicaTransaction for integrity sensitive cases.
         """
-        user_id = self.rsc.maica_settings.verification.user_id
 
-        if k is not None:
-            qk = f" = JSON_SET({column}, '$.%s', %s)"
-            comp_v = json.dumps({k: v}, ensure_ascii=False)
-            values = (user_id, comp_v, k, v, )
-            empty = None
-        else:
-            qk = " = %s"
-            comp_v = v
-            values = (user_id, comp_v, v, )
-            empty = "{}"
-
-        if self.csc.maica_pool.db_type == "mysql":
-            sql_expression = f"INSERT INTO account_status (user_id, {column}) VALUES (%s, %s) ON DUPLICATE KEY UPDATE {column}{qk}"
-        else:
-            sql_expression = f"INSERT INTO account_status (user_id, {column}) VALUES (%s, %s) ON CONFLICT(user_id) DO UPDATE SET {column}{qk}"
-        await self.csc.maica_pool.query_modify(expression=sql_expression, values=values, **kwargs)
+        transaction = MaicaTransaction(
+            self,
+            table="account_status",
+            column=column,
+            jsonks=kvs.keys(),
+            where={"user_id": self.rsc.maica_settings.verification.user_id},
+        )
+        
+        await transaction.set_oneshot(kvs.values())
 
     async def login(self, crid_b64: Optional[str] = None):
         """
