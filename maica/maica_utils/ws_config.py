@@ -1,5 +1,7 @@
 """Import layer 2.1"""
 
+import orjson
+
 from typing import *
 from pydantic import BaseModel, RootModel, Field
 
@@ -144,14 +146,14 @@ class WsQueryConfig(WsBasicConfig):
         return self
     
     @model_validator(mode="after")
-    def other_validations(self):
+    def session_validations(self):
         if not self.reset:
             if self.chat_session <= -1:
                 if not isinstance(self.query, list):
                     raise MaicaInputWarning("-1 session requires list input")
                 
                 if len(self.query) > 10:
-                    raise MaicaInputWarning('-1 session cannot exceed 10 rounds')
+                    raise MaicaInputWarning(f"-1 session cannot exceed 10 rounds, got {len(self.query)}")
                 
                 if self.activated != "query":
                     raise MaicaInputWarning("MS/MP not allowed for session -1")
@@ -172,6 +174,20 @@ class WsQueryConfig(WsBasicConfig):
             if self.chat_session <= 0:
                 raise MaicaInputWarning("session <= 0 cannot be reset due to not hosted")
 
+        return self
+
+    @model_validator(mode="after")
+    def size_validations(self):
+        if isinstance(self.query, list):
+            b = orjson.dumps(self.query)
+            if len(b) > 16 * 1024:
+                raise MaicaInputWarning(f"-1 session cannot exceed 16KB, got {(len(b) / 1024):.2f}KB")
+            
+        elif isinstance(self.query, str):
+            b = self.query.encode()
+            if len(b) > 4 * 1024:
+                raise MaicaInputWarning(f"0~9 session input cannot exceed 4KB, got {(len(b) / 1024):.2f}KB")
+            
         return self
 
 type UnionStage1Settings = Union[

@@ -2,16 +2,11 @@ import asyncio
 import websockets
 import time
 import functools
-import json
-import uuid
 import traceback
 import colorama
 
 from typing import *
-from pydantic import BaseModel, RootModel, Field, field_validator, model_validator, TypeAdapter
-from dataclasses import asdict
-from openai import AsyncStream
-from openai.types.responses import Response, ResponseStreamEvent
+from pydantic import TypeAdapter
 
 from maica import mtools
 from maica.maica_nows import NoWsCoroutine
@@ -51,6 +46,7 @@ class WsCoroutine(NoWsCoroutine):
             self.remote_addr = xff.split(',')[0].strip()
         else:
             self.remote_addr = str(websocket.remote_address[0])
+
         sync_messenger(info=f'An anonymous connection initiated', type=MsgType.PRIM_LOG)
         sync_messenger(info=f'From IP {self.remote_addr}', type=MsgType.DEBUG)
         sync_messenger(info=f'Current online users: {online_dict.keys()}', type=MsgType.DEBUG)
@@ -85,13 +81,7 @@ class WsCoroutine(NoWsCoroutine):
                         sync_messenger(info=f'From IP {self.remote_addr}', type=MsgType.DEBUG)
 
                         # The login procedure
-                        try:
-                            await self.fsc.login(ws_config.access_token)
-                        except CommonMaicaException as ce:
-                            raise ce
-                        except Exception as e:
-                            raise MaicaPermissionWarning(f"Exception happened logging in: {str(e)}, check your schema") from e
-
+                        await self.fsc.login(ws_config.access_token)
 
                         # Cookies are deprecated
                         sync_messenger(info=f'Authentication passed: {self.settings.verification.username}({self.settings.verification.user_id})', type=MsgType.LOG)
@@ -593,6 +583,7 @@ async def prepare_thread(**kwargs):
             ),
             '0.0.0.0',
             5000,
+            max_size=64*1024
         )
         await server.wait_closed()
 

@@ -10,6 +10,7 @@ from pydantic import BaseModel, RootModel, EmailStr, Field, model_validator
 from base64 import b64encode, b64decode
 from .encryption_utils import crypto_object
 from .maica_utils import *
+from .transaction import MaicaTransaction
 
 if TYPE_CHECKING:
     from .fsc_late import *
@@ -46,13 +47,16 @@ class FscUsersFuncMixin():
     class UserStatModel(RootModel):
         root: dict
 
-    async def get_stat(self, column: Literal["status", "preferences"], k: Hashable = None) -> dict | str:
-        """Get account status / preferences."""
+    async def get_stat(self, column: Literal["status", "preferences"], k: Hashable = None, **kwargs) -> dict | str:
+        """
+        Get account status / preferences.
+        Notice: Use MaicaTransaction for integrity sensitive cases.
+        """
         user_id = self.rsc.maica_settings.verification.user_id
 
         # MySQL json query
         if k is not None:
-            qk = f"->'$.%s'"
+            qk = f"->>'$.%s'"
             values = (k, user_id, )
             empty = None
         else:
@@ -61,7 +65,7 @@ class FscUsersFuncMixin():
             empty = "{}"
 
         sql_expression = f"SELECT {column}{qk} FROM account_status WHERE user_id = %s"
-        result = await self.csc.maica_pool.query_get(expression=sql_expression, values=values)
+        result = await self.csc.maica_pool.query_get(expression=sql_expression, values=values, **kwargs)
         if result:
             result_j = result[0] or empty
         else:
@@ -73,8 +77,11 @@ class FscUsersFuncMixin():
         else:
             return result_j
 
-    async def set_stat(self, column: Literal["status", "preferences"], k: Hashable = None, v: Any = "{}"):
-        """Set account status / preferences."""
+    async def set_stat(self, column: Literal["status", "preferences"], k: Hashable = None, v: Any = "{}", **kwargs):
+        """
+        Set account status / preferences.
+        Notice: Use MaicaTransaction for integrity sensitive cases.
+        """
         user_id = self.rsc.maica_settings.verification.user_id
 
         if k is not None:
@@ -92,7 +99,7 @@ class FscUsersFuncMixin():
             sql_expression = f"INSERT INTO account_status (user_id, {column}) VALUES (%s, %s) ON DUPLICATE KEY UPDATE {column}{qk}"
         else:
             sql_expression = f"INSERT INTO account_status (user_id, {column}) VALUES (%s, %s) ON CONFLICT(user_id) DO UPDATE SET {column}{qk}"
-        await self.csc.maica_pool.query_modify(expression=sql_expression, values=values)
+        await self.csc.maica_pool.query_modify(expression=sql_expression, values=values, **kwargs)
 
     async def login(self, crid_b64: Optional[str] = None):
         """
@@ -101,11 +108,15 @@ class FscUsersFuncMixin():
         """
         if crid_b64:
 
-            crid_ub = await asyncio.to_thread(b64decode, crid_b64)
-            crid_ue = await asyncio.to_thread(crypto_object.decryptor.decrypt, crid_ub)
-            crid = crid_ue.decode()
+            try:
+                crid_ub = await asyncio.to_thread(b64decode, crid_b64)
+                crid_ue = await asyncio.to_thread(crypto_object.decryptor.decrypt, crid_ub)
+                crid = crid_ue.decode()
 
-            token_cridential = self.TokenCridential.model_validate_json(crid)
+                token_cridential = self.TokenCridential.model_validate_json(crid)
+
+            except Exception as e:
+                raise MaicaInputWarning(f"Failed parsing access_token: {str(e)}")
 
             sql_expression = f'SELECT id, username, nickname, email, is_email_confirmed, password, suspended_until FROM users WHERE {token_cridential.type} = %s'
             result = await self.csc.auth_pool.query_get(expression=sql_expression, values=(token_cridential.identity, ))
@@ -122,33 +133,42 @@ class FscUsersFuncMixin():
                 suspended_until,
             ) = result
 
-            # F2B goes first
-            user_status = await self.get_stat("status")
-            f2b_count = user_status.get("f2b_count", 0); f2b_until = user_status.get("f2b_until")
+            # For consistency consideration (multiple logins simultaneously) we use transaction
+            transaction = MaicaTransaction(
+                self,
+                table="account_status",
+                column="status",
+                jsonks=["f2b_count", "f2b_until"],
+                where={"user_id": user_id},
+            )
+            async with transaction.acquire() as result_l:
 
-            curr_timestamp = time.time()
-            if (
-                f2b_until
-                and f2b_until > curr_timestamp
-            ):
-                f2b_display = datetime.datetime.fromtimestamp(f2b_until).isoformat()
-                raise MaicaPermissionWarning(f"Fail2Ban interventing until {f2b_display}")
-            
-            # Then password verification
-            user_pwd_encoded = token_cridential.password.encode()
-            db_pwd_encoded = password.encode()
-            is_pwd_correct = await asyncio.to_thread(bcrypt.checkpw, user_pwd_encoded, db_pwd_encoded)
+                # F2B goes first
+                f2b_count, f2b_until = result_l
 
-            # If not correct, we add to F2B and break
-            if not is_pwd_correct:
-                f2b_count += 1
-                if f2b_count >= G.A.F2B_COUNT:
-                    f2b_count = 0
-                    f2b_until = time.time() + G.A.F2B_TIME
-                    await self.set_stat("status", "f2b_until", f2b_until)
+                curr_timestamp = time.time()
+                if (
+                    f2b_until
+                    and f2b_until > curr_timestamp
+                ):
+                    f2b_display = datetime.datetime.fromtimestamp(f2b_until).isoformat()
+                    raise MaicaPermissionWarning(f"Fail2Ban interventing until {f2b_display}")
+                
+                # Then password verification
+                user_pwd_encoded = token_cridential.password.encode()
+                db_pwd_encoded = password.encode()
+                is_pwd_correct = await asyncio.to_thread(bcrypt.checkpw, user_pwd_encoded, db_pwd_encoded)
 
-                await self.set_stat("status", "f2b_count", f2b_count)
-                raise MaicaPermissionWarning(f"Wrong password, check and retry")
+                # If not correct, we add to F2B and break
+                if not is_pwd_correct:
+                    f2b_count += 1
+                    if f2b_count >= G.A.F2B_COUNT:
+                        f2b_count = 0
+                        f2b_until = time.time() + G.A.F2B_TIME
+                        result_l[1] = f2b_until
+
+                    result_l[0] = f2b_count
+                    raise MaicaPermissionWarning(f"Wrong password, check and retry")
             
             # Check if this account is logged in already
             # If websocket filled, we know it's websocket login and must stay unique

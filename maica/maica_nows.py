@@ -20,42 +20,16 @@ class NoWsCoroutine(AsyncCreator):
             fsc: FullSocketsContainer
         ):
         self.fsc = fsc
-        self.auth_pool = fsc.auth_pool
-        self.maica_pool = fsc.maica_pool
-        self.websocket = fsc.websocket
-        self.tracker_id = fsc.tracker_id
+
         self.settings = fsc.maica_settings
-        self.sessions: Dict[int, MaicaSession] = {}
         self.remote_addr = None
 
     async def _ainit(self):
         pass
-        # self.hasher = await AccountCursor.async_create(self.settings, self.auth_pool, self.maica_pool)
 
     def _check_essentials(self) -> None:
         if not self.settings.verification.user_id:
-            raise MaicaPermissionError('Essentials not complete', '403', 'common_essentials_missing')
-
-    async def find_ms_cache(self, hash: str) -> Optional[str]:
-        """Find ms cache with corresponding prompt hash."""
-
-        sql_expression_1 = "SELECT content FROM ms_cache WHERE hash = %s"
-        result = await self.maica_pool.query_get(expression=sql_expression_1, values=(hash, ))
-        if result:
-            await messenger(None, 'maica_spire_cache_hit', 'Hit a stored cache for MSpire', 200)
-            return result[0]
-        else:
-            await messenger(None, 'maica_spire_cache_missed', 'No stored cache for MSpire', 200)
-            return None
-
-    async def store_ms_cache(self, hash: str, content: str) -> int:
-        """Store ms cache with prompt hash."""
-        self._check_essentials()
-
-        sql_expression_1 = "INSERT INTO ms_cache (user_id, hash, content) VALUES (%s, %s, %s)"
-        spire_id = (await self.maica_pool.query_modify(expression=sql_expression_1, values=(self.settings.verification.user_id, hash, content)))[1]
-        await messenger(None, 'maica_spire_cache_stored', 'Stored a cache for MSpire', 200)
-        return spire_id
+            raise MaicaPermissionError('Essentials not complete')
 
     @overload
     async def delete_mv(self, input: str) -> None:

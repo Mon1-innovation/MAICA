@@ -121,7 +121,16 @@ class DbPoolManager(AsyncCreator):
         if not self.lock.locked():
             async with self.lock:
                 await self.close()
-                self.pool = await aiomysql.create_pool(host=self.host, user=self.user, password=self.password, db=self.db)
+                
+                self.pool = await aiomysql.create_pool(
+                    host=self.host,
+                    user=self.user,
+                    password=self.password,
+                    db=self.db,
+                    autocommit=False,
+                    init_command="SET SESSION TRANSACTION READ ONLY;" if self.ro else None,
+                )
+
                 self.pool_container.append(self.pool)
         else:
             async with self.lock:
@@ -138,15 +147,11 @@ class DbPoolManager(AsyncCreator):
             sync_messenger(info=f"Recreating {self.name} pool since cannot acquire", type=MsgType.WARN)
             await self._ainit()
 
-    @overload
-    async def query_get(self, expression: str, values: Optional[tuple]=None, fetchall: bool=False, inherit_conn: Optional[aiomysql.Connection]=None) -> tuple:
-        """Execute SELECT query on MySQL database."""
-
     # @test_logger
     @Decos.catch_exceptions
     @Decos.ro_expression
     @Decos.conn_retryer_factory()
-    async def query_get(self, expression, values=None, fetchall=False, inherit_conn: Optional[aiomysql.Connection]=None) -> tuple:
+    async def query_get(self, expression: str, values: Optional[tuple] = None, fetchall=False, inherit_conn: Optional[aiomysql.Connection] = None) -> tuple:
         async def _query_get(cur, expression, values, fetchall) -> tuple:
             if not values:
                 await cur.execute(expression)
@@ -177,12 +182,12 @@ class DbPoolManager(AsyncCreator):
     @Decos.catch_exceptions
     @Decos.wo_expression
     @Decos.conn_retryer_factory()
-    async def query_modify(self, expression: str, values: Optional[tuple]=None, fetchall=False, inherit_conn: Optional[aiomysql.Connection]=None) -> tuple[Annotated[int, Desc('rows')], Annotated[int, Desc('lrid')]]:
+    async def query_modify(self, expression: str, values: Optional[tuple] = None, inherit_conn: Optional[aiomysql.Connection] = None) -> tuple[Annotated[int, Desc('rows')], Annotated[int, Desc('lrid')]]:
         """Execute INSERT/UPDATE/DELETE query on MySQL database."""
         if self.ro:
             raise MaicaDbError(f'DB marked as ro, no modification permitted', '511', 'db_modification_denied')
         
-        async def _query_modify(cur, expression, values, fetchall) -> tuple[int, int]:
+        async def _query_modify(cur, expression, values) -> tuple[int, int]:
             if not values:
                 rows = await cur.execute(expression)
             else:
@@ -195,11 +200,11 @@ class DbPoolManager(AsyncCreator):
         if not inherit_conn:
             async with self.pool.acquire() as conn:
                 async with conn.cursor() as cur:
-                    res = await _query_modify(cur, expression, values, fetchall)
+                    res = await _query_modify(cur, expression, values)
                     await conn.commit()
         else:
             async with inherit_conn.cursor() as cur:
-                res = await _query_modify(cur, expression, values, fetchall)
+                res = await _query_modify(cur, expression, values)
                 # We leave the transactional manager handling commitments
 
         return res
@@ -266,10 +271,13 @@ class SqliteDbPoolManager(DbPoolManager):
         if not self.lock.locked():
             async with self.lock:
                 await self.close()
+
                 self.pool = aiosqlite.connect(self.db_path)
                 await self.pool.__aenter__()
+
                 if self.ro:
                     await self.pool.execute("PRAGMA query_only = ON")
+
                 self.pool_container.append(self.pool)
         else:
             async with self.lock:
@@ -287,16 +295,12 @@ class SqliteDbPoolManager(DbPoolManager):
             sync_messenger(info=f"Recreating {self.db} pool since cannot acquire", type=MsgType.WARN)
             await self._ainit()
 
-    @overload
-    async def query_get(self, expression: str, values: Optional[tuple]=None, fetchall: bool=False) -> tuple:
-        """Execute SELECT query on SQLite database."""
-
     # @test_logger
     @Decos.catch_exceptions
     @Decos.ro_expression
     @Decos.escape_sqlite_expression
     @Decos.conn_retryer_factory()
-    async def query_get(self, expression, values=None, fetchall=False) -> tuple:
+    async def query_get(self, expression: str, values: Optional[tuple] = None, fetchall=False, inherit_conn=None) -> tuple:
         await self.keep_alive()
 
         if not values:
@@ -304,7 +308,9 @@ class SqliteDbPoolManager(DbPoolManager):
         else:
             cursor = await self.pool.execute(expression, values)
         results = await cursor.fetchone() if not fetchall else await cursor.fetchall()
-        await self.pool.commit()
+
+        if not inherit_conn:
+            await self.pool.commit()
 
         return results
 
@@ -313,7 +319,7 @@ class SqliteDbPoolManager(DbPoolManager):
     @Decos.wo_expression
     @Decos.escape_sqlite_expression
     @Decos.conn_retryer_factory()
-    async def query_modify(self, expression: str, values: Optional[tuple]=None, fetchall=False) -> tuple[int, int]:
+    async def query_modify(self, expression: str, values: Optional[tuple] = None, inherit_conn=None) -> tuple[int, int]:
         """Execute INSERT/UPDATE/DELETE query on SQLite database."""
         if self.ro:
             raise MaicaDbError(f'DB marked as ro, no modification permitted', '511', 'sqlite_modification_denied')
@@ -323,16 +329,22 @@ class SqliteDbPoolManager(DbPoolManager):
             cursor = await self.pool.execute(expression)
         else:
             cursor = await self.pool.execute(expression, values)
-        await self.pool.commit()
-        rows = cursor.rowcount
-        lrid = cursor.lastrowid
-        await cursor.close()
+
+        if not inherit_conn:
+            await self.pool.commit()
+            rows = cursor.rowcount
+            lrid = cursor.lastrowid
+            await cursor.close()
+
+        else:
+            rows = lrid = None
 
         return rows, lrid
 
     async def close(self):
         """Close SQLite connection."""
         try:
+            await self.pool.__aexit__()
             await self.pool.close()
         except Exception:...
         finally:

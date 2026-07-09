@@ -388,14 +388,17 @@ class Decos():
                         exception_cls = MaicaResponseError
                         conn_type = 'ai_conn'
 
-                raise exception_cls(f'{name} operation failed: {str(e)}', '502', f'{conn_type}_failed') from e
+                raise exception_cls(f'{name} operation failed: {str(e)}', 502, f'{conn_type}_failed') from e
         return wrapper
 
     def escape_sqlite_expression(func):
         """Used to transform a MySQL expression to SQLite one."""
         @functools.wraps(func)
         def wrapper(self, expression: str, *args, **kwargs):
+
             expression_new = ReUtils.re_sub_sqlite_escape.sub('?', expression)
+            expression_new = expression_new.replace('JSON_SET', 'json_set')
+
             return func(self, expression_new, *args, **kwargs)
         return wrapper
     
@@ -774,7 +777,10 @@ def sync_messenger(status='', info='', code=0, tracker_id='', error: Optional[Co
         stack.pop(0)
         stack.pop(0)
 
-    if (not no_print) and (not _silent):
+    if (
+        not no_print
+        and not _silent
+    ):
         match type:
             case "plain":
                 print((color or '') + msg_print, end='', flush=True)
@@ -816,7 +822,7 @@ def sync_messenger(status='', info='', code=0, tracker_id='', error: Optional[Co
         raise error
     if error and error.send is False:
         return
-    ws_tuple = (code, status, msg_send, type) if not kwargs.get('deformation') else (code, status, msg_send, type, kwargs.get('deformation'))
+    ws_tuple = (code, status, msg_send, type)
     return ws_tuple
 
 def load_env(key) -> str:

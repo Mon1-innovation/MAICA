@@ -70,12 +70,19 @@ async def migrate():
         if maica_pool.db_type == 'mysql':
             await maica_pool.query_modify("ALTER TABLE `account_status` CHANGE `status` `status` JSON NULL DEFAULT NULL; ")
             await maica_pool.query_modify("ALTER TABLE `account_status` CHANGE `preferences` `preferences` JSON NULL DEFAULT NULL; ")
+
+            await maica_pool.query_modify("ALTER TABLE chat_session ADD UNIQUE INDEX uq_id_session (user_id, chat_session_num);")
+            await maica_pool.query_modify("ALTER TABLE persistents ADD UNIQUE INDEX uq_id_session (user_id, chat_session_num);")
+            await maica_pool.query_modify("ALTER TABLE triggers ADD UNIQUE INDEX uq_id_session (user_id, chat_session_num);")
         else:
             # There's no actual json at all in sqlite
-            pass
+
+            await maica_pool.query_modify("ALTER TABLE chat_session CREATE UNIQUE INDEX uq_id_session ON chat_session(user_id, chat_session_num);")
+            await maica_pool.query_modify("ALTER TABLE persistents CREATE UNIQUE INDEX uq_id_session ON persistents(user_id, chat_session_num);")
+            await maica_pool.query_modify("ALTER TABLE triggers CREATE UNIQUE INDEX uq_id_session ON triggers(user_id, chat_session_num);")
 
     except Exception as e:
-        raise MaicaDbWarning(f'Couldn\'t alter lines TEXT to JSON: {str(e)}, maybe manually done already?') from e
+        raise MaicaDbWarning(f'Couldn\'t alter table: {str(e)}, maybe manually done already?') from e
     finally:
         await maica_pool.close()
 

@@ -82,6 +82,7 @@ from .agent_tools import WrappedOpenAIToolProperty, WrappedOpenAITool, WrappedOp
 from .llm_utils import ToolCall, llm_request
 from .stream_buffer import StreamBuffer, no_lock_acquire_buffer, acquire_buffer, buffers_gc
 from .ws_config import WsPermissionConfig, WsPingConfig, WsSPingConfig, WsReconnConfig, WsSettingsConfig, WsQueryConfig, UnionStage1Settings, UnionStage2Settings, Stage1Settings, Stage2Settings
+from .transaction import MaicaTransaction
 
 __all__ = [
     'silent',
@@ -199,6 +200,7 @@ __all__ = [
     'acquire_buffer',
     'buffers_gc',
     'WsPermissionConfig', 'WsPingConfig', 'WsSPingConfig', 'WsReconnConfig', 'WsSettingsConfig', 'WsQueryConfig', 'UnionStage1Settings', 'UnionStage2Settings', 'Stage1Settings', 'Stage2Settings',
+    'MaicaTransaction',
 ]
 
 from .gvars import pkg_init_gvars

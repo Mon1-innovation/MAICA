@@ -79,3 +79,7 @@ If you want to read in English, use a translator.
 + 添加高级参数prompt_allow_nickname
 
 = 现在连接初始化消息原生双语(用|分隔)
+
++ 长连接限长调整至64KB, query调整至4/16KB
+
++ 短连接限长调整至1MB(MVista是32MB)

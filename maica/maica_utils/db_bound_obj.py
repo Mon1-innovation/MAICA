@@ -42,6 +42,7 @@ class DbBoundObject(CheckDestroyed, ABC):
     table, prim_key_name and fsc are required to function, fill in sub objects.
 
     Something to notice, this is designed to be session_num bound. WILL NOT change session_num on fsc change.
+    Notice: This cannot inherit from BaseModel because subclasses might inherit from list (session).
     """
     session_num: int = Field(
         frozen=True,
