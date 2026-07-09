@@ -39,6 +39,7 @@ class CheckDestroyed():
 class DbBoundObject(CheckDestroyed, ABC):
     """
     A basic db-bound object.
+    This is like the concept of ORM, but I made this before even knowning it.
     table, prim_key_name and fsc are required to function, fill in sub objects.
 
     Something to notice, this is designed to be session_num bound. WILL NOT change session_num on fsc change.
@@ -62,12 +63,12 @@ class DbBoundObject(CheckDestroyed, ABC):
     SESSION_DB_MIN: ClassVar[int] = 0
     SESSION_DB_BELOW: ClassVar[int] = 10
 
-    _empty = lambda: []
+    _empty = list
     """To properly reset self. Override if necessary."""
 
     def clear(self):
         self.text: str = ''
-        self.content: Union[dict, list] = self._empty
+        self.content: Union[dict, list] = self._empty()
 
     def reset(self):
         """Normally just use clear."""

@@ -18,7 +18,7 @@ class ToolCall(BaseModel):
     type: str = "function_call"
     call_id: str
     name: str
-    arguments: dict = Field(default_factory=lambda: {})
+    arguments: dict = Field(default_factory=dict)
 
     @model_validator(mode="before")
     @classmethod

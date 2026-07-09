@@ -30,7 +30,7 @@ class WsReconnConfig(WsBasicConfig):
 
 class WsSettingsConfig(WsBasicConfig):
     type = "params"
-    chat_params: dict = Field(default_factory=lambda: {})
+    chat_params: dict = Field(default_factory=dict)
     reset: bool = False
 
 class WsQueryConfig(WsBasicConfig):

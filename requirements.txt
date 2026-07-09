@@ -24,6 +24,7 @@ python-magic>=0.4
 pytz>=2024.2
 Quart==0.20.0
 setuptools
+SQLAlchemy[asyncio]>=2.0
 tenacity>=9.0.0
 typeguard>=4.4.0
 websocket==0.2.1

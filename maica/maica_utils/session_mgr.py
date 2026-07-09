@@ -32,8 +32,8 @@ class MaicaSessionItem():
                 str,
                 BilingualText,
             ]
-        ] = Field(default_factory=lambda: {})
-        image_urls: list[str] = Field(default_factory=lambda: [])
+        ] = Field(default_factory=dict)
+        image_urls: list[str] = Field(default_factory=list)
         memory_concl: Optional[str] = None
 
     role: Literal["system", "user", "assistant", "misc"] = 'misc'
@@ -42,7 +42,7 @@ class MaicaSessionItem():
     context: Context = Field(default_factory=Context)
 
     # If item role is misc, we stop using maica format and store entire object.
-    preserved: dict = field(default_factory=lambda: {})
+    preserved: dict = field(default_factory=dict)
 
     def __post_init__(self):
         self.timestamp = time.time()
@@ -420,7 +420,7 @@ class SessionPersistent(DbBoundObject, SessionPersistentMixin):
     TABLE: ClassVar[Optional[str]] = "persistents"
     PRIM_KEY_NAME: ClassVar[Optional[str]] = "persistent_id"
 
-    _empty = lambda: {}
+    _empty = dict
 
     def clear(self):
         self.clear_temp()

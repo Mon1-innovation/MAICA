@@ -403,10 +403,12 @@ class MilvusDbConnectionManager(AsyncCreator):
                     user=self.user,
                     password=self.password,
                 )
+
                 try:
                     await self.pool.load_collection(collection_name=self.db)
                 except Exception as e:
-                    sync_messenger(info=f"{self.db} collection cannot be loaded: {str(e)}. Rerun _ainit afterwards", type=MsgType.WARN)
+                    sync_messenger(info=f"{self.db} collection cannot be loaded: {str(e)}, could be in create stage", type=MsgType.WARN)
+
                 self.pool_container.append(self.pool)
         else:
             async with self.lock:
