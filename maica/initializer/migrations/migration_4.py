@@ -2,10 +2,18 @@ import asyncio
 import os
 from typing import *
 from pymilvus import DataType, CollectionSchema
+from sqlalchemy import inspect, text
 from maica.maica_utils import *
 from .base import register_migration
 
 upper_version = "1.3.000.rc1"
+
+async def _create_index_if_missing(conn, table_name: str, index_name: str, ddl: str):
+    indexes = await conn.run_sync(lambda sync_conn: inspect(sync_conn).get_indexes(table_name))
+    if any(index["name"] == index_name for index in indexes):
+        sync_messenger(info=f"Index {index_name} already exists on {table_name}, skipping...", type=MsgType.DEBUG)
+        return
+    await conn.execute(text(ddl))
 
 async def migrate():
     if G.A.MILVUS_ADDR:
@@ -65,31 +73,24 @@ async def migrate():
     else:
         sync_messenger(info="[maica-db] Milvus databse is not enabled, skipping...", type=MsgType.WARN)
 
-    maica_pool = await ConnUtils.maica_pool()
     try:
-        if maica_pool.db_type == 'mysql':
-            await maica_pool.query_modify("ALTER TABLE `account_status` CHANGE `status` `status` JSON NULL DEFAULT NULL; ")
-            await maica_pool.query_modify("ALTER TABLE `account_status` CHANGE `preferences` `preferences` JSON NULL DEFAULT NULL; ")
-            await maica_pool.query_modify("ALTER TABLE `crop_archived` CHANGE `archived` `archived` BOOLEAN NOT NULL DEFAULT '0'; ")
+        async with DatabaseUtils.engine_data.begin() as conn:
+            if conn.dialect.name == 'mysql':
+                await conn.execute(text("ALTER TABLE `account_status` CHANGE `status` `status` JSON NULL DEFAULT NULL"))
+                await conn.execute(text("ALTER TABLE `account_status` CHANGE `preferences` `preferences` JSON NULL DEFAULT NULL"))
+                await conn.execute(text("ALTER TABLE `crop_archived` CHANGE `archived` `archived` BOOLEAN NOT NULL DEFAULT '0'"))
 
-            await maica_pool.query_modify("ALTER TABLE ms_cache ADD UNIQUE INDEX uq_hash (hash(64));")
-            await maica_pool.query_modify("ALTER TABLE chat_session ADD UNIQUE INDEX uq_id_session (user_id, chat_session_num);")
-            await maica_pool.query_modify("ALTER TABLE persistents ADD UNIQUE INDEX uq_id_session (user_id, chat_session_num);")
-            await maica_pool.query_modify("ALTER TABLE triggers ADD UNIQUE INDEX uq_id_session (user_id, chat_session_num);")
-            
-        else:
-            # There's no actual json at all in sqlite
-            # Nor tinyint
+                await _create_index_if_missing(conn, "ms_cache", "uq_hash", "CREATE UNIQUE INDEX uq_hash ON ms_cache (hash(64))")
+            else:
+                # There's no actual json at all in sqlite, nor tinyint.
+                await _create_index_if_missing(conn, "ms_cache", "uq_hash", "CREATE UNIQUE INDEX uq_hash ON ms_cache (hash)")
 
-            await maica_pool.query_modify("ALTER TABLE ms_cache CREATE UNIQUE INDEX uq_hash ON ms_cache(hash);")
-            await maica_pool.query_modify("ALTER TABLE chat_session CREATE UNIQUE INDEX uq_id_session ON chat_session(user_id, chat_session_num);")
-            await maica_pool.query_modify("ALTER TABLE persistents CREATE UNIQUE INDEX uq_id_session ON persistents(user_id, chat_session_num);")
-            await maica_pool.query_modify("ALTER TABLE triggers CREATE UNIQUE INDEX uq_id_session ON triggers(user_id, chat_session_num);")
+            await _create_index_if_missing(conn, "chat_session", "uq_id_session", "CREATE UNIQUE INDEX uq_id_session ON chat_session (user_id, chat_session_num)")
+            await _create_index_if_missing(conn, "persistents", "uq_id_session", "CREATE UNIQUE INDEX uq_id_session ON persistents (user_id, chat_session_num)")
+            await _create_index_if_missing(conn, "triggers", "uq_id_session", "CREATE UNIQUE INDEX uq_id_session ON triggers (user_id, chat_session_num)")
 
     except Exception as e:
         raise MaicaDbWarning(f'Couldn\'t alter table: {str(e)}, maybe manually done already?') from e
-    finally:
-        await maica_pool.close()
 
 register_migration(upper_version, migrate)
 

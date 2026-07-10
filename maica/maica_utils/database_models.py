@@ -8,6 +8,10 @@ from typing import *
 from sqlalchemy import (
     UniqueConstraint,
     JSON,
+    Boolean,
+    DateTime,
+    String,
+    Text,
     inspect,
 )
 from sqlalchemy.sql import (
@@ -40,12 +44,12 @@ class SqlUser(SqlBaseAuth):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    username: Mapped[str] = mapped_column(unique=True)
-    nickname: Mapped[Optional[str]]
-    email: Mapped[str] = mapped_column(unique=True)
-    is_email_confirmed: Mapped[bool] = mapped_column(default=False)
-    password: Mapped[str]
-    suspended_until: Mapped[Optional[datetime.datetime]]
+    username: Mapped[str] = mapped_column(String(100), unique=True)
+    nickname: Mapped[Optional[str]] = mapped_column(String(255))
+    email: Mapped[str] = mapped_column(String(150), unique=True)
+    is_email_confirmed: Mapped[bool] = mapped_column(Boolean, default=False)
+    password: Mapped[str] = mapped_column(String(100))
+    suspended_until: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime)
 
 class SqlAccountStatus(SqlBaseData):
     __tablename__ = "account_status"
@@ -67,32 +71,34 @@ class SqlChatSession(SqlBaseData):
     )
 
     id: Mapped[int] = mapped_column("chat_session_id", primary_key=True)
-    user_id: Mapped[int] = mapped_column(unique=True)
+    user_id: Mapped[int]
     chat_session_num: Mapped[int]
-    content: Mapped[str]
+    content: Mapped[Optional[str]] = mapped_column(Text)
 
 class SqlCropArchived(SqlBaseData):
     __tablename__ = "crop_archived"
 
     id: Mapped[int] = mapped_column("archive_id", primary_key=True)
     chat_session_id: Mapped[int]
-    content: Mapped[str]
-    archived: Mapped[bool] = mapped_column(default=False)
+    content: Mapped[Optional[str]] = mapped_column(Text)
+    archived: Mapped[bool] = mapped_column(Boolean, default=False)
 
 class SqlCsessionArchived(SqlBaseData):
     __tablename__ = "csession_archived"
 
     id: Mapped[int] = mapped_column("archive_id", primary_key=True)
     chat_session_id: Mapped[int]
-    content: Mapped[str]
+    content: Mapped[Optional[str]] = mapped_column(Text)
 
 class SqlMsCache(SqlBaseData):
     __tablename__ = "ms_cache"
+    __table_args__ = (
+        UniqueConstraint("hash", name="uq_hash"),
+    )
 
     id: Mapped[int] = mapped_column("spire_id", primary_key=True)
-    user_id: Mapped[int]
-    hash: Mapped[str]
-    content: Mapped[str]
+    hash: Mapped[str] = mapped_column(String(255))
+    content: Mapped[Optional[str]] = mapped_column(Text)
     timestamp: Mapped[datetime.datetime] = mapped_column(
         server_default=func.now(),
         onupdate=func.now(),
@@ -103,7 +109,7 @@ class SqlMvMeta(SqlBaseData):
 
     id: Mapped[int] = mapped_column("vista_id", primary_key=True)
     user_id: Mapped[int]
-    uuid: Mapped[str]
+    uuid: Mapped[str] = mapped_column(Text)
     timestamp: Mapped[datetime.datetime] = mapped_column(
         server_default=func.now(),
         onupdate=func.now(),
@@ -118,7 +124,7 @@ class SqlPersistent(SqlBaseData):
     id: Mapped[int] = mapped_column("persistent_id", primary_key=True)
     user_id: Mapped[int]
     chat_session_num: Mapped[int]
-    content: Mapped[Optional[str]]
+    content: Mapped[Optional[str]] = mapped_column(Text)
     timestamp: Mapped[datetime.datetime] = mapped_column(
         server_default=func.now(),
         onupdate=func.now(),
@@ -133,7 +139,7 @@ class SqlTrigger(SqlBaseData):
     id: Mapped[int] = mapped_column("trigger_id", primary_key=True)
     user_id: Mapped[int]
     chat_session_num: Mapped[int]
-    content: Mapped[Optional[str]]
+    content: Mapped[Optional[str]] = mapped_column(Text)
     timestamp: Mapped[datetime.datetime] = mapped_column(
         server_default=func.now(),
         onupdate=func.now(),
