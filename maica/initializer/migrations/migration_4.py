@@ -72,6 +72,7 @@ async def migrate():
             await maica_pool.query_modify("ALTER TABLE `account_status` CHANGE `preferences` `preferences` JSON NULL DEFAULT NULL; ")
             await maica_pool.query_modify("ALTER TABLE `crop_archived` CHANGE `archived` `archived` BOOLEAN NOT NULL DEFAULT '0'; ")
 
+            await maica_pool.query_modify("ALTER TABLE ms_cache ADD UNIQUE INDEX uq_hash (hash(64));")
             await maica_pool.query_modify("ALTER TABLE chat_session ADD UNIQUE INDEX uq_id_session (user_id, chat_session_num);")
             await maica_pool.query_modify("ALTER TABLE persistents ADD UNIQUE INDEX uq_id_session (user_id, chat_session_num);")
             await maica_pool.query_modify("ALTER TABLE triggers ADD UNIQUE INDEX uq_id_session (user_id, chat_session_num);")
@@ -80,6 +81,7 @@ async def migrate():
             # There's no actual json at all in sqlite
             # Nor tinyint
 
+            await maica_pool.query_modify("ALTER TABLE ms_cache CREATE UNIQUE INDEX uq_hash ON ms_cache(hash);")
             await maica_pool.query_modify("ALTER TABLE chat_session CREATE UNIQUE INDEX uq_id_session ON chat_session(user_id, chat_session_num);")
             await maica_pool.query_modify("ALTER TABLE persistents CREATE UNIQUE INDEX uq_id_session ON persistents(user_id, chat_session_num);")
             await maica_pool.query_modify("ALTER TABLE triggers CREATE UNIQUE INDEX uq_id_session ON triggers(user_id, chat_session_num);")

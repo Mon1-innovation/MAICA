@@ -15,8 +15,13 @@ from maica.mtrigger import post_core_pipelines
 from maica.maica_utils import *
 
 _CONNS_LIST = [
-    'auth_pool', 'maica_pool', 'vector_pool',
-    'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn', 'embedding_conn', 'reranking_conn',
+    'vector_pool',
+    'mcore_conn',
+    'mfocus_conn',
+    'mvista_conn',
+    'mnerve_conn',
+    'embedding_conn',
+    'reranking_conn',
 ]
 
 _Bt = BilingualText

@@ -13,8 +13,6 @@ from .users_utils import FscUsersFuncMixin
 
 class ConnSocketsContainer(AllowArb):
     """Why so many connections."""
-    auth_pool: Optional[DbPoolManager]=None
-    maica_pool: Optional[DbPoolManager]=None
     vector_pool: Optional[MilvusDbConnectionManager]=None
     mcore_conn: Optional[AiConnectionManager]=None
     mfocus_conn: Optional[AiConnectionManager]=None
@@ -25,7 +23,7 @@ class ConnSocketsContainer(AllowArb):
 
     def spawn_sub(self, rsc=None):
         """Spawns a per-user sub instance."""
-        sub_kwargs = {k: getattr(self, k).summon_sub(rsc) if getattr(self, k) else None for k in ['auth_pool', 'maica_pool', 'vector_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn']}
+        sub_kwargs = {k: getattr(self, k).summon_sub(rsc) if getattr(self, k) else None for k in ['vector_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn']}
         return ConnSocketsContainer(**sub_kwargs)
 
 class FullSocketsContainer(FscUsersFuncMixin, AllowArb):
@@ -45,8 +43,6 @@ class FullSocketsContainer(FscUsersFuncMixin, AllowArb):
     # Discarded, do not use
     # miscellaneous: dict = field(default_factory=lambda: {})
 
-    auth_pool: ClassVar[Optional[DbPoolManager]]
-    maica_pool: ClassVar[Optional[DbPoolManager]]
     vector_pool: ClassVar[Optional[MilvusDbConnectionManager | AsyncMilvusClient]]
     mcore_conn: ClassVar[Optional[AiConnectionManager]]
     mfocus_conn: ClassVar[Optional[AiConnectionManager]]
@@ -66,7 +62,7 @@ class FullSocketsContainer(FscUsersFuncMixin, AllowArb):
             self.csc = ConnSocketsContainer()
 
     _rsc_proxied = ['websocket', 'tracker_id', 'messenger', 'maica_settings']
-    _csc_proxied = ['auth_pool', 'maica_pool', 'vector_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn', 'embedding_conn', 'reranking_conn']
+    _csc_proxied = ['vector_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn', 'embedding_conn', 'reranking_conn']
 
     def __getattr__(self, k):
         if k in self._rsc_proxied:

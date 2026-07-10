@@ -3,6 +3,10 @@ import re
 import json
 import traceback
 
+import sqlalchemy
+from sqlalchemy.orm import load_only
+from sqlalchemy.exc import IntegrityError
+
 from typing import *
 from pydantic import BaseModel
 from random import choice, sample, uniform
@@ -205,12 +209,18 @@ async def ms_from_cache(prompt: str, fsc: FullSocketsContainer):
     prompt_sha = await hash_sha256(prompt)
     mfc_m = MsFromCacheResult(hash=prompt_sha)
 
-    sql_expression_1 = "SELECT content FROM ms_cache WHERE hash = %s"
-    result = await fsc.maica_pool.query_get(expression=sql_expression_1, values=(prompt_sha, ))
+    async with DatabaseUtils.SessionData() as dbs:
 
-    if result:
+        stmt = sqlalchemy.select(SqlMsCache).where(
+            SqlMsCache.hash == prompt_sha,
+        ).options(
+            load_only(SqlMsCache.content)
+        )
+        obj = await dbs.scalar(stmt)
+
+    if obj:
         sync_messenger(info='Hit a stored cache for MSpire', type=MsgType.DEBUG)
-        mfc_m.result = result[0]
+        mfc_m.result = obj.content
     else:
         sync_messenger(info='No stored cache for MSpire', type=MsgType.DEBUG)
 
@@ -218,20 +228,22 @@ async def ms_from_cache(prompt: str, fsc: FullSocketsContainer):
 
 async def ms_to_cache(mfc_m: MsFromCacheResult, fsc: FullSocketsContainer):
 
-    sql_expression_1 = "INSERT INTO ms_cache (user_id, hash, content) VALUES (%s, %s, %s)"
-    spire_id = (
-        await fsc.maica_pool.query_modify(
-            expression=sql_expression_1,
-            values=(
-                fsc.maica_settings.verification.user_id,
-                mfc_m.hash,
-                mfc_m.result
+    async with DatabaseUtils.SessionData() as dbs:
+        async with dbs.begin():
+
+            obj = SqlMsCache(
+                id=fsc.maica_settings.verification.user_id,
+                hash=mfc_m.hash,
+                content=mfc_m.result,
             )
-        )
-    )[1]
+            dbs.add(obj)
+
+            try:
+                dbs.flush()
+            except IntegrityError:
+                pass
 
     sync_messenger(info='Stored a cache for MSpire', type=MsgType.DEBUG)
-    return spire_id
 
 if __name__ == '__main__':
     async def main():

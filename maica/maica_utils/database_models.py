@@ -8,6 +8,10 @@ from typing import *
 from sqlalchemy import (
     UniqueConstraint,
     JSON,
+    inspect,
+)
+from sqlalchemy.sql import (
+    func,
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -19,10 +23,17 @@ from sqlalchemy.ext.mutable import (
     MutableList,
 )
 
-class SqlBaseAuth(DeclarativeBase):
+class OrmToDictMixin():
+    def model_to_dict(self):
+        return {
+            c.key: getattr(self, c.key)
+            for c in inspect(self).mapper.column_attrs
+        }
+
+class SqlBaseAuth(DeclarativeBase, OrmToDictMixin):
     pass
 
-class SqlBaseData(DeclarativeBase):
+class SqlBaseData(DeclarativeBase, OrmToDictMixin):
     pass
 
 class SqlUser(SqlBaseAuth):
@@ -39,7 +50,7 @@ class SqlUser(SqlBaseAuth):
 class SqlAccountStatus(SqlBaseData):
     __tablename__ = "account_status"
 
-    user_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=False)
+    id: Mapped[int] = mapped_column("user_id", primary_key=True, autoincrement=False)
     status: Mapped[dict[str, Any]] = mapped_column(
         MutableDict.as_mutable(JSON),
         default=dict,
@@ -52,10 +63,10 @@ class SqlAccountStatus(SqlBaseData):
 class SqlChatSession(SqlBaseData):
     __tablename__ = "chat_session"
     __table_args__ = (
-        UniqueConstraint("user_id", "chat_session_num", name="uq_id_session")
+        UniqueConstraint("user_id", "chat_session_num", name="uq_id_session"),
     )
 
-    chat_session_id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column("chat_session_id", primary_key=True)
     user_id: Mapped[int] = mapped_column(unique=True)
     chat_session_num: Mapped[int]
     content: Mapped[str]
@@ -63,7 +74,7 @@ class SqlChatSession(SqlBaseData):
 class SqlCropArchived(SqlBaseData):
     __tablename__ = "crop_archived"
 
-    archive_id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column("archive_id", primary_key=True)
     chat_session_id: Mapped[int]
     content: Mapped[str]
     archived: Mapped[bool] = mapped_column(default=False)
@@ -71,52 +82,60 @@ class SqlCropArchived(SqlBaseData):
 class SqlCsessionArchived(SqlBaseData):
     __tablename__ = "csession_archived"
 
-    archive_id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column("archive_id", primary_key=True)
     chat_session_id: Mapped[int]
     content: Mapped[str]
 
 class SqlMsCache(SqlBaseData):
     __tablename__ = "ms_cache"
 
-    spire_id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column("spire_id", primary_key=True)
     user_id: Mapped[int]
     hash: Mapped[str]
     content: Mapped[str]
-    timestamp: Mapped[datetime.datetime] = mapped_column(default=datetime.datetime)
+    timestamp: Mapped[datetime.datetime] = mapped_column(
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
 
 class SqlMvMeta(SqlBaseData):
     __tablename__ = "mv_meta"
 
-    vista_id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column("vista_id", primary_key=True)
     user_id: Mapped[int]
     uuid: Mapped[str]
-    timestamp: Mapped[datetime.datetime] = mapped_column(default=datetime.datetime)
+    timestamp: Mapped[datetime.datetime] = mapped_column(
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
 
 class SqlPersistent(SqlBaseData):
     __tablename__ = "persistents"
     __table_args__ = (
-        UniqueConstraint("user_id", "chat_session_num", name="uq_id_session")
+        UniqueConstraint("user_id", "chat_session_num", name="uq_id_session"),
     )
 
-    persistent_id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column("persistent_id", primary_key=True)
     user_id: Mapped[int]
     chat_session_num: Mapped[int]
     content: Mapped[Optional[str]]
-    timestamp: Mapped[datetime.datetime] = mapped_column(default=datetime.datetime)
+    timestamp: Mapped[datetime.datetime] = mapped_column(
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
 
 class SqlTrigger(SqlBaseData):
     __tablename__ = "triggers"
     __table_args__ = (
-        UniqueConstraint("user_id", "chat_session_num", name="uq_id_session")
+        UniqueConstraint("user_id", "chat_session_num", name="uq_id_session"),
     )
 
-    trigger_id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column("trigger_id", primary_key=True)
     user_id: Mapped[int]
     chat_session_num: Mapped[int]
     content: Mapped[Optional[str]]
-    timestamp: Mapped[datetime.datetime] = mapped_column(default=datetime.datetime)
-
-
-
-
+    timestamp: Mapped[datetime.datetime] = mapped_column(
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
 

@@ -56,6 +56,8 @@ from .maica_utils import (
     hash_sha256,
     is_mcore_vl,
     is_rag_enabled,
+    is_auth_sqlite,
+    is_data_sqlite,
     to_str,
     sysstruct,
     Decos,
@@ -67,12 +69,11 @@ from .maica_utils import (
     Desc,
     DummyClass,
 )
-from .connection_utils import DbPoolManager, SqliteDbPoolManager, MilvusDbConnectionManager, ConnUtils, AiConnectionManager, validate_input, apply_postfix
+from .connection_utils import MilvusDbConnectionManager, ConnUtils, AiConnectionManager, validate_input
 from .setting_utils import MaicaSettings
 from .fsc_early import AllowArb, RealtimeSocketsContainer
 from .encryption_utils import CryptoObject, crypto_object, encrypt_token, sign_message, verify_message
 from .fsc_late import ConnSocketsContainer, FullSocketsContainer
-from .sb_utils import PersistentManager, AgentContextManager
 from .get_a_sentence import SentenceOfTheDay
 from .locater import locater, get_inner_path, get_outer_path
 from .gvars import online_dict, G
@@ -82,7 +83,8 @@ from .agent_tools import WrappedOpenAIToolProperty, WrappedOpenAITool, WrappedOp
 from .llm_utils import ToolCall, llm_request
 from .stream_buffer import StreamBuffer, no_lock_acquire_buffer, acquire_buffer, buffers_gc
 from .ws_config import WsPermissionConfig, WsPingConfig, WsSPingConfig, WsReconnConfig, WsSettingsConfig, WsQueryConfig, UnionStage1Settings, UnionStage2Settings, Stage1Settings, Stage2Settings
-from .transaction import MaicaTransaction
+from .database_utils import DatabaseUtils
+from .database_models import SqlBaseAuth, SqlBaseData, SqlUser, SqlAccountStatus, SqlChatSession, SqlCropArchived, SqlCsessionArchived, SqlMsCache, SqlMvMeta, SqlPersistent, SqlTrigger
 
 __all__ = [
     'silent',
@@ -125,7 +127,6 @@ __all__ = [
     'sync_messenger',
     'messenger',
     'validate_input',
-    'apply_postfix',
     'load_env',
     'wrap_run_in_exc',
     'limit_length',
@@ -145,6 +146,8 @@ __all__ = [
     'hash_sha256',
     'is_mcore_vl',
     'is_rag_enabled',
+    'is_auth_sqlite',
+    'is_data_sqlite',
     'to_str',
     'sysstruct',
     'Decos',
@@ -155,13 +158,9 @@ __all__ = [
     'PydSoftResetMixin',
     'Desc',
     'DummyClass',
-    'DbPoolManager',
-    'SqliteDbPoolManager',
     'MilvusDbConnectionManager',
     'ConnUtils',
     'AiConnectionManager',
-    'PersistentManager',
-    'AgentContextManager',
     'MaicaSettings',
     'AllowArb',
     'RealtimeSocketsContainer',
@@ -200,13 +199,16 @@ __all__ = [
     'acquire_buffer',
     'buffers_gc',
     'WsPermissionConfig', 'WsPingConfig', 'WsSPingConfig', 'WsReconnConfig', 'WsSettingsConfig', 'WsQueryConfig', 'UnionStage1Settings', 'UnionStage2Settings', 'Stage1Settings', 'Stage2Settings',
-    'MaicaTransaction',
+    'SqlBaseAuth', 'SqlBaseData', 'DatabaseUtils', 'SqlUser', 'SqlAccountStatus', 'SqlChatSession', 'SqlCropArchived', 'SqlCsessionArchived', 'SqlMsCache', 'SqlMvMeta', 'SqlPersistent', 'SqlTrigger',
 ]
 
 from .gvars import pkg_init_gvars
 from .connection_utils import pkg_init_connection_utils
 from .encryption_utils import pkg_init_encryption_utils
+from .database_utils import pkg_init_database_utils
 def pkg_init_maica_utils():
     pkg_init_gvars()
+    pkg_init_database_utils()
     pkg_init_connection_utils()
     pkg_init_encryption_utils()
+    

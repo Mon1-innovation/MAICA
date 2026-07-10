@@ -5,12 +5,15 @@ Here we handle the users things individually, and provide as mixins.
 
 import bcrypt
 
+import sqlalchemy
+from sqlalchemy.orm import load_only
+from sqlalchemy.exc import IntegrityError
+
 from typing import *
 from pydantic import BaseModel, RootModel, EmailStr, Field, model_validator
 from base64 import b64encode, b64decode
 from .encryption_utils import crypto_object
 from .maica_utils import *
-from .transaction import MaicaTransaction
 
 if TYPE_CHECKING:
     from .fsc_late import *
@@ -47,38 +50,6 @@ class FscUsersFuncMixin():
     class UserStatModel(RootModel):
         root: dict
 
-    async def get_stat(self, column: Literal["status", "preferences"], ks: list):
-        """
-        Get account status / preferences.
-        Notice: Use MaicaTransaction for integrity sensitive cases.
-        """
-
-        transaction = MaicaTransaction(
-            self,
-            table="account_status",
-            column=column,
-            jsonks=ks,
-            where={"user_id": self.rsc.maica_settings.verification.user_id},
-        )
-        
-        await transaction.get_oneshot()
-
-    async def set_stat(self, column: Literal["status", "preferences"], kvs: dict):
-        """
-        Set account status / preferences.
-        Notice: Use MaicaTransaction for integrity sensitive cases.
-        """
-
-        transaction = MaicaTransaction(
-            self,
-            table="account_status",
-            column=column,
-            jsonks=kvs.keys(),
-            where={"user_id": self.rsc.maica_settings.verification.user_id},
-        )
-        
-        await transaction.set_oneshot(kvs.values())
-
     async def login(self, crid_b64: Optional[str] = None):
         """
         This replaces the former hash_and_login, and all complex procedures.
@@ -96,10 +67,16 @@ class FscUsersFuncMixin():
             except Exception as e:
                 raise MaicaInputWarning(f"Failed parsing access_token: {str(e)}")
 
-            sql_expression = f'SELECT id, username, nickname, email, is_email_confirmed, password, suspended_until FROM users WHERE {token_cridential.type} = %s'
-            result = await self.csc.auth_pool.query_get(expression=sql_expression, values=(token_cridential.identity, ))
-            if not result:
-                raise MaicaPermissionWarning("User does not exist")
+
+            async with DatabaseUtils.SessionAuth() as aus:
+
+                stmt = sqlalchemy.select(SqlUser).where(
+                    getattr(SqlUser, token_cridential.type) == token_cridential.identity,
+                )
+                obj = await aus.scalar(stmt)
+
+                if not obj:
+                    raise MaicaPermissionWarning("User does not exist")
 
             (
                 user_id,
@@ -109,44 +86,73 @@ class FscUsersFuncMixin():
                 is_email_confirmed,
                 password,
                 suspended_until,
-            ) = result
+            ) = obj.model_to_dict().values()
 
-            # For consistency consideration (multiple logins simultaneously) we use transaction
-            transaction = MaicaTransaction(
-                self,
-                table="account_status",
-                column="status",
-                jsonks=["f2b_count", "f2b_until"],
-                where={"user_id": user_id},
-            )
-            async with transaction.acquire() as result_l:
+            # SQLA transaction for strict security
+            block_auth = False
+            async with DatabaseUtils.SessionData() as dbs:
+                async with dbs.begin():
 
-                # F2B goes first
-                f2b_count, f2b_until = result_l
+                    async def _select():
+                        stmt = sqlalchemy.select(SqlAccountStatus).where(
+                            SqlAccountStatus.user_id == user_id,
+                        ).with_for_update()
+                        return await dbs.scalar(stmt)
 
-                curr_timestamp = time.time()
-                if (
-                    f2b_until
-                    and f2b_until > curr_timestamp
-                ):
-                    f2b_display = datetime.datetime.fromtimestamp(f2b_until).isoformat()
-                    raise MaicaPermissionWarning(f"Fail2Ban interventing until {f2b_display}")
-                
-                # Then password verification
-                user_pwd_encoded = token_cridential.password.encode()
-                db_pwd_encoded = password.encode()
-                is_pwd_correct = await asyncio.to_thread(bcrypt.checkpw, user_pwd_encoded, db_pwd_encoded)
+                    obj = await _select()
 
-                # If not correct, we add to F2B and break
-                if not is_pwd_correct:
-                    f2b_count += 1
-                    if f2b_count >= G.A.F2B_COUNT:
-                        f2b_count = 0
-                        f2b_until = time.time() + G.A.F2B_TIME
-                        result_l[1] = f2b_until
+                    if not obj:
+                        async with dbs.begin_nested():
 
-                    result_l[0] = f2b_count
-                    raise MaicaPermissionWarning(f"Wrong password, check and retry")
+                            obj = SqlAccountStatus(
+                                user_id=user_id,
+                            )
+                            dbs.add(obj)
+
+                            try:
+                                await dbs.flush()
+                            except IntegrityError:
+                                obj = await _select()
+
+                    if obj.status is None:
+                        obj.status = {}
+                    status = obj.status
+
+                    f2b_count: int = status.get("f2b_count") or 0
+                    f2b_until: float = status.get("f2b_until") or 0.0
+
+                    # Check if currently blocked by f2b
+                    curr_timestamp = time.time()
+                    if f2b_until > curr_timestamp:
+
+                        f2b_display = datetime.datetime.fromtimestamp(f2b_until).isoformat()
+                        raise MaicaPermissionWarning(f"Fail2Ban interventing until {f2b_display}")
+                    
+                    # Then password verification
+                    user_pwd_encoded = token_cridential.password.encode()
+                    db_pwd_encoded = password.encode()
+                    is_pwd_correct = await asyncio.to_thread(bcrypt.checkpw, user_pwd_encoded, db_pwd_encoded)
+
+                    # If not correct, we add to F2B and break
+                    if not is_pwd_correct:
+                        f2b_count += 1
+
+                        if f2b_count >= G.A.F2B_COUNT:
+                            f2b_count = 0
+                            f2b_until = time.time() + G.A.F2B_TIME
+                            status["f2b_until"] = f2b_until
+
+                        status["f2b_count"] = f2b_count
+
+                        block_auth = True
+                    
+                    # If correct, we clear f2b count
+                    elif f2b_count:
+                        status["f2b_count"] = 0
+
+            # It should have committed by now
+            if block_auth:
+                raise MaicaPermissionWarning(f"Wrong password, check and retry")
             
             # Check if this account is logged in already
             # If websocket filled, we know it's websocket login and must stay unique
@@ -193,18 +199,20 @@ class FscUsersFuncMixin():
             
         # If running common check, we assert logged in already
         else:
-            assert self.rsc.maica_settings.verification.user_id, "Common checking require identities"
+            user_id = self.rsc.maica_settings.verification.user_id
+            assert user_id, "Common checking require identities"
 
-            sql_expression = f'SELECT is_email_confirmed, suspended_until FROM users WHERE id = %s'
-            result = await self.csc.auth_pool.query_get(expression=sql_expression, values=(self.rsc.maica_settings.verification.user_id, ))
-            if not result:
-                raise MaicaPermissionWarning("User does not exist")
+            async with DatabaseUtils.SessionAuth() as aus:
 
-            (
-                is_email_confirmed,
-                suspended_until,
-            ) = result
+                stmt = sqlalchemy.select(SqlUser).where(
+                    SqlUser.id == user_id,
+                ).options(
+                    load_only(SqlUser.is_email_confirmed, SqlUser.suspended_until)
+                )
+                obj = await aus.scalar(stmt)
 
+                is_email_confirmed = obj.is_email_confirmed
+                suspended_until = obj.suspended_until
 
         # Check if banned here
         time_now = datetime.datetime.now()
@@ -218,19 +226,22 @@ class FscUsersFuncMixin():
         if not is_email_confirmed:
             raise MaicaPermissionWarning("Email not verified, check your inbox")
 
-        # We should be all set
-        verification = self.rsc.maica_settings.verification
-        (
-            verification.user_id,
-            verification.username,
-            verification.email,
-            verification.nickname,
-        ) = (
-            user_id,
-            username,
-            email,
-            nickname,
-        )
+        # Only assign these if not common check
+        if crid_b64:
+
+            # We should be all set
+            verification = self.rsc.maica_settings.verification
+            (
+                verification.user_id,
+                verification.username,
+                verification.email,
+                verification.nickname,
+            ) = (
+                user_id,
+                username,
+                email,
+                nickname,
+            )
 
         # Return a True, though we don't need it
         return True

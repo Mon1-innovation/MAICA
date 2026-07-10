@@ -29,10 +29,15 @@ from maica.maica_utils import *
 from maica.initializer import *
 
 _CHAT_CONNS_LIST = [
-    'auth_pool', 'maica_pool', 'vector_pool',
-    'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn', 'embedding_conn', 'reranking_conn',
+    'vector_pool',
+    'mcore_conn',
+    'mfocus_conn',
+    'mvista_conn',
+    'mnerve_conn',
+    'embedding_conn',
+    'reranking_conn',
 ]
-_TTS_CONNS_LIST = ['auth_pool', 'maica_pool']
+_TTS_CONNS_LIST = []
 
 from maica.initializer import pkg_init_initializer
 from maica.maica_http import pkg_init_maica_http

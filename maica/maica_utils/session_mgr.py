@@ -5,6 +5,9 @@ This module is for v2 session management, applied for DAA4.
 import time
 import orjson
 import types
+import sqlalchemy
+from sqlalchemy.orm import load_only
+
 from typing import *
 from pydantic import BaseModel, Field, model_validator
 from pydantic.dataclasses import dataclass as pdataclass
@@ -14,6 +17,7 @@ from .maica_utils import *
 from .fsc_late import *
 from .db_bound_obj import DbBoundObject
 from .session_rel import SessionPersistentMixin, SessionTriggerMixin
+from .database_models import *
 
 _Bt = BilingualText
 
@@ -131,9 +135,8 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
     """
     The v2 session.
     """
-    TABLE: ClassVar[Optional[str]] = "chat_session"
-    PRIM_KEY_NAME: ClassVar[Optional[str]] = "chat_session_id"
     SESSION_DB_MIN = 1
+    _model = SqlChatSession
 
     def clear(self):
         list.clear(self)
@@ -306,34 +309,43 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
     
     async def to_archive(self) -> int:
         """This requires self.prim_key_id to function."""
-        # Common + prim_key_id
-        user_id = self.fsc.maica_settings.verification.user_id
-        session_num = self.session_num
-        maica_pool = self.fsc.maica_pool
-        assert user_id and session_num and maica_pool and self.prim_key_id, "DB cridentials not complete"
-        maica_assert(self.SESSION_DB_MIN <= session_num < self.SESSION_DB_BELOW, full_info=f"{session_num} is not acceptable {self.i_name}")
+        # Common
+        self._check_ess()
 
-        # First if an open archive exists
-        sql_expression_1 = 'SELECT archive_id, content FROM crop_archived WHERE chat_session_id = %s AND archived = 0'
-        result = await maica_pool.query_get(expression=sql_expression_1, values=(self.prim_key_id, ))
+        # Ensure row exists
+        if not self.prim_key_id:
+            await self.init_db()
 
-        # Then update or new
-        if result:
-            archive_id, archive_content = result
-            json_archive: list = orjson.loads(archive_content)
-            json_archive.extend(self.json())
-            archive_content = orjson.dumps(json_archive).decode()
+        async with DatabaseUtils.SessionData() as dbs:
+            model = self._model
+            arc_model = SqlCropArchived
 
-            # We control archives' length within a fair range by sealing large archives
-            should_seal = int(len(archive_content) >= 100000)
+            stmt = sqlalchemy.select(arc_model).where(
+                arc_model.chat_session_id == self.prim_key_id,
+                arc_model.archived == False,
+            ).options(
+                load_only(arc_model.id)
+            )
 
-            sql_expression_2 = "UPDATE crop_archived SET content = %s, archived = %s WHERE archive_id = %s"
-            await maica_pool.query_modify(expression=sql_expression_2, values=(archive_content, should_seal, archive_id))
-        else:
-            archive_content = orjson.dumps(self.json()).decode()
-            should_seal = int(len(archive_content) >= 100000)
-            sql_expression_2 = "INSERT INTO crop_archived (chat_session_id, content, archived) VALUES (%s, %s, %s)"
-            await maica_pool.query_modify(expression=sql_expression_2, values=(self.prim_key_id, archive_content, should_seal))
+            arc_obj = await dbs.scalar(stmt)
+            if not arc_obj:
+                arc_obj = arc_model(
+                    chat_session_id=self.prim_key_id,
+                    content=orjson.dumps(self.json()).decode(),
+                )
+                dbs.add(arc_obj)
+
+            else:
+                archive_content = arc_obj.content
+                archive_content_j = orjson.loads(archive_content)
+                archive_content_j.extend(self.json())
+                archive_content = orjson.dumps(archive_content_j).decode()
+                arc_obj.content = archive_content
+
+            should_seal = len(archive_content) >= 100000
+            arc_obj.archived = should_seal
+
+            await dbs.commit()
     
     async def crop_length(self) -> Tuple[list, Literal[0, 1, 2]]:
         """Making it V2 style."""
@@ -417,9 +429,8 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
 
 # These should be far more simple
 class SessionPersistent(DbBoundObject, SessionPersistentMixin):
-    TABLE: ClassVar[Optional[str]] = "persistents"
-    PRIM_KEY_NAME: ClassVar[Optional[str]] = "persistent_id"
-
+    
+    _model = SqlPersistent
     _empty = dict
 
     def clear(self):
@@ -430,8 +441,8 @@ class SessionPersistent(DbBoundObject, SessionPersistentMixin):
         self.content_temp = {}
 
 class SessionTrigger(DbBoundObject, SessionTriggerMixin):
-    TABLE: ClassVar[Optional[str]] = "triggers"
-    PRIM_KEY_NAME: ClassVar[Optional[str]] = "trigger_id"
+
+    _model = SqlTrigger
 
     def clear(self):
         self.clear_temp()
@@ -461,13 +472,23 @@ _DboType = TypeVar('_DboType', bound="DbBoundObject")
 
 async def _get_real_session_num(dbo: _DboType | DbBoundObject, fsc: FullSocketsContainer) -> int:
     """Some dbos use session 0 if determined not exist. Input DBO cls here just for convenience."""
-    table = dbo.TABLE; pkn = dbo.PRIM_KEY_NAME
     user_id = fsc.maica_settings.verification.user_id; session_num = fsc.maica_settings.temp.chat_session
-    sql_expression = f'SELECT {pkn} FROM {table} WHERE user_id = %s AND chat_session_num = %s'
-    if not await fsc.maica_pool.query_get(sql_expression, (user_id, session_num)):
-        return 0
-    else:
-        return session_num
+
+    async with DatabaseUtils.SessionData() as dbs:
+        model = dbo._model
+
+        stmt = sqlalchemy.select(model).where(
+            model.user_id == user_id,
+            model.chat_session_num == session_num,
+        ).options(
+            load_only(model.id)
+        )
+        obj = await dbs.scalar(stmt)
+
+        if obj:
+            return session_num
+        else:
+            return 0
 
 def _id_acquire_dbo(cls: _DboType, sub_dict_k: str, user_id: int, session_num: int) -> MaicaSession | SessionPersistent | SessionTrigger:
     global _sessions_index

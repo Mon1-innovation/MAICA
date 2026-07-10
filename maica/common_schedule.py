@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import os
+import sqlalchemy
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -9,7 +10,7 @@ from typing import *
 from maica.mtools import ProcessingImg
 from maica.maica_utils import *
 
-_CONNS_LIST = ['maica_pool']
+_CONNS_LIST = []
 
 class CommonScheduler():
     """Keeps a schedule running."""
@@ -18,10 +19,6 @@ class CommonScheduler():
     """Don't forget to fill at first!"""
 
     def __init__(self, involve_chat=True, involve_tts=True):
-        rsc = RealtimeSocketsContainer()
-        csc = self.__class__.root_csc.spawn_sub(rsc)
-        self.fsc = FullSocketsContainer(rsc, csc)
-        self.maica_pool = self.fsc.maica_pool
 
         self.schedule = AsyncIOScheduler()
         if involve_chat:
@@ -55,8 +52,17 @@ class CommonScheduler():
         if keep_time:
             timestamp = datetime.datetime.now()
             earliest_timestamp = timestamp - datetime.timedelta(hours=keep_time)
-            sql_expression_1 = "DELETE FROM ms_cache WHERE timestamp < %s"
-            rows = (await self.maica_pool.query_modify(expression=sql_expression_1, values=(earliest_timestamp, )))[0]
+
+            async with DatabaseUtils.SessionData() as dbs:
+
+                stmt = sqlalchemy.delete(SqlMsCache).where(
+                    SqlMsCache.timestamp < earliest_timestamp
+                )
+
+                er = await dbs.execute(stmt)
+                await dbs.commit()
+                rows = er.rowcount
+
             sync_messenger(info=f'Removed {rows} rows of MSpire cache', type=MsgType.LOG)
 
     @Decos.log_task
@@ -67,19 +73,25 @@ class CommonScheduler():
             timestamp = datetime.datetime.now()
             earliest_timestamp = timestamp - datetime.timedelta(hours=keep_time)
 
-            sql_expression_1 = "SELECT uuid FROM mv_meta WHERE timestamp < %s"
-            result = await self.maica_pool.query_get(expression=sql_expression_1, values=(earliest_timestamp, ), fetchall=True)
-            uuids = [i[0] for i in result]
-            for uuid in uuids:
+            async with DatabaseUtils.SessionData() as dbs:
 
-                processing_img = ProcessingImg()
-                processing_img.uuid = uuid
-                processing_img.delete()
+                stmt = sqlalchemy.select(SqlMvMeta).where(
+                    SqlMvMeta.timestamp < earliest_timestamp
+                )
 
-                sql_expression_2 = "DELETE FROM mv_meta WHERE uuid = %s"
-                await self.maica_pool.query_modify(expression=sql_expression_2, values=(uuid, ))
+                sr = await dbs.scalars(stmt)
+                metas = sr.all()
+                
+                for meta in metas:
+                    processing_img = ProcessingImg()
+                    processing_img.uuid = meta.uuid
+                    processing_img.delete()
 
-            sync_messenger(info=f'Removed {len(uuids)} MVista images', type=MsgType.LOG)
+                    await sqlalchemy.delete(meta)
+
+                await dbs.commit()
+
+            sync_messenger(info=f'Removed {len(metas)} MVista images', type=MsgType.LOG)
 
     @Decos.log_task
     async def gc_sessions(self):

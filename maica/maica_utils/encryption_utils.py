@@ -79,10 +79,10 @@ def verify_message(message: str, sigb64):
 
 if __name__ == '__main__':
     from maica import init
-    init()
+    init(ignore_envc=True)
     pkg_init_encryption_utils()
     
     async def _atest():
-        ...
+        print(crypto_object.decryptor)
 
     print(asyncio.run(_atest()))

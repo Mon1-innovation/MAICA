@@ -21,8 +21,6 @@ from maica.maica_utils import *
 from maica.mtools import *
 
 _CONNS_LIST = [
-    'auth_pool',
-    'maica_pool',
     'vector_pool',
     'mnerve_conn',
     'embedding_conn',

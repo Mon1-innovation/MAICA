@@ -1041,6 +1041,14 @@ def is_rag_enabled():
     """If this server instance could utilize RAG."""
     return bool(G.A.EMBEDDING_ADDR and G.A.MILVUS_ADDR)
 
+def is_auth_sqlite():
+    """If auth_db is sqlite, else mysql."""
+    return bool(G.A.DB_ADDR == "sqlite")
+
+def is_data_sqlite():
+    """If data_db is sqlite, else mysql."""
+    return bool(G.A.DB_ADDR == "sqlite")
+
 def to_str(obj: str | BilingualText, target_lang: Literal['zh', 'en', 'auto']='zh'):
     """Call to_str if bt, else as-is."""
     if isinstance(obj, BilingualText):
