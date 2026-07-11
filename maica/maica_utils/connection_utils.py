@@ -205,7 +205,7 @@ class AiConnectionManager(AsyncCreator):
 
         except openai.InternalServerError as oe:
             if not swallow:
-                raise oe
+                raise
             else:
                 # Create a fake response
                 fake_text = swallow if isinstance(swallow, str) else 'null'

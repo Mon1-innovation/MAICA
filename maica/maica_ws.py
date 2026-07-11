@@ -99,7 +99,7 @@ class WsCoroutine(NoWsCoroutine):
             # Handle expected exceptions
             except CommonMaicaException as ce:
                 if ce.is_critical or ce.is_breaking:
-                    raise ce
+                    raise
                 else:
                     await self.fsc.messenger(error=ce, no_raise=True)
                     # await messenger(websocket, 'maica_loop_warn_finished', 'Loop hit a user level exception, stopped and reset', 304)
@@ -177,7 +177,7 @@ class WsCoroutine(NoWsCoroutine):
             # Handle expected exceptions
             except CommonMaicaException as ce:
                 if ce.is_critical or ce.is_breaking:
-                    raise ce
+                    raise
                 else:
                     await self.fsc.messenger(error=ce, no_raise=True)
                     await self.fsc.messenger('maica_loop_warn_reset', 'Loop hit a user level exception, reset in stage 2', 400)
@@ -542,12 +542,12 @@ async def prepare_thread(**kwargs):
         models_info += f"MFocus model: {root_csc.mfocus_conn.model_actual}\n"
 
         if root_csc.mvista_conn:
-            if not is_mcore_vl:
-                models_info += f"MVista model: {root_csc.mvista_conn.model_actual}\n"
-            else:
-                models_info += f"MVista model: Native implementation\n"
+            models_info += f"MVista model: {root_csc.mvista_conn.model_actual}\n"
         else:
-            models_info += f"MVista model: Disabled\n"
+            if is_mcore_vl():
+                models_info += f"MVista model: Native implementation\n"
+            else:
+                models_info += f"MVista model: Disabled\n"
 
         if root_csc.mnerve_conn:
             models_info += f"MNerve model: {root_csc.mnerve_conn.model_actual}\n"

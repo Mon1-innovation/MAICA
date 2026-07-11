@@ -14,7 +14,6 @@ from random import sample
 from dateutil.relativedelta import relativedelta
 from dataclasses import dataclass
 from .maica_utils import *
-from .trigger_class import *
 
 if TYPE_CHECKING:
     from maica.maica_utils import *
@@ -715,7 +714,7 @@ class SessionPersistentMixin():
         
         return result
 
-    def _conclude_moni_sf(self, include: Iterable[Literal["basic", "personality", "dokis", "game", "maica"]] = ("personality", "game")):
+    def _conclude_suppl_sf(self, include: Iterable[Literal["basic", "personality", "dokis", "game", "maica"]] = ("personality", "game")):
         """Mostly copied from wikipedia."""
         result: List[_Bt] = []
 
@@ -916,16 +915,14 @@ class SessionPersistentMixin():
 
         return result
 
-    def _conclude_extra_sf(self, limit: int = 256):
+    def _conclude_extra_sf(self):
         result: List[str] = self.read_key('mas_player_additions')
-        if result and len(result) > limit:
-            result = sample(result, limit)
         return result
 
     def form_info(self) -> Set:
         conclusion = []
         conclusion.extend(self._conclude_basic_sf())
-        conclusion.extend(self._conclude_moni_sf())
+        conclusion.extend(self._conclude_suppl_sf())
         conclusion.extend(self._conclude_extra_sf())
 
         conclusion_strs = set()
@@ -934,6 +931,13 @@ class SessionPersistentMixin():
 
         return conclusion_strs
     
+    def _chk_len(self, data: list[str]):
+        if len(data) > 512:
+            raise MaicaInputWarning("MAICA RAG does not accept items more than 512")
+        for i in data:
+            if len(i.encode()) > 512 * 3:
+                raise MaicaInputWarning("MAICA RAG does not accept length above 1536")
+
     async def _embed(self, data: list[str]) -> List[Tuple[str, list]]:
         """We write the embed method here, since milvus db should be directly under its management."""
         embedding_conn = self.fsc.embedding_conn

@@ -449,6 +449,10 @@ class SessionPersistent(DbBoundObject, SessionPersistentMixin):
     def on_acquire(self):
         self.clear_temp()
 
+    def _post_upload(self, *args, **kwargs):
+        self._chk_len(self._conclude_extra_sf())
+        return super()._post_upload(*args, **kwargs)
+
 class SessionTrigger(DbBoundObject, SessionTriggerMixin):
 
     _model = SqlTrigger

@@ -95,3 +95,7 @@ If you want to read in English, use a translator.
 - 弃用处理表情端点, 其功能已由pprt覆盖
 
 = 拆分了mv图片列举和下载端点
+
++ mas_player_additions扩容到最多512条, 每条最长1536字节
+
+- 弃用了mas_player_additions静默允许超长, 现在超长会拒绝

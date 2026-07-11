@@ -33,7 +33,7 @@ def migrate(version):
                 migrated = True
             except CommonMaicaException as ce:
                 if ce.is_critical:
-                    raise ce
+                    raise
                 else:
                     sync_messenger(error=ce, no_raise=True)
                     migrated = True

@@ -372,9 +372,9 @@ class Decos():
             try:
                 return await func(self, *args, **kwargs)
             except CommonMaicaException as ce:
-                raise ce
+                raise
             except websockets.WebSocketException as we:
-                raise we
+                raise
             except Exception as e:
 
                 match self:

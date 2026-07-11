@@ -123,7 +123,7 @@ class RealtimeSocketsContainer(AllowArb):
                 except WebSocketException as we:
                     # The connection terminated unexpectedly
                     if not self._w_buffer:
-                        raise we
+                        raise
                     else:
                         self.ws_died = we
                         sync_messenger(info=f"<{tracker_id}WS_DIED, storing remaining to buffer>", type=MsgType.PLAIN, color=colorama.Fore.LIGHTYELLOW_EX)

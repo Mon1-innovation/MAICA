@@ -89,6 +89,10 @@ class DbBoundObject(CheckDestroyed):
             self.content = orjson.loads(item)
             self.text = item
 
+    def _post_upload(self, *args, **kwargs):
+        """For post-upload checks. Override it."""
+        ...
+
     def local_sync(self, from_which: Literal["text", "content"] = "content"):
         """Sync local contents, run before to_db."""
         match from_which:
@@ -129,9 +133,16 @@ class DbBoundObject(CheckDestroyed):
         self._check_ess()
 
         # First prepare data
-        # We can separate this but just in case we forget
+        # If skip_sync is used, by default we assume it's uploading
         if not skip_sync:
             self.local_sync()
+        else:
+            # So, we run post_upload checks here
+            try:
+                self._post_upload()
+            except Exception:
+                self.clear()
+                raise
 
         # Ensure row exists
         if not self.prim_key_id:

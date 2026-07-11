@@ -148,18 +148,19 @@ async def prepare_thread(**kwargs):
     root_csc_kwargs = {k: kwargs.get(k) for k in _CONNS_LIST}
     root_csc = ConnSocketsContainer(**root_csc_kwargs)
     CommonScheduler.root_csc = root_csc
-
-    await messenger(info='MAICA scheduler started!', type=MsgType.PRIM_SYS)
     
     try:
         common_scheduler = CommonScheduler(kwargs.get('involve_chat', True), kwargs.get('involve_tts', True))
+
+        await messenger(info='MAICA scheduler started!', type=MsgType.PRIM_SYS)
+
         await common_scheduler.run_schedule()
         common_scheduler.close()
 
-    except BaseException as be:
-        if isinstance(be, Exception):
-            error = CommonMaicaError(str(be), '504')
-            await messenger(error=error, no_raise=True)
+    except Exception as e:
+        error = CommonMaicaError(str(e), '504')
+        sync_messenger(error=error, no_raise=True)
+        
     finally:
         await messenger(info='MAICA scheduler stopped!', type=MsgType.PRIM_SYS)
 

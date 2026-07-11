@@ -152,7 +152,7 @@ class NvWatcher(AsyncCreator):
         except Exception as e:
             # Something horrible might have happened to GPU server if statics are insane
             self.critical_reported = e
-            raise e
+            raise
             
         return {self.node_name: node_info}
 
