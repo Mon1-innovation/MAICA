@@ -25,14 +25,14 @@ _CONNS_LIST = [
     'embedding_conn',
     # Reranking is not required here
 ]
-_WATCHES_DICT = {
-    "mcore": "MCORE_ADDR",
-    "mfocus": "MFOCUS_ADDR",
-    "mvista": "MVISTA_ADDR",
-    "mnerve": "MNERVE_ADDR",
-    "embedding": "EMBEDDING_ADDR",
-    "reranking": "RERANKING_ADDR",
-}
+_WATCHES_LIST = [
+    "mcore",
+    "mfocus",
+    "mvista",
+    "mnerve",
+    "embedding",
+    "reranking",
+]
 
 
 # ====================================================== Initiation and registration ======================================================
@@ -211,6 +211,7 @@ class ShortConnHandler(View):
                 self.remote_addr = xff.split(',')[0].strip()
             else:
                 self.remote_addr = str(request.remote_addr)
+
             if self.stem_inst:
                 self.stem_inst.remote_addr = self.remote_addr
 
@@ -636,27 +637,24 @@ async def prepare_thread(**kwargs):
     root_csc_kwargs = {k: kwargs.get(k) for k in _CONNS_LIST}
     root_csc = ConnSocketsContainer(**root_csc_kwargs)
     ShortConnHandler.root_csc = root_csc
-
-    await messenger(info='MAICA HTTP server started!', type=MsgType.PRIM_SYS)
-
-    # Construct watchers
-    watch_addrs = {}
-    for k, v in _WATCHES_DICT.items():
-        host = ExplainUrl(getattr(G.A, v)).hostname
-        if host and not k in watch_addrs:
-            watch_addrs[k] = host
             
+    # Start watchers
     _watch_start_list = []
-    for k, _ in watch_addrs.items():
-        watcher = await NvWatcher.async_create(k, 'maica')
+    for i in _WATCHES_LIST:
+        watcher = await NvWatcher.async_create(i, 'maica')
         ShortConnHandler.nvwatchers.append(watcher)
+
         _watch_start_list.append(asyncio.create_task(watcher.wrapped_main_watcher()))
 
     try:
         config = Config()
         config.bind = ['0.0.0.0:6000']
         task = asyncio.create_task(serve(app, config))
+        
         task_list = [task] + _watch_start_list
+
+        await messenger(info='MAICA HTTP server started!', type=MsgType.PRIM_SYS)
+
         await asyncio.wait(task_list, return_when=asyncio.FIRST_COMPLETED)
 
     except Exception as e:

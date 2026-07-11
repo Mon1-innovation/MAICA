@@ -66,7 +66,7 @@ class NvWatcher(AsyncCreator):
             await db_client.execute(f'CREATE TABLE IF NOT EXISTS `{self.node_name}` (id INT PRIMARY KEY, name TEXT, memory TEXT, tflops TEXT, dynamic TEXT);')
 
             for i, gpu in enumerate(basic_result):
-                name = gpu["name"]; memory = gpu[" memory.total [MiB]"]; tflops = '200'
+                name = gpu["name"]; memory = gpu[" memory.total [MiB]"]; tflops = '100'
                 
                 match name:
                     case n if 'PRO 6000' in n:
@@ -162,6 +162,10 @@ class NvWatcher(AsyncCreator):
             os.remove(self.db_path)
         except Exception:
             pass
+
+
+# ====================================================== Debuggings ======================================================
+
 
 async def prepare_watcher():
     watcher_mcore = await NvWatcher.async_create('mcore', 'maica')
