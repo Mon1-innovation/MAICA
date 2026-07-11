@@ -11,13 +11,13 @@ upper_version = "1.3.000.rc1"
 async def _create_index_if_missing(conn, table_name: str, index_name: str, ddl: str):
     indexes = await conn.run_sync(lambda sync_conn: inspect(sync_conn).get_indexes(table_name))
     if any(index["name"] == index_name for index in indexes):
-        sync_messenger(info=f"Index {index_name} already exists on {table_name}, skipping...", type=MsgType.DEBUG)
+        sync_messenger(info=f"[migration-4] Index {index_name} already exists on {table_name}, skipping...", type=MsgType.DEBUG)
         return
     await conn.execute(text(ddl))
 
 async def migrate():
     if G.A.MILVUS_ADDR:
-        sync_messenger(info="[maica-db] Adding collection to Milvus...", type=MsgType.DEBUG)
+        sync_messenger(info="[migration-4] Adding collection to Milvus...", type=MsgType.DEBUG)
     
         vector_pool = await ConnUtils.vector_pool()
 
@@ -25,7 +25,7 @@ async def migrate():
         # await vector_pool.drop_collection(collection_name=vector_pool.db)
 
         if await vector_pool.has_collection(collection_name=vector_pool.db):
-            sync_messenger(info="[maica-db] Milvus collection already exists, skipping...", type=MsgType.DEBUG)
+            sync_messenger(info="[migration-4] Milvus collection already exists, skipping...", type=MsgType.DEBUG)
         else:
 
             schema: CollectionSchema = await vector_pool.create_schema(
@@ -68,10 +68,10 @@ async def migrate():
                 index_params=index_params,
             )
 
-        sync_messenger(info="[maica-db] Milvus databse initialization finished", type=MsgType.LOG)
+        sync_messenger(info="[migration-4] Milvus databse initialization finished", type=MsgType.LOG)
 
     else:
-        sync_messenger(info="[maica-db] Milvus databse is not enabled, skipping...", type=MsgType.WARN)
+        sync_messenger(info="[migration-4] Milvus databse is not enabled, skipping...", type=MsgType.WARN)
 
     try:
         async with DatabaseUtils.engine_data.begin() as conn:

@@ -6,8 +6,8 @@ import asyncio
 import orjson
 import functools
 import types
+
 import sqlalchemy
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import load_only
 
 from typing import *
@@ -111,33 +111,16 @@ class DbBoundObject(CheckDestroyed):
 
         async with DatabaseUtils.SessionData() as dbs:
             async with dbs.begin():
-                model = self._model
 
-                # If row exists
-                stmt = sqlalchemy.select(model).where(
-                    model.user_id == user_id
-                ).where(
-                    model.chat_session_num == session_num
-                ).options(
-                    load_only(model.id)
+                obj = sqla_get_or_create(
+                    dbs,
+                    self._model,
+                    {
+                        "user_id": user_id,
+                        "chat_session_num": session_num,
+                    },
+                    requires=("id", ),
                 )
-
-                obj = await dbs.scalar(stmt)
-                if not obj:
-                    obj = model(
-                        user_id=user_id,
-                        chat_session_num=session_num,
-                    )
-                    dbs.add(obj)
-
-                    async with dbs.begin_nested():
-                        # Insert if not exist
-                        try:
-                            await dbs.flush()
-
-                        # If another instance inserted during the gap (minor chance but consider)
-                        except IntegrityError:
-                            obj = await dbs.scalar(stmt)
             
         self.prim_key_id = obj.id
 

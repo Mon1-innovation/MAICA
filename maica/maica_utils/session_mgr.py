@@ -148,12 +148,18 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         self.default_target_lang: Literal['zh', 'en', 'auto'] = 'zh'
         self.default_context = MaicaSessionItem.Context()
 
+    def _sync_fsc(self):
         # Should we load fsc settings into defaults here?
         # We probably should.
         self.default_target_lang = self.fsc.maica_settings.basic.target_lang
         self.default_context.strict_conv = self.fsc.maica_settings.temp.common.strict_conv
         self.default_context.apply_nickname = self.fsc.maica_settings.extra.prompt_allow_nickname
         self.default_context.nsfw_acceptive = self.fsc.maica_settings.extra.nsfw_acceptive
+
+    def on_acquire(self):
+        self._sync_fsc()
+        if self.session_num <= 0:
+            self.reset()
 
     def __init__(self, session_num: int = 0, fsc: Optional[FullSocketsContainer] = None, *args, **kwargs):
         # Initialize the base list class
@@ -440,6 +446,9 @@ class SessionPersistent(DbBoundObject, SessionPersistentMixin):
     def clear_temp(self):
         self.content_temp = {}
 
+    def on_acquire(self):
+        self.clear_temp()
+
 class SessionTrigger(DbBoundObject, SessionTriggerMixin):
 
     _model = SqlTrigger
@@ -450,6 +459,9 @@ class SessionTrigger(DbBoundObject, SessionTriggerMixin):
     
     def clear_temp(self):
         self.content_temp = []
+
+    def on_acquire(self):
+        self.clear_temp()
     
 # That float is last acquired timestamp
 _sessions_index: Dict[
@@ -532,12 +544,8 @@ async def _fsc_acquire_dbo(type: Literal["session", "persistent", "trigger"], fs
     # If former fsc is already destroyed
     session.fsc = fsc
 
-    match type:
-        case "session" if session_num <= 0:
-            # Temporary session, reset everytime
-            session.reset()
-        case "persistent" | "trigger":
-            session.clear_temp()
+    # Trigger on_acquire action
+    session.on_acquire()
 
     return session
 

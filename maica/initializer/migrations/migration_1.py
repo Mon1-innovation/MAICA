@@ -13,6 +13,6 @@ async def migrate():
             else:
                 await conn.execute(text('ALTER TABLE cchop_archived RENAME TO crop_archived'))
     except Exception as e:
-        raise MaicaDbWarning(f'Couldn\'t rename table cchop_archived to crop_archived: {str(e)}, maybe manually done already?') from e
+        raise MaicaDbWarning(f'Couldn\'t rename table cchop_archived to crop_archived: {str(e)}, consider doing a manual double-check') from e
 
 register_migration(upper_version, migrate)

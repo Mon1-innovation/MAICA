@@ -3,6 +3,9 @@ from PIL import Image
 from io import BytesIO
 import magic
 
+import sqlalchemy
+from sqlalchemy.orm import load_only
+
 import uuid
 from typing import *
 from maica.maica_utils import *
@@ -11,22 +14,20 @@ _ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/bmp', 'image/webp']
 
 _base_path: str = get_inner_path('fs_storage/mv_img')
 
-class ProcessingImg():
+class ImgByUuid():
     """
     A wrapped picture to process.
     Usage:
         - Read:
-            pi = ProcessingImg(path)
+            pi = ImgByUuid(uuid)
             pi.read()
             img_bytes = pi.get_bio()
         - Write:
-            pi = ProcessingImg(bytes)
+            pi = ImgByUuid(bytes)
             pi.save()
         - Delete:
-            pi = ProcessingImg()
-            pi.uuid = uuid
+            pi = ImgByUuid(uuid)
             pi.delete()
-    Note that this does not involve database (ownership), do that separately.
     """
 
     _bio: Optional[BytesIO] = None
@@ -97,6 +98,7 @@ class ProcessingImg():
             self.extract(input)
         elif input:
             self.perfuse(input)
+            self.gen_uuid()
 
     def perfuse(self, binary: bytes):
         """Create from binary."""
@@ -110,15 +112,12 @@ class ProcessingImg():
     def extract(self, fuuid: str):
         """Read from fs."""
         self.uuid = fuuid
-        try:
-            self.read()
-            self.format = magic.from_buffer(self._rfb(2048), mime=True)
-            if not self.format in _ALLOWED_MIMES:
-                raise MaicaInputError(f'Extracted file {self.format} is not image')
-        except AssertionError:
-            # file not exist, initiating empty
-            pass
-        
+
+        self.read()
+        self.format = magic.from_buffer(self._rfb(2048), mime=True)
+        if not self.format in _ALLOWED_MIMES:
+            raise MaicaInputError(f'Extracted file {self.format} is not image')
+
     def compress(self, mw=1920, mh=1080, q=85):
         """Compresses the wrapped picture."""
         img = Image.open(self._bio)
@@ -144,9 +143,13 @@ class ProcessingImg():
         img.save(self._bio, format='JPEG', quality=q, optimize=True)
         self.is_compressed = True
 
+    def _check_existence(self):
+        if not os.path.isfile(self.real_path):
+            raise MaicaInputWarning(f"File {self.file_name} not exist", 404)
+
     def read(self):
         """Read bytes from desired path."""
-        assert os.path.isfile(self.real_path), f"File {self.file_name} not exist"
+        self._check_existence()
         self._read(self.real_path)
 
     def save(self):
@@ -155,10 +158,49 @@ class ProcessingImg():
 
     def delete(self):
         """Purge bio and delete desired path."""
-        self._purge()
-        assert os.path.isfile(self.real_path), f"File {self.file_name} not exist"
+        self._check_existence()
         os.remove(self.real_path)
 
     def get_bio(self):
         """Get stored bio."""
         return self._bio
+
+    # Database methods
+    async def register(self, user_id):
+        assert self.uuid, "No uuid for this instance"
+        async with DatabaseUtils.SessionData() as dbs:
+            async with dbs.begin():
+
+                stmt = sqlalchemy.insert(SqlMvMeta).values(
+                    user_id=user_id,
+                    uuid=self.uuid,
+                )
+                await dbs.execute(stmt)
+
+    async def unregister(self):
+        assert self.uuid, "No uuid for this instance"
+        async with DatabaseUtils.SessionData() as dbs:
+            async with dbs.begin():
+
+                stmt = sqlalchemy.delete(SqlMvMeta).where(
+                    SqlMvMeta.uuid == self.uuid,
+                )
+                await dbs.execute(stmt)
+
+    @classmethod
+    async def load(cls, user_id):
+        async with DatabaseUtils.SessionData() as dbs:
+            async with dbs.begin():
+
+                stmt = sqlalchemy.select(SqlMvMeta).where(
+                    SqlMvMeta.user_id == user_id,
+                ).options(
+                    load_only(SqlMvMeta.uuid),
+                )
+                objs = (await dbs.scalars(stmt)).all()
+
+        imgs = []
+        for obj in objs:
+            imgs.append(cls(obj.uuid))
+
+        return imgs

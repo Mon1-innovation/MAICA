@@ -7,7 +7,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 from typing import *
-from maica.mtools import ProcessingImg
+from maica.mtools import ImgByUuid
 from maica.maica_utils import *
 
 _CONNS_LIST = []
@@ -79,12 +79,10 @@ class CommonScheduler():
                     SqlMvMeta.timestamp < earliest_timestamp
                 )
 
-                sr = await dbs.scalars(stmt)
-                metas = sr.all()
+                metas = (await dbs.scalars(stmt)).all()
                 
                 for meta in metas:
-                    processing_img = ProcessingImg()
-                    processing_img.uuid = meta.uuid
+                    processing_img = ImgByUuid(meta.uuid)
                     processing_img.delete()
 
                     await sqlalchemy.delete(meta)

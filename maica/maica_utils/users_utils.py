@@ -3,11 +3,12 @@ Import layer 3.9
 Here we handle the users things individually, and provide as mixins.
 """
 
+import asyncio
 import bcrypt
+import orjson
 
 import sqlalchemy
 from sqlalchemy.orm import load_only
-from sqlalchemy.exc import IntegrityError
 
 from typing import *
 from pydantic import BaseModel, RootModel, EmailStr, Field, model_validator
@@ -46,9 +47,21 @@ class FscUsersFuncMixin():
                 raise MaicaInputWarning("username or email must exist")
             
             return self
+        
+        async def generate_token(self):
+            """Used in http token generation phase."""
+            data_j = {"password": self.password}
             
-    class UserStatModel(RootModel):
-        root: dict
+            match self.type:
+                case "username":
+                    data_j["username"] = self.username
+                case "email":
+                    data_j["email"] = self.email
+
+            data_str = orjson.dumps(data_j).decode()
+            token = await asyncio.to_thread(encrypt_token, data_str)
+
+            return token
 
     async def login(self, crid_b64: Optional[str] = None):
         """
@@ -93,26 +106,12 @@ class FscUsersFuncMixin():
             async with DatabaseUtils.SessionData() as dbs:
                 async with dbs.begin():
 
-                    async def _select():
-                        stmt = sqlalchemy.select(SqlAccountStatus).where(
-                            SqlAccountStatus.user_id == user_id,
-                        ).with_for_update()
-                        return await dbs.scalar(stmt)
-
-                    obj = await _select()
-
-                    if not obj:
-                        async with dbs.begin_nested():
-
-                            obj = SqlAccountStatus(
-                                user_id=user_id,
-                            )
-                            dbs.add(obj)
-
-                            try:
-                                await dbs.flush()
-                            except IntegrityError:
-                                obj = await _select()
+                    obj = await sqla_get_or_create(
+                        dbs,
+                        SqlAccountStatus,
+                        {"user_id": user_id},
+                        requires=("status", ),
+                    )
 
                     if obj.status is None:
                         obj.status = {}

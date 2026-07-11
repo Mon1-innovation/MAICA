@@ -2,13 +2,13 @@
 from .api_keys import TpAPIKeys
 from .mpostal import make_postmail
 from .mspire import make_inspire, ms_from_cache, ms_to_cache
-from .weather_get import weather_api_get
+from .weather_get import name_to_loc, weather_api_get
 from .serp_get import internet_search
 from .date_event_get import RegEvent, EventsCollection
 from .post_proc import emo_proc, emo_proc_llm, emo_proc_auto, post_proc, zlist, elist
 from .post_proc_rt import PPRTProcessor
 from .nv_watcher import NvWatcher
-from .mvista import ProcessingImg, query_vlm
+from .mvista import ImgByUuid, query_vlm
 from .quality_chk import quality_chk
 from .censor import has_censored
 
@@ -18,6 +18,7 @@ __all__ = [
     'make_inspire',
     'ms_from_cache',
     'ms_to_cache',
+    'name_to_loc',
     'weather_api_get',
     'internet_search',
     'RegEvent',
@@ -30,7 +31,7 @@ __all__ = [
     'elist',
     'PPRTProcessor',
     'NvWatcher',
-    'ProcessingImg',
+    'ImgByUuid',
     'query_vlm',
     'quality_chk',
     'has_censored',

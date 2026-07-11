@@ -5,12 +5,15 @@ import asyncio
 
 import urllib.parse
 
+import sqlalchemy
 from sqlalchemy.ext.asyncio import (
     create_async_engine,
     async_sessionmaker,
     AsyncSession,
     AsyncEngine,
 )
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import load_only
 
 from .database_models import *
 
@@ -98,6 +101,77 @@ class ReadOnlySession(AsyncSession):
 
     async def commit(self):
         raise RuntimeError("Readonly session")
+
+# We can add some convenient utils
+async def sqla_get_or_create[T: SqlBaseData](dbs, model: Type[T], params: dict, requires: Optional[Iterable] = None):
+
+    _select_params = [
+        getattr(model, k) == v
+        for k, v in params.items()
+    ]
+
+    async def _select():
+        stmt = sqlalchemy.select(model).where(
+            *_select_params
+        ).with_for_update()
+
+        if requires:
+            stmt = stmt.options(
+                load_only(
+                    *[getattr(model, i) for i in requires]
+                )
+            )
+
+        return await dbs.scalar(stmt)
+
+    obj = await _select()
+
+    if not obj:
+        try:
+            async with dbs.begin_nested():
+
+                obj = model(
+                    **params
+                )
+                dbs.add(obj)
+
+                await dbs.flush()
+
+        except IntegrityError:
+            obj = await _select()
+            if not obj:
+                raise
+
+    return obj
+
+async def sqla_create_or_update[T: SqlBaseData](dbs, model: Type[T], unique: dict, carriage: Optional[dict] = None):
+
+    _select_params = [
+        getattr(model, k) == v
+        for k, v in unique.items()
+    ]
+    _carriage = carriage or {}
+
+    try:
+        async with dbs.begin_nested():
+
+            obj = model(
+                **unique,
+                **_carriage,
+            )
+            dbs.add(obj)
+
+            dbs.flush()
+
+    except IntegrityError:
+        if carriage:
+            stmt = sqlalchemy.update(model).where(
+                *_select_params,
+            ).values(
+                **_carriage
+            )
+
+            await dbs.execute(stmt)
 
 if __name__ == "__main__":
 

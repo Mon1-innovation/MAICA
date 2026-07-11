@@ -141,10 +141,10 @@ class MaicaSettings(BaseModel):
         _nickname: Optional[str] = None
         _email: str = None
 
-        user_id = create_prop('user_id', getter_ext=[read_exist], setter_ext=[set_locked, set_instance], setter_kwargs={"types": [int]})
-        username = create_prop('username', getter_ext=[read_exist], setter_ext=[set_locked, set_instance], setter_kwargs={"types": [str]})
-        nickname = create_prop('nickname', setter_ext=[set_instance], setter_kwargs={"types": [str, None]})
-        email = create_prop('email', getter_ext=[read_exist], setter_ext=[set_locked, set_instance], setter_kwargs={"types": [str]})
+        user_id: ClassVar[int] = create_prop('user_id', getter_ext=[read_exist], setter_ext=[set_locked, set_instance], setter_kwargs={"types": [int]})
+        username: ClassVar[str] = create_prop('username', getter_ext=[read_exist], setter_ext=[set_locked, set_instance], setter_kwargs={"types": [str]})
+        nickname: ClassVar[Optional[str]] = create_prop('nickname', setter_ext=[set_instance], setter_kwargs={"types": [str, None]})
+        email: ClassVar[str] = create_prop('email', getter_ext=[read_exist], setter_ext=[set_locked, set_instance], setter_kwargs={"types": [str]})
 
     class Basic(ConfigurableSettingsModel):
         """Major params that decide MAICA's behavior."""

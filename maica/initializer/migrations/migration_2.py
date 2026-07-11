@@ -16,6 +16,6 @@ async def migrate():
             await conn.run_sync(SqlMvMeta.__table__.create, checkfirst=True)
 
     except Exception as e:
-        raise MaicaDbWarning(f'Couldn\'t alter lines LONGTEXT to TEXT and add table mv_meta: {str(e)}, maybe manually done already?') from e
+        raise MaicaDbWarning(f'Couldn\'t alter lines LONGTEXT to TEXT and add table mv_meta: {str(e)}, consider doing a manual double-check') from e
         
 register_migration(upper_version, migrate)

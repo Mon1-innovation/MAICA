@@ -806,12 +806,15 @@ query可以携带临时的触发器表, 并临时添加到上传的触发器表.
 
 > 端点: GET `/preferences`
 
-* 需要access_token
+* 需要access_token, 可选content
+
+    其中content为键以获取对应的值, 默认为None(取完整dict).
 
     关于账号级偏好:
 
     账号级偏好与用户账号绑定, 且是一个dict. 其理论上可以包含任何内容.  
     截至文档编纂时为止, MAICA的后端流程不会主动读取账号级偏好, 但其可以被用于前端的多设备同步等设计.
+    > 自v1.3后, 覆盖功能替代了删除和重置.
 
     后面关于账号级偏好的内容不再赘述.
 
@@ -823,25 +826,18 @@ query可以携带临时的触发器表, 并临时添加到上传的触发器表.
 
 * 需要access_token, content
 
-    其中content是一个dict, 将被逐键添加到账号级偏好中.
+    其中content是一个dict, 将被update到账号级偏好中.
 
 该端点不会返回content.
 
-### 删除账号级偏好:
-
-> 端点: DELETE `/preferences`
-
-* 需要access_token, content
-
-    其中content是一个list, 其中的每一项将从账号级偏好中删除对应的键.
-
-该端点不会返回content.
-
-### 重置账号级偏好:
+### 覆盖账号级偏好:
 
 > 端点: POST `/preferences`
 
-* 需要access_token.
+* 需要access_token, content
+
+    其中content是一个dict, 将覆盖账号级偏好.  
+    如果要清空, 设为`{}`即可.
 
 该端点不会返回content.
 
@@ -859,6 +855,7 @@ query可以携带临时的触发器表, 并临时添加到上传的触发器表.
 
     * 在前端设计中不应明文储存登录信息.
     * 加密令牌接口不会验证登录信息是否正确, 需另行验证.
+        > 自v1.3后, 加密令牌接口会验证格式的正确性.
 
 返回的content是加密后的令牌.
 
@@ -876,32 +873,9 @@ query可以携带临时的触发器表, 并临时添加到上传的触发器表.
 
 返回的content是对应条目结果, 若未传入content则返回用户名.
 
-> 若令牌校验失败, 返回的success将为false, 且exception将提供原因.
+### ~~在线处理表情:~~
 
-### 在线处理表情:
-
-> 端点: GET `/emotion`
-
-* 需要access_token, content
-
-    其中content是一个dict:
-
-    `{"type": "norm", "target_lang": "zh", "text": "表情或句子"}`
-
-    * 其中type的值可选"norm"或"add", 前者代表归正一个不标准的表情, 后者代表为没有表情的句子补全表情.
-
-        * norm会优先尝试通过简单的匹配处理表情, 如果失败会使LLM介入.
-        * 实际上, add也可以处理不标准的表情, 但其总是使LLM介入. 建议尽可能控制用量.
-
-        * LLM介入基于MNerve, 后端部署不一定有实现. 向未实现MNerve的后端发起请求会回退到简单匹配处理.
-
-    * target_lang: 目标语言, 可选"zh"或"en".
-
-返回的content:
-
-`["表情", 置信度]`
-
-其中置信度为float, 取值范围0.0-1.0.
+> 自v1.3后, 该功能被弃用. 请使用生成时的pprt配置替代.
 
 ### 上传MVista图片:
 
@@ -914,13 +888,21 @@ query可以携带临时的触发器表, 并临时添加到上传的触发器表.
 
 返回的content是图片被分配的uuid.
 
+### 获取MVista图片列表:
+
+> 端点: GET `/vista/list`
+
+* 需要access_token
+
+返回的content是有效的图片uuid列表.
+
 ### 删除MVista图片:
 
 > 端点: DELETE `/vista`
 
 * 需要access_token, 可选content
 
-    其中content为str或int, 代表需删除图片的uuid或序号(从0开始, 由新到旧). 若无content则全部删除.
+    其中content为str, int或null, 代表需删除图片的uuid或序号(从0开始, 由新到旧). 默认为null即全部删除.
 
 该端点不会返回content.
 
@@ -928,15 +910,14 @@ query可以携带临时的触发器表, 并临时添加到上传的触发器表.
 
 > 端点: GET `/vista`
 
-* 需要content或access_token
+* 需要content
 * 注意: 为兼容OpenAI VLM调用, 该端点下载功能无法设置鉴权. 任何知晓对应uuid的用户都可以下载图片.
 * 注意: 单个用户可留存的图片数量和存在时间都是有限的, 会由后端自动处理. 截至文档编纂时为止, 单个用户默认留存3张照片, 每张超过8小时即清理.
 * 警告: MVista相关端点仅辅助MVista多模态功能使用, 任何滥用行为将受处分.
 
 其中content存在时是str形式的uuid, 对应要下载的图片.  
 此时若请求成功, 端点仅返回一张图片. 否则端点正常返回json.
-
-content不存在时, access_token必须存在. 返回的content是一个list, 包含用户可用图片的uuid.
+> 自v1.3后, 获取可用图片列表的功能不再集成于此端点中.
 
 ### 获取服务器声明表:
 

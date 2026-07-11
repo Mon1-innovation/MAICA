@@ -1,8 +1,8 @@
 
-from .img_proc import ProcessingImg
+from .img_proc import ImgByUuid
 from .explain_image import query_vlm
 
 __all__ = [
-    'ProcessingImg',
+    'ImgByUuid',
     'query_vlm',
 ]

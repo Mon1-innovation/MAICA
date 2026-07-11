@@ -5,7 +5,6 @@ import traceback
 
 import sqlalchemy
 from sqlalchemy.orm import load_only
-from sqlalchemy.exc import IntegrityError
 
 from typing import *
 from pydantic import BaseModel
@@ -231,17 +230,15 @@ async def ms_to_cache(mfc_m: MsFromCacheResult, fsc: FullSocketsContainer):
     async with DatabaseUtils.SessionData() as dbs:
         async with dbs.begin():
 
-            obj = SqlMsCache(
-                id=fsc.maica_settings.verification.user_id,
-                hash=mfc_m.hash,
-                content=mfc_m.result,
+            await sqla_create_or_update(
+                dbs,
+                SqlMsCache,
+                {"hash": mfc_m.hash},
+                {
+                    "id": fsc.maica_settings.verification.user_id,
+                    "content": mfc_m.result,
+                }
             )
-            dbs.add(obj)
-
-            try:
-                dbs.flush()
-            except IntegrityError:
-                pass
 
     sync_messenger(info='Stored a cache for MSpire', type=MsgType.DEBUG)
 

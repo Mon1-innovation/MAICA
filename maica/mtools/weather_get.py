@@ -116,6 +116,17 @@ async def _name_to_loc_gaode(name: str):
     geo_m = GeoResults.model_validate(geo)
     return geo_m
 
+async def name_to_loc(name: str):
+    try:
+        locs = await _name_to_loc(name)
+    except Exception as e1:
+        try:
+            locs = await _name_to_loc_gaode(name)
+        except Exception as e2:
+            raise MaicaConnectionWarning(f"All geolocation apis failed for {name}: {str(e1)}; {str(e2)}")
+        
+    return locs
+
 async def _loc_to_weather(loc: GeoResults.GeoLoc):
     weather = await dld_json(
         "https://api.open-meteo.com/v1/forecast",
@@ -146,13 +157,7 @@ async def _loc_to_weather(loc: GeoResults.GeoLoc):
 
 async def weather_api_get(location):
     try:
-        try:
-            locs = await _name_to_loc(location)
-        except Exception as e1:
-            try:
-                locs = await _name_to_loc_gaode(location)
-            except Exception as e2:
-                raise MaicaConnectionWarning(f"All geolocation apis failed for {location}: {str(e1)}; {str(e2)}")
+        locs = await name_to_loc(location)
 
         loc = locs.results[0]
         weather = await _loc_to_weather(loc)
