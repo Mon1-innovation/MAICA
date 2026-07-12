@@ -599,7 +599,7 @@ def wrap_ws_formatter(code, status, content, type, **kwargs) -> str:
     }
 
     output.update(kwargs)
-    return json.dumps(output)
+    return json.dumps(output, ensure_ascii=False)
 
 def ellipsis_str(input: Any, limit=80) -> str:
     """It converts anything to str and ellipsis it."""
@@ -713,17 +713,27 @@ def proceed_common_text(text: str, is_json=False) -> Union[str, list, dict]:
         answer_fin = ''
     return answer_fin
 
-@overload
-async def messenger(websocket=None, status='', info='', code=0, tracker_id='', error: Optional[CommonMaicaException]=None, type='', color='', add_time=True, no_print=False, no_raise=False, **kwargs) -> None: ...
-
 async def messenger(websocket=None, *args, **kwargs) -> None:
     """Together with websocket.send()."""
     ws_tuple = sync_messenger(*args, **kwargs)
     if websocket and ws_tuple:
         await websocket.send(wrap_ws_formatter(*ws_tuple))
 
-def sync_messenger(status='', info='', code=0, tracker_id='', error: Optional[CommonMaicaException]=None, type='', color='', add_time=True, no_print=False, no_raise=False, **kwargs) -> tuple:
+
+def sync_messenger(
+        status = '',
+        info = '',
+        code = 0,
+        tracker_id = '',
+        error: Optional[CommonMaicaException] = None,
+        type = '',
+        color = '',
+        no_print = False,
+        **kwargs
+    ) -> tuple:
     """It could handle most log printing and exception raising jobs pretty automatically."""
+
+    # For separator lines
     try:
         term_v = os.get_terminal_size().columns
     except:
@@ -733,12 +743,28 @@ def sync_messenger(status='', info='', code=0, tracker_id='', error: Optional[Co
 
     code = int(code)
 
+    # Exception parsing, it's a convenience method
     if error:
-        status = error.status if not status else status; info = error.message if not info else info; code = error.error_code if code == "0" else code
+        status = error.status if not status else status
+        info = error.message if not info else info
+        code = error.error_code if not code else code
         no_print = False if not error.print is False else True
 
+        if (
+            isinstance(error, CommonMaicaError)
+            or code >= 500
+            or int(G.A.DEBUG_WARNS)
+        ):
+            print_info = "\n" + "".join(traceback.format_exception(error))
+        else:
+            print_info = info
+
+    else:
+        print_info = info
+
+    # Type inferring, in case we're too lazy to write
     if not type:
-        match int(code):
+        match code:
             case 0:
                 type = "log"
             case x if 100 <= x < 200 or 1000 <= x:
@@ -751,78 +777,147 @@ def sync_messenger(status='', info='', code=0, tracker_id='', error: Optional[Co
                 type = "warn"
             case x if 500 <= x < 1000:
                 type = "error"
+    elif not code:
+        match type:
+            case MsgType.CARRIAGE:
+                code = 100
+            case MsgType.DEBUG:
+                code = 200
+            case MsgType.INFO:
+                code = 300
+            case MsgType.WARN:
+                code = 400
+            case MsgType.ERROR:
+                code = 500
+            case _:
+                code = 0
 
-    prefix = uscore_words_upper(type)
+    # Uppercase the prefix
+    prefix = type.upper()
 
-    if 100 <= int(code) < 200 or type == "plain":
-        msg_print = str(info)
+    # If stream message
+    if (
+        100 <= code < 200
+        or type == "plain"
+    ):
+        msg_print = str(print_info)
         msg_send = info
         
     else:
+
+        # Forming display
         msg_print = f"<{prefix}>"
-        msg_print = msg_print.ljust(10)
-        msg_print += f"[{time.strftime('%Y-%m-%d %H:%M:%S')}]" if add_time else ''; msg_print += f"-[{code}]"
+        msg_print = msg_print.ljust(11)
+
+        msg_print += (
+            f"[{datetime.datetime.now().isoformat(timespec="seconds")}]"
+            f"-[{code}]"
+        )
         msg_print = msg_print.ljust(40)
-        msg_print += f": {str(info)}" if not str(info).startswith('\n') else f"{'-=' * rep1}{str(info)}"
-        msg_print += f" <{tracker_id}>" if tracker_id else ''
-        msg_print += "" if not str(info).startswith('\n') else f"\n{'-=' * rep2}"
+
+        # If this is a multi-line print, we wrap it with separators
+        if str(print_info).startswith('\n'):
+            msg_print += (
+                f"{'-=' * rep1}"
+                f"{str(print_info)}"
+            )
+
+            if tracker_id:
+                msg_print += f"\n<{tracker_id}>"
+
+            msg_print += f"\n{'-=' * rep2}"
+
+        else:
+            msg_print += f": {str(print_info).replace('\n', ' ')}"
+
+            if tracker_id:
+                msg_print += f" <{tracker_id}>"
+
+        # Forming send
         msg_send = info
+        
         if type == 'error' and int(G.A.NO_SEND_ERROR):
             msg_send = "A critical exception happened serverside, contact administrator"
+
         if tracker_id and isinstance(info, str):
             msg_send += f" <{tracker_id}>"
 
-    frametrack_dict = {"error": 99, "warn": 1}
-    if type in frametrack_dict:
+    # Frame tracking settings
+    frametrack_d = {"error": 99, "warn": 2}
+    if type in frametrack_d:
         stack = inspect.stack()
         stack.pop(0)
         stack.pop(0)
 
+    # We do not print if no_print or _silent
     if (
         not no_print
         and not _silent
     ):
+        
+        # Per-type behavior
         match type:
+
             case "plain":
-                print((color or '') + msg_print, end='', flush=True)
+                print(
+                    (color or '')\
+                    + msg_print,
+                    end='',
+                    flush=True
+                )
                 lmlogger.buff(msg_print)
+                # Outputing plain normally indicates streaming done
+                # This could be messy if multiple streaming happen simultaneously, but no better approach
                 lmlogger.flush()
+
             case "carriage":
                 if 100 <= int(code) < 200:
                     print((color or colorama.Fore.LIGHTGREEN_EX) + msg_print, end='', flush=True)
                     lmlogger.buff(msg_print)
                 else:
+                    # If it's ending announcement, treat like info
                     logger.info((color or colorama.Fore.LIGHTGREEN_EX) + msg_print)
+
             case "debug":
                 logger.debug((color or colorama.Fore.LIGHTBLACK_EX) + msg_print)
+
             case "info":
                 logger.info((color or colorama.Fore.GREEN) + msg_print)
+
             case "log":
                 logger.info((color or colorama.Fore.BLUE) + msg_print)
+
             case "prim_log":
                 logger.info((color or colorama.Fore.LIGHTBLUE_EX) + msg_print)
+
             case "sys":
                 logger.info((color or colorama.Fore.MAGENTA) + msg_print)
+
             case "prim_sys":
                 logger.info((color or colorama.Fore.LIGHTMAGENTA_EX) + msg_print)
+
             case "recv":
                 logger.info((color or colorama.Fore.CYAN) + msg_print)
+
             case "prim_recv":
                 logger.info((color or colorama.Fore.LIGHTCYAN_EX) + msg_print)
+
             case "warn":
-                if 'warn' in frametrack_dict:
-                    for stack_layer in stack[frametrack_dict['warn']::-1]:
+                if 'warn' in frametrack_d:
+                    for stack_layer in stack[frametrack_d['warn']::-1]:
                         logger.warning(color or colorama.Fore.YELLOW + f"• WARN happened when executing {stack_layer.function} at {stack_layer.filename}#{stack_layer.lineno}:")
                 logger.warning((color or colorama.Fore.LIGHTYELLOW_EX) + msg_print)
+
             case "error":
-                if 'error' in frametrack_dict:
-                    for stack_layer in stack[frametrack_dict['error']::-1]:
+                if 'error' in frametrack_d:
+                    for stack_layer in stack[frametrack_d['error']::-1]:
                         logger.error((color or colorama.Fore.RED) + f"! ERROR happened when executing {stack_layer.function} at {stack_layer.filename}#{stack_layer.lineno}:")
                 logger.error((color or colorama.Fore.LIGHTRED_EX) + msg_print)
-    if error and not no_raise:
-        raise error
+
+    # This is pretty deprecated but leave it be
     if error and error.send is False:
         return
+    
     ws_tuple = (code, status, msg_send, type)
     return ws_tuple
 

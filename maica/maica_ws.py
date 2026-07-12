@@ -45,7 +45,7 @@ class WsCoroutine(NoWsCoroutine):
     async def check_permit(self):
 
         # The ip part
-        websocket = self.websocket
+        websocket = self.fsc.websocket
         xff = websocket.request.headers.get("X-Forwarded-For")
         if xff:
             self.remote_addr = xff.split(',')[0].strip()
@@ -54,14 +54,14 @@ class WsCoroutine(NoWsCoroutine):
 
         sync_messenger(info=f'An anonymous connection initiated', type=MsgType.PRIM_LOG)
         sync_messenger(info=f'From IP {self.remote_addr}', type=MsgType.DEBUG)
-        sync_messenger(info=f'Current online users: {online_dict.keys()}', type=MsgType.DEBUG)
+        sync_messenger(info=f'Current online users: {list(online_dict.keys())}', type=MsgType.DEBUG)
 
         # Starting loop from here
         while True:
             try:
 
                 # Initiation
-                self.tracker_id.rotate()
+                self.fsc.tracker_id.rotate()
 
                 # Recieve text
                 recv_text = await websocket.recv()
@@ -72,9 +72,9 @@ class WsCoroutine(NoWsCoroutine):
                     # We can test if it's caused by wrong stage
                     try:
                         _ws_config: UnionStage2Settings = TypeAdapter(Stage2Settings).validate_json(recv_text)
-                        raise MaicaPermissionWarning(f"Query type {_ws_config.type} now allowed pre-auth")
                     except Exception as e2:
                         raise MaicaInputWarning(f"Query parsing failed: {str(e)}") from e
+                    raise MaicaPermissionWarning(f"Query type {_ws_config.type} now allowed pre-auth")
 
                 match ws_config.type:
                     case "sping":
@@ -101,7 +101,7 @@ class WsCoroutine(NoWsCoroutine):
                 if ce.is_critical or ce.is_breaking:
                     raise
                 else:
-                    await self.fsc.messenger(error=ce, no_raise=True)
+                    await self.fsc.messenger(error=ce)
                     # await messenger(websocket, 'maica_loop_warn_finished', 'Loop hit a user level exception, stopped and reset', 304)
                     continue
 
@@ -116,7 +116,7 @@ class WsCoroutine(NoWsCoroutine):
     # But since it's not necessary and this old way offers lower level control
     # We'll just leave it be
     async def function_switch(self):
-        websocket = self.websocket
+        websocket = self.fsc.websocket
         
         # Announcements
         await self.fsc.messenger("maica_connection_established", "MAICA connection established", 201, type=MsgType.INFO, no_print=True)
@@ -140,7 +140,7 @@ class WsCoroutine(NoWsCoroutine):
             try:
 
                 # Per-loop cleanups
-                self.tracker_id.rotate()
+                self.fsc.tracker_id.rotate()
                 self.settings.temp.reset()
 
                 # Run common check, like banned or what
@@ -154,9 +154,9 @@ class WsCoroutine(NoWsCoroutine):
                     # We can test if it's caused by wrong stage
                     try:
                         _ws_config: UnionStage1Settings = TypeAdapter(Stage1Settings).validate_json(recv_text)
-                        raise MaicaPermissionWarning(f"Query type {_ws_config.type} now allowed post-auth")
                     except Exception as e2:
                         raise MaicaInputWarning(f"Query parsing failed: {str(e)}") from e
+                    raise MaicaPermissionWarning(f"Query type {_ws_config.type} now allowed post-auth")
                     
                 match ws_config.type:
                     case "sping":
@@ -174,12 +174,20 @@ class WsCoroutine(NoWsCoroutine):
                         sync_messenger(info=f'From IP {self.remote_addr}, user {self.settings.verification.username}', type=MsgType.DEBUG)
                         await self.generate_response(ws_config)
 
+                if ws_config.type in ("reconn", "params", "query"):
+                    await self.fsc.messenger(
+                        'maica_worker_loop_finished',
+                        f'Finished worker loop, type {ws_config.type}',
+                        200,
+                        no_print=True,
+                    )
+
             # Handle expected exceptions
             except CommonMaicaException as ce:
                 if ce.is_critical or ce.is_breaking:
                     raise
                 else:
-                    await self.fsc.messenger(error=ce, no_raise=True)
+                    await self.fsc.messenger(error=ce)
                     await self.fsc.messenger('maica_loop_warn_reset', 'Loop hit a user level exception, reset in stage 2', 400)
                     continue
 
@@ -204,7 +212,7 @@ class WsCoroutine(NoWsCoroutine):
     async def generate_response(self, ws_config: WsQueryConfig):
 
         # Initiations
-        websocket = self.websocket
+        websocket = self.fsc.websocket
         chat_session = self.settings.temp.chat_session = ws_config.chat_session
 
         async with (
@@ -236,6 +244,7 @@ class WsCoroutine(NoWsCoroutine):
             await asyncio.gather(*fdb1)
 
             user_query = MaicaSessionItem("user")
+            user_query.context_from_fsc(self.fsc)
             session.append(user_query)
 
             match ws_config.activated:
@@ -442,7 +451,7 @@ async def main_logic(
     # Initializing
     rsc = RealtimeSocketsContainer(websocket=websocket)
     csc = root_csc.spawn_sub(rsc)
-    fsc = FullSocketsContainer(rsc, csc)
+    fsc = FullSocketsContainer(rsc=rsc, csc=csc)
     
     unique_lock = asyncio.Lock()
     async with unique_lock:
@@ -479,10 +488,7 @@ async def main_logic(
             if ce.is_critical:
                 traceback.print_exc()
 
-            await fsc.messenger(
-                error=ce,
-                no_raise=True,
-            )
+            await fsc.messenger(error=ce)
 
         except websockets.WebSocketException as we:
 
@@ -577,7 +583,7 @@ async def prepare_thread(**kwargs):
 
     except Exception as e:
 
-        await messenger(info=f"Major model deployment cannot be reached: {str(e)}, running in minimal testing mode", type=MsgType.SYS)
+        sync_messenger(info=f"Major model deployment cannot be reached: {str(e)}, running in minimal testing mode", type=MsgType.SYS)
     
     try:
         server = await websockets.serve(
@@ -594,10 +600,10 @@ async def prepare_thread(**kwargs):
 
     except Exception as e:
         error = CommonMaicaError(str(e), '504')
-        sync_messenger(error=error, no_raise=True)
+        sync_messenger(error=error)
 
     finally:
-        await messenger(info='MAICA WS server stopped!', type=MsgType.PRIM_SYS)
+        sync_messenger(info='MAICA WS server stopped!', type=MsgType.PRIM_SYS)
 
 
 # ====================================================== Task starter ends ======================================================
@@ -624,7 +630,7 @@ async def _run_ws():
     for conn in root_csc_items:
         close_list.append(conn.close())
     await asyncio.gather(*close_list)
-    await messenger(info='Individual MAICA WS server cleaning done', type=MsgType.DEBUG)
+    sync_messenger(info='Individual MAICA WS server cleaning done', type=MsgType.DEBUG)
 
 def run_ws():
     asyncio.run(_run_ws())

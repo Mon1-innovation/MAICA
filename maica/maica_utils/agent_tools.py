@@ -173,7 +173,7 @@ class BaseTrigger(BaseModel, ABC):
         return None, []
 
 class AffectionTrigger(BaseTrigger):
-    template = "common_affection_template"
+    template: Literal["common_affection_template"]
 
     def to_tool(self, curr_aff: Optional[int] = None):
         if curr_aff:
@@ -208,7 +208,7 @@ class AffectionTrigger(BaseTrigger):
         return super().to_descr()
 
 class SwitchTrigger(BaseTrigger):
-    template = "common_switch_template"
+    template: Literal["common_switch_template"]
     exprop: _SwitchTriggerExprop
 
     def to_tool(self):
@@ -254,7 +254,7 @@ class SwitchTrigger(BaseTrigger):
         return text, l
 
 class MeterTrigger(BaseTrigger):
-    template = "common_meter_template"
+    template: Literal["common_meter_template"]
     exprop: _MeterTriggerExprop
 
     def to_tool(self):
@@ -296,7 +296,7 @@ class MeterTrigger(BaseTrigger):
         return text, l
 
 class BooleanTrigger(BaseTrigger):
-    template = "customized"
+    template: Literal["customized"]
     exprop: _BooleanTriggerExprop
 
     def to_tool(self):

@@ -86,7 +86,7 @@ class AgentTools():
         except CommonMaicaException as ce:
             text = "查询不到当前的天气." if target_lang == 'zh' else "Cannot acquire current weather."
             weather = None
-            await messenger(self.fsc.websocket, 'maica_mfocus_weather_failed', tracker_id=self.fsc.rsc.tracker_id, error=ce, no_raise=True)
+            await messenger(self.fsc.websocket, 'maica_mfocus_weather_failed', tracker_id=self.fsc.rsc.tracker_id, error=ce)
 
         return text, weather
 

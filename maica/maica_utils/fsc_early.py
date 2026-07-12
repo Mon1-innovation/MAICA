@@ -150,6 +150,7 @@ class RealtimeSocketsContainer(AllowArb):
     def spawn_messenger(self):
         if not self.messenger:
             self.messenger = self.RscMessenger(self)
+        return self
 
     def rotate_tid(self):
         """Rotate tracker_id."""

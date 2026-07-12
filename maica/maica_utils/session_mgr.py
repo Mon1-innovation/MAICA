@@ -21,8 +21,7 @@ from .database_models import *
 
 _Bt = BilingualText
 
-@pdataclass
-class MaicaSessionItem():
+class MaicaSessionItem(BaseModel):
     """Element of MaicaSession."""
     class Context(BaseModel):
         """Specifically context object of MaicaSessionItem."""
@@ -46,10 +45,23 @@ class MaicaSessionItem():
     context: Context = Field(default_factory=Context)
 
     # If item role is misc, we stop using maica format and store entire object.
-    preserved: dict = field(default_factory=dict)
+    preserved: dict = Field(default_factory=dict)
 
-    def __post_init__(self):
-        self.timestamp = time.time()
+    timestamp: float = Field(default_factory=time.time)
+
+    # We override its init to allow position-arguments initialization
+    def __init__(self, *args, **kwargs):
+        if args:
+            field_names = list(self.__class__.model_fields.keys())
+
+            for i, value in enumerate(args):
+                if i < len(field_names):
+                    if not field_names[i] in kwargs:
+                        kwargs[field_names[i]] = value
+                    else:
+                        raise RuntimeError(f"{field_names[i]} is passed twice for MaicaSessionItem")
+
+        super().__init__(**kwargs)
 
     def load(self, item: dict):
         assert isinstance(item, dict), f"Session item can only load from dict, {type(item)} {str(item)} found"
@@ -123,7 +135,7 @@ class MaicaSessionItem():
         return known_str
     
     def context_from_fsc(self, fsc: FullSocketsContainer):
-        """Gets basic context from a fsc."""
+        """Gets session item specifics from a fsc."""
         self.target_lang = fsc.maica_settings.basic.target_lang
 
         context = self.context
@@ -148,7 +160,7 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         self.default_target_lang: Literal['zh', 'en', 'auto'] = 'zh'
         self.default_context = MaicaSessionItem.Context()
 
-    def _sync_fsc(self):
+    def default_context_from_fsc(self):
         # Should we load fsc settings into defaults here?
         # We probably should.
         self.default_target_lang = self.fsc.maica_settings.basic.target_lang
@@ -157,7 +169,7 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         self.default_context.nsfw_acceptive = self.fsc.maica_settings.extra.nsfw_acceptive
 
     def on_acquire(self):
-        self._sync_fsc()
+        self.default_context_from_fsc()
         if self.session_num <= 0:
             self.reset()
 
@@ -169,9 +181,10 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         # which also runs self.reset()
 
     def _sync_session_item(self, object: MaicaSessionItem):
-        object.target_lang = object.target_lang or self.default_target_lang
-        for field in self.default_context.__class__.model_fields.keys() - object.model_fields_set:
-            setattr(object, field, getattr(self.default_context, field))
+        object.target_lang = object.target_lang if "target_lang" in object.model_fields_set else self.default_target_lang
+
+        for field in self.default_context.__class__.model_fields.keys() - object.context.model_fields_set:
+            setattr(object.context, field, getattr(self.default_context, field))
 
     # We override append to automatically manage context
     def append(self, object):
@@ -216,7 +229,8 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
 
         # First sanitize
         self.sanitize()
-        assert len(self) > 1, "No item could be utilized"
+        if not len(self) > 1:
+            raise MaicaInputWarning("No item could be utilized")
 
         # Then acquire context
         curr_item = self[-1]

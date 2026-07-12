@@ -31,7 +31,7 @@ async def internet_search(fsc: FullSocketsContainer, query):
                 f"{res_i.title}: {res_i.description}"
             )
 
-        await messenger(info=f'MFocus got {len(res_m.results)} information lines from search engine', type=MsgType.INFO)
+        sync_messenger(info=f'MFocus got {len(res_m.results)} information lines from search engine', type=MsgType.INFO)
 
     except Exception as e:
         res_m = None

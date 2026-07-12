@@ -26,6 +26,9 @@ class ConnSocketsContainer(AllowArb):
         sub_kwargs = {k: getattr(self, k).summon_sub(rsc) if getattr(self, k) else None for k in ['vector_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn']}
         return ConnSocketsContainer(**sub_kwargs)
 
+_rsc_proxied = ['websocket', 'tracker_id', 'messenger', 'maica_settings']
+_csc_proxied = ['vector_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn', 'embedding_conn', 'reranking_conn']
+
 class FullSocketsContainer(FscUsersFuncMixin, AllowArb):
     """
     For all convenience consideration.
@@ -60,22 +63,20 @@ class FullSocketsContainer(FscUsersFuncMixin, AllowArb):
             self.rsc = RealtimeSocketsContainer()
         if not self.csc:
             self.csc = ConnSocketsContainer()
-
-    _rsc_proxied = ['websocket', 'tracker_id', 'messenger', 'maica_settings']
-    _csc_proxied = ['vector_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn', 'embedding_conn', 'reranking_conn']
+        return self
 
     def __getattr__(self, k):
-        if k in self._rsc_proxied:
+        if k in _rsc_proxied:
             return getattr(self.rsc, k)
-        elif k in self._csc_proxied:
+        elif k in _csc_proxied:
             return getattr(self.csc, k)
         else:
             return super().__getattr__(k)
 
     def __setattr__(self, k, v):
-        if k in self._rsc_proxied:
+        if k in _rsc_proxied:
             setattr(self.rsc, k, v)
-        elif k in self._csc_proxied:
+        elif k in _csc_proxied:
             setattr(self.csc, k, v)
         else:
             super().__setattr__(k, v)

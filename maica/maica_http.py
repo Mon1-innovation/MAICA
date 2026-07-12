@@ -14,7 +14,7 @@ from werkzeug.datastructures import FileStorage
 from hypercorn.config import Config
 from hypercorn.asyncio import serve
 from typing import *
-from pydantic import BaseModel, Field, model_validator, create_model
+from pydantic import BaseModel, Field, model_validator, field_validator, create_model
 
 from maica.maica_ws import NoWsCoroutine
 from maica.maica_utils import *
@@ -157,6 +157,11 @@ _session_1_9 = (
         le=9,
     ),
 )
+def _conv_str_json(cls, v: str):
+    if isinstance(v, str):
+        v = orjson.loads(v)
+    return v
+_get_json = field_validator("content", mode="before")(_conv_str_json)
 
 
 # ====================================================== Utilities ends ======================================================
@@ -184,7 +189,7 @@ class ShortConnHandler(View):
         if val:
             rsc = RealtimeSocketsContainer()
             csc = self.__class__.root_csc.spawn_sub(rsc)
-            self.fsc = FullSocketsContainer(rsc, csc)
+            self.fsc = FullSocketsContainer(rsc=rsc, csc=csc)
 
     def msg_http(self, *args, **kwargs):
 
@@ -236,7 +241,7 @@ class ShortConnHandler(View):
             if ce.is_critical:
                 traceback.print_exc()
 
-            _, _, message, _ = sync_messenger(error=ce, no_raise=True)
+            _, _, message, _ = sync_messenger(error=ce)
             return jsonify({"success": False, "exception": message}), int(ce.error_code) or 400
 
         except Exception as e:
@@ -423,6 +428,7 @@ class ShortConnHandler(View):
 
 
     _edp_m = pyd_http_factory(
+        model_postfix="edp_m",
         access_token=(str, ...),
         content=(dict, ...),
     )
@@ -449,6 +455,7 @@ class ShortConnHandler(View):
 
 
     _ovp_m = pyd_http_factory(
+        model_postfix="ovp_m",
         access_token=(str, ...),
         content=(dict, ...),
     )
@@ -470,7 +477,11 @@ class ShortConnHandler(View):
 
 
     _dlt_m = pyd_http_factory(
+        model_postfix="dlt_m",
         content=(dict, ...),
+        __validators__={
+            "get_json": _get_json
+        },
     )
     async def download_token(self):
         """GET, val=False"""
@@ -483,8 +494,12 @@ class ShortConnHandler(View):
 
 
     _ckl_m = pyd_http_factory(
+        model_postfix="ckl_m",
         access_token=(str, ...),
         content=(Optional[dict], None),
+        __validators__={
+            "get_json": _get_json
+        },
     )
     async def check_legality(self):
         """GET"""
@@ -510,6 +525,7 @@ class ShortConnHandler(View):
 
 
     _ulv_m = pyd_http_factory(
+        model_postfix="ulv_m",
         access_token=(str, ...),
         # Content is from request.file
     )
@@ -526,6 +542,7 @@ class ShortConnHandler(View):
     
 
     _lv_m = pyd_http_factory(
+        model_postfix="lv_m",
         access_token=(str, ...),
     )
     async def list_vista(self):
@@ -542,6 +559,7 @@ class ShortConnHandler(View):
 
 
     _dv_m = pyd_http_factory(
+        model_postfix="dv_m",
         access_token=(str, ...),
         content=(Optional[str | int], None),
     )
@@ -572,6 +590,7 @@ class ShortConnHandler(View):
 
 
     _dlv_m = pyd_http_factory(
+        model_postfix="dlv_m",
         content=(str, ...),
     )
     async def download_vista(self):
@@ -624,7 +643,7 @@ class ShortConnHandler(View):
 
     async def any_unknown(self):
         """Handles any unknown endpoint"""
-        await messenger(info=f"An unknown access to {request.full_path} handled", type=MsgType.WARN)
+        sync_messenger(info=f"An unknown access to {request.full_path} handled", type=MsgType.WARN)
         return jsonify({"success": False, "exception": 'Unknown request endpoint or method'}), 404
 
 
@@ -650,16 +669,16 @@ async def prepare_thread(**kwargs):
         config = Config()
         config.bind = ['0.0.0.0:6000']
         task = asyncio.create_task(serve(app, config))
-        
+
         task_list = [task] + _watch_start_list
 
-        await messenger(info='MAICA HTTP server started!', type=MsgType.PRIM_SYS)
+        sync_messenger(info='MAICA HTTP server started!', type=MsgType.PRIM_SYS)
 
         await asyncio.wait(task_list, return_when=asyncio.FIRST_COMPLETED)
 
     except Exception as e:
         error = CommonMaicaError(str(e), '504')
-        sync_messenger(error=error, no_raise=True)
+        sync_messenger(error=error)
 
     finally:
 
@@ -668,8 +687,8 @@ async def prepare_thread(**kwargs):
 
         # So its stop msg will be print first, adding \n after ^C to look prettier.
 
-        await messenger(info='\n', type=MsgType.PLAIN)
-        await messenger(info='MAICA HTTP server stopped!', type=MsgType.PRIM_SYS)
+        sync_messenger(info='\n', type=MsgType.PLAIN)
+        sync_messenger(info='MAICA HTTP server stopped!', type=MsgType.PRIM_SYS)
 
 
 # ====================================================== Debuggings ======================================================
@@ -690,7 +709,7 @@ async def _run_http():
     for conn in root_csc_items:
         close_list.append(conn.close())
     await asyncio.gather(*close_list)
-    await messenger(info='Individual MAICA HTTP server cleaning done', type=MsgType.DEBUG)
+    sync_messenger(info='Individual MAICA HTTP server cleaning done', type=MsgType.DEBUG)
 
 def run_http(**kwargs):
     asyncio.run(_run_http())

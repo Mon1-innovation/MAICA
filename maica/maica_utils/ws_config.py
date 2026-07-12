@@ -11,31 +11,31 @@ from .maica_utils import *
 _Bt = BilingualText
 
 class WsBasicConfig(BaseModel):
-    type: ClassVar[Literal["auth", "ping", "sping", "reconn", "params", "query"]]
+    type: Literal["auth", "ping", "sping", "reconn", "params", "query"]
 
 class WsPermissionConfig(WsBasicConfig):
     """This takes and validates a login input."""
-    type = "auth"
+    type: Literal["auth"]
     access_token: str
 
 class WsPingConfig(WsBasicConfig):
-    type = "ping"
+    type: Literal["ping"]
 
 class WsSPingConfig(WsBasicConfig):
     """Silent Ping."""
-    type = "sping"
+    type: Literal["sping"]
 
 class WsReconnConfig(WsBasicConfig):
-    type = "reconn"
+    type: Literal["reconn"]
 
 class WsSettingsConfig(WsBasicConfig):
-    type = "params"
+    type: Literal["params"]
     chat_params: dict = Field(default_factory=dict)
     reset: bool = False
 
 class WsQueryConfig(WsBasicConfig):
     """This takes and validates a query input."""
-    type = "query"
+    type: Literal["query"]
 
     class MCommonConfig(BaseModel):
         bypass_mf: bool = False

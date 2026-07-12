@@ -15,6 +15,8 @@ from pydantic import BaseModel, RootModel, EmailStr, Field, model_validator
 from base64 import b64encode, b64decode
 from .encryption_utils import crypto_object
 from .maica_utils import *
+from .database_utils import *
+from .database_models import *
 
 if TYPE_CHECKING:
     from .fsc_late import *
@@ -32,17 +34,23 @@ class FscUsersFuncMixin():
         username: Optional[str] = None
         email: Optional[EmailStr] = None
         password: str
-        type: ClassVar[Literal["username", "email"]]
-        identity: ClassVar[str]
+        type: Optional[Literal["username", "email"]] = None
+        
+        @property
+        def identity(self):
+            if self.type == "username":
+                return self.username
+            elif self.type == "email":
+                return self.email
+            else:
+                raise MaicaInputError("No type determined before access")
 
         @model_validator(mode="after")
         def det_type(self):
             if self.username:
                 self.type = "username"
-                self.identity = self.username
             elif self.email:
                 self.type = "email"
-                self.identity = self.email
             else:
                 raise MaicaInputWarning("username or email must exist")
             
@@ -80,7 +88,6 @@ class FscUsersFuncMixin():
             except Exception as e:
                 raise MaicaInputWarning(f"Failed parsing access_token: {str(e)}")
 
-
             async with DatabaseUtils.SessionAuth() as aus:
 
                 stmt = sqlalchemy.select(SqlUser).where(
@@ -109,7 +116,7 @@ class FscUsersFuncMixin():
                     obj = await sqla_get_or_create(
                         dbs,
                         SqlAccountStatus,
-                        {"user_id": user_id},
+                        {"id": user_id},
                         requires=("status", ),
                     )
 

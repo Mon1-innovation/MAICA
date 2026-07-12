@@ -72,7 +72,7 @@ class DbBoundObject(CheckDestroyed):
         self.clear()
 
     def __post_init__(self):
-        self.i_name = self.TABLE.rstrip('s')
+        self.i_name = self._model.__tablename__
         self.is_destroyed = False
         self.lock = asyncio.Lock()
         self.reset()

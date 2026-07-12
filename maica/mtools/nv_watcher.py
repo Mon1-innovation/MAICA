@@ -90,12 +90,12 @@ class NvWatcher(AsyncCreator):
     async def main_watcher(self):
         if not self.is_active:
             if self.is_dead:
-                await messenger(info=f"Cannot connect to SSH of {self.node}, freezing watcher", type=MsgType.WARN)
+                sync_messenger(info=f"Cannot connect to SSH of {self.node}, freezing watcher", type=MsgType.WARN)
             else:
-                await messenger(info=f"Necessary info not complete for watching {self.node}, freezing watcher", type=MsgType.LOG)
+                sync_messenger(info=f"Necessary info not complete for watching {self.node}, freezing watcher", type=MsgType.LOG)
             await sleep_forever()
         else:
-            await messenger(info=f'Necessities complete for watching {self.node}, starting watcher', type=MsgType.PRIM_LOG)
+            sync_messenger(info=f'Necessities complete for watching {self.node}, starting watcher', type=MsgType.PRIM_LOG)
 
         self.dynamics_curr = []
         dynamic_keys = ['utilization.gpu', 'memory.used', 'power.draw']
@@ -129,7 +129,7 @@ class NvWatcher(AsyncCreator):
                 await self.main_watcher()
             except Exception as e:
                 time_now = time.time()
-                await messenger(info=f'Watcher temporary failure after {int(time_now - start_times[-1])}sec: {str(e)}', type=MsgType.WARN)
+                sync_messenger(info=f'Watcher temporary failure after {int(time_now - start_times[-1])}sec: {str(e)}', type=MsgType.WARN)
                 start_times.append(time_now)
         
         # If while loop quitted, the complete failure has happened
@@ -174,7 +174,7 @@ async def prepare_watcher():
         await asyncio.gather(watcher_mcore.main_watcher(), watcher_mfocus.main_watcher())
     except Exception as e:
         traceback.print_exc()
-        await messenger(info=str(e), type=MsgType.ERROR)
+        sync_messenger(info=str(e), type=MsgType.ERROR)
 
 def start_watching():
     asyncio.run(prepare_watcher())

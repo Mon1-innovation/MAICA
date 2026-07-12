@@ -152,17 +152,17 @@ async def prepare_thread(**kwargs):
     try:
         common_scheduler = CommonScheduler(kwargs.get('involve_chat', True), kwargs.get('involve_tts', True))
 
-        await messenger(info='MAICA scheduler started!', type=MsgType.PRIM_SYS)
+        sync_messenger(info='MAICA scheduler started!', type=MsgType.PRIM_SYS)
 
         await common_scheduler.run_schedule()
         common_scheduler.close()
 
     except Exception as e:
         error = CommonMaicaError(str(e), '504')
-        sync_messenger(error=error, no_raise=True)
-        
+        sync_messenger(error=error)
+
     finally:
-        await messenger(info='MAICA scheduler stopped!', type=MsgType.PRIM_SYS)
+        sync_messenger(info='MAICA scheduler stopped!', type=MsgType.PRIM_SYS)
 
 async def _run_shd():
     """
@@ -182,7 +182,7 @@ async def _run_shd():
     for conn in root_csc_items:
         close_list.append(conn.close())
     await asyncio.gather(*close_list)
-    await messenger(info='Individual MAICA scheduler cleaning done', type=MsgType.DEBUG)
+    sync_messenger(info='Individual MAICA scheduler cleaning done', type=MsgType.DEBUG)
 
 def run_shd():
     asyncio.run(_run_shd())

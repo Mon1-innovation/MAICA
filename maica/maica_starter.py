@@ -277,12 +277,12 @@ async def start_all(start_target: Literal['chat', 'tts', 'all']='chat'):
             task_chat,
             task_tts,
             ], return_when=asyncio.FIRST_COMPLETED)
-        await messenger(info="First overall quit collected, quitting other tasks...", type=MsgType.DEBUG)
+        sync_messenger(info="First overall quit collected, quitting other tasks...", type=MsgType.DEBUG)
         for pending in res[1]:
             pending.cancel()
             await pending
 
-    await messenger(info="All quits collected, doing final cleanup...", type=MsgType.DEBUG)
+    sync_messenger(info="All quits collected, doing final cleanup...", type=MsgType.DEBUG)
 
     close_list = []
     for conn in root_csc_items:
@@ -290,7 +290,7 @@ async def start_all(start_target: Literal['chat', 'tts', 'all']='chat'):
             close_list.append(conn.close())
     await asyncio.gather(*close_list)
 
-    await messenger(info="Everything done, bye", type=MsgType.DEBUG)
+    sync_messenger(info="Everything done, bye", type=MsgType.DEBUG)
     quit()
 
 async def maica_start_all(**kwargs):
@@ -305,11 +305,11 @@ async def maica_start_all(**kwargs):
         task_schedule,
     ], return_when=asyncio.FIRST_COMPLETED)
 
-    await messenger(info="First chat quit collected, quitting other chat tasks...", type=MsgType.DEBUG)
+    sync_messenger(info="First chat quit collected, quitting other chat tasks...", type=MsgType.DEBUG)
     for pending in res[1]:
         pending.cancel()
         await pending
-    await messenger(info="All chat quits collected", type=MsgType.DEBUG)
+    sync_messenger(info="All chat quits collected", type=MsgType.DEBUG)
     return
 
 async def mtts_start_all(**kwargs):
@@ -326,11 +326,11 @@ async def mtts_start_all(**kwargs):
         task_schedule,
     ], return_when=asyncio.FIRST_COMPLETED)
 
-    await messenger(info="First tts quit collected, quitting other chat tasks...", type=MsgType.DEBUG)
+    sync_messenger(info="First tts quit collected, quitting other chat tasks...", type=MsgType.DEBUG)
     for pending in res[1]:
         pending.cancel()
         await pending
-    await messenger(info="All tts quits collected", type=MsgType.DEBUG)
+    sync_messenger(info="All tts quits collected", type=MsgType.DEBUG)
     return
 
 def full_start():

@@ -212,6 +212,8 @@ MAICA_SESSION_MAX_LENGTH = '28672'
 MAICA_CENSOR_MSPIRE = '2'
 # Censor query input or not, number for limit
 MAICA_CENSOR_QUERY = '0'
+# Log tracebacks of warnings or not
+MAICA_DEBUG_WARNS = '0'
 
 
 # Announcement settings

@@ -35,7 +35,7 @@ def migrate(version):
                 if ce.is_critical:
                     raise
                 else:
-                    sync_messenger(error=ce, no_raise=True)
+                    sync_messenger(error=ce)
                     migrated = True
     if migrated:
         sync_messenger(info=f'[maica-mig] Migration finished, continuing launch procedure...', type=MsgType.LOG)
