@@ -86,12 +86,12 @@ zlist = list(emotion_zte.keys())
 elist_ai = [
     i for i
     in set(emotion_zte.values())
-    if not i in ('kawaii', )
+    if i not in ('kawaii',)
 ]
 zlist_ai = [
     i for i
     in emotion_zte.keys()
-    if not i in ('可爱', )
+    if i not in ('可爱',)
 ]
 
 _Bt = BilingualText
@@ -103,7 +103,8 @@ def emo_proc(emo: str, target_lang: Literal['zh', 'en', 'auto']='zh'):
 
     if len(emo_clean.encode()) >= 16:
         # This might be a sentence or what
-        res = emo_clean; cfd = 0.6
+        res = emo_clean
+        cfd = 0.6
 
     else:
         def match_by_z(emo):
@@ -129,11 +130,13 @@ def emo_proc(emo: str, target_lang: Literal['zh', 'en', 'auto']='zh'):
         _res = match_by_z(emo_clean) if target_lang == 'zh' else match_by_e(emo_clean)
         
         if _res:
-            res = f'[{_res}]'; cfd = 0.9
+            res = f'[{_res}]'
+            cfd = 0.9
 
         # If previous matches all failed, return fallback
         else:
-            res = '[微笑]' if target_lang == 'zh' else '[smile]'; cfd = 0.1
+            res = '[微笑]' if target_lang == 'zh' else '[smile]'
+            cfd = 0.1
 
     return res, cfd
 
@@ -205,7 +208,8 @@ Please choose an emotion that fits best from the given list of standard emotions
     resp = await conn.make_completion(**completion_args)
     detection_result = EmoDetectResult.model_validate_json(resp.output_text)
 
-    res = detection_result.result; cfd = detection_result.confidence
+    res = detection_result.result
+    cfd = detection_result.confidence
 
     sync_messenger(info=f"Finished processing emo_proc_llm to letter. Result: {res}, confidence: {cfd}", type=MsgType.PRIM_LOG)
     return f"[{res}]", cfd
@@ -233,10 +237,10 @@ async def post_proc(reply_joined: str, fsc: FullSocketsContainer):
     for signature in reply_all_signatures:
         if (
             not signature == '[player]'
-            and not signature.strip('[').strip(']') in (zlist if target_lang == 'zh' else elist)
+            and signature.strip('[').strip(']') not in (zlist if target_lang == 'zh' else elist)
         ):
 
-            realword = await emo_proc_auto(signature, fsc)[0]
+            realword = (await emo_proc_auto(signature, fsc))[0]
             reply_joined = re.sub(re.escape(signature), realword, reply_joined, flags = re.I)
     
     return reply_joined

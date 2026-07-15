@@ -48,7 +48,7 @@ def no_lock_acquire_buffer(user_id: int):
     asyncio.Queue is not something cannot be occupied twice ofc.
     The locked method is for ensure single writing, we use this to acquire for reading.
     """
-    if not user_id in _buffers_index:
+    if user_id not in _buffers_index:
         _buffers_index[user_id] = [StreamBuffer(), time.time()]
     else:
         _buffers_index[user_id][1] = time.time()
@@ -66,8 +66,11 @@ async def acquire_buffer(user_id: int):
 
 def buffers_gc(timestamp):
     gced: List[Tuple] = []
+    stale_keys = []
     for k, v in _buffers_index.items():
         if v[1] < timestamp and not v[0].lock.locked():
-            _buffers_index.pop(k)
-            gced.append(k)
+            stale_keys.append(k)
+    for k in stale_keys:
+        _buffers_index.pop(k, None)
+        gced.append(k)
     return gced

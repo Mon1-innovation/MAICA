@@ -170,7 +170,7 @@ class MfPipeliner():
                     name="conclusion",
                     type=["string", "null"],
                     description=_Bt(
-                        "总结你获取的信息和对应的推理, 并整理成一到数个简洁的句子, 如'现在是上午九点, 因此适合吃早餐; 且天气凉爽, 因此适合户外活动'. 留空以表示没有值得总结的信息."
+                        "总结你获取的信息和对应的推理, 并整理成一到数个简洁的句子, 如'现在是上午九点, 因此适合吃早餐; 且天气凉爽, 因此适合户外活动'. 留空以表示没有值得总结的信息.",
                         "Conclude information you acquired and corresponding reasoning, into one or several concise and clear sentences, e.g., 'It's 9:00 in the morning, suitable for breakfast; The weather is cool, good for exercising'. Leave empty if no information worths concluding."
                     )
                 )
@@ -182,26 +182,6 @@ class MfPipeliner():
                 "此工具用于表示工具调用完成. 若你已调用了所有其它必要的工具, 或不需要调用任何其它工具, 则在准备作答前调用此工具.",
                 "This tool indicates tool calling has finished. Call this tool when you've finished calling every other necessary tool, or if you don't need any other tool, and are ready to answer."
             )
-        )
-
-        # Then we make the namespaces.
-        # Or should we? Perhaps not since they divide the tools and model cannot see though it.
-        # We don't use them.
-        t1_tools = _Wtn(
-            name="local_tools",
-            description=_Bt(
-                "本地类工具, 相对常用, 应优先考虑.",
-                "Local tools, relatively commonly used, consider at higher priority."
-            ),
-            tools=[]
-        )
-        t2_tools = _Wtn(
-            name="internet_tools",
-            description=_Bt(
-                "联网类工具, 在需要时使用.",
-                "Internet tools, use when you need to."
-            ),
-            tools=[]
         )
 
         # Then we make the tools collection.
@@ -415,7 +395,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
 
         await self.fsc.messenger(
             'maica_mfocus_tool_start',
-            f"MFocus started, sending first query...",
+            "MFocus started, sending first query...",
             200,
         )
 
@@ -431,7 +411,8 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
             )
         ):
 
-            # Generation
+            # Include tool calls and outputs appended by the previous round.
+            completion_args["input"] = self.mf_session.utilize(manual_prompt=True)
             async with llm_request(conn, **completion_args) as (task, a_reasoning, a_content, a_tool_calls):
                 await tools_loop(a_tool_calls)
 

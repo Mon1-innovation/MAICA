@@ -72,7 +72,8 @@ _sessions_index: Dict[
 
 async def _get_real_session_num(dbo: DbBoundObject, fsc: FullSocketsContainer) -> int:
     """Some dbos use session 0 if determined not exist. Input DBO cls here just for convenience."""
-    user_id = fsc.maica_settings.verification.user_id; session_num = fsc.maica_settings.temp.chat_session
+    user_id = fsc.maica_settings.verification.user_id
+    session_num = fsc.maica_settings.temp.chat_session
 
     async with DatabaseUtils.SessionData() as dbs:
         model = dbo._model
@@ -92,13 +93,14 @@ async def _get_real_session_num(dbo: DbBoundObject, fsc: FullSocketsContainer) -
 
 def _id_acquire_dbo[T: DbBoundObject](cls: Type[T], sub_dict_k: str, user_id: int, session_num: int) -> T:
     global _sessions_index
-    assert user_id > 0, "Sessions are designed to be user-bound, do not acquire system-wide"
+    if user_id <= 0:
+        raise MaicaInputError("Sessions are designed to be user-bound, not system-wide")
         
     sub_dict = _sessions_index[sub_dict_k]
 
     # Ensure it exists in index
     mapping = (user_id, session_num)
-    if not mapping in sub_dict.keys():
+    if mapping not in sub_dict.keys():
         sub_dict[mapping] = [cls(session_num), time.time()]
     # This shouldn't happen theoretically, but we cover it anyway
     elif sub_dict[mapping][0].is_destroyed:
@@ -111,7 +113,8 @@ def _id_acquire_dbo[T: DbBoundObject](cls: Type[T], sub_dict_k: str, user_id: in
     return session
         
 async def _fsc_acquire_dbo(type: Literal["session", "persistent", "trigger"], fsc: FullSocketsContainer):
-    user_id = fsc.maica_settings.verification.user_id; session_num = fsc.maica_settings.temp.chat_session
+    user_id = fsc.maica_settings.verification.user_id
+    session_num = fsc.maica_settings.temp.chat_session
 
     match type:
         case "session":
@@ -154,10 +157,13 @@ def acquire_session(fsc):
 # To release some memory
 def dbos_gc(timestamp):
     gced: List[Tuple] = []
-    for n, l in _sessions_index.items():
-        for k, v in l.items():
-            if v[1] < timestamp and not v[0].lock.locked():
-                v[0].destroy()
-                _sessions_index.pop(k)
-                gced.append((n, k))
+    for name, sessions in _sessions_index.items():
+        stale_keys = []
+        for key, value in sessions.items():
+            if value[1] < timestamp and not value[0].lock.locked():
+                value[0].destroy()
+                stale_keys.append(key)
+        for key in stale_keys:
+            sessions.pop(key, None)
+            gced.append((name, key))
     return gced

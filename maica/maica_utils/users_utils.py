@@ -5,18 +5,22 @@ Here we handle the users things individually, and provide as mixins.
 
 import asyncio
 import bcrypt
+import datetime
 import orjson
+import time
 
 import sqlalchemy
 from sqlalchemy.orm import load_only
 
 from typing import *
 from pydantic import BaseModel, RootModel, EmailStr, Field, model_validator
-from base64 import b64encode, b64decode
-from .encryption_utils import crypto_object
+from .encryption_utils import crypto_object, decrypt_token, encrypt_token
 from .maica_utils import *
 from .database_utils import *
 from .database_models import *
+from .gvars import online_dict, online_dict_guard
+
+_DUMMY_PASSWORD_HASH = bcrypt.hashpw(b"maica-invalid-credential", bcrypt.gensalt())
 
 if TYPE_CHECKING:
     from .fsc_late import *
@@ -31,9 +35,9 @@ class FscUsersFuncMixin():
 
     class TokenCridential(BaseModel):
         """The auth crids."""
-        username: Optional[str] = None
-        email: Optional[EmailStr] = None
-        password: str
+        username: Optional[str] = Field(default=None, min_length=1, max_length=100)
+        email: Optional[EmailStr] = Field(default=None, max_length=150)
+        password: str = Field(min_length=1, max_length=72)
         type: Optional[Literal["username", "email"]] = None
         
         @property
@@ -47,12 +51,12 @@ class FscUsersFuncMixin():
 
         @model_validator(mode="after")
         def det_type(self):
+            if bool(self.username) == bool(self.email):
+                raise MaicaInputWarning("Exactly one of username or email must exist")
             if self.username:
                 self.type = "username"
-            elif self.email:
-                self.type = "email"
             else:
-                raise MaicaInputWarning("username or email must exist")
+                self.type = "email"
             
             return self
         
@@ -67,6 +71,10 @@ class FscUsersFuncMixin():
                     data_j["email"] = self.email
 
             data_str = orjson.dumps(data_j).decode()
+            key_size_bytes = crypto_object.public_key.key_size // 8
+            max_plaintext = key_size_bytes - 2 * 20 - 2
+            if len(data_str.encode("utf-8")) > max_plaintext:
+                raise MaicaInputWarning("Credentials are too long for this server's RSA key")
             token = await asyncio.to_thread(encrypt_token, data_str)
 
             return token
@@ -79,9 +87,7 @@ class FscUsersFuncMixin():
         if crid_b64:
 
             try:
-                crid_ub = await asyncio.to_thread(b64decode, crid_b64)
-                crid_ue = await asyncio.to_thread(crypto_object.decryptor.decrypt, crid_ub)
-                crid = crid_ue.decode()
+                crid = await asyncio.to_thread(decrypt_token, crid_b64)
 
                 token_cridential = self.TokenCridential.model_validate_json(crid)
 
@@ -96,17 +102,20 @@ class FscUsersFuncMixin():
                 obj = await aus.scalar(stmt)
 
                 if not obj:
-                    raise MaicaPermissionWarning("User does not exist")
+                    await asyncio.to_thread(
+                        bcrypt.checkpw,
+                        token_cridential.password.encode(),
+                        _DUMMY_PASSWORD_HASH,
+                    )
+                    raise MaicaPermissionWarning("Invalid username/email or password")
 
-            (
-                user_id,
-                username,
-                nickname,
-                email,
-                is_email_confirmed,
-                password,
-                suspended_until,
-            ) = obj.model_to_dict().values()
+            user_id = obj.id
+            username = obj.username
+            nickname = obj.nickname
+            email = obj.email
+            is_email_confirmed = obj.is_email_confirmed
+            password = obj.password
+            suspended_until = obj.suspended_until
 
             # SQLA transaction for strict security
             block_auth = False
@@ -161,55 +170,13 @@ class FscUsersFuncMixin():
 
             # It should have committed by now
             if block_auth:
-                raise MaicaPermissionWarning(f"Wrong password, check and retry")
-            
-            # Check if this account is logged in already
-            # If websocket filled, we know it's websocket login and must stay unique
-            # else we don't have to
-            if (
-                self.rsc.websocket
-                and online_dict.get(user_id)
-                and online_dict[user_id][1].locked()
-            ):
-                if not int(G.A.KICK_STALE_CONNS):
-                    raise MaicaConnectionWarning('A connection was established already and kicking not enabled', 406, 'maica_connection_reuse_denied')
-                
-                else:
-                    await self.rsc.messenger(
-                        "maica_connection_reuse_attempt",
-                        "A connection was established already",
-                        300,
-                    )
-
-                    stale_fsc, stale_lock = online_dict[user_id]
-                    try:
-                        await stale_fsc.messenger(
-                            'maica_connection_reuse_stale',
-                            'A new connection has been established',
-                            300,
-                        )
-                        await stale_fsc.websocket.close(1000, 'Displaced as stale')
-
-                    except Exception as e:
-                        sync_messenger(info=f'The stale connection has died already: {str(e)}', type=MsgType.LOG)
-
-                    try:
-                        online_dict.pop(self.settings.verification.user_id)
-
-                    except Exception:
-                        pass
-
-                    # We acquire stale lock here, to ensure stale session released it
-                    async with stale_lock:
-                        await messenger(None, 'maica_connection_stale_kicked', 'The stale connection is kicked', 204)
-
-                    # Then we discard its reference
-                    pass
+                raise MaicaPermissionWarning("Invalid username/email or password")
             
         # If running common check, we assert logged in already
         else:
             user_id = self.rsc.maica_settings.verification.user_id
-            assert user_id, "Common checking require identities"
+            if not user_id:
+                raise MaicaPermissionError("Common login checks require an authenticated identity")
 
             async with DatabaseUtils.SessionAuth() as aus:
 
@@ -219,12 +186,18 @@ class FscUsersFuncMixin():
                     load_only(SqlUser.is_email_confirmed, SqlUser.suspended_until)
                 )
                 obj = await aus.scalar(stmt)
+                if obj is None:
+                    raise MaicaPermissionWarning("User no longer exists")
 
                 is_email_confirmed = obj.is_email_confirmed
                 suspended_until = obj.suspended_until
 
         # Check if banned here
-        time_now = datetime.datetime.now()
+        time_now = (
+            datetime.datetime.now(tz=suspended_until.tzinfo)
+            if suspended_until and suspended_until.tzinfo
+            else datetime.datetime.now()
+        )
         if (
             suspended_until
             and suspended_until > time_now
@@ -251,6 +224,51 @@ class FscUsersFuncMixin():
                 email,
                 nickname,
             )
+
+            if self.rsc.websocket:
+                connection_lock = self.rsc.session_lock
+                if connection_lock is None:
+                    raise MaicaConnectionWarning("WebSocket session lock is missing")
+
+                async with online_dict_guard:
+                    stale_entry = online_dict.get(user_id)
+                    if stale_entry and stale_entry[1].locked() and not int(G.A.KICK_STALE_CONNS):
+                        raise MaicaConnectionWarning(
+                            'A connection was established already and kicking is disabled',
+                            406,
+                            'maica_connection_reuse_denied',
+                        )
+                    online_dict[user_id] = (self, connection_lock)
+
+                if stale_entry and stale_entry[1].locked():
+                    try:
+                        await self.rsc.messenger(
+                            "maica_connection_reuse_attempt",
+                            "A connection was established already",
+                            300,
+                        )
+                    except Exception as exc:
+                        sync_messenger(info=f"Could not announce stale replacement: {exc}", type=MsgType.DEBUG)
+                    stale_fsc, stale_lock = stale_entry
+                    try:
+                        await stale_fsc.messenger(
+                            'maica_connection_reuse_stale',
+                            'A new connection has been established',
+                            300,
+                        )
+                        await stale_fsc.websocket.close(1000, 'Displaced as stale')
+                    except Exception as exc:
+                        sync_messenger(
+                            info=f'The stale connection has died already: {exc}',
+                            type=MsgType.LOG,
+                        )
+
+                    async with stale_lock:
+                        sync_messenger(
+                            status='maica_connection_stale_kicked',
+                            info='The stale connection is kicked',
+                            code=204,
+                        )
 
         # Return a True, though we don't need it
         return True

@@ -67,7 +67,7 @@ class SqlAccountStatus(SqlBaseData):
 class SqlChatSession(SqlBaseData):
     __tablename__ = "chat_session"
     __table_args__ = (
-        UniqueConstraint("user_id", "chat_session_num", name="uq_id_session"),
+        UniqueConstraint("user_id", "chat_session_num", name="uq_chat_session_user_session"),
     )
 
     id: Mapped[int] = mapped_column("chat_session_id", primary_key=True)
@@ -118,7 +118,7 @@ class SqlMvMeta(SqlBaseData):
 class SqlPersistent(SqlBaseData):
     __tablename__ = "persistents"
     __table_args__ = (
-        UniqueConstraint("user_id", "chat_session_num", name="uq_id_session"),
+        UniqueConstraint("user_id", "chat_session_num", name="uq_persistents_user_session"),
     )
 
     id: Mapped[int] = mapped_column("persistent_id", primary_key=True)
@@ -133,7 +133,7 @@ class SqlPersistent(SqlBaseData):
 class SqlTrigger(SqlBaseData):
     __tablename__ = "triggers"
     __table_args__ = (
-        UniqueConstraint("user_id", "chat_session_num", name="uq_id_session"),
+        UniqueConstraint("user_id", "chat_session_num", name="uq_triggers_user_session"),
     )
 
     id: Mapped[int] = mapped_column("trigger_id", primary_key=True)

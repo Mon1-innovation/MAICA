@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field, model_validator
 from pydantic.dataclasses import dataclass as pdataclass
 from websockets import ServerConnection
 from pymilvus import AsyncMilvusClient
-from Crypto.Random import random as crandom
 from .maica_utils import *
 from .setting_utils import MaicaSettings
 from .fsc_early import AllowArb, RealtimeSocketsContainer, TrackerId

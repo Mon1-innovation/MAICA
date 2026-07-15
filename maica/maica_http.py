@@ -50,7 +50,7 @@ def pkg_init_maica_http():
         app.add_url_rule("/preferences", methods=['GET'], view_func=ShortConnHandler.as_view("download_preferences"))
         app.add_url_rule("/preferences", methods=['PATCH'], view_func=ShortConnHandler.as_view("edit_preferences"))
         app.add_url_rule("/preferences", methods=['POST'], view_func=ShortConnHandler.as_view("override_preferences"))
-        app.add_url_rule("/register", methods=['GET'], view_func=ShortConnHandler.as_view("download_token", val=False))
+        app.add_url_rule("/register", methods=['GET', 'POST'], view_func=ShortConnHandler.as_view("download_token", val=False))
         app.add_url_rule("/legality", methods=['GET'], view_func=ShortConnHandler.as_view("check_legality"))
         app.add_url_rule("/vista", methods=['POST'], view_func=ShortConnHandler.as_view("upload_vista"))
         app.add_url_rule("/vista/list", methods=['GET'], view_func=ShortConnHandler.as_view("list_vista"))
@@ -71,7 +71,7 @@ def pkg_init_maica_http():
         app.add_url_rule("/preferences", methods=['GET'], view_func=ShortConnHandler.as_view("download_preferences"))
         app.add_url_rule("/preferences/edit", methods=['POST'], view_func=ShortConnHandler.as_view("edit_preferences"))
         app.add_url_rule("/preferences/override", methods=['POST'], view_func=ShortConnHandler.as_view("override_preferences"))
-        app.add_url_rule("/register", methods=['GET'], view_func=ShortConnHandler.as_view("download_token", val=False))
+        app.add_url_rule("/register", methods=['GET', 'POST'], view_func=ShortConnHandler.as_view("download_token", val=False))
         app.add_url_rule("/legality", methods=['GET'], view_func=ShortConnHandler.as_view("check_legality"))
         app.add_url_rule("/vista", methods=['POST'], view_func=ShortConnHandler.as_view("upload_vista"))
         app.add_url_rule("/vista/list", methods=['GET'], view_func=ShortConnHandler.as_view("list_vista"))
@@ -95,7 +95,7 @@ quart_logger.disabled = True
 
 @app.before_request
 def set_max_content_length():
-    if request.endpoint == '/vista':
+    if request.endpoint == 'upload_vista':
         request.max_content_length = 32 * 1024 * 1024
 
 
@@ -105,10 +105,12 @@ def set_max_content_length():
 # ====================================================== Utilities ======================================================
 
 
-def jfy_res(content=None):
+_MISSING = object()
+
+def jfy_res(content=_MISSING):
     """I mean jsonify result."""
     d = {"success": True, "exception": None}
-    if content:
+    if content is not _MISSING:
         d['content'] = content
     return jsonify(d)
 
@@ -183,7 +185,8 @@ class ShortConnHandler(View):
     """This is class managed."""
 
     def __init__(self, val=True):
-        assert self.__class__.root_csc, "maica_http needs class-wide root_csc to work"
+        if not self.__class__.root_csc:
+            raise RuntimeError("maica_http needs class-wide root_csc to work")
 
         self.val = val
         if val:
@@ -242,12 +245,20 @@ class ShortConnHandler(View):
                 traceback.print_exc()
 
             _, _, message, _ = sync_messenger(error=ce)
-            return jsonify({"success": False, "exception": message}), int(ce.error_code) or 400
+            status_code = int(ce.error_code or 400)
+            if not 400 <= status_code <= 599:
+                status_code = 400
+            return jsonify({"success": False, "exception": message}), status_code
 
         except Exception as e:
             traceback.print_exc()
-            _, _, message, _ = sync_messenger(info=f'Handler hit an exception: {str(e)}', type=MsgType.WARN)
-            return jsonify({"success": False, "exception": message}), 400
+            sync_messenger(info=f'Handler hit an exception: {str(e)}', type=MsgType.ERROR)
+            message = (
+                "A critical exception happened serverside, contact administrator"
+                if int(G.A.NO_SEND_ERROR)
+                else str(e)
+            )
+            return jsonify({"success": False, "exception": message}), 500
 
     async def wrapped_validate[T: BaseModel](
         self,
@@ -255,6 +266,15 @@ class ShortConnHandler(View):
         data: dict | list,
     ):
         """Specifically used for maica_http. It does login too."""
+        if isinstance(data, dict) and not data.get("access_token"):
+            authorization = request.headers.get("Authorization", "")
+            scheme, _, token = authorization.partition(" ")
+            if scheme.lower() == "bearer" and token:
+                data = data | {"access_token": token}
+
+        if isinstance(data, dict) and len(data.get("access_token", "")) > 4096:
+            raise MaicaInputWarning("access_token is too long")
+
         try:
             query = model.model_validate(data)
         except Exception as e:
@@ -300,11 +320,12 @@ class ShortConnHandler(View):
     )
     async def delete_savefile(self):
         """DELETE"""
-        query = await self.wrapped_validate(self._dsf_m, await request.get_json())
+        await self.wrapped_validate(self._dsf_m, await request.get_json())
 
         async with acquire_dbo("persistent", self.fsc) as persistent:
             persistent.clear()
             await persistent.to_db(skip_sync=True)
+            await persistent.to_milvus(_data=[])
  
         return jfy_res()
         
@@ -333,7 +354,7 @@ class ShortConnHandler(View):
     )
     async def delete_trigger(self):
         """DELETE"""
-        query = await self.wrapped_validate(self._tr_m, await request.get_json())
+        await self.wrapped_validate(self._dtr_m, await request.get_json())
 
         async with acquire_dbo("trigger", self.fsc) as trigger:
             trigger.clear()
@@ -370,7 +391,6 @@ class ShortConnHandler(View):
             data_j.insert(0, prompt_obj)
 
         data_str = orjson.dumps(data_j, option=orjson.OPT_SORT_KEYS).decode()
-        print(data_str)
         pss_b64 = await asyncio.to_thread(sign_message, data_str)
 
         return jfy_res([pss_b64, data_j])
@@ -389,10 +409,9 @@ class ShortConnHandler(View):
         pss_b64, data_j = query.content
 
         data_str = orjson.dumps(data_j, option=orjson.OPT_SORT_KEYS).decode()
-        print(data_str)
         try:
             await asyncio.to_thread(verify_message, data_str, pss_b64)
-        except ValueError as ve:
+        except ValueError:
             raise MaicaInputWarning("Sign does not match")
 
         async with acquire_session(self.fsc) as session:
@@ -417,11 +436,11 @@ class ShortConnHandler(View):
                 obj = await sqla_get_or_create(
                     dbs,
                     SqlAccountStatus,
-                    {"user_id": self.settings.verification.user_id},
+                    {"id": self.settings.verification.user_id},
                     requires=("preferences", ),
                 )
 
-        data_j = obj.preferences
+        data_j = obj.preferences or {}
 
         if query.content is not None:
             v = data_j.get(query.content)
@@ -446,10 +465,12 @@ class ShortConnHandler(View):
                 obj = await sqla_get_or_create(
                     dbs,
                     SqlAccountStatus,
-                    {"user_id": self.settings.verification.user_id},
+                    {"id": self.settings.verification.user_id},
                     requires=("preferences", ),
                 )
 
+                if obj.preferences is None:
+                    obj.preferences = {}
                 obj.preferences.update(query.content)
 
                 # Enforce write in case updated nested attributes
@@ -473,7 +494,7 @@ class ShortConnHandler(View):
                 await sqla_create_or_update(
                     dbs,
                     SqlAccountStatus,
-                    {"user_id": self.settings.verification.user_id},
+                    {"id": self.settings.verification.user_id},
                     {"preferences": query.content},
                 )
 
@@ -488,8 +509,13 @@ class ShortConnHandler(View):
         },
     )
     async def download_token(self):
-        """GET, val=False"""
-        query = await self.wrapped_validate(self._dlt_m, request.args.to_dict(flat=True))
+        """POST (legacy GET is also accepted), val=False."""
+        data = (
+            await request.get_json()
+            if request.method == "POST"
+            else request.args.to_dict(flat=True)
+        )
+        query = await self.wrapped_validate(self._dlt_m, data)
 
         crid_m = FscUsersFuncMixin.TokenCridential.model_validate(query.content)
         token = await crid_m.generate_token()
@@ -510,8 +536,12 @@ class ShortConnHandler(View):
         query = await self.wrapped_validate(self._ckl_m, request.args.to_dict(flat=True))
 
         if query.content:
-            object = query.content["object"]
-            value = query.content["value"]
+            object = query.content.get("object")
+            value = query.content.get("value")
+            if not isinstance(object, str) or not isinstance(value, str):
+                raise MaicaInputWarning("Legality content requires string object and value fields")
+            if not 1 <= len(value) <= 256:
+                raise MaicaInputWarning("Legality value length must be between 1 and 256")
 
             match object:
                 case "geolocation":
@@ -523,7 +553,7 @@ class ShortConnHandler(View):
                     raise MaicaInputWarning(f"{object} is not valid choice")
                 
         else:
-            result = None
+            result = self.settings.verification.username
 
         return jfy_res(result)
 
@@ -535,12 +565,31 @@ class ShortConnHandler(View):
     )
     async def upload_vista(self):
         """POST, multipart/form-data"""
-        query = await self.wrapped_validate(self._ulv_m, (await request.form).to_dict(flat=True))
+        await self.wrapped_validate(self._ulv_m, (await request.form).to_dict(flat=True))
         file: FileStorage = (await request.files).get('content')
+        if file is None:
+            raise MaicaInputWarning("Missing image file in multipart field 'content'")
+        keep = int(G.A.KEEP_MVISTA)
+        if keep <= 0:
+            raise MaicaPermissionWarning("MVista image storage is disabled on this server", 403)
 
-        img = ImgByUuid(file.stream.read())
-        await img.register(self.settings.verification.user_id)
-        img.save()
+        binary = await asyncio.to_thread(file.stream.read)
+        img = await asyncio.to_thread(ImgByUuid, binary)
+        await asyncio.to_thread(img.save)
+        try:
+            await img.register(self.settings.verification.user_id)
+        except Exception:
+            await asyncio.to_thread(img.delete)
+            raise
+
+        imgs = await ImgByUuid.load(self.settings.verification.user_id)
+        for stale_img in imgs[keep:]:
+            try:
+                await asyncio.to_thread(stale_img.delete)
+            except MaicaInputWarning:
+                pass
+            finally:
+                await stale_img.unregister()
 
         return jfy_res(img.uuid)
     
@@ -551,7 +600,7 @@ class ShortConnHandler(View):
     )
     async def list_vista(self):
         """GET"""
-        query = await self.wrapped_validate(self._ckl_m, request.args.to_dict(flat=True))
+        await self.wrapped_validate(self._lv_m, request.args.to_dict(flat=True))
 
         imgs = await ImgByUuid.load(self.settings.verification.user_id)
         uuids = [
@@ -572,23 +621,30 @@ class ShortConnHandler(View):
         query = await self.wrapped_validate(self._dv_m, await request.get_json())
 
         ind = query.content
-        imgs = []
+        owned_imgs = await ImgByUuid.load(self.settings.verification.user_id)
         if isinstance(ind, str):
-            img = ImgByUuid(ind)
-            imgs.append(img)
-
+            try:
+                normalized_uuid = str(uuid.UUID(ind))
+            except ValueError as exc:
+                raise MaicaInputWarning("Image UUID is invalid") from exc
+            imgs = [img for img in owned_imgs if img.uuid == normalized_uuid]
+            if not imgs:
+                raise MaicaPermissionWarning("Image does not belong to the authenticated user", 403)
+        elif isinstance(ind, int):
+            if ind < 0 or ind >= len(owned_imgs):
+                raise MaicaInputWarning("Image index is out of range", 404)
+            imgs = [owned_imgs[ind]]
         else:
-            _imgs = await ImgByUuid.load(self.settings.verification.user_id)
-
-            if isinstance(ind, int):
-                if ind < len(_imgs):
-                    imgs.append(_imgs[ind])
-            else:
-                imgs = _imgs
+            imgs = owned_imgs
 
         for img in imgs:
-            img.delete()
-            await img.unregister()
+            try:
+                await asyncio.to_thread(img.delete)
+            except MaicaInputWarning:
+                # Heal a stale metadata row even if its temporary file vanished.
+                pass
+            finally:
+                await img.unregister()
 
         return jfy_res()
 
@@ -601,7 +657,7 @@ class ShortConnHandler(View):
         """GET, val=False"""
         query = await self.wrapped_validate(self._dlv_m, request.args.to_dict(flat=True))
 
-        img = ImgByUuid(query.content)
+        img = await asyncio.to_thread(ImgByUuid, query.content)
 
         return await send_file(
             img.get_bio(),
@@ -641,7 +697,11 @@ class ShortConnHandler(View):
     async def get_defaults(self):
         """GET, val=False"""
         settings = MaicaSettings()
-        content = settings.model_dump
+        content = (
+            settings.basic.model_dump()
+            | settings.extra.model_dump()
+            | settings.super.model_dump()
+        )
         return jfy_res(content)
 
 
@@ -663,6 +723,7 @@ async def prepare_thread(**kwargs):
             
     # Start watchers
     _watch_start_list = []
+    ShortConnHandler.nvwatchers.clear()
     for i in _WATCHES_LIST:
         watcher = await NvWatcher.async_create(i, 'maica')
         ShortConnHandler.nvwatchers.append(watcher)
@@ -671,20 +732,37 @@ async def prepare_thread(**kwargs):
 
     try:
         config = Config()
-        config.bind = ['0.0.0.0:6000']
+        config.bind = [f'{G.A.HTTP_HOST}:{int(G.A.HTTP_PORT)}']
         task = asyncio.create_task(serve(app, config))
 
         task_list = [task] + _watch_start_list
 
         sync_messenger(info='MAICA HTTP server started!', type=MsgType.PRIM_SYS)
 
-        await asyncio.wait(task_list, return_when=asyncio.FIRST_COMPLETED)
+        done, pending = await asyncio.wait(task_list, return_when=asyncio.FIRST_COMPLETED)
+        for completed in done:
+            completed.result()
 
+    except asyncio.CancelledError:
+        raise
     except Exception as e:
         error = CommonMaicaError(str(e), '504')
         sync_messenger(error=error)
+        raise
 
     finally:
+        for running_task in [*locals().get('task_list', []), *_watch_start_list]:
+            if not running_task.done():
+                running_task.cancel()
+        await asyncio.gather(
+            *locals().get('task_list', []),
+            *_watch_start_list,
+            return_exceptions=True,
+        )
+        await asyncio.gather(
+            *(watcher.close() for watcher in ShortConnHandler.nvwatchers),
+            return_exceptions=True,
+        )
 
         # Normally maica_http should be the first one (possibly only one) to
         # respond to the original SIGINT.

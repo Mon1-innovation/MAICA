@@ -51,10 +51,12 @@ class MaicaSessionItem(BaseModel):
     def __init__(self, *args, **kwargs):
         if args:
             field_names = list(self.__class__.model_fields.keys())
+            if len(args) > len(field_names):
+                raise TypeError(f"Too many positional arguments for {self.__class__.__name__}")
 
             for i, value in enumerate(args):
                 if i < len(field_names):
-                    if not field_names[i] in kwargs:
+                    if field_names[i] not in kwargs:
                         kwargs[field_names[i]] = value
                     else:
                         raise RuntimeError(f"{field_names[i]} is passed twice for MaicaSessionItem")
@@ -84,7 +86,7 @@ class MaicaSessionItem(BaseModel):
             if (
                 (
                     is_mcore_vl()
-                    and not text_only is True
+                    and text_only is not True
                 ) or
                 text_only is False
             ):
@@ -289,7 +291,6 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         # Then inject
         # Note that system prompt item should not be modified from external
         self[0].content = prompt
-        print(prompt)
 
     def json(self) -> list:
         self._utilize_context()
@@ -325,23 +326,25 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
 
                 stmt = sqlalchemy.select(model).where(
                     model.chat_session_id == self.prim_key_id,
-                    model.archived == False,
+                    model.archived.is_(False),
                 ).options(
-                    load_only(model.id)
+                    load_only(model.id, model.content)
                 )
 
                 obj = await dbs.scalar(stmt)
+                archive_items = self.json()
                 if not obj:
+                    archive_content = orjson.dumps(archive_items).decode()
                     obj = model(
                         chat_session_id=self.prim_key_id,
-                        content=orjson.dumps(self.json()).decode(),
+                        content=archive_content,
                     )
                     dbs.add(obj)
 
                 else:
                     archive_content = obj.content
-                    archive_content_j = orjson.loads(archive_content)
-                    archive_content_j.extend(self.json())
+                    archive_content_j = orjson.loads(archive_content) if archive_content else []
+                    archive_content_j.extend(archive_items)
                     archive_content = orjson.dumps(archive_content_j).decode()
                     obj.content = archive_content
 
@@ -381,8 +384,6 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         use_api = bool(int(G.A.CALC_TOKENS))
         max_length = self.fsc.maica_settings.basic.session_len_limit
         warn_length = int(max_length * (2/3))
-        generate_length = self.fsc.maica_settings.super.max_tokens
-
         async def _tokens_calc(messages):
             # This method lets model deployment calculate tokens amount
             # With vllm optimizations and local network, it should be fast enough for loop calculation
@@ -407,8 +408,9 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
                 case x if max_length <= x:
                     return 2
                 
-        cycle = 0; last_self_len = len(self)
-        archiver = MaicaSession()
+        cycle = 0
+        last_self_len = len(self)
+        archiver = MaicaSession(self.session_num, self.fsc)
         
         if not self.prim_key_id:
             await self.init_db()
@@ -428,9 +430,13 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
             if messages_stat <= stat_threshold:
                 break
 
-            # Here the session needs cropping
-            while self[-1].role != "assistant" and len(self) > 1:
-                archiver.insert(0, self.pop(-1))
+            # Crop the oldest complete conversation round, preserving the
+            # system prompt and chronological order.
+            while len(self) > 1:
+                item = self.pop(1)
+                archiver.append(item)
+                if item.role == "assistant":
+                    break
 
             # Here be the deadlock preventions
             if last_self_len == len(self):

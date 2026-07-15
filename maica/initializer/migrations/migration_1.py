@@ -1,4 +1,4 @@
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from maica.maica_utils import *
 from .base import register_migration
 
@@ -8,7 +8,12 @@ async def migrate():
 
     try:
         async with DatabaseUtils.engine_data.begin() as conn:
-            if conn.dialect.name == "mysql":
+            tables = await conn.run_sync(lambda sync_conn: inspect(sync_conn).get_table_names())
+            if "crop_archived" in tables:
+                sync_messenger(info="[migration-1] crop_archived already exists, skipping", type=MsgType.DEBUG)
+            elif "cchop_archived" not in tables:
+                raise RuntimeError("Neither cchop_archived nor crop_archived exists")
+            elif conn.dialect.name == "mysql":
                 await conn.execute(text('RENAME TABLE cchop_archived TO crop_archived'))
             else:
                 await conn.execute(text('ALTER TABLE cchop_archived RENAME TO crop_archived'))

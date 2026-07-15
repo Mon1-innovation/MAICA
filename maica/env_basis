@@ -117,6 +117,12 @@ MAICA_BASIC_MFOCUS = '1'
 
 # Data exchanging endpoint settings
 
+# WebSocket and HTTP listening addresses
+MAICA_WS_HOST = '0.0.0.0'
+MAICA_WS_PORT = '5000'
+MAICA_HTTP_HOST = '0.0.0.0'
+MAICA_HTTP_PORT = '6000'
+
 # Proxy used to access Internet - Not applied to inner connections
 MAICA_PROXY_ADDR = ''# socks5://192.168.1.1:7890
 # MySQL database endpoint / "sqlite"
@@ -166,6 +172,9 @@ MAICA_GC_SESSIONS = '8'
 MAICA_ROTATE_MSCACHE = '0'
 # Keep [] MVista imgs per user at most
 MAICA_KEEP_MVISTA = '3'
+# Optional comma-separated host allow-list for image URLs sent to model servers.
+# Leave empty for compatibility; public deployments should set their upload host(s).
+MAICA_VISION_HOST_ALLOWLIST = ''
 # Delete each MVista img after [] hours or not
 MAICA_ROTATE_MVISTA = '8'
 # Enable MAICA X11 forwarding for special cases or not
@@ -237,6 +246,8 @@ MAICA_SERVERS_LIST = '
 
 # Write NVW data to dedicated SQLite or not
 MAICA_WRITE_NVW = '0'
+# Disable SSH host-key verification for NVWatcher (unsafe; legacy networks only)
+MAICA_NVW_INSECURE_SSH = '0'
 # Name of MAICA core deployment device
 # MAICA_MCORE_NODE = ''# HGX690-nuclear-edition
 # Username to access nvidia-smi through SSH

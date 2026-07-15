@@ -29,7 +29,7 @@ async def create_tables():
     auth_created = False
 
     if not is_auth_sqlite() or not is_data_sqlite():
-        usr = G.A.DB_USER
+        usr = urllib.parse.quote_plus(G.A.DB_USER)
         pwd = urllib.parse.quote_plus(G.A.DB_PASSWORD)
         addr = G.A.DB_ADDR
         server_url = f"mysql+aiomysql://{usr}:{pwd}@{addr}"

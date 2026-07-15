@@ -172,19 +172,15 @@ class MaicaInternetWarning(CommonMaicaWarning):
     """This suggests the backend request action is not behaving normal."""
 
 RETRYABLE_EXCEPTIONS = (
-    # aiomysql.OperationalError,
-    # aiomysql.InterfaceError,
-    # ConnectionError,
-    # TimeoutError,
-    # httpx.TransportError,
-    # openai.APIConnectionError,
-    # openai.APITimeoutError,
-    # openai.RateLimitError,
-    # json.JSONDecodeError,
-    # MaicaInternetWarning,
-
-    # This is too unstable.
-    Exception,
+    aiomysql.OperationalError,
+    aiomysql.InterfaceError,
+    ConnectionError,
+    TimeoutError,
+    httpx.TransportError,
+    openai.APIConnectionError,
+    openai.APITimeoutError,
+    openai.RateLimitError,
+    openai.InternalServerError,
 )
 
 class AsyncCreator(ABC):
@@ -247,7 +243,8 @@ class LoginResult():
         for priokey in ['user_id', 'username', 'nickname', 'email']:
             setattr(self, priokey, kwargs.get(priokey))
         if kwargs.get('is_verified'):
-            assert self.user_id and self.username and self.email, "Verification essentials incomplete"
+            if not (self.user_id and self.username and self.email):
+                raise ValueError("Verification essentials incomplete")
         for key in ['is_verified', 'message']:
             setattr(self, key, kwargs.get(key))
 
@@ -370,9 +367,9 @@ class Decos():
             name = getattr(self, 'name', 'anon_conn')
             try:
                 return await func(self, *args, **kwargs)
-            except CommonMaicaException as ce:
+            except CommonMaicaException:
                 raise
-            except websockets.WebSocketException as we:
+            except websockets.WebSocketException:
                 raise
             except Exception as e:
 
@@ -406,7 +403,8 @@ class Decos():
         """Used to keep DB query ro."""
         @functools.wraps(func)
         def wrapper(self, expression: str, *args, **kwargs):
-            assert not is_word_start(expression.lower(), *_WRITE_KWDS), f'query_get got write expression {expression}'
+            if is_word_start(expression.lower(), *_WRITE_KWDS):
+                raise ValueError(f'query_get got write expression {expression}')
             return func(self, expression, *args, **kwargs)
         return wrapper
     
@@ -414,7 +412,8 @@ class Decos():
         """Used to keep DB query wo."""
         @functools.wraps(func)
         def wrapper(self, expression: str, *args, **kwargs):
-            assert not is_word_start(expression.lower(), *_READ_KWDS), f'query_modify got read expression {expression}'
+            if is_word_start(expression.lower(), *_READ_KWDS):
+                raise ValueError(f'query_modify got read expression {expression}')
             return func(self, expression, *args, **kwargs)
         return wrapper
 
@@ -435,7 +434,7 @@ class Decos():
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                raise MaicaInputError(f'Access before necessary assignment', '500', 'maica_settings_read_rejected') from e
+                raise MaicaInputError('Access before necessary assignment', '500', 'maica_settings_read_rejected') from e
         return wrapper
 
     def report_limit_warning(func):
@@ -453,19 +452,26 @@ class Decos():
         @functools.wraps(func)
         def wrapper(self, *args, **kwargs):
             try:
-                assert not getattr(self, '_lock', None)
+                if getattr(self, '_lock', None):
+                    raise RuntimeError("Settings are locked")
                 return func(self, *args, **kwargs)
             except Exception as e:
-                raise MaicaInputError(f'Input param not acceptable', '500', 'maica_settings_param_rejected') from e
+                raise MaicaInputError('Input param not acceptable', '500', 'maica_settings_param_rejected') from e
         return wrapper
 
 class ExplainUrl():
     """For convenience."""
     def __init__(self, url):
         parse_result = urlparse(url)
-        self.scheme, self.netloc, self.path, self.params, self.query, self.fragment = parse_result
+        self.scheme = parse_result.scheme
+        self.netloc = parse_result.netloc
+        self.path = parse_result.path
+        self.params = parse_result.params
+        self.query = parse_result.query
+        self.fragment = parse_result.fragment
         self.hostname, self.port = parse_result.hostname, parse_result.port
-        self.is_url = bool(self.netloc); self.is_local = not self.is_url
+        self.is_url = bool(self.netloc)
+        self.is_local = not self.is_url
         if not self.port:
             match self.scheme:
                 case "http":
@@ -600,7 +606,7 @@ class DummyClass():
         for k, v in kwargs.items():
             setattr(self, k, v)
 
-def default(exp, default, default_list: list=[None]) -> any:
+def default(exp, default, default_list: Collection=(None, )) -> Any:
     """If exp is in default list(normally None), use default."""
     return default if exp in default_list else exp
 
@@ -671,7 +677,7 @@ def alt_tools(tools: list) -> list:
                 new_tools[-1]['type'] = 'function'
             return new_tools
         
-def clean_msgs(msgs: list[dict, ChatCompletionMessage], include: Optional[list[str]]=None, exclude: Optional[list[str]]=None) -> list[dict]:
+def clean_msgs(msgs: list[dict | ChatCompletionMessage], include: Optional[list[str]]=None, exclude: Optional[list[str]]=None) -> list[dict]:
     """Clean a set of OpenAI msgs."""
     def _convert_msg(msg: Union[dict, ChatCompletionMessage]):
         if isinstance(msg, ChatCompletionMessage):
@@ -759,17 +765,21 @@ def sync_messenger(
     # For separator lines
     try:
         term_v = os.get_terminal_size().columns
-    except:
+    except OSError:
         term_v = 40
     rep2 = int(term_v / 2)
     rep1 = int(rep2 - 20)
+
+    # The old style allowed numeric codes encoded as strings. Normalize before
+    # doing comparisons so warnings with e.g. error_code="400" remain usable.
+    code = int(code or (error.error_code if error else 0) or 0)
 
     # Exception parsing, it's a convenience method
     if error:
         status = error.status if not status else status
         info = error.message if not info else info
         code = error.error_code if not code else code
-        no_print = False if not error.print is False else True
+        no_print = False if error.print is not False else True
 
         if (
             isinstance(error, CommonMaicaError)
@@ -782,9 +792,6 @@ def sync_messenger(
 
     else:
         print_info = info
-
-    # The old style was using string codes
-    code = int(code)
 
     # Type inferring, in case we're too lazy to write
     if not type:
@@ -963,12 +970,12 @@ def limit_length[T](col: list[T], limit: int) -> list[T]:
 def get_ua(disguise = False):
     """Gets an UA for web requests."""
     if disguise:
-        ua = f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36"
+        ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36"
     else:
         ua = f"MaicaDataFetcher/1.0 (dcc@monika.love) httpx/{httpx.__version__}"
     return ua
 
-async def dld_json(url, use_proxy=True, ua_disguise=False, method='get', carriage=None) -> json:
+async def dld_json(url, use_proxy=True, ua_disguise=False, method='get', carriage=None) -> Any:
     """Get JSON context from an endpoint."""
     headers = {'User-Agent': get_ua(ua_disguise)}
 
@@ -977,8 +984,9 @@ async def dld_json(url, use_proxy=True, ua_disguise=False, method='get', carriag
         nonlocal headers
         async with httpx.AsyncClient(proxy=(G.A.PROXY_ADDR or None) if use_proxy else None) as client:
             exparams = {"params": carriage} if method == 'get' else {"json": carriage}
-            res = (await getattr(client, method)(url, headers=headers, **exparams)).json()
-            return res
+            response = await getattr(client, method)(url, headers=headers, **exparams)
+            response.raise_for_status()
+            return response.json()
 
     try:
         res = await _dld_json(DummyClass(name="dld_json"), url)
@@ -1017,7 +1025,10 @@ def refill_date(text: str) -> datetime.datetime:
 
 def add_seq_suffix(seq: int) -> str:
     """For English seq."""
-    match int(seq) % 10:
+    seq = int(seq)
+    if 11 <= seq % 100 <= 13:
+        return f"{seq} th"
+    match seq % 10:
         case 1:
             st = 'st'
         case 2:
@@ -1026,7 +1037,7 @@ def add_seq_suffix(seq: int) -> str:
             st = 'rd'
         case _:
             st = 'th'
-    return f'{str(seq)} {st}'
+    return f'{seq} {st}'
 
 def clean_text(text: str) -> str:
     """
@@ -1146,15 +1157,21 @@ def beautify_date(dt: datetime.date, target_lang: Literal['zh', 'en', 'auto'] = 
 
     return date_friendly
 
-async def hash_sha256(str) -> str:
+async def hash_sha256(value: str | bytes) -> str:
     """Get SHA256 for a string."""
-    def hash_sync(str):
-        return hashlib.new('sha256', str).hexdigest()
-    return await asyncio.to_thread(hash_sync, str)
+    def hash_sync(value):
+        data = value.encode("utf-8") if isinstance(value, str) else value
+        return hashlib.new('sha256', data).hexdigest()
+    return await asyncio.to_thread(hash_sync, value)
 
 def is_mcore_vl():
     """If mcore is same model with mvista."""
-    return bool(G.A.MCORE_ADDR == G.A.MVISTA_ADDR and G.A.MCORE_CHOICE == G.A.MVISTA_CHOICE)
+    return bool(
+        G.A.MCORE_ADDR
+        and G.A.MVISTA_ADDR
+        and G.A.MCORE_ADDR == G.A.MVISTA_ADDR
+        and G.A.MCORE_CHOICE == G.A.MVISTA_CHOICE
+    )
 
 def is_rag_enabled():
     """If this server instance could utilize RAG."""
@@ -1177,14 +1194,15 @@ def to_str(obj: str | BilingualText, target_lang: Literal['zh', 'en', 'auto']='z
 
 def sysstruct() -> Literal['Windows', 'Linux']:
     sysstruct = platform.system()
-    assert sysstruct in ['Windows', 'Linux'], 'Your system not supported'
+    if sysstruct not in ['Windows', 'Linux']:
+        raise RuntimeError(f"Unsupported operating system: {sysstruct}")
     return sysstruct
 
 if __name__ == "__main__":
     async def test():
         from maica import init
         init()
-        res = await dld_json(f"https://zh.wikipedia.org/w/api.php?action=query&format=json&list=search&redirects=1&utf8=1&formatversion=2&srsearch=incategory:各时期火山事件&srnamespace=14&srlimit=250&sroffset=0&srprop=", True)
+        res = await dld_json("https://zh.wikipedia.org/w/api.php?action=query&format=json&list=search&redirects=1&utf8=1&formatversion=2&srsearch=incategory:各时期火山事件&srnamespace=14&srlimit=250&sroffset=0&srprop=", True)
         print(res)
 
     asyncio.run(test())

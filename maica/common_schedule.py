@@ -83,14 +83,16 @@ class CommonScheduler():
                 
                 for meta in metas:
                     try:
-                        processing_img = ImgByUuid(meta.uuid)
-                        processing_img.delete()
+                        processing_img = ImgByUuid()
+                        processing_img.uuid = meta.uuid
+                        await asyncio.to_thread(processing_img.delete)
                     except Exception:
                         # We ignore file <= db inconsistency, because they're temporary anyway
                         pass
 
                     await dbs.delete(meta)
-                    await dbs.commit()
+
+                await dbs.commit()
 
             sync_messenger(info=f'Removed {len(metas)} MVista images', type=MsgType.LOG)
 
@@ -113,15 +115,16 @@ class CommonScheduler():
         """Deletes long-unused mtts cache."""
         def sync_rotation(earliest_timestamp):
             base_path = get_inner_path('fs_storage/mtts')
-            mtts_cache_entries = os.scandir(base_path)
-            delete_list = []; all_count = 0
-            for entry in mtts_cache_entries:
-                if entry.is_file() and not entry.name.startswith('.'):
-                    all_count += 1
-                    path = entry.path
-                    last_atime = os.path.getatime(path)
-                    if last_atime < earliest_timestamp:
-                        delete_list.append(path)
+            delete_list = []
+            all_count = 0
+            with os.scandir(base_path) as mtts_cache_entries:
+                for entry in mtts_cache_entries:
+                    if entry.is_file() and not entry.name.startswith('.'):
+                        all_count += 1
+                        path = entry.path
+                        last_atime = os.path.getatime(path)
+                        if last_atime < earliest_timestamp:
+                            delete_list.append(path)
             
             for path in delete_list:
                 try:
@@ -143,7 +146,8 @@ class CommonScheduler():
         await sleep_forever()
 
     async def close(self):
-        self.schedule.shutdown()
+        if self.schedule.running:
+            self.schedule.shutdown(wait=False)
 
 async def prepare_thread(**kwargs):
 
@@ -152,19 +156,24 @@ async def prepare_thread(**kwargs):
     root_csc = ConnSocketsContainer(**root_csc_kwargs)
     CommonScheduler.root_csc = root_csc
     
+    common_scheduler = None
     try:
         common_scheduler = CommonScheduler(kwargs.get('involve_chat', True), kwargs.get('involve_tts', True))
 
         sync_messenger(info='MAICA scheduler started!', type=MsgType.PRIM_SYS)
 
         await common_scheduler.run_schedule()
-        common_scheduler.close()
 
+    except asyncio.CancelledError:
+        raise
     except Exception as e:
         error = CommonMaicaError(str(e), '504')
         sync_messenger(error=error)
+        raise
 
     finally:
+        if common_scheduler:
+            await common_scheduler.close()
         sync_messenger(info='MAICA scheduler stopped!', type=MsgType.PRIM_SYS)
 
 async def _run_shd():

@@ -17,6 +17,7 @@ online_dict: dict[
         asyncio.Lock
     ]
 ] = {}
+online_dict_guard = asyncio.Lock()
 
 def pkg_init_gvars():
     global G

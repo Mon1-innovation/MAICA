@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 import colorama
+import secrets
 
 from typing import *
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 from pydantic.dataclasses import dataclass as pdataclass
 from dataclasses import dataclass, field
 from websockets import ServerConnection, WebSocketException
-from Crypto.Random import random as crandom
 from .setting_utils import MaicaSettings
 from .maica_utils import *
 from .stream_buffer import *
@@ -23,7 +23,7 @@ class TrackerId():
     """String-like."""
     var: str=''
     def __init__(self):
-        self.var = str(crandom.randint(0,9999999999)).zfill(10)
+        self.var = str(secrets.randbelow(10_000_000_000)).zfill(10)
     def rotate(self):
         self.__init__()
     def __str__(self):
@@ -74,7 +74,7 @@ class RealtimeSocketsContainer(AllowArb):
             # If the buffer is not occupied and being empty, there's nothing to read.
             if (
                 not r_buffer.lock.locked()
-                and not len(r_buffer)
+                and not r_buffer.qsize()
             ):
                 await self.__call__(
                     'maica_reconn_buffer_empty',
@@ -113,7 +113,6 @@ class RealtimeSocketsContainer(AllowArb):
                 **kwargs,
             ):
             """These default values are for directly passing exception."""
-            websocket = self._parent.websocket
             tracker_id = self._parent.tracker_id
             if not self.ws_died:
                 try:
@@ -147,6 +146,7 @@ class RealtimeSocketsContainer(AllowArb):
     # session: Any = None
 
     websocket: Optional[ServerConnection] = None
+    session_lock: Optional[asyncio.Lock] = None
     tracker_id: TrackerId = field(default_factory=TrackerId)
     messenger: Optional[RscMessenger] = None
     maica_settings: MaicaSettings = field(default_factory=MaicaSettings)

@@ -21,13 +21,18 @@ kp = KeywordProcessor()
 def pkg_init_censor():
     global kp
     try:
+        kp = KeywordProcessor()
         base_path = get_inner_path('mtools/censor')
-        censor_file_entries = os.scandir(base_path)
         censor_set = set()
-        for entry in censor_file_entries:
-            if entry.is_file() and entry.name.endswith('.txt'):
-                with open(entry.path, 'r') as file:
-                    censor_set.update(file.read().splitlines())
+        with os.scandir(base_path) as censor_file_entries:
+            for entry in censor_file_entries:
+                if entry.is_file() and entry.name.endswith('.txt'):
+                    with open(entry.path, 'r', encoding='utf-8') as file:
+                        censor_set.update(
+                            line.strip()
+                            for line in file
+                            if line.strip()
+                        )
         for kw in censor_set:
             kp.add_keyword(kw)
 

@@ -81,7 +81,8 @@ Please check the quality of assistant's response.\
     resp = await conn.make_completion(**completion_args)
     detection_result = QualityCheckResult.model_validate_json(resp.output_text)
 
-    res = detection_result.reasonability; cfd = detection_result.confidence
+    res = detection_result.reasonability
+    cfd = detection_result.confidence
 
     sync_messenger(info=f"Finished processing quality_chk to response. Reasonability: {res}, confidence: {cfd}", type=MsgType.PRIM_LOG)
     return res, cfd

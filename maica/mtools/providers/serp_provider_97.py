@@ -7,6 +7,7 @@ import asyncio
 from typing import *
 from pydantic import model_validator
 from .base import register_provider, SerpResults
+from maica.mtools.mcp import _asearch
 
 prio = 97
 requires = []
@@ -22,8 +23,6 @@ class McpSerpResults(SerpResults):
                 d["description"] = d.get("snippet")
             data = new_data
         return data
-
-from maica.mtools.mcp import _asearch
 
 async def asearch(query, target_lang: Literal['zh', 'en', 'auto']='zh'):
     """Wrapping."""
@@ -41,4 +40,3 @@ if __name__ == "__main__":
         print(res)
 
     asyncio.run(main())
-    

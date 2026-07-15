@@ -56,7 +56,8 @@ async def fetch_ms_meta(fsc: FullSocketsContainer):
             200,
         )
         page = wiki_cursor.page(title)
-        assert await page.exists()
+        if not await page.exists():
+            raise MaicaInternetWarning(f"Wikipedia page does not exist: {title}")
         return await page.summary
     
     async def get_category(title: str):
@@ -68,7 +69,8 @@ async def fetch_ms_meta(fsc: FullSocketsContainer):
         cate = wiki_cursor.page(title)
         members = await cate.categorymembers
 
-        cates = []; pages = []
+        cates = []
+        pages = []
         for member in members.values():
             match member.ns:
                 case Namespace.MAIN:
@@ -157,7 +159,8 @@ async def fetch_ms_meta(fsc: FullSocketsContainer):
         if not summary or summary.isspace():
             raise MaicaInternetWarning('MSpire got empty summary')
         
-        title = convert(title, 'zh-cn'); summary = convert(summary, 'zh-cn')
+        title = convert(title, 'zh-cn')
+        summary = convert(summary, 'zh-cn')
 
         if G.A.CENSOR_MSPIRE != '0':
             tolerance = int(G.A.CENSOR_MSPIRE)
@@ -194,11 +197,10 @@ async def make_inspire(fsc: FullSocketsContainer):
 
     summary = ellipsis_large_str(summary)
 
-    if fsc.maica_settings.basic.target_lang == 'zh':
-        prompt = _Bt(
-            f"利用提供的以下信息, 主动阐明话题并和[player]聊聊{title}:\n{summary}\n\n你不必在输出中包含内容的全部信息, 但应当融入自己的理解与思考. 你的回答应当有开头招呼, 表现为由你自主发起话题, 并使用自然有感情的聊天语气. 你应当从你自己的角度思考, 不应盲从信息中的评价和判断.",
-            f"Summarize the topic and talk about {title} with [player] using provided informations below:\n{summary}\n\nYou don't have to include all information provided, but you should combine your own thinking and understanding into your response. Your reply should contain a greeting and brief introduction, act as you started the conversation with this topic, and always use natural emotional tone. You should think from your own perspective, avoid blindly following the judgements from the information.",
-        )
+    prompt = _Bt(
+        f"利用提供的以下信息, 主动阐明话题并和[player]聊聊{title}:\n{summary}\n\n你不必在输出中包含内容的全部信息, 但应当融入自己的理解与思考. 你的回答应当有开头招呼, 表现为由你自主发起话题, 并使用自然有感情的聊天语气. 你应当从你自己的角度思考, 不应盲从信息中的评价和判断.",
+        f"Summarize the topic and talk about {title} with [player] using provided information below:\n{summary}\n\nYou don't have to include all information provided, but you should combine your own thinking and understanding into your response. Your reply should contain a greeting and brief introduction, act as you started the conversation with this topic, and always use natural emotional tone. You should think from your own perspective, avoid blindly following the judgements from the information.",
+    )
     return prompt
 
 MsFromCacheResult = MaicaSettings.Temp.MSpire.MsFromCacheResult
@@ -235,7 +237,6 @@ async def ms_to_cache(mfc_m: MsFromCacheResult, fsc: FullSocketsContainer):
                 SqlMsCache,
                 {"hash": mfc_m.hash},
                 {
-                    "id": fsc.maica_settings.verification.user_id,
                     "content": mfc_m.result,
                 }
             )

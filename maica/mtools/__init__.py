@@ -1,4 +1,6 @@
 
+from maica.maica_utils import G
+
 from .api_keys import TpAPIKeys
 from .mpostal import make_postmail
 from .mspire import make_inspire, ms_from_cache, ms_to_cache
@@ -42,7 +44,8 @@ from .api_keys import pkg_init_api_keys
 from .providers import pkg_init_serp_provider
 from .censor import pkg_init_censor
 def pkg_init_mtools():
-    pkg_init_mcp()
     pkg_init_api_keys()
+    if not int(G.A.NO_SERP):
+        pkg_init_mcp()
     pkg_init_serp_provider()
     pkg_init_censor()

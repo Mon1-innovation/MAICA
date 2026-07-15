@@ -1,5 +1,6 @@
-from Crypto.PublicKey import RSA
 import os
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from maica.maica_utils import get_inner_path, sync_messenger, MsgType
 
 def get_keys_path():
@@ -25,10 +26,12 @@ def export_keys(to: str):
         prv_new = os.path.abspath(os.path.join(to, 'prv.key'))
         pub_new = os.path.abspath(os.path.join(to, 'pub.key'))
 
-        yank_file(prv_new); yank_file(pub_new)
+        yank_file(prv_new)
+        yank_file(pub_new)
 
         with open(prv_new, "x") as prvkey_file:
             prvkey_file.write(prvkey)
+        os.chmod(prv_new, 0o600)
         with open(pub_new, "x") as pubkey_file:
             pubkey_file.write(pubkey)
 
@@ -37,6 +40,7 @@ def export_keys(to: str):
 
     except Exception as e:
         sync_messenger(info=f"[maica-keys] Error: {str(e)}", type=MsgType.ERROR)
+        raise
 
 def import_keys(frm: str):
     prv_new = os.path.abspath(os.path.join(frm, 'prv.key'))
@@ -61,11 +65,13 @@ def import_keys(frm: str):
         with open(pub_path, "x") as pubkey_file:
             pubkey_file.write(pubkey)
 
-        sync_messenger(info=f"[maica-keys] Keys exported to {prv_path} and {prv_path}", type=MsgType.LOG)
+        os.chmod(prv_path, 0o600)
+        sync_messenger(info=f"[maica-keys] Keys imported to {prv_path} and {pub_path}", type=MsgType.LOG)
         return
 
     except Exception as e:
         sync_messenger(info=f"[maica-keys] Error: {str(e)}", type=MsgType.ERROR)
+        raise
 
 def yank_file(path: str, prefix="[maica-keys] "):
     if os.path.isfile(path):
@@ -77,27 +83,30 @@ def yank_file(path: str, prefix="[maica-keys] "):
 
 def generate_rsa_keys():
     prv_path, pub_path = get_keys_path()
-    try:
-        with open(prv_path, "r") as prvkey_file:
-            prvkey = prvkey_file.read()
-        with open(pub_path, "r") as pubkey_file:
-            pubkey = pubkey_file.read()
-        
+    if os.path.isfile(prv_path) and os.path.isfile(pub_path):
         sync_messenger(info="[maica-keys] Keys exist already, skipping...", type=MsgType.WARN)
         return
-    
-    except Exception:
+    else:
         sync_messenger(info="[maica-keys] Keys not exist, creating...", type=MsgType.DEBUG)
-        os.makedirs(get_inner_path('keys'))
+        os.makedirs(get_inner_path('keys'), exist_ok=True)
+        yank_file(prv_path)
+        yank_file(pub_path)
     
-        key = RSA.generate(2048)
-        
-        private_key = key.export_key()
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        private_key = key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
 
         with open(prv_path, "wb") as prv_file:
             prv_file.write(private_key)
+        os.chmod(prv_path, 0o600)
         
-        public_key = key.publickey().export_key()
+        public_key = key.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
 
         with open(pub_path, "wb") as pub_file:
             pub_file.write(public_key)

@@ -1,13 +1,11 @@
 import asyncio
 import os
-import re
 import json
 import time
 import csv
 import aiosqlite
 import traceback
 import asyncssh
-import signal
 from maica.maica_utils import *
 
 class _FakeSQLiteConn():
@@ -31,6 +29,8 @@ class NvWatcher(AsyncCreator):
 
         self.node_addr = ExplainUrl(getattr(subset, f'{node.upper()}_ADDR')).hostname
         self.critical_reported = False
+        if self.node_name and not ReUtils.re_match_secure_path.fullmatch(self.node_name):
+            raise MaicaInputError(f"Unsafe NVWatcher node name: {self.node_name!r}")
 
     async def _ainit(self):
         if self.is_active:
@@ -47,14 +47,26 @@ class NvWatcher(AsyncCreator):
         else:
             return True
 
-    async def _query_nvsmi(self, ssh_client: asyncssh.connection.SSHClientConnection, keys=[]):
+    async def _query_nvsmi(self, ssh_client: asyncssh.connection.SSHClientConnection, keys=()):
         command = f"nvidia-smi --query-gpu={','.join(keys)} --format=csv"
         result = await ssh_client.run(command, check=True)
         csv_capt = csv.DictReader(result.stdout.split('\n'))
         return list(csv_capt)
 
     async def _connect_remotes(self):
-        self.node_ssh = await asyncssh.connect(host=self.node_addr, username=self.node_user, password=self.node_pwd, known_hosts=None)
+        connect_kwargs = {
+            "host": self.node_addr,
+            "username": self.node_user,
+            "password": self.node_pwd,
+        }
+        if int(G.A.NVW_INSECURE_SSH):
+            # Explicit compatibility escape hatch for isolated legacy networks.
+            connect_kwargs["known_hosts"] = None
+            sync_messenger(
+                info="NVWatcher SSH host-key verification is disabled by configuration",
+                type=MsgType.WARN,
+            )
+        self.node_ssh = await asyncssh.connect(**connect_kwargs)
 
     async def _initiate_db(self):
         self.db_path = get_inner_path('.nvsw.db')
@@ -66,7 +78,9 @@ class NvWatcher(AsyncCreator):
             await db_client.execute(f'CREATE TABLE IF NOT EXISTS `{self.node_name}` (id INT PRIMARY KEY, name TEXT, memory TEXT, tflops TEXT, dynamic TEXT);')
 
             for i, gpu in enumerate(basic_result):
-                name = gpu["name"]; memory = gpu[" memory.total [MiB]"]; tflops = '100'
+                name = gpu["name"]
+                memory = gpu[" memory.total [MiB]"]
+                tflops = '100'
                 
                 match name:
                     case n if 'PRO 6000' in n:
@@ -76,7 +90,11 @@ class NvWatcher(AsyncCreator):
                     case n if '4090' in n:
                         tflops = '330'
 
-                await db_client.execute(f'INSERT OR REPLACE INTO `{self.node_name}` (id, name, memory, tflops, dynamic) VALUES ({i}, "{name}", "{memory}", "{tflops}", "[]");')
+                await db_client.execute(
+                    f'INSERT OR REPLACE INTO `{self.node_name}` '
+                    '(id, name, memory, tflops, dynamic) VALUES (?, ?, ?, ?, ?)',
+                    (i, name, memory, tflops, "[]"),
+                )
                 self.gpu_overall.append([i, name, memory, tflops, []])
 
     async def _append_dynamic(self, history: list, gpu: dict):
@@ -110,7 +128,11 @@ class NvWatcher(AsyncCreator):
                         gpu_curr = []
                     gpu_curr = await self._append_dynamic(gpu_curr, gpu)
                     self.dynamics_curr.insert(i, gpu_curr)
-                    await db_client.execute(f'UPDATE `{self.node_name}` SET dynamic = \'{json.dumps(gpu_curr, ensure_ascii=False)}\' WHERE id = {i}')
+                    # The table name cannot be bound; __init__ restricts it to a safe identifier allow-list.
+                    await db_client.execute(
+                        f'UPDATE `{self.node_name}` SET dynamic = ? WHERE id = ?',  # nosec
+                        (json.dumps(gpu_curr, ensure_ascii=False), i),
+                    )
                     self.gpu_overall[i][4] = gpu_curr
 
             await asyncio.sleep(10)
@@ -143,10 +165,16 @@ class NvWatcher(AsyncCreator):
             node_info = {}
             for gpu_status in self.gpu_overall:
                 gpuid, name, memory, tflops, dynamic = gpu_status
-                u = 0; m = 0; p = 0
+                u = 0
+                m = 0
+                p = 0
                 for line in dynamic:
-                    u += float(line['u']); m += float(line['m']); p += float(line['p'])
-                u /= len(dynamic) or 1; m /= len(dynamic) or 1; p /= len(dynamic) or 1
+                    u += float(line['u'])
+                    m += float(line['m'])
+                    p += float(line['p'])
+                u /= len(dynamic) or 1
+                m /= len(dynamic) or 1
+                p /= len(dynamic) or 1
                 node_info[gpuid] = {'name': name, 'vram': memory, 'tflops': tflops, 'mean_utilization': int(u), 'mean_memory': int(m), 'mean_consumption': int(p)}
 
         except Exception as e:
@@ -156,12 +184,11 @@ class NvWatcher(AsyncCreator):
             
         return {self.node_name: node_info}
 
-    def __del__(self):
-        try:
-            self.node_ssh.close()
-            os.remove(self.db_path)
-        except Exception:
-            pass
+    async def close(self):
+        node_ssh = getattr(self, "node_ssh", None)
+        if node_ssh:
+            node_ssh.close()
+            await node_ssh.wait_closed()
 
 
 # ====================================================== Debuggings ======================================================

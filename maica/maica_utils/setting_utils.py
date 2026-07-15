@@ -52,20 +52,21 @@ def create_prop(
 
 def read_exist(self, n, v, **kwargs):
     """Value must exist on get."""
-    assert v
+    if not v:
+        raise AssertionError(f"{n} must be assigned before access")
     return v
 
 def set_locked(self, n, v, **kwargs):
     """Value can only be rewritten from None."""
     prv_n = f"_{n}"
     if getattr(self, prv_n) is not None:
-        print(getattr(self, prv_n))
-    assert getattr(self, prv_n) is None
+        raise AssertionError(f"{n} is locked")
     return v
 
 def set_literal(self, n, v, valid: list[any], **kwargs):
     """Value must in valid list on set."""
-    assert v in valid
+    if v not in valid:
+        raise AssertionError(f"{n} must be one of {valid}")
     return v
 
 def set_range(self, n, v, lower: Union[int, float], upper: Union[int, float], soft_limit: bool=False, **kwargs):
@@ -83,7 +84,8 @@ def set_range(self, n, v, lower: Union[int, float], upper: Union[int, float], so
         if v != new_v:
             sync_messenger(info=f"{n}={v} out of range [{lower}, {upper}], limiting to {new_v}")
             v = new_v
-    assert lower <= v <= upper
+    if not lower <= v <= upper:
+        raise AssertionError(f"{n} must be between {lower} and {upper}")
     return v
 
 def set_instance(self, n, v, types: list[type], **kwargs):
@@ -106,15 +108,11 @@ class ConfigurableSettingsModel(SettingsModel, PydUpdateMixin, PydSoftResetMixin
     def none_is_default(cls, data: Any):
         if isinstance(data, dict):
             for field_name, field_info in cls.model_fields.items():
-                expected_type = field_info.annotation
-
                 value = data.get(field_name)
-                if (
-                    field_name in data
-                    and value == None
-                    and not isinstance(value, expected_type)
-                ):
-                    data[field_name] = field_info.get_default(call_default_factory=True)
+                if field_name in data and value is None:
+                    default_value = field_info.get_default(call_default_factory=True)
+                    if default_value is not None:
+                        data[field_name] = default_value
         return data
 
 class MaicaSettings(BaseModel):

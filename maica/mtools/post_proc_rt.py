@@ -1,6 +1,5 @@
 import asyncio
 import re
-from typeguard import check_type
 from typing import *
 from .post_proc import post_proc
 from maica.maica_utils import *
@@ -81,7 +80,13 @@ class TalkSplitV2():
 
     def split_present_sentence(self):
         """Main function."""
-        apc=[]; upc=[]; spc=[]; cpc=[]; epc=[]; slc=[]; src=[]
+        apc = []
+        upc = []
+        spc = []
+        cpc = []
+        epc = []
+        slc = []
+        src = []
         length_present = len(self.sentence_present.encode())
 
         if length_present <= 60:
@@ -108,7 +113,7 @@ class TalkSplitV2():
                     else:
                         rc += 1
 
-            return True if lc <= rc else False
+            return lc == rc
             
         def split_at_pos(pos):
             """Just split."""
@@ -121,7 +126,8 @@ class TalkSplitV2():
 
         matches = pattern_all_punc.finditer(self.sentence_present)
         for match in matches:
-            pos = match.end(); content = match.group()
+            pos = match.end()
+            content = match.group()
             apc.append(match)
             if len(content) > 1 or not self._is_decimal(('   ' + self.sentence_present + ' ')[pos:pos+5]):
                 if has_words_in(content, *list_uncrit_punc):
@@ -176,7 +182,16 @@ class TalkSplitV2():
             for match in reversed(apc):
                 if 3 <= get_pos_len(match.end()) <= self._split_limit + 20:
                     return split_at_pos(match.end())
-        return split_at_pos(get_pos_len(self._split_limit + 20))
+        byte_limit = self._split_limit + 20
+        byte_count = 0
+        char_position = len(self.sentence_present)
+        for index, char in enumerate(self.sentence_present, start=1):
+            char_size = len(char.encode("utf-8"))
+            if byte_count + char_size > byte_limit:
+                char_position = max(1, index - 1)
+                break
+            byte_count += char_size
+        return split_at_pos(char_position)
     
     def announce_stop(self) -> List[str]:
         """Exhausts remaining buffer."""

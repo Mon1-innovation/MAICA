@@ -17,12 +17,13 @@ def check_marking() -> str:
                 break
         else:
             sync_messenger(info='Failed to read last migrated version from .initialized, will assume 1.0.0000', type=MsgType.WARN)
-    except Exception: pass
+    except OSError:
+        pass
     return last_version
     
 def create_marking():
-    curr_version, legc_version = load_env('MAICA_CURR_VERSION'), load_env('MAICA_VERSION_CONTROL')
-    with open(mark_path, 'w') as mark:
+    curr_version = load_env('MAICA_CURR_VERSION')
+    with open(mark_path, 'w', encoding='utf-8') as mark:
         mark.write(f"This file's existence indicates that the program has been initialized once.\nTo try initializing it again, delete this file.\n\nWarning: Deleting this file will NOT make the program run any cleanups.\n\nLast migrated version: {curr_version}")
     return
 

@@ -73,7 +73,7 @@ from .maica_utils import (
 from .connection_utils import MilvusDbConnectionManager, ConnUtils, AiConnectionManager, validate_input
 from .setting_utils import MaicaSettings
 from .fsc_early import AllowArb, RealtimeSocketsContainer
-from .encryption_utils import CryptoObject, crypto_object, encrypt_token, sign_message, verify_message
+from .encryption_utils import CryptoObject, crypto_object, decrypt_token, encrypt_token, sign_message, verify_message
 from .fsc_late import ConnSocketsContainer, FullSocketsContainer
 from .get_a_sentence import SentenceOfTheDay
 from .locater import locater, get_inner_path, get_outer_path
@@ -170,6 +170,7 @@ __all__ = [
     'RealtimeSocketsContainer',
     'CryptoObject',
     'crypto_object',
+    'decrypt_token',
     'encrypt_token',
     'sign_message',
     'verify_message',
@@ -217,4 +218,3 @@ def pkg_init_maica_utils():
     pkg_init_database_utils()
     pkg_init_connection_utils()
     pkg_init_encryption_utils()
-    

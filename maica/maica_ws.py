@@ -52,7 +52,7 @@ class WsCoroutine(NoWsCoroutine):
         else:
             self.remote_addr = str(websocket.remote_address[0])
 
-        sync_messenger(info=f'An anonymous connection initiated', type=MsgType.PRIM_LOG)
+        sync_messenger(info='An anonymous connection initiated', type=MsgType.PRIM_LOG)
         sync_messenger(info=f'From IP {self.remote_addr}', type=MsgType.DEBUG)
         sync_messenger(info=f'Current online users: {list(online_dict.keys())}', type=MsgType.DEBUG)
 
@@ -71,19 +71,19 @@ class WsCoroutine(NoWsCoroutine):
                 except Exception as e:
                     # We can test if it's caused by wrong stage
                     try:
-                        sync_messenger(info=f'Recieved request on stage1', type=MsgType.DEBUG)
+                        sync_messenger(info='Recieved request on stage1', type=MsgType.DEBUG)
                         _ws_config: UnionStage2Settings = TypeAdapter(Stage2Settings).validate_json(recv_text)
-                    except Exception as e2:
+                    except Exception:
                         raise MaicaInputWarning(f"Query parsing failed: {str(e)}") from e
-                    raise MaicaPermissionWarning(f"Query type {_ws_config.type} now allowed pre-auth")
+                    raise MaicaPermissionWarning(f"Query type {_ws_config.type} not allowed pre-auth")
 
                 match ws_config.type:
                     case "sping":
                         pass
                     case "ping":
-                        await self.fsc.messenger("pong", f"Ping recieved from anonymous and responded", 200)
+                        await self.fsc.messenger("pong", "Ping received from anonymous and responded", 200)
                     case "auth":
-                        sync_messenger(info=f'Recieved auth request on stage1: {colorama.Back.CYAN}{recv_text}{colorama.Back.RESET}', type=MsgType.RECV)
+                        sync_messenger(info='Received auth request on stage1 (token redacted)', type=MsgType.RECV)
                         sync_messenger(info=f'From IP {self.remote_addr}', type=MsgType.DEBUG)
 
                         # The login procedure
@@ -127,7 +127,7 @@ class WsCoroutine(NoWsCoroutine):
         if self.fsc.mvista_conn:
             await self.fsc.messenger("maica_feature_mvista", f"MVista enabled on server, model is {self.fsc.mvista_conn.model_actual}", 200, type=MsgType.INFO, no_print=True)
         elif is_mcore_vl():
-            await self.fsc.messenger("maica_feature_mvista", f"MVista enabled on server, using core model implementation", 200, type=MsgType.INFO, no_print=True)
+            await self.fsc.messenger("maica_feature_mvista", "MVista enabled on server, using core model implementation", 200, type=MsgType.INFO, no_print=True)
 
         if self.fsc.mnerve_conn:
             await self.fsc.messenger("maica_feature_mnerve", f"MNerve enabled on server, model is {self.fsc.mnerve_conn.model_actual}", 200, type=MsgType.INFO, no_print=True)
@@ -150,13 +150,13 @@ class WsCoroutine(NoWsCoroutine):
                 # Then we examine the input
                 recv_text = await websocket.recv()
                 try:
-                    sync_messenger(info=f'Recieved request on stage2', type=MsgType.DEBUG)
+                    sync_messenger(info='Recieved request on stage2', type=MsgType.DEBUG)
                     ws_config: UnionStage2Settings = TypeAdapter(Stage2Settings).validate_json(recv_text)
                 except Exception as e:
                     # We can test if it's caused by wrong stage
                     try:
                         _ws_config: UnionStage1Settings = TypeAdapter(Stage1Settings).validate_json(recv_text)
-                    except Exception as e2:
+                    except Exception:
                         raise MaicaInputWarning(f"Query parsing failed: {str(e)}") from e
                     raise MaicaPermissionWarning(f"Query type {_ws_config.type} not allowed post-auth")
                     
@@ -164,15 +164,15 @@ class WsCoroutine(NoWsCoroutine):
                     case "sping":
                         pass
                     case "ping":
-                        await self.fsc.messenger("pong", f"Ping recieved from {self.settings.verification.username} and responded", 200)
+                        await self.fsc.messenger("pong", f"Ping received from {self.settings.verification.username} and responded", 200)
                     case "reconn":
                         await self.fsc.messenger.exhaust_buffer()
                     case "params":
-                        sync_messenger(info=f'Recieved params request on stage2: {recv_text}', type=MsgType.RECV)
+                        sync_messenger(info=f'Received params request with {len(ws_config.chat_params)} setting(s)', type=MsgType.RECV)
                         sync_messenger(info=f'From IP {self.remote_addr}, user {self.settings.verification.username}', type=MsgType.DEBUG)
                         await self.change_settings(ws_config)
                     case "query":
-                        sync_messenger(info=f'Recieved query request on stage2: {recv_text}', type=MsgType.RECV)
+                        sync_messenger(info=f'Received query request for session {ws_config.chat_session}', type=MsgType.RECV)
                         sync_messenger(info=f'From IP {self.remote_addr}, user {self.settings.verification.username}', type=MsgType.DEBUG)
                         await self.generate_response(ws_config)
 
@@ -205,11 +205,11 @@ class WsCoroutine(NoWsCoroutine):
 
         if ws_config.reset:
             self.settings.soft_reset()
-            await self.fsc.messenger('maica_params_reset', f"Settings reset accepted", 200)
+            await self.fsc.messenger('maica_params_reset', "Settings reset accepted", 200)
         
         try:
             accepted_params = self.settings.update_settings(**ws_config.chat_params)
-        except CommonMaicaException as ce:
+        except CommonMaicaException:
             raise
         except Exception as e:
             raise MaicaInputWarning(f"Settings unacceptable: {str(e)}") from e
@@ -220,7 +220,6 @@ class WsCoroutine(NoWsCoroutine):
     async def generate_response(self, ws_config: WsQueryConfig):
 
         # Initiations
-        websocket = self.fsc.websocket
         chat_session = self.settings.temp.chat_session = ws_config.chat_session
 
         async with (
@@ -343,26 +342,14 @@ class WsCoroutine(NoWsCoroutine):
             # Add context log
             previous_rnds = session.utilize(text_only=True)[1:]
             previous_rnds_len = int(len(previous_rnds) / 2)
-            previous_rnds_ellipsed = previous_rnds[-6:]
-
-            previous_rnds_str = '\n'.join(
-                [
-                    (('Q: ' if d['role'] == 'user' else 'A: ') + d['content'])
-                    for d in previous_rnds_ellipsed
-                ]
-            )
-
-            if previous_rnds_len > 3:
-                previous_rnds_str = '... ...\n' + previous_rnds_str
-
             if previous_rnds_len:
-                sync_messenger(info=f'\nQuery has {previous_rnds_len} rounds of history:\n{previous_rnds_str}\nEnd of query history', type=MsgType.RECV)
+                sync_messenger(info=f'Query has {previous_rnds_len} rounds of history', type=MsgType.RECV)
 
-            sync_messenger(info=f'\nQuery constructed and ready to go, last input is:\n{str_query}\nSending query...', type=MsgType.PRIM_RECV)
+            sync_messenger(info=f'Query constructed and ready to go ({len(str_query.encode("utf-8"))} bytes)', type=MsgType.PRIM_RECV)
 
             # By default, pprt is disabled on non-streaming output
             if (
-                not "pprt" in ws_config.model_fields_set
+                "pprt" not in ws_config.model_fields_set
                 and not self.settings.use_stream_now
             ):
                 ws_config.pprt = False
@@ -406,7 +393,7 @@ class WsCoroutine(NoWsCoroutine):
                         for content_delta in content_left:
                             await send_delta(content_delta)
 
-                        # Apply correct linewarp on terminal
+                        # Apply the correct line break on the terminal.
                         sync_messenger(info='\n', type=MsgType.PLAIN)
                         await self.fsc.messenger(
                             'maica_core_complete',
@@ -462,11 +449,12 @@ async def main_logic(
     ):
 
     # Initializing
-    rsc = RealtimeSocketsContainer(websocket=websocket)
+    unique_lock = asyncio.Lock()
+    rsc = RealtimeSocketsContainer(websocket=websocket, session_lock=unique_lock)
     csc = root_csc.spawn_sub(rsc)
     fsc = FullSocketsContainer(rsc=rsc, csc=csc)
     
-    unique_lock = asyncio.Lock()
+    permit = None
     async with unique_lock:
         try:
 
@@ -486,10 +474,10 @@ async def main_logic(
 
             # This is stage 1
             permit = await thread_instance.check_permit()
-            assert permit['id'], permit
+            if not permit.get('id'):
+                raise MaicaPermissionError(f"Authentication returned no user id: {permit}")
 
-            # Lock login status
-            online_dict[permit['id']] = [thread_instance.fsc, unique_lock]
+            # Login atomically reserved the online status.
             sync_messenger(info=f"Locking session for {permit['id']} named {permit['username']}", type=MsgType.LOG)
 
             # Runs until break
@@ -526,16 +514,19 @@ async def main_logic(
         # Cleanups
         finally:
             try:
-                online_dict.pop(permit['id'])
+                user_id = permit['id'] if permit else None
+                current = online_dict.get(user_id)
+                if current and current[0] is fsc:
+                    online_dict.pop(user_id, None)
                 sync_messenger(info=f"Lock released for {permit['username']}({permit['id']})", type=MsgType.LOG)
 
-            except Exception as e:
+            except (KeyError, TypeError):
                 # Should just be caused by not locked yet
-                sync_messenger(info=f"No lock for this connection", type=MsgType.DEBUG)
+                sync_messenger(info="No lock for this connection", type=MsgType.DEBUG)
                 
             await websocket.close()
             await websocket.wait_closed()
-            sync_messenger(info=f"Closing connection gracefully", type=MsgType.DEBUG)
+            sync_messenger(info="Closing connection gracefully", type=MsgType.DEBUG)
 
 
 # ====================================================== Per-connection driver ends ======================================================
@@ -564,31 +555,31 @@ async def prepare_thread(**kwargs):
             models_info += f"MVista model: {root_csc.mvista_conn.model_actual}\n"
         else:
             if is_mcore_vl():
-                models_info += f"MVista model: Native implementation\n"
+                models_info += "MVista model: Native implementation\n"
             else:
-                models_info += f"MVista model: Disabled\n"
+                models_info += "MVista model: Disabled\n"
 
         if root_csc.mnerve_conn:
             models_info += f"MNerve model: {root_csc.mnerve_conn.model_actual}\n"
         else:
-            models_info += f"MNerve model: Disabled\n"
+            models_info += "MNerve model: Disabled\n"
 
         models_info += "\n"
 
         if root_csc.vector_pool:
-            models_info += f"Vector database: Enabled\n"
+            models_info += "Vector database: Enabled\n"
         else:
-            models_info += f"Vector database: Disabled\n"
+            models_info += "Vector database: Disabled\n"
 
         if root_csc.embedding_conn:
             models_info += f"Embedding model: {root_csc.embedding_conn.model_actual}\n"
         else:
-            models_info += f"Embedding model: Disabled\n"
+            models_info += "Embedding model: Disabled\n"
 
         if root_csc.reranking_conn:
             models_info += f"Reranking model: {root_csc.reranking_conn.model_actual}\n"
         else:
-            models_info += f"Reranking model: Disabled\n"
+            models_info += "Reranking model: Disabled\n"
 
         models_info = models_info.rstrip("\n")
 
@@ -599,21 +590,23 @@ async def prepare_thread(**kwargs):
         sync_messenger(info=f"Major model deployment cannot be reached: {str(e)}, running in minimal testing mode", type=MsgType.SYS)
     
     try:
-        server = await websockets.serve(
-            functools.partial
-            (
+        async with websockets.serve(
+            functools.partial(
                 main_logic,
                 root_csc=root_csc,
             ),
-            '0.0.0.0',
-            5000,
-            max_size=64*1024
-        )
-        await server.wait_closed()
+            G.A.WS_HOST,
+            int(G.A.WS_PORT),
+            max_size=64*1024,
+        ) as server:
+            await server.serve_forever()
 
+    except asyncio.CancelledError:
+        raise
     except Exception as e:
         error = CommonMaicaError(str(e), '504')
         sync_messenger(error=error)
+        raise
 
     finally:
         sync_messenger(info='MAICA WS server stopped!', type=MsgType.PRIM_SYS)

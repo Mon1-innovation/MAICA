@@ -1,16 +1,25 @@
 import os
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from io import BytesIO
-import magic
 
 import sqlalchemy
 from sqlalchemy.orm import load_only
 
 import uuid
 from typing import *
+from typing import overload
 from maica.maica_utils import *
 
-_ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/bmp', 'image/webp']
+_ALLOWED_FORMATS = {"JPEG", "PNG", "BMP", "WEBP"}
+_FORMAT_MIMES = {
+    "JPEG": "image/jpeg",
+    "PNG": "image/png",
+    "BMP": "image/bmp",
+    "WEBP": "image/webp",
+}
+# Uploaded images are resized to 1920x1080, so decoding extremely large source
+# images only creates a denial-of-service risk and has no user-visible benefit.
+_MAX_SOURCE_PIXELS = 40_000_000
 
 _base_path: str = get_inner_path('fs_storage/mv_img')
 
@@ -45,7 +54,8 @@ class ImgByUuid():
 
     @property
     def file_name(self):
-        assert self.uuid, "No uuid for this instance"
+        if not self.uuid:
+            raise RuntimeError("No UUID for this image instance")
         return self.uuid + ".jpg"
     
     @property
@@ -71,8 +81,16 @@ class ImgByUuid():
 
     def _save(self, path):
         self._bio.seek(0)
-        with open(path, 'wb') as f:
-            f.write(self._bio.getvalue())
+        temporary_path = path + ".tmp"
+        try:
+            with open(temporary_path, 'wb') as f:
+                f.write(self._bio.getvalue())
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(temporary_path, path)
+        finally:
+            if os.path.exists(temporary_path):
+                os.remove(temporary_path)
 
     def _read(self, path):
         self._purge()
@@ -103,9 +121,6 @@ class ImgByUuid():
     def perfuse(self, binary: bytes):
         """Create from binary."""
         self._bio.write(binary)
-        self.format = magic.from_buffer(self._rfb(2048), mime=True)
-        if not self.format in _ALLOWED_MIMES:
-            raise MaicaInputWarning(f'Input file {self.format} is not image')
         self.compress()
         # self.gen_uuid()
 
@@ -114,14 +129,31 @@ class ImgByUuid():
         self.uuid = fuuid
 
         self.read()
-        self.format = magic.from_buffer(self._rfb(2048), mime=True)
-        if not self.format in _ALLOWED_MIMES:
-            raise MaicaInputError(f'Extracted file {self.format} is not image')
+        try:
+            with Image.open(self._bio) as img:
+                if img.format not in _ALLOWED_FORMATS:
+                    raise MaicaInputError(f"Extracted file format {img.format!r} is not supported")
+                self.format = _FORMAT_MIMES[img.format]
+        except (UnidentifiedImageError, OSError) as exc:
+            raise MaicaInputError("Extracted file is not a valid image") from exc
 
     def compress(self, mw=1920, mh=1080, q=85):
         """Compresses the wrapped picture."""
-        img = Image.open(self._bio)
-        img.load()
+        try:
+            img = Image.open(self._bio)
+            if img.format not in _ALLOWED_FORMATS:
+                raise MaicaInputWarning(f"Input file format {img.format!r} is not supported")
+            self.format = _FORMAT_MIMES[img.format]
+            width, height = img.size
+            if width <= 0 or height <= 0 or width * height > _MAX_SOURCE_PIXELS:
+                raise MaicaInputWarning(
+                    f"Input image dimensions {width}x{height} are not acceptable"
+                )
+            img.load()
+        except MaicaInputWarning:
+            raise
+        except (UnidentifiedImageError, OSError) as exc:
+            raise MaicaInputWarning("Input file is not a valid image") from exc
 
         if img.mode in ('RGBA', 'LA', 'P'):
             background = Image.new('RGB', img.size, (255, 255, 255))
@@ -132,7 +164,6 @@ class ImgByUuid():
         elif img.mode != 'RGB':
             img = img.convert('RGB')
 
-        width, height = img.size
         scale = min(mw / width, mh / height, 1.0)
 
         if scale < 1.0:
@@ -141,6 +172,8 @@ class ImgByUuid():
 
         self._purge()
         img.save(self._bio, format='JPEG', quality=q, optimize=True)
+        img.close()
+        self.format = "image/jpeg"
         self.is_compressed = True
 
     def _check_existence(self):
@@ -160,14 +193,17 @@ class ImgByUuid():
         """Purge bio and delete desired path."""
         self._check_existence()
         os.remove(self.real_path)
+        self._purge()
 
     def get_bio(self):
         """Get stored bio."""
+        self._bio.seek(0)
         return self._bio
 
     # Database methods
     async def register(self, user_id):
-        assert self.uuid, "No uuid for this instance"
+        if not self.uuid:
+            raise RuntimeError("No UUID for this image instance")
         async with DatabaseUtils.SessionData() as dbs:
             async with dbs.begin():
 
@@ -178,7 +214,8 @@ class ImgByUuid():
                 await dbs.execute(stmt)
 
     async def unregister(self):
-        assert self.uuid, "No uuid for this instance"
+        if not self.uuid:
+            raise RuntimeError("No UUID for this image instance")
         async with DatabaseUtils.SessionData() as dbs:
             async with dbs.begin():
 
@@ -194,6 +231,9 @@ class ImgByUuid():
 
                 stmt = sqlalchemy.select(SqlMvMeta).where(
                     SqlMvMeta.user_id == user_id,
+                ).order_by(
+                    SqlMvMeta.timestamp.desc(),
+                    SqlMvMeta.id.desc(),
                 ).options(
                     load_only(SqlMvMeta.uuid),
                 )
@@ -201,6 +241,8 @@ class ImgByUuid():
 
         imgs = []
         for obj in objs:
-            imgs.append(cls(obj.uuid))
+            img = cls()
+            img.uuid = obj.uuid
+            imgs.append(img)
 
         return imgs

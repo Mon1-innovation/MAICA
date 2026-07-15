@@ -27,7 +27,7 @@ class DatabaseUtils():
 
 def pkg_init_database_utils():
 
-    usr = G.A.DB_USER
+    usr = urllib.parse.quote_plus(G.A.DB_USER)
     pwd = urllib.parse.quote_plus(G.A.DB_PASSWORD)
     addr = G.A.DB_ADDR
 
@@ -161,9 +161,9 @@ async def sqla_create_or_update[T: SqlBaseData](dbs, model: Type[T], unique: dic
             )
             dbs.add(obj)
 
-            dbs.flush()
+            await dbs.flush()
 
-    except IntegrityError:
+    except IntegrityError as integrity_error:
         if carriage:
             stmt = sqlalchemy.update(model).where(
                 *_select_params,
@@ -172,6 +172,12 @@ async def sqla_create_or_update[T: SqlBaseData](dbs, model: Type[T], unique: dic
             )
 
             await dbs.execute(stmt)
+
+        existing = await dbs.scalar(
+            sqlalchemy.select(model).where(*_select_params)
+        )
+        if existing is None:
+            raise integrity_error
 
 if __name__ == "__main__":
 

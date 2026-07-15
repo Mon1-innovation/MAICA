@@ -6,11 +6,17 @@ from sqlalchemy import inspect, text
 from maica.maica_utils import *
 from .base import register_migration
 
-upper_version = "1.3.000.rc1"
+upper_version = "1.2.006.rc6"
 
-async def _create_index_if_missing(conn, table_name: str, index_name: str, ddl: str):
+async def _create_index_if_missing(conn, table_name: str, index_name: str, columns: list[str], ddl: str):
     indexes = await conn.run_sync(lambda sync_conn: inspect(sync_conn).get_indexes(table_name))
-    if any(index["name"] == index_name for index in indexes):
+    constraints = await conn.run_sync(lambda sync_conn: inspect(sync_conn).get_unique_constraints(table_name))
+    expected_columns = set(columns)
+    if any(
+        item.get("name") == index_name
+        or set(item.get("column_names") or []) == expected_columns
+        for item in [*indexes, *constraints]
+    ):
         sync_messenger(info=f"[migration-4] Index {index_name} already exists on {table_name}, skipping...", type=MsgType.DEBUG)
         return
     await conn.execute(text(ddl))
@@ -80,14 +86,14 @@ async def migrate():
                 await conn.execute(text("ALTER TABLE `account_status` CHANGE `preferences` `preferences` JSON NULL DEFAULT NULL"))
                 await conn.execute(text("ALTER TABLE `crop_archived` CHANGE `archived` `archived` BOOLEAN NOT NULL DEFAULT '0'"))
 
-                await _create_index_if_missing(conn, "ms_cache", "uq_hash", "CREATE UNIQUE INDEX uq_hash ON ms_cache (hash(64))")
+                await _create_index_if_missing(conn, "ms_cache", "uq_hash", ["hash"], "CREATE UNIQUE INDEX uq_hash ON ms_cache (hash(64))")
             else:
                 # There's no actual json at all in sqlite, nor tinyint.
-                await _create_index_if_missing(conn, "ms_cache", "uq_hash", "CREATE UNIQUE INDEX uq_hash ON ms_cache (hash)")
+                await _create_index_if_missing(conn, "ms_cache", "uq_hash", ["hash"], "CREATE UNIQUE INDEX uq_hash ON ms_cache (hash)")
 
-            await _create_index_if_missing(conn, "chat_session", "uq_id_session", "CREATE UNIQUE INDEX uq_id_session ON chat_session (user_id, chat_session_num)")
-            await _create_index_if_missing(conn, "persistents", "uq_id_session", "CREATE UNIQUE INDEX uq_id_session ON persistents (user_id, chat_session_num)")
-            await _create_index_if_missing(conn, "triggers", "uq_id_session", "CREATE UNIQUE INDEX uq_id_session ON triggers (user_id, chat_session_num)")
+            await _create_index_if_missing(conn, "chat_session", "uq_chat_session_user_session", ["user_id", "chat_session_num"], "CREATE UNIQUE INDEX uq_chat_session_user_session ON chat_session (user_id, chat_session_num)")
+            await _create_index_if_missing(conn, "persistents", "uq_persistents_user_session", ["user_id", "chat_session_num"], "CREATE UNIQUE INDEX uq_persistents_user_session ON persistents (user_id, chat_session_num)")
+            await _create_index_if_missing(conn, "triggers", "uq_triggers_user_session", ["user_id", "chat_session_num"], "CREATE UNIQUE INDEX uq_triggers_user_session ON triggers (user_id, chat_session_num)")
 
     except Exception as e:
         raise MaicaDbWarning(f'Couldn\'t alter table: {str(e)}, maybe manually done already?') from e

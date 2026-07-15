@@ -1,6 +1,7 @@
 """Import layer 2.1"""
 
 import orjson
+from urllib.parse import urlsplit
 
 from typing import *
 from pydantic import BaseModel, RootModel, Field
@@ -16,7 +17,7 @@ class WsBasicConfig(BaseModel):
 class WsPermissionConfig(WsBasicConfig):
     """This takes and validates a login input."""
     type: Literal["auth"]
-    access_token: str
+    access_token: str = Field(min_length=1, max_length=4096)
 
 class WsPingConfig(WsBasicConfig):
     type: Literal["ping"]
@@ -69,6 +70,25 @@ class WsQueryConfig(WsBasicConfig):
             if isinstance(self.root, str):
                 self.root = [self.root]
 
+            if len(self.root) > int(G.A.KEEP_MVISTA):
+                raise MaicaInputWarning(f"At most {G.A.KEEP_MVISTA} images are allowed per query")
+
+            allowed_hosts = {
+                host.strip().lower()
+                for host in G.A.VISION_HOST_ALLOWLIST.split(",")
+                if host.strip()
+            }
+            for image_url in self.root:
+                if len(image_url) > 2048:
+                    raise MaicaInputWarning("MVista image URL is too long")
+                parsed = urlsplit(image_url)
+                if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+                    raise MaicaInputWarning("MVista accepts only absolute HTTP(S) image URLs")
+                if parsed.username or parsed.password:
+                    raise MaicaInputWarning("MVista image URLs cannot contain credentials")
+                if allowed_hosts and parsed.hostname.lower() not in allowed_hosts:
+                    raise MaicaPermissionWarning("MVista image URL host is not allowed", 403)
+
             return self
 
     class ExSavefile(RootModel):
@@ -80,13 +100,15 @@ class WsQueryConfig(WsBasicConfig):
         root: list[Any]
 
     class PprtConfig(BaseModel):
-        yield_interval: list[int] = Field(
+        yield_interval: list[Annotated[int, Field(ge=1, le=1000)]] = Field(
             default_factory=lambda: [40, 20, 10, 5, 3, 1],
+            min_length=1,
             max_length=10,
         )
         split_limit: int = Field(
             default=180,
             ge=-1,
+            le=4096,
         )
         correct_malform: bool = True
 
@@ -128,7 +150,7 @@ class WsQueryConfig(WsBasicConfig):
         if len(excl_set) > 1:
             raise MaicaInputWarning(f"Params are exclusive: {', '.join(excl_set)}")
         elif not excl_set:
-            raise MaicaInputWarning(f"No action chosen")
+            raise MaicaInputWarning("No action chosen")
         
         match list(excl_set)[0]:
             case "query":

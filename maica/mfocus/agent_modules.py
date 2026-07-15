@@ -200,7 +200,6 @@ class AgentTools():
         text = _Bt()
         for day_index, events in enumerate(search_results):
 
-            day_is_first = day_index == 0
             day_is_last = day_index + 1 == len(search_results)
 
             for ev_index, event in enumerate(events):

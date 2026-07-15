@@ -56,39 +56,58 @@ async def parse_responses_output(
 
     _tool_calls_ids: set[str] = set()
 
-    def handle_item(item: Response | ResponseStreamEvent):
-        t = getattr(item, "type", None)
+    def get_value(item, key, default=None):
+        return item.get(key, default) if isinstance(item, dict) else getattr(item, key, default)
+
+    def handle_item(item: Response | ResponseStreamEvent | dict):
+        t = get_value(item, "type")
+
+        # Non-streaming Responses wrap text parts inside a message item.
+        if t == "message":
+            for content_item in get_value(item, "content", []) or []:
+                handle_item(content_item)
+            return
+
+        # Some streaming events wrap their actual item/part one level deeper.
+        nested = get_value(item, "item") or get_value(item, "part")
+        if nested is not None and nested is not item:
+            handle_item(nested)
 
         # reasoning
         if t and "reasoning" in t:
-            text = getattr(item, "text", None) or getattr(item, "delta", "")
+            text = get_value(item, "text") or get_value(item, "delta", "")
             if text:
                 reasoning_q.put_nowait(text)
 
         # content
-        elif t in ("message", "output_text", "text"):
-            text = getattr(item, "text", None) or getattr(item, "delta", "")
+        elif t in ("output_text", "text") or (t and "output_text" in t):
+            text = get_value(item, "text") or get_value(item, "delta", "")
             if text:
                 content_q.put_nowait(text)
 
         # tool call
         elif t in ("tool_call", "function_call", "function"):
-            if not getattr(item, "status", None) in ("completed", None):
+            if get_value(item, "status") not in ("completed", None):
                 # This is likely "in_progress", so we ignore it since the complete result will contain everything
                 return
 
             else:
                 if isinstance(item, BaseModel):
                     item = item.model_dump()
+                elif not isinstance(item, dict):
+                    item = {
+                        key: get_value(item, key)
+                        for key in ("type", "call_id", "name", "arguments")
+                    }
                 tool_call = ToolCall.model_validate(item)
                 
-                if not tool_call.call_id in _tool_calls_ids:
+                if tool_call.call_id not in _tool_calls_ids:
                     _tool_calls_ids.add(tool_call.call_id)
                     tool_q.put_nowait(tool_call)
 
         else:
-            delta = getattr(item, "delta", None)
-            if isinstance(delta, str):
+            delta = get_value(item, "delta")
+            if isinstance(delta, str) and not (t and "function_call" in t):
                 content_q.put_nowait(delta)
 
     async def runner():
@@ -100,7 +119,7 @@ async def parse_responses_output(
                     handle_item(item)
             # non-streaming
             else:
-                outputs = getattr(resp, "output", []) or []
+                outputs = get_value(resp, "output", []) or []
                 for item in outputs:
                     handle_item(item)
 
@@ -126,7 +145,7 @@ async def parse_responses_output(
                 break
             yield item
 
-    async def tool_stream() -> AsyncIterator[Dict[str, Any]]:
+    async def tool_stream() -> AsyncIterator[ToolCall]:
         while True:
             item = await tool_q.get()
             if item is None:
@@ -141,8 +160,10 @@ async def llm_request(conn: AiConnectionManager, *args, **kwargs):
     Send request to LLM and retrieves parsed results.
     """    
     resp = await conn.make_completion(*args, **kwargs)
+    task = None
     try:
         task, a_reasoning, a_content, a_tool_calls = await parse_responses_output(resp)
         yield (task, a_reasoning, a_content, a_tool_calls, )
     finally:
-        await task
+        if task:
+            await task

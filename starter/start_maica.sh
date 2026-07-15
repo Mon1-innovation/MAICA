@@ -1,1 +1,4 @@
-python3 maica/maica_starter.py
+#!/usr/bin/env bash
+set -euo pipefail
+
+python3 -m maica.maica_starter "$@"

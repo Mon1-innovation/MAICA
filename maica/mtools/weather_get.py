@@ -44,7 +44,7 @@ class WeatherResults(BaseModel):
         precipitation_probability_max: int
 
     current: Current
-    daily: List[Forecast]
+    daily: List[Forecast] = Field(min_length=1)
     geoloc: Optional[GeoResults.GeoLoc] = None
 
     @model_validator(mode="before")
@@ -103,7 +103,8 @@ async def _name_to_loc(name: str):
 
 async def _name_to_loc_gaode(name: str):
     gaode_key = TpAPIKeys.GAODE_WEATHER
-    assert gaode_key, "GaoDe key not configured"
+    if not gaode_key:
+        raise MaicaInternetWarning("GaoDe key not configured")
 
     geo = await dld_json(
         "https://restapi.amap.com/v3/geocode/geo",
@@ -165,7 +166,7 @@ async def weather_api_get(location):
         weather.geoloc = loc
         return weather
     
-    except CommonMaicaException as ce:
+    except CommonMaicaException:
         raise
     
     except Exception as e:

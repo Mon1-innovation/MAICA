@@ -202,7 +202,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
 
         await self.fsc.messenger(
             'maica_mtrigger_tool_start',
-            f"MTrigger started, sending first query...",
+            "MTrigger started, sending first query...",
             200,
         )
 
@@ -218,7 +218,11 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
             )
         ):
 
-            # Generation
+            # Include tool calls and outputs appended by the previous round.
+            completion_args["input"] = self.mt_session.utilize(
+                manual_prompt=True,
+                ignore_additions=True,
+            )
             async with llm_request(conn, **completion_args) as (task, a_reasoning, a_content, a_tool_calls):
                 await tools_loop(a_tool_calls)
 

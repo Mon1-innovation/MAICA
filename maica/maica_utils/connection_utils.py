@@ -3,6 +3,8 @@ import aiomysql
 import aiosqlite
 import pymilvus
 import asyncio
+import functools
+import openai
 import traceback
 import json
 
@@ -36,7 +38,7 @@ class MilvusDbConnectionManager(AsyncCreator):
         self.name = self.db
         self.pool: pymilvus.AsyncMilvusClient = None
         """It ain't pool, we just calling it one."""
-        self.pool_container: list[aiomysql.Pool] = []
+        self.pool_container: list[pymilvus.AsyncMilvusClient] = []
         self.lock = asyncio.Lock()
 
     @Decos.catch_exceptions
@@ -66,9 +68,10 @@ class MilvusDbConnectionManager(AsyncCreator):
         """Check and maintain Milvus connection."""
         try:
             state = await self.pool.get_load_state(collection_name=self.db)
-            assert str(state.get("state")) == "Loaded", "Collection not loaded"
+            if str(state.get("state")) != "Loaded":
+                raise RuntimeError("Collection not loaded")
 
-        except Exception as e:
+        except Exception:
             sync_messenger(info=f"Recreating {self.db} pool since cannot acquire", type=MsgType.WARN)
             await self._ainit()
 
@@ -110,7 +113,8 @@ class SubMilvusDbConnectionManager(MilvusDbConnectionManager):
         for k, v in vars(parent).items():
             setattr(self, k, v)
 
-        self.parent = parent; self.rsc = rsc
+        self.parent = parent
+        self.rsc = rsc
 
     async def _ainit(self):
         """Do not use async_create."""
@@ -142,6 +146,9 @@ class AiConnectionManager(AsyncCreator):
     async def _ainit(self):
         if not self.base_url:
             self.test = True
+            self.client = None
+            self.model_actual = "DISABLED"
+            self.sock_container["choice"] = self.model_actual
             return
         else:
             if not self.lock.locked():
@@ -160,6 +167,8 @@ class AiConnectionManager(AsyncCreator):
         models = model_list.data
 
         if isinstance(self.model, int):
+            if not models:
+                raise MaicaResponseError(f"{self.name} returned an empty model list")
             self.model_actual = models[0].id
         else:
             self.model_actual = self.model
@@ -173,6 +182,8 @@ class AiConnectionManager(AsyncCreator):
     @Decos.catch_exceptions
     async def keep_alive(self):
         """Check and maintain OpenAI connection."""
+        if self.test or self.client is None:
+            raise MaicaResponseError(f"{self.name} is not configured")
         if self.client.is_closed():
             sync_messenger(info=f"Recreating {self.name} sock since is closed", type=MsgType.WARN)
             await self._ainit()
@@ -185,7 +196,8 @@ class AiConnectionManager(AsyncCreator):
         Be cautious that this method is implemented by responses.create instead of completion.create since v1.3.
         swallow: In case some cheap providers are unstable. str as default response.
         """
-        assert "completion" in self.caps, "Connected model is not capable of completion"
+        if "completion" not in self.caps:
+            raise MaicaResponseError("Connected model is not capable of completion")
 
         kwargs.update(
             {
@@ -232,7 +244,8 @@ class AiConnectionManager(AsyncCreator):
     @Decos.conn_retryer_factory()
     async def make_embedding(self, **kwargs) -> CreateEmbeddingResponse:
         """As above, just the embedding version."""
-        assert "embedding" in self.caps, "Connected model is not capable of embedding"
+        if "embedding" not in self.caps:
+            raise MaicaResponseError("Connected model is not capable of embedding")
 
         kwargs.update(
             {
@@ -255,7 +268,8 @@ class AiConnectionManager(AsyncCreator):
     @Decos.conn_retryer_factory()
     async def make_reranking(self, **kwargs) -> dict:
         """Generate reranking. This is acutally not OpenAI but VLLM standard."""
-        assert "reranking" in self.caps, "Connected model is not capable of reranking"
+        if "reranking" not in self.caps:
+            raise MaicaResponseError("Connected model is not capable of reranking")
 
         kwargs.update(
             {
@@ -299,7 +313,8 @@ class SubAiConnectionManager(AiConnectionManager):
         for k, v in vars(parent).items():
             setattr(self, k, v)
 
-        self.parent = parent; self.rsc = rsc
+        self.parent = parent
+        self.rsc = rsc
 
     async def _ainit(self):
         """Do not use async_create."""
@@ -317,6 +332,8 @@ class ConnUtils():
 
     @staticmethod
     async def vector_pool() -> MilvusDbConnectionManager | pymilvus.AsyncMilvusClient:
+        if not G.A.MILVUS_ADDR:
+            return None
         host = get_inner_path(G.A.MILVUS_ADDR) if ExplainUrl(G.A.MILVUS_ADDR).is_local else G.A.MILVUS_ADDR
         conn = await MilvusDbConnectionManager.async_create(
             db=G.A.MILVUS_COLL,
@@ -329,6 +346,8 @@ class ConnUtils():
 
     @staticmethod
     async def mcore_conn():
+        if not G.A.MCORE_ADDR:
+            raise CriticalMaicaError("MAICA_MCORE_ADDR is required")
         conn = await AiConnectionManager.async_create(
             api_key=G.A.MCORE_KEY,
             base_url=G.A.MCORE_ADDR,
@@ -340,6 +359,8 @@ class ConnUtils():
 
     @staticmethod
     async def mfocus_conn():
+        if not G.A.MFOCUS_ADDR:
+            raise CriticalMaicaError("MAICA_MFOCUS_ADDR is required")
         conn = await AiConnectionManager.async_create(
             api_key=G.A.MFOCUS_KEY,
             base_url=G.A.MFOCUS_ADDR,
@@ -406,7 +427,7 @@ class ConnUtils():
                 model=G.A.RERANKING_CHOICE or 0,
                 caps=["reranking"],
             )
-            conn.default_params(**json.loads(G.A.EMBEDDING_EXTRA))
+            conn.default_params(**json.loads(G.A.RERANKER_EXTRA))
             return conn
         else:
             return None

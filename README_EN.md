@@ -33,4 +33,25 @@ Basic datasets of MAICA are at https://huggingface.co/datasets/edgeinfinity/MAIC
 
 MAICA related documents are at https://github.com/Mon1-innovation/MAICA/tree/main/document.
 
-Please pardon for not putting an instruction here, since it's an unnecessary trouble. To know more about MAICA, refer to instruction pages mentioned above.
+## Quick start
+
+MAICA requires Python 3.12 or newer and supports Windows and Linux. The core and MFocus models are separately deployed OpenAI-compatible Responses API endpoints. MySQL/MariaDB is recommended for public services; SQLite is supported for local testing.
+
+```bash
+python -m pip install -e .
+maica -t create
+# Edit .env and configure MAICA_IS_REAL_ENV, databases, MCORE, and MFOCUS.
+maica -e .env
+```
+
+WebSocket and HTTP listen on ports 5000 and 6000 by default. See `maica/env_basis`, `document/Backend Deployment.md`, and `document/API Documents.md` for configuration and protocol details.
+
+## Development
+
+```bash
+python -m pip install -e ".[dev]"
+python -m pytest -q
+python -m ruff check maica tests examples
+```
+
+Scripts in `examples/` are manual integration checks requiring real external services. Public deployments should terminate TLS at a reverse proxy, prefer the HTTP `Authorization: Bearer` header, protect `maica/keys/prv.key`, verify NVWatcher SSH host keys, and configure `MAICA_VISION_HOST_ALLOWLIST`.

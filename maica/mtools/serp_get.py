@@ -17,7 +17,8 @@ async def internet_search(fsc: FullSocketsContainer, query):
     @Decos.conn_retryer_factory()
     async def _search(fake_self, query, target_lang):
         res_m = await (providers.get_asearch())(query, target_lang)
-        assert res_m.results, 'Search result is empty'
+        if not res_m.results:
+            raise MaicaInternetWarning('Search result is empty')
         return res_m
 
     results_list = []
@@ -25,10 +26,9 @@ async def internet_search(fsc: FullSocketsContainer, query):
         res_m = await _search(DummyClass(name="serp"), query, target_lang)
 
         for index, res_i in enumerate(res_m.results):
-            results_list += (
-                f"{index + 1}. "
-                f"({res_i.source})" if res_i.source else ""
-                f"{res_i.title}: {res_i.description}"
+            source = f"({res_i.source}) " if res_i.source else ""
+            results_list.append(
+                f"{index + 1}. {source}{res_i.title}: {res_i.description}"
             )
 
         sync_messenger(info=f'MFocus got {len(res_m.results)} information lines from search engine', type=MsgType.INFO)

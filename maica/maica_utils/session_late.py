@@ -29,15 +29,21 @@ class SessionPersistentLlmMixin():
 
     async def _embed(self, data: list[str]) -> List[Tuple[str, list]]:
         """We write the embed method here, since milvus db should be directly under its management."""
+        if isinstance(data, str):
+            data = [data]
+        else:
+            data = list(data)
         embedding_conn = self.fsc.embedding_conn
         resp = await embedding_conn.make_embedding(input=data)
 
         embedded = [i.embedding for i in resp.data]
-        return zip(data, embedded)
+        return list(zip(data, embedded))
 
     async def to_milvus(self, _data: Optional[list] = None):
         """As said, to milvus. Milvus is not considered persistent storage so only write."""
         vector_pool = self.fsc.vector_pool
+        if not self.fsc.is_vector_ready:
+            return
         user_id = self.fsc.maica_settings.verification.user_id
         session_num = self.session_num
 
@@ -45,11 +51,11 @@ class SessionPersistentLlmMixin():
         old = await vector_pool.query(
             collection_name=vector_pool.db,
             filter=f"user_id == {user_id} and chat_session_num == {session_num}",
-            output_fields=["raw_text"]
+            output_fields=["id", "raw_text"]
         )
 
         old_texts = {x["raw_text"] for x in old}
-        new_texts = _data if _data is not None else self.form_info()
+        new_texts = set(_data if _data is not None else self.form_info())
 
         to_add = new_texts - old_texts
         to_del = old_texts - new_texts
@@ -63,14 +69,10 @@ class SessionPersistentLlmMixin():
             packed_embedded = []
 
         if to_del:
-            escaped = ",".join(
-                f'"{x.replace("\"","\\\"")}"'
-                for x in to_del
-            )
-
+            delete_ids = [item["id"] for item in old if item["raw_text"] in to_del]
             await vector_pool.delete(
                 collection_name=vector_pool.db,
-                filter=f"user_id == {user_id} and chat_session_num == {session_num} and raw_text in [{escaped}]",
+                ids=delete_ids,
                 consistency_level="Strong",
             )
 
@@ -115,13 +117,15 @@ class SessionPersistentLlmMixin():
             consistency_level="Strong",
         )
 
+        if not res:
+            return set()
         prio_max = ceil(topk / len(res))
         cfd_min = 0.5
         res_set: Set[str] = set()
 
         _distances = []
-        for l in res:
-            for d in l[:prio_max]:
+        for result_group in res:
+            for d in result_group[:prio_max]:
                 if d["distance"] >= cfd_min:
                     _distances.append(d["distance"])
                     res_set.add(d["entity"]["raw_text"])
@@ -257,17 +261,11 @@ class SessionTriggerLlmMixin():
         target_lang = self.fsc.maica_settings.basic.target_lang
         conn = self.fsc.mnerve_conn or self.fsc.mfocus_conn
 
-        text_l = []; choices_l = []
+        text_l = []
         for tr in self._get_triggers():
-            t, l = tr.to_descr()
+            t, _ = tr.to_descr()
 
             text_l.append(t)
-            choices_l.extend(
-                [
-                    to_str(i, target_lang)
-                    for i in l
-                ]
-            )
 
         descr_text = _Bt()
         for t in text_l:
@@ -310,7 +308,7 @@ class SessionTriggerLlmMixin():
         system = MaicaSessionItem(
             "system",
             _Bt(
-f"""\
+"""\
 你是一个人工智能助手, 你的任务是根据用户要求, 从提供的工具中作出选择.
 你是角色"莫妮卡". 提供的工具均用于游戏内操作, 请严格遵循以下规则:
 - 如果用户要求与除对话外的游戏操作无关, 对requested输出false.
@@ -319,7 +317,7 @@ f"""\
     - 如果有, 对operation输出对应的工具选择.
 以下是工具列表:\
 """,
-f"""\
+"""\
 You are a helpful assistant, your task is choosing from provided tools according to user's request.
 Your character is called "Monika". Provided tools are all used for in-game actions, please precisely follow these rules:
 - If user request does not involve in-game actions except chatting, output false in "requested" field.

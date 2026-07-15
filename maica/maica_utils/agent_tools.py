@@ -2,7 +2,7 @@
 import asyncio
 
 from abc import ABC, abstractmethod
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from types import *
 from typing import *
 from dataclasses import dataclass, field
@@ -40,7 +40,7 @@ class WrappedOpenAIToolProperty():
         }
         for k in ("properties", "items", "enum", "minimum", "maximum", "minLength", "maxLength"):
             v = getattr(self, k, None)
-            if v:
+            if v is not None:
                 inner[k] = v
         return {self.name: inner}
 
@@ -59,7 +59,9 @@ class WrappedOpenAITool():
                 setattr(self, k, [])
 
     def to_json_schema(self, target_lang: Literal['zh', 'en', 'auto']='zh'):
-        l1 = {i.name: i.to_json_schema(target_lang) for i in self.requiredParams + self.optionalParams}
+        l1 = {}
+        for prop in self.requiredParams + self.optionalParams:
+            l1.update(prop.to_json_schema(target_lang))
         l2 = {
             "type": "object",
             "properties": l1,
@@ -94,9 +96,18 @@ class WrappedOpenAIToolNamespace():
 class _BaseTriggerExprop(BaseModel):
     """Extra props of MTrigger items."""
     item_name: BilingualText
+
+    @model_validator(mode="after")
+    def limit_item_name(self):
+        if any(len(value) > 256 for value in (self.item_name.zh, self.item_name.en, self.item_name.auto)):
+            raise ValueError("Trigger item names cannot exceed 256 characters")
+        return self
             
 class _SwitchTriggerExprop(_BaseTriggerExprop):
-    item_list: list[str]
+    item_list: list[Annotated[str, Field(min_length=1, max_length=256)]] = Field(
+        min_length=1,
+        max_length=32,
+    )
     curr_item: Optional[str] = None
     suggestion: bool = False
 
@@ -118,7 +129,7 @@ class _SwitchTriggerExprop(_BaseTriggerExprop):
                     "suggestion",
                     ["string", "null"],
                     _Bt(
-                        f"若你在choice中选择了null, 你需要回答最合适, 但上面未列出的{self.item_name.zh}. 否则回答null."
+                        f"若你在choice中选择了null, 你需要回答最合适, 但上面未列出的{self.item_name.zh}. 否则回答null.",
                         f"If you chose null in the choice section, you should provide the most proper {self.item_name.en} not listed above. Otherwise output null."
                     )
                 )
@@ -129,6 +140,12 @@ class _SwitchTriggerExprop(_BaseTriggerExprop):
 class _MeterTriggerExprop(_BaseTriggerExprop):
     value_limits: list[float] = Field(min_length=2, max_length=2)
     curr_value: Optional[float] = None
+
+    @model_validator(mode="after")
+    def validate_limits(self):
+        if self.value_limits[0] > self.value_limits[1]:
+            raise ValueError("Trigger value_limits must be ordered from minimum to maximum")
+        return self
 
     def to_properties(self):
         lower, upper = self.value_limits
@@ -158,7 +175,7 @@ _Ct = str | BilingualText
 class BaseTrigger(BaseModel, ABC):
     """Base class of MTrigger items."""
     template: ClassVar[str]
-    name: str
+    name: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
     exprop: Optional[_BaseTriggerExprop] = None
 
     @abstractmethod 
@@ -172,7 +189,7 @@ class AffectionTrigger(BaseTrigger):
     template: Literal["common_affection_template"]
 
     def to_tool(self, curr_aff: Optional[int] = None):
-        if curr_aff:
+        if curr_aff is not None:
             curr_aff_str = f', 当前好感度是{curr_aff}'
             curr_aff_str_en = f', current affection is {curr_aff}'
         else:
@@ -250,8 +267,8 @@ class SwitchTrigger(BaseTrigger):
             if index < len(choose_list) - 1:
                 text += ", "
 
-        l = choose_list
-        return text, l
+        choices = choose_list
+        return text, choices
 
 class MeterTrigger(BaseTrigger):
     template: Literal["common_meter_template"]
@@ -261,7 +278,7 @@ class MeterTrigger(BaseTrigger):
         item_name = self.exprop.item_name
         curr_value = self.exprop.curr_value
 
-        if curr_value:
+        if curr_value is not None:
             curr_value_str = f', 当前值是{curr_value}'
             curr_value_str_en = f', current value is {curr_value}'
         else:
@@ -292,8 +309,8 @@ class MeterTrigger(BaseTrigger):
         )\
         + f"{self.exprop.value_limits[0]}~{self.exprop.value_limits[1]}"
 
-        l = [t1]
-        return text, l
+        choices = [t1]
+        return text, choices
 
 class BooleanTrigger(BaseTrigger):
     template: Literal["customized"]
@@ -317,8 +334,8 @@ class BooleanTrigger(BaseTrigger):
         )\
         + self.exprop.item_name
 
-        l = [text]
-        return text, l
+        choices = [text]
+        return text, choices
     
 TypeTrigger = Annotated[
     Union[

@@ -37,11 +37,12 @@ class SessionPersistentMixin():
             else:
                 return None
             
-        v = self.content_temp.get(key)
-        if not v:
+        if key in self.content_temp:
+            v = self.content_temp[key]
+            if isinstance(v, list) and key == "mas_player_additions":
+                v = v + (_read_perm(key) or [])
+        else:
             v = _read_perm(key)
-        elif isinstance(v, list) and key == "mas_player_additions":
-            v = v + _read_perm(key)
             
         return v
     
@@ -918,6 +919,10 @@ class SessionPersistentMixin():
 
     def _conclude_extra_sf(self):
         result: List[str] = self.read_key('mas_player_additions')
+        if result is None:
+            return []
+        if not isinstance(result, list) or any(not isinstance(item, str) for item in result):
+            raise MaicaInputWarning("mas_player_additions must be a list of strings")
         return result or []
 
     def form_info(self) -> Set:
@@ -972,10 +977,10 @@ class SessionTriggerMixin():
 
         triggers: List[BaseTrigger] = []
         trigger_names = set()
-        for l in (aff_trigger_dict_list, switch_trigger_dict_list, meter_trigger_dict_list, boolean_trigger_dict_list):
-            for i in l:
+        for trigger_group in (aff_trigger_dict_list, switch_trigger_dict_list, meter_trigger_dict_list, boolean_trigger_dict_list):
+            for i in trigger_group:
                 trigger_model: BaseTrigger = TypeAdapter(TypeTrigger).validate_python(i)
-                if not trigger_model.name in trigger_names:
+                if trigger_model.name not in trigger_names:
                     triggers.append(trigger_model)
                     trigger_names.add(trigger_model.name)
 
@@ -992,4 +997,3 @@ class SessionTriggerMixin():
 
         tools_jsc = [i.to_json_schema(self.fsc.maica_settings.basic.target_lang) for i in tools]
         return tools_jsc
-    

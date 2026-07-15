@@ -29,15 +29,15 @@ async def _asearch(query, target_lang='zh'):
 
     serp_initiation = StdioServerParameters(**serp_initiation_args)
 
-    async with stdio_client(serp_initiation) as (stdio, write):
-        async with ClientSession(stdio, write) as session:
-            await session.initialize()
-
-            # tools = await session.list_tools():
-            response = await session.call_tool('search', {'queries': [query], "limit": 10, "locale": locale, "debug": False})
-            # response_json = json.loads(response.content[0].text)
-            # return [{"title": it['title'], "text": it['snippet']} for it in response_json['searches'][0]['results']]
-            return response.content[0].text
+    async with asyncio.timeout(45):
+        async with stdio_client(serp_initiation) as (stdio, write):
+            async with ClientSession(stdio, write) as session:
+                await session.initialize()
+                response = await session.call_tool(
+                    'search',
+                    {'queries': [query], "limit": 10, "locale": locale, "debug": False},
+                )
+                return response.content[0].text
 
 if __name__ == '__main__':
     from maica import init

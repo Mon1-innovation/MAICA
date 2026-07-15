@@ -3,7 +3,6 @@ import asyncio
 from typing import *
 from packaging.version import parse, Version
 from collections.abc import Callable
-from packaging.version import parse
 from maica.maica_utils import *
 
 _migrations = []
@@ -21,6 +20,10 @@ def migrate(version):
     last_version_parsed = parse(version)
     curr_version = load_env('MAICA_CURR_VERSION')
     curr_version_parsed = parse(curr_version)
+    if last_version_parsed > curr_version_parsed:
+        raise CriticalMaicaError(
+            f"Database version {version} is newer than backend version {curr_version}; downgrade is unsafe"
+        )
 
     sync_messenger(info=f'[maica-mig] Last initialized version {version}, current version {curr_version}', type=MsgType.DEBUG)
 
@@ -32,14 +35,13 @@ def migrate(version):
                 sync_messenger(info=f'Finished migration upper-version {str(mig_item[0])}', type=MsgType.PRIM_LOG)
                 migrated = True
             except CommonMaicaException as ce:
-                if ce.is_critical:
-                    raise
-                else:
-                    sync_messenger(error=ce)
-                    migrated = True
+                sync_messenger(error=ce)
+                raise CriticalMaicaError(
+                    f"Migration {mig_item[0]} failed; version marker was not advanced"
+                ) from ce
     if migrated:
-        sync_messenger(info=f'[maica-mig] Migration finished, continuing launch procedure...', type=MsgType.LOG)
+        sync_messenger(info='[maica-mig] Migration finished, continuing launch procedure...', type=MsgType.LOG)
     else:
-        sync_messenger(info=f'[maica-mig] No migration applied, continuing launch procedure...', type=MsgType.DEBUG)
+        sync_messenger(info='[maica-mig] No migration applied, continuing launch procedure...', type=MsgType.DEBUG)
 
     return migrated

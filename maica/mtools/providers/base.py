@@ -30,9 +30,10 @@ def get_providers():
             prio, requires, asearch = p
             try:
                 for r in requires:
-                    assert getattr(TpAPIKeys, r), f"{r} not exist"
+                    if not getattr(TpAPIKeys, r):
+                        raise ValueError(f"{r} not configured")
                 _providers.append((prio, asearch))
-            except (AssertionError, AttributeError) as e:
+            except (ValueError, AttributeError) as e:
                 sync_messenger(info=f"[maica-serp] Provider {prio} not available: {e}", type=MsgType.DEBUG)
         _providers_initialized = True
     return sorted(_providers, key=lambda x: x[0])
@@ -57,6 +58,7 @@ def get_asearch(avoid: Union[Literal['last'], int]=None, rand: bool=False) -> Ca
     else:
         selected = avail_temp[0] if avail_temp else (-1, None)
 
-    last_used = selected[0]; asearch = selected[1]
+    last_used = selected[0]
+    asearch = selected[1]
 
     return asearch

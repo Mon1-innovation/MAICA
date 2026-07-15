@@ -48,10 +48,7 @@ class DbBoundObject(CheckDestroyed):
     Something to notice, this is designed to be session_num bound. WILL NOT change session_num on fsc change.
     Notice: This cannot inherit from BaseModel because subclasses might inherit from list (session).
     """
-    session_num: int = Field(
-        frozen=True,
-        default=0,
-    )
+    session_num: int = 0
     """fsc chat_session is flexible, we shouldn't depend on it if we want this to be session-unique."""
     fsc: Optional[FullSocketsContainer] = None
 
@@ -85,7 +82,9 @@ class DbBoundObject(CheckDestroyed):
             self.content = item
         else:
             item = item.strip()
-            if not item[0] in ('[', '{'):
+            if not item:
+                raise MaicaInputWarning("Cannot load empty serialized data")
+            if item[0] not in ('[', '{'):
                 item = f"[{item}]"
             self.content = orjson.loads(item)
             self.text = item
@@ -105,10 +104,8 @@ class DbBoundObject(CheckDestroyed):
     def _check_ess(self):
         user_id = self.fsc.maica_settings.verification.user_id
         session_num = self.session_num
-        assert (
-            user_id
-            and session_num is not None
-        ), "DB cridentials not complete"
+        if not user_id or session_num is None:
+            raise MaicaDbError("DB credentials not complete")
         maica_assert(self.SESSION_DB_MIN <= session_num < self.SESSION_DB_BELOW, full_info=f"{session_num} is not acceptable {self.i_name}")
 
     async def init_db(self):
@@ -144,9 +141,12 @@ class DbBoundObject(CheckDestroyed):
             # So, we run post_upload checks here
             try:
                 self._post_upload()
-            except Exception:
+            except CommonMaicaException:
                 self.clear()
                 raise
+            except Exception as exc:
+                self.clear()
+                raise MaicaInputWarning(f"Invalid {self.i_name} content: {exc}") from exc
 
         # Ensure row exists
         if not self.prim_key_id:
