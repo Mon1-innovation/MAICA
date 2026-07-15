@@ -73,7 +73,7 @@ If none of the information is relevant with query, you can output null.\
         session.append(user_query)
 
         completion_args = {
-            "messages": session.utilize(
+            "input": session.utilize(
                 manual_prompt=True,
                 ignore_additions=True,
             ),

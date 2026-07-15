@@ -8,8 +8,7 @@ _Bt = BilingualText
 
 async def make_postmail(fsc: FullSocketsContainer):
     """Everything needed are now in fsc."""
-    session = MaicaSession()
-    target_lang = session.default_target_lang = fsc.maica_settings.basic.target_lang
+    target_lang = fsc.maica_settings.basic.target_lang
     conn = fsc.mnerve_conn or fsc.mfocus_conn
 
     mp_m = fsc.maica_settings.temp.mpostal
@@ -25,6 +24,7 @@ async def make_postmail(fsc: FullSocketsContainer):
         """If this is a letter or poem."""
         sync_messenger(info=f"Detecting if letter is poem...", type=MsgType.DEBUG)
         session = MaicaSession()
+        session.default_target_lang = target_lang
 
         class PoemDetectResult(BaseModel):
             is_poem: bool = Field(
@@ -56,7 +56,7 @@ Please decide if it's a poem or normal letter.\
         session.append(user_query)
 
         completion_args = {
-            "messages": session.utilize(
+            "input": session.utilize(
                 manual_prompt=True,
                 ignore_additions=True,
             ),
@@ -74,7 +74,7 @@ Please decide if it's a poem or normal letter.\
 
         res = detection_result.is_poem; cfd = detection_result.confidence
 
-        sync_messenger(info=f"Finished processing is_poem to letter. Is poem: {res}, confidence: {cfd}", type=MsgType.INFO)
+        sync_messenger(info=f"Finished processing is_poem to letter. Is poem: {res}, confidence: {cfd}", type=MsgType.PRIM_LOG)
         return res
 
     letter = form_letter(mp_m.content, mp_m.header)

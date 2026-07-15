@@ -13,6 +13,7 @@ from sqlalchemy.orm import load_only
 from typing import *
 from pydantic import Field
 from .maica_utils import *
+from .database_utils import *
 from .database_models import *
 
 class CheckDestroyed():
@@ -104,7 +105,10 @@ class DbBoundObject(CheckDestroyed):
     def _check_ess(self):
         user_id = self.fsc.maica_settings.verification.user_id
         session_num = self.session_num
-        assert user_id and session_num, "DB cridentials not complete"
+        assert (
+            user_id
+            and session_num is not None
+        ), "DB cridentials not complete"
         maica_assert(self.SESSION_DB_MIN <= session_num < self.SESSION_DB_BELOW, full_info=f"{session_num} is not acceptable {self.i_name}")
 
     async def init_db(self):
@@ -116,7 +120,7 @@ class DbBoundObject(CheckDestroyed):
         async with DatabaseUtils.SessionData() as dbs:
             async with dbs.begin():
 
-                obj = sqla_get_or_create(
+                obj = await sqla_get_or_create(
                     dbs,
                     self._model,
                     {
@@ -149,17 +153,17 @@ class DbBoundObject(CheckDestroyed):
             await self.init_db()
 
         async with DatabaseUtils.SessionData() as dbs:
-            model = self._model
+            async with dbs.begin():
+                model = self._model
 
-            # Update content
-            stmt = sqlalchemy.update(model).where(
-                model.id == self.prim_key_id,
-            ).values(
-                content=self.content,
-            )
+                # Update content
+                stmt = sqlalchemy.update(model).where(
+                    model.id == self.prim_key_id,
+                ).values(
+                    content=self.text,
+                )
 
-            await dbs.execute(stmt)
-            await dbs.commit()
+                await dbs.execute(stmt)
 
     async def from_db(self):
         # Common

@@ -71,6 +71,7 @@ class WsCoroutine(NoWsCoroutine):
                 except Exception as e:
                     # We can test if it's caused by wrong stage
                     try:
+                        sync_messenger(info=f'Recieved request on stage1', type=MsgType.DEBUG)
                         _ws_config: UnionStage2Settings = TypeAdapter(Stage2Settings).validate_json(recv_text)
                     except Exception as e2:
                         raise MaicaInputWarning(f"Query parsing failed: {str(e)}") from e
@@ -90,9 +91,9 @@ class WsCoroutine(NoWsCoroutine):
 
                         # Cookies are deprecated
                         sync_messenger(info=f'Authentication passed: {self.settings.verification.username}({self.settings.verification.user_id})', type=MsgType.LOG)
-                        await self.fsc.messenger('maica_login_id', f"{self.settings.verification.user_id}", 200, no_print=True)
-                        await self.fsc.messenger('maica_login_user', f"{self.settings.verification.username}", 200, no_print=True)
-                        await self.fsc.messenger('maica_login_nickname', f"{self.settings.verification.nickname}", 200, no_print=True)
+                        await self.fsc.messenger('maica_login_id', f"{self.settings.verification.user_id}", 200, no_print=True, no_track=True)
+                        await self.fsc.messenger('maica_login_user', f"{self.settings.verification.username}", 200, no_print=True, no_track=True)
+                        await self.fsc.messenger('maica_login_nickname', f"{self.settings.verification.nickname}", 200, no_print=True, no_track=True)
 
                         return {'id': self.settings.verification.user_id, 'username': self.settings.verification.username}
 
@@ -149,6 +150,7 @@ class WsCoroutine(NoWsCoroutine):
                 # Then we examine the input
                 recv_text = await websocket.recv()
                 try:
+                    sync_messenger(info=f'Recieved request on stage2', type=MsgType.DEBUG)
                     ws_config: UnionStage2Settings = TypeAdapter(Stage2Settings).validate_json(recv_text)
                 except Exception as e:
                     # We can test if it's caused by wrong stage
@@ -156,7 +158,7 @@ class WsCoroutine(NoWsCoroutine):
                         _ws_config: UnionStage1Settings = TypeAdapter(Stage1Settings).validate_json(recv_text)
                     except Exception as e2:
                         raise MaicaInputWarning(f"Query parsing failed: {str(e)}") from e
-                    raise MaicaPermissionWarning(f"Query type {_ws_config.type} now allowed post-auth")
+                    raise MaicaPermissionWarning(f"Query type {_ws_config.type} not allowed post-auth")
                     
                 match ws_config.type:
                     case "sping":
@@ -205,7 +207,13 @@ class WsCoroutine(NoWsCoroutine):
             self.settings.soft_reset()
             await self.fsc.messenger('maica_params_reset', f"Settings reset accepted", 200)
         
-        accepted_params = self.settings.update_settings(**ws_config.chat_params)
+        try:
+            accepted_params = self.settings.update_settings(**ws_config.chat_params)
+        except CommonMaicaException as ce:
+            raise
+        except Exception as e:
+            raise MaicaInputWarning(f"Settings unacceptable: {str(e)}") from e
+        
         await self.fsc.messenger('maica_params_accepted', f"{accepted_params} out of {len(ws_config.chat_params)} settings accepted", 200)
 
     # Completion section
@@ -232,8 +240,13 @@ class WsCoroutine(NoWsCoroutine):
                     fdb1.add(session.from_db())
 
             else:
+                # To archive first
+                await session.to_entire_archive()
+
+                # Clear and prepare to use
                 session.clear()
                 await session.to_db()
+                
                 await self.fsc.messenger(
                     "maica_session_reset",
                     "Determined chat_session reset",
@@ -305,7 +318,7 @@ class WsCoroutine(NoWsCoroutine):
 
             # Construction part done, communication part started
             completion_args = {
-                "messages": session.utilize(),
+                "input": session.utilize(),
                 "stream": self.settings.use_stream_now,
                 "extra_body": {},
             }
@@ -381,25 +394,25 @@ class WsCoroutine(NoWsCoroutine):
 
                     # Starting generation
                     conn = self.fsc.mcore_conn
-                    task, a_reasoning, a_content, a_tool_calls = await llm_request(conn, **completion_args)
+                    async with llm_request(conn, **completion_args) as (task, a_reasoning, a_content, a_tool_calls):
 
-                    async for content_delta in a_content:
-                        await asyncio.sleep(0)
-                        content_delta: Optional[str] = await pprt_processor.store_and_split(content_delta)
-                        if content_delta:
+                        async for content_delta in a_content:
+                            await asyncio.sleep(0)
+                            content_delta: Optional[str] = await pprt_processor.store_and_split(content_delta)
+                            if content_delta:
+                                await send_delta(content_delta)
+
+                        content_left = await pprt_processor.exaust_and_split()
+                        for content_delta in content_left:
                             await send_delta(content_delta)
 
-                    content_left = await pprt_processor.exaust_and_split()
-                    for content_delta in content_left:
-                        await send_delta(content_delta)
-
-                    # Apply correct linewarp on terminal
-                    sync_messenger(info='\n', type=MsgType.PLAIN)
-                    await self.fsc.messenger(
-                        'maica_core_complete',
-                        f'Streaming finished for {self.settings.verification.username}, {seq} packets sent',
-                        1000,
-                    )
+                        # Apply correct linewarp on terminal
+                        sync_messenger(info='\n', type=MsgType.PLAIN)
+                        await self.fsc.messenger(
+                            'maica_core_complete',
+                            f'Streaming finished for {self.settings.verification.username}, {seq} packets sent',
+                            1000,
+                        )
 
                 # If skipping generation, we get result from skip_generation and just send it
                 else:

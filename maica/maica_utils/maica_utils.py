@@ -20,7 +20,8 @@ import websockets
 
 from typing import *
 from tenacity import *
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, model_validator, TypeAdapter, ValidationError
+from pydantic_core import core_schema
 from pydantic.dataclasses import dataclass as pdataclass
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
@@ -329,13 +330,11 @@ class Decos():
         min_wait: float=1,
         max_wait: float=10,
         retry_exceptions=RETRYABLE_EXCEPTIONS,
-    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    ):
         """Mostly for instance methods."""
         async def log_retry(retry_state):
-            self = retry_state.args[0] if retry_state else None
-            rsc = getattr(self, 'rsc', None); name = getattr(self, 'name', 'anon_conn')
-            websocket = getattr(rsc, 'websocket', None); tracker_id = getattr(rsc, 'tracker_id', None)
-            await messenger(websocket=websocket, status=f'{name}_temp_failure', info=f'{name} temporary failure, retrying {retry_state.attempt_number} time...', code=304, tracker_id=tracker_id, type=MsgType.WARN)
+            e = retry_state.outcome.exception()
+            sync_messenger(info=f"Connection temporarily failed: {str(e)}", type=MsgType.WARN)
 
         retry_decorator = retry(
             stop=stop_after_attempt(max_attempts),
@@ -563,13 +562,37 @@ class PydSoftResetMixin(BaseModel):
             setattr(self, k, v.get_default(call_default_factory=True))
         self.model_fields_set.clear()
 
-@dataclass
-class Desc():
-    """Just a description."""
-    desc: str
+class RobustList[T](list[T]):
 
-    def __str__(self):
-        return self.desc
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type, handler):
+        item_type = get_args(source_type)[0]
+        item_adapter = TypeAdapter(item_type)
+
+        list_schema = handler.generate_schema(list[item_type])
+
+        def filter_before(value: Any):
+            if not isinstance(value, list):
+                return value
+
+            filtered = []
+
+            for item in value:
+                try:
+                    filtered.append(item_adapter.validate_python(item))
+                except ValidationError:
+                    pass
+
+            return filtered
+
+        return core_schema.no_info_before_validator_function(
+            filter_before,
+            list_schema,
+        )
+
+class SafeFormatDict(dict):
+    def __missing__(self, key):
+        return "{" + key + "}"
 
 class DummyClass():
     """Yes, dummy class."""
@@ -741,8 +764,6 @@ def sync_messenger(
     rep2 = int(term_v / 2)
     rep1 = int(rep2 - 20)
 
-    code = int(code)
-
     # Exception parsing, it's a convenience method
     if error:
         status = error.status if not status else status
@@ -761,6 +782,9 @@ def sync_messenger(
 
     else:
         print_info = info
+
+    # The old style was using string codes
+    code = int(code)
 
     # Type inferring, in case we're too lazy to write
     if not type:
@@ -1046,7 +1070,7 @@ def beautify_time(dt: datetime.time, target_lang: Literal['zh', 'en', 'auto'] = 
     """
     _Bt = BilingualText
 
-    match time:
+    match dt:
         case time if time.hour < 4:
             time_range = _Bt('半夜', ' at midnight')
         case time if 4 <= time.hour < 6:
@@ -1099,7 +1123,7 @@ def beautify_date(dt: datetime.date, target_lang: Literal['zh', 'en', 'auto'] = 
                 season = su
         sh = _Bt("(南半球)", "(South hemisphere)")
     else:
-        match m:
+        match dt.month:
             case m if 3 <= m < 6:
                 season = sp
             case m if 6 <= m < 9:

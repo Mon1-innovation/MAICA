@@ -143,9 +143,12 @@ class FscUsersFuncMixin():
                     if not is_pwd_correct:
                         f2b_count += 1
 
-                        if f2b_count >= G.A.F2B_COUNT:
+                        sys_f2b_count = int(G.A.F2B_COUNT)
+                        sys_f2b_time = float(G.A.F2B_TIME)
+
+                        if f2b_count >= sys_f2b_count:
                             f2b_count = 0
-                            f2b_until = time.time() + G.A.F2B_TIME
+                            f2b_until = time.time() + sys_f2b_time
                             status["f2b_until"] = f2b_until
 
                         status["f2b_count"] = f2b_count

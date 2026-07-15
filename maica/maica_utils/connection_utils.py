@@ -196,6 +196,20 @@ class AiConnectionManager(AsyncCreator):
         mixed_kwargs = self.gen_kwargs | kwargs
         mixed_kwargs['extra_body'] = mixed_exbody
 
+        # The response patch
+        # Idiot openai
+        for lower_sampling_param in (
+            "seed",
+            "frequency_penalty",
+            "presence_penalty",
+        ):
+            if lower_sampling_param in mixed_kwargs:
+                mixed_kwargs['extra_body'][lower_sampling_param] = mixed_kwargs.pop(lower_sampling_param)
+            
+        # Alter names
+        if "max_tokens" in mixed_kwargs:
+            mixed_kwargs["max_output_tokens"] = mixed_kwargs.pop("max_tokens")
+
         await self.keep_alive()
 
         try:

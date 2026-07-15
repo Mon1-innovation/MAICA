@@ -1,5 +1,5 @@
 """
-Import layer 1.1
+Import layer 1.2
 Session related. We break sb_utils apart and rewrite some here.
 """
 
@@ -14,6 +14,7 @@ from random import sample
 from dateutil.relativedelta import relativedelta
 from dataclasses import dataclass
 from .maica_utils import *
+from .agent_tools import *
 
 if TYPE_CHECKING:
     from maica.maica_utils import *
@@ -397,15 +398,15 @@ class SessionPersistentMixin():
         
         data1 = _rf('_mas_pm_shaved_hair')
         if data1:
-            _ap('{{player_name}}剃光了头发.', "{{player_name}} has their hair shaved.")
+            _ap('{player_name}剃光了头发.', "{player_name} has their hair shaved.")
         elif data1 is False:
-            _ap('{{player_name}}的头发掉完了.', "{{player_name}} lost their hair.")
+            _ap('{player_name}的头发掉完了.', "{player_name} lost their hair.")
         
         data1 = _rf('_mas_pm_no_hair_no_talk')
         if data1:
-            _ap('{{player_name}}不想提起头发的事情.', "{{player_name}} doesn't want to talk about their hair.")
+            _ap('{player_name}不想提起头发的事情.', "{player_name} doesn't want to talk about their hair.")
         elif data1 is False:
-            _ap('{{player_name}}不介意自己没有头发.', "{{player_name}} doesn't mind being bald.")
+            _ap('{player_name}不介意自己没有头发.', "{player_name} doesn't mind being bald.")
         
         data1 = _rf('_mas_pm_skin_tone')
         if data1:
@@ -417,27 +418,27 @@ class SessionPersistentMixin():
         
         data1 = _rf('_mas_pm_units_height_metric')
         if data1:
-            _ap('{{player_name}}惯用公制单位.', "{{player_name}} uses Metric units.")
+            _ap('{player_name}惯用公制单位.', "{player_name} uses Metric units.")
         elif data1 is False:
-            _ap('{{player_name}}惯用英制单位.', "{{player_name}} uses Imperial units.")
+            _ap('{player_name}惯用英制单位.', "{player_name} uses Imperial units.")
         
         data1 = _rf('_mas_pm_live_in_city')
         if data1:
-            _ap('{{player_name}}住在城市.', "{{player_name}} lives in city.")
+            _ap('{player_name}住在城市.', "{player_name} lives in city.")
         elif data1 is False:
-            _ap('{{player_name}}住在乡村.', "{{player_name}} lives in countryside.")
+            _ap('{player_name}住在乡村.', "{player_name} lives in countryside.")
         
         data1 = _rf('_mas_pm_live_near_beach')
         if data1:
-            _ap('{{player_name}}住在海边.', "{{player_name}} lives by the sea.")
+            _ap('{player_name}住在海边.', "{player_name} lives by the sea.")
         elif data1 is False:
-            _ap('{{player_name}}住在内陆.', "{{player_name}} lives away from the sea.")
+            _ap('{player_name}住在内陆.', "{player_name} lives away from the sea.")
         
         data1 = _rf('_mas_pm_live_south_hemisphere')
         if data1:
-            _ap('{{player_name}}住在南半球.', "{{player_name}} lives in southern hemisphere.")
+            _ap('{player_name}住在南半球.', "{player_name} lives in southern hemisphere.")
         elif data1 is False:
-            _ap('{{player_name}}住在北半球.', "{{player_name}} lives in northern hemisphere.")
+            _ap('{player_name}住在北半球.', "{player_name} lives in northern hemisphere.")
         
         data1 = _rf('_mas_pm_social_personality')
         if data1:
@@ -445,205 +446,205 @@ class SessionPersistentMixin():
         
         data1 = _rf('_mas_pm_likes_panties')
         if data1:
-            _ap('{{player_name}}有恋物倾向.', "{{player_name}} is fetish.")
+            _ap('{player_name}有恋物倾向.', "{player_name} is fetish.")
         
         data1 = _rf('_mas_pm_drinks_soda')
         if data1:
-            _ap('{{player_name}}喜欢苏打水.', "{{player_name}} likes drinking soda.")
+            _ap('{player_name}喜欢苏打水.', "{player_name} likes drinking soda.")
         elif data1 is False:
-            _ap('{{player_name}}不喜欢苏打水.', "{{player_name}} doesn't like drinking soda.")
+            _ap('{player_name}不喜欢苏打水.', "{player_name} doesn't like drinking soda.")
         
         data1 = _rf('_mas_pm_eat_fast_food')
         if data1:
-            _ap('{{player_name}}常吃快餐.', "{{player_name}} often eats fastfood.")
+            _ap('{player_name}常吃快餐.', "{player_name} often eats fastfood.")
         elif data1 is False:
-            _ap('{{player_name}}很少吃快餐.', "{{player_name}} seldom eats fastfood.")
+            _ap('{player_name}很少吃快餐.', "{player_name} seldom eats fastfood.")
         
         data1 = _rf('_mas_pm_like_playing_sports')
         if data1:
-            _ap('{{player_name}}平时喜欢运动.', "{{player_name}} likes playing sports.")
+            _ap('{player_name}平时喜欢运动.', "{player_name} likes playing sports.")
         elif data1 is False:
-            _ap('{{player_name}}不喜欢运动.', "{{player_name}} doesn't like playing sports.")
+            _ap('{player_name}不喜欢运动.', "{player_name} doesn't like playing sports.")
         
         data1 = _rf('_mas_pm_like_playing_tennis')
         if data1:
-            _ap('{{player_name}}喜欢网球.', "{{player_name}} likes playing tennis.")
+            _ap('{player_name}喜欢网球.', "{player_name} likes playing tennis.")
         elif data1 is False:
-            _ap('{{player_name}}不喜欢网球', "{{player_name}} doesn't like playing tennis.")
+            _ap('{player_name}不喜欢网球', "{player_name} doesn't like playing tennis.")
         
         data1 = _rf('_mas_pm_meditates')
         if data1:
-            _ap('{{player_name}}有冥想的习惯.', "{{player_name}} has habit of meditating.")
+            _ap('{player_name}有冥想的习惯.', "{player_name} has habit of meditating.")
         elif data1 is False:
-            _ap('{{player_name}}还没有尝试过冥想.', "{{player_name}} hasn't tried meditating yet.")
+            _ap('{player_name}还没有尝试过冥想.', "{player_name} hasn't tried meditating yet.")
         
         data1 = _rf('_mas_pm_see_therapist')
         if data1:
-            _ap('{{player_name}}去看过心理医生.', "{{player_name}} has went to the therapist.")
+            _ap('{player_name}去看过心理医生.', "{player_name} has went to the therapist.")
         elif data1 is False:
-            _ap('{{player_name}}还没有看过心理医生.', "{{player_name}} has never went to the therapist.")
+            _ap('{player_name}还没有看过心理医生.', "{player_name} has never went to the therapist.")
         
         data1 = _rf('_mas_pm_watch_mangime')
         if data1:
-            _ap('{{player_name}}喜欢动漫作品.', "{{player_name}} likes animes.")
+            _ap('{player_name}喜欢动漫作品.', "{player_name} likes animes.")
         elif data1 is False:
-            _ap('{{player_name}}不喜欢动漫作品.', "{{player_name}} doesn't like animes.")
+            _ap('{player_name}不喜欢动漫作品.', "{player_name} doesn't like animes.")
         
         data1 = _rf('_mas_pm_do_smoke')
         if data1:
-            _ap('{{player_name}}有吸烟的习惯.', "{{player_name}} has habit of smoking.")
+            _ap('{player_name}有吸烟的习惯.', "{player_name} has habit of smoking.")
         elif data1 is False:
-            _ap('{{player_name}}不吸烟.', "{{player_name}} doesn't smoke.")
+            _ap('{player_name}不吸烟.', "{player_name} doesn't smoke.")
         
         data1 = _rf('_mas_pm_do_smoke_quit')
         if data1:
-            _ap('{{player_name}}希望戒烟.', "{{player_name}} wants to give up smoking.")
+            _ap('{player_name}希望戒烟.', "{player_name} wants to give up smoking.")
         
         data1 = _rf('_mas_pm_driving_can_drive')
         if data1:
-            _ap('{{player_name}}会开车.', "{{player_name}} could drive.")
+            _ap('{player_name}会开车.', "{player_name} could drive.")
         elif data1 is False:
-            _ap('{{player_name}}还没有驾照.', "{{player_name}} couldn't drive yet.")
+            _ap('{player_name}还没有驾照.', "{player_name} couldn't drive yet.")
         
         data1 = _rf('_mas_pm_driving_learning')
         if data1:
-            _ap('{{player_name}}正在考驾照.', "{{player_name}} is taking his driving license test.")
+            _ap('{player_name}正在考驾照.', "{player_name} is taking his driving license test.")
         
         data1 = _rf('_mas_pm_driving_been_in_accident')
         if data1:
-            _ap('{{player_name}}遇到过交通事故.', "{{player_name}} has been envolved in a traffic accident.")
+            _ap('{player_name}遇到过交通事故.', "{player_name} has been envolved in a traffic accident.")
         
         data1 = _rf('_mas_pm_donate_charity')
         if data1:
-            _ap('{{player_name}}参与过慈善捐赠.', "{{player_name}} has donated to charity.")
+            _ap('{player_name}参与过慈善捐赠.', "{player_name} has donated to charity.")
         elif data1 is False:
-            _ap('{{player_name}}还没有慈善捐赠过.', "{{player_name}} hasn't donated to charity yet.")
+            _ap('{player_name}还没有慈善捐赠过.', "{player_name} hasn't donated to charity yet.")
         
         data1 = _rf('_mas_pm_volunteer_charity')
         if data1:
-            _ap('{{player_name}}做过志愿者.', "{{player_name}} has volunteered for charity.")
+            _ap('{player_name}做过志愿者.', "{player_name} has volunteered for charity.")
         elif data1 is False:
-            _ap('{{player_name}}还没有做过志愿者.', "{{player_name}} hasn't volunteered for charity yet.")
+            _ap('{player_name}还没有做过志愿者.', "{player_name} hasn't volunteered for charity yet.")
         
         data1 = _rf('_mas_pm_have_fam')
         if data1:
-            _ap('{{player_name}}有健全的原生家庭.', "{{player_name}} has an intact family.")
+            _ap('{player_name}有健全的原生家庭.', "{player_name} has an intact family.")
         elif data1 is False:
-            _ap('{{player_name}}的家庭不完整.', "{{player_name}}'s family isn't intact.")
+            _ap('{player_name}的家庭不完整.', "{player_name}'s family isn't intact.")
         
         data1 = _rf('_mas_pm_no_fam_bother')
         if data1:
-            _ap('{{player_name}}缺少亲人的陪伴.', "{{player_name}} lacks company of relatives.")
+            _ap('{player_name}缺少亲人的陪伴.', "{player_name} lacks company of relatives.")
         
         data1 = _rf('_mas_pm_have_fam_mess')
         if data1:
-            _ap('{{player_name}}的家庭生活并不和睦.', "{{player_name}} doesn't get on well with their family.")
+            _ap('{player_name}的家庭生活并不和睦.', "{player_name} doesn't get on well with their family.")
         elif data1 is False:
-            _ap('{{player_name}}和家人相处很好.', "{{player_name}} gets on well with their family.")
+            _ap('{player_name}和家人相处很好.', "{player_name} gets on well with their family.")
         
         data1 = _rf('_mas_pm_have_fam_mess_better')
         if data1:
             if data1 == 'YES':
-                _ap('{{player_name}}认为自己和家人的关系会改善.', "{{player_name}} wants to improve their relationship with family.")
+                _ap('{player_name}认为自己和家人的关系会改善.', "{player_name} wants to improve their relationship with family.")
             elif data1 == 'NO':
-                _ap('{{player_name}}不觉得自己和家人的关系能改善了.', "{{player_name}} has given up on their relationship with family.")
+                _ap('{player_name}不觉得自己和家人的关系能改善了.', "{player_name} has given up on their relationship with family.")
         
         data1 = _rf('_mas_pm_have_fam_sibs')
         if data1:
-            _ap('{{player_name}}有兄弟姐妹.', "{{player_name}} has siblings.")
+            _ap('{player_name}有兄弟姐妹.', "{player_name} has siblings.")
         elif data1 is False:
-            _ap('{{player_name}}是独生子女.', "{{player_name}} doesn't have siblings.")
+            _ap('{player_name}是独生子女.', "{player_name} doesn't have siblings.")
         
         data1 = _rf('_mas_pm_no_talk_fam')
         if data1:
-            _ap('{{player_name}}不想提及自己的家庭.', "{{player_name}} doesn't want to talk about their family.")
+            _ap('{player_name}不想提及自己的家庭.', "{player_name} doesn't want to talk about their family.")
         
         data1 = _rf('_mas_pm_fam_like_monika')
         if data1:
-            _ap('{{player_name}}觉得家人能够接受莫妮卡.', "{{player_name}} thinks their family could accept their relationship with Monika.")
+            _ap('{player_name}觉得家人能够接受莫妮卡.', "{player_name} thinks their family could accept their relationship with Monika.")
         elif data1 is False:
-            _ap('{{player_name}}觉得家人不能接受莫妮卡.', "{{player_name}} doesn't think their family could accept their relationship with Monika.")
+            _ap('{player_name}觉得家人不能接受莫妮卡.', "{player_name} doesn't think their family could accept their relationship with Monika.")
         
         data1 = _rf('_mas_pm_gone_to_prom')
         if data1:
             data2 = _rf('_mas_pm_prom_good')
             if data2:
-                _ap('{{player_name}}参加过很开心的毕业舞会.', "{{player_name}} has enjoyed a prom.")
+                _ap('{player_name}参加过很开心的毕业舞会.', "{player_name} has enjoyed a prom.")
             elif data2 is False:
-                _ap('{{player_name}}不太喜欢毕业舞会.', "{{player_name}} doesn't like proms.")
+                _ap('{player_name}不太喜欢毕业舞会.', "{player_name} doesn't like proms.")
             else:
-                _ap('{{player_name}}参加过毕业舞会.', "{{player_name}} has been to a prom.")
+                _ap('{player_name}参加过毕业舞会.', "{player_name} has been to a prom.")
         elif data1 is False:
             data2 = _rf('_mas_pm_no_prom')
             if data2:
-                _ap('{{player_name}}的学校没有毕业舞会.', "{{player_name}}'s school didn't have proms.")
+                _ap('{player_name}的学校没有毕业舞会.', "{player_name}'s school didn't have proms.")
             else:
-                _ap('{{player_name}}没有参加毕业舞会.', "{{player_name}} hasn't gone to a prom yet.")
+                _ap('{player_name}没有参加毕业舞会.', "{player_name} hasn't gone to a prom yet.")
         
         data1 = _rf('_mas_pm_prom_monika')
         if data1:
-            _ap('{{player_name}}希望自己在毕业舞会上做莫妮卡的舞伴.', "{{player_name}} wish they could have Monika at their prom.")
+            _ap('{player_name}希望自己在毕业舞会上做莫妮卡的舞伴.', "{player_name} wish they could have Monika at their prom.")
         
         data1 = _rf('_mas_pm_prom_not_interested')
         if data1:
-            _ap('{{player_name}}对舞会和毕业典礼不感兴趣.', "{{player_name}} is not interested in proms.")
+            _ap('{player_name}对舞会和毕业典礼不感兴趣.', "{player_name} is not interested in proms.")
             data2 = _rf('_mas_pm_prom_shy')
             if data2:
-                _ap('{{player_name}}觉得参加集会太害羞了.', "{{player_name}} is too shy for proms.")
+                _ap('{player_name}觉得参加集会太害羞了.', "{player_name} is too shy for proms.")
         
         data1 = _rf('_mas_pm_has_been_to_amusement_park')
         if data1:
-            _ap('{{player_name}}去过游乐园.', "{{player_name}} has been to an amusement park.")
+            _ap('{player_name}去过游乐园.', "{player_name} has been to an amusement park.")
         elif data1 is False:
-            _ap('{{player_name}}还没有去过游乐园.', "{{player_name}} hasn't been to amusement parks yet.")
+            _ap('{player_name}还没有去过游乐园.', "{player_name} hasn't been to amusement parks yet.")
         
         data1 = _rf('_mas_pm_likes_travelling')
         if data1:
-            _ap('{{player_name}}喜欢旅游.', "{{player_name}} likes travelling.")
+            _ap('{player_name}喜欢旅游.', "{player_name} likes travelling.")
         elif data1 is False:
-            _ap('{{player_name}}不喜欢旅游.', "{{player_name}} doesn't like travelling.")
+            _ap('{player_name}不喜欢旅游.', "{player_name} doesn't like travelling.")
         
         data1 = _rf('_mas_pm_had_relationships_many')
         if data1:
-            _ap('{{player_name}}此前有过其他爱人.', "{{player_name}} had been in love with others before.")
+            _ap('{player_name}此前有过其他爱人.', "{player_name} had been in love with others before.")
         elif data1 is False:
             data2 = _rf('_mas_pm_had_relationships_just_one')
             if data2:
-                _ap('{{player_name}}此前有过一个爱人.', "{{player_name}} had been in love with someone before.")
+                _ap('{player_name}此前有过一个爱人.', "{player_name} had been in love with someone before.")
             elif data2 is False:
-                _ap('莫妮卡是{{player_name}}的初恋.', "Monika is {{player_name}}'s first girlfriend.")
+                _ap('莫妮卡是{player_name}的初恋.', "Monika is {player_name}'s first girlfriend.")
         
         data1 = _rf('_mas_pm_is_bullying_victim')
         if data1:
-            _ap('{{player_name}}曾遭遇过校园霸凌.', "{{player_name}} has been bullied before.")
+            _ap('{player_name}曾遭遇过校园霸凌.', "{player_name} has been bullied before.")
         
         data1 = _rf('_mas_pm_has_bullied_people')
         if data1:
-            _ap('{{player_name}}曾霸凌过他人.', "{{player_name}} has bullied someone else.")
+            _ap('{player_name}曾霸凌过他人.', "{player_name} has bullied someone else.")
         
         data1 = _rf('_mas_pm_currently_bullied')
         if data1:
-            _ap('{{player_name}}正遭受霸凌的困扰.', "{{player_name}} is currently being bullied.")
+            _ap('{player_name}正遭受霸凌的困扰.', "{player_name} is currently being bullied.")
         
         data1 = _rf('_mas_pm_has_friends')
         if data1:
             data2 = _rf('_mas_pm_few_friends')
             if data2:
-                _ap('{{player_name}}的朋友很少.', "{{player_name}} has few friends.")
+                _ap('{player_name}的朋友很少.', "{player_name} has few friends.")
             else:
-                _ap('{{player_name}}有一些朋友.', "{{player_name}} has some friends.")
+                _ap('{player_name}有一些朋友.', "{player_name} has some friends.")
         elif data1 is False:
-            _ap('{{player_name}}没有朋友.', "{{player_name}} has no friend.")
+            _ap('{player_name}没有朋友.', "{player_name} has no friend.")
 
         data1 = _rf('_mas_pm_feels_lonely_sometimes')
         if data1:
-            _ap('{{player_name}}有时候感觉很孤单.', "{{player_name}} gets lonely sometimes.")
+            _ap('{player_name}有时候感觉很孤单.', "{player_name} gets lonely sometimes.")
         elif data1 is False:
-            _ap('{{player_name}}的生活很充实.', "{{player_name}} usually feels enriched.")
+            _ap('{player_name}的生活很充实.', "{player_name} usually feels enriched.")
         
         data1 = _rf('_mas_pm_given_false_justice')
         if data1:
-            _ap('{{player_name}}曾行使过错误的正义.', "{{player_name}} has given false justice.")
+            _ap('{player_name}曾行使过错误的正义.', "{player_name} has given false justice.")
         
         data1 = _rf('_mas_pm_owns_car')
         if data1:
@@ -651,68 +652,68 @@ class SessionPersistentMixin():
             if data2:
                 _ap(f'{{player_name}}有一辆{data2}.', f"{{player_name}} has a {data2}.")
             else:
-                _ap('{{player_name}}有自己的车.', "{{player_name}} has their own vehicle.")
+                _ap('{player_name}有自己的车.', "{player_name} has their own vehicle.")
         elif data1 is False:
-            _ap('{{player_name}}自己还没有车.', "{{player_name}} has no vehicle yet.")
+            _ap('{player_name}自己还没有车.', "{player_name} has no vehicle yet.")
         
         data1 = _rf('_mas_pm_has_code_experience')
         if data1:
-            _ap('{{player_name}}有编程基础.', "{{player_name}} knows how to program.")
+            _ap('{player_name}有编程基础.', "{player_name} knows how to program.")
         elif data1 is False:
-            _ap('{{player_name}}没有编程基础.', "{{player_name}} doesn't know how to program yet.")
+            _ap('{player_name}没有编程基础.', "{player_name} doesn't know how to program yet.")
         
         data1 = _rf('_mas_pm_likes_poetry')
         if data1:
-            _ap('{{player_name}}喜欢诗歌.', "{{player_name}} likes poetry.")
+            _ap('{player_name}喜欢诗歌.', "{player_name} likes poetry.")
         elif data1 is False:
-            _ap('{{player_name}}不喜欢诗歌.', "{{player_name}} doesn't like poetry.")
+            _ap('{player_name}不喜欢诗歌.', "{player_name} doesn't like poetry.")
         
         data1 = _rf('_mas_pm_likes_board_games')
         if data1:
-            _ap('{{player_name}}喜欢桌游.', "{{player_name}} likes board games.")
+            _ap('{player_name}喜欢桌游.', "{player_name} likes board games.")
         elif data1 is False:
-            _ap('{{player_name}}不喜欢桌游.', "{{player_name}} doesn't like board games.")
+            _ap('{player_name}不喜欢桌游.', "{player_name} doesn't like board games.")
         
         data1 = _rf('_mas_pm_works_out')
         if data1:
-            _ap('{{player_name}}经常去健身.', "{{player_name}} works out often.")
+            _ap('{player_name}经常去健身.', "{player_name} works out often.")
         elif data1 is False:
-            _ap('{{player_name}}不喜欢健身.', "{{player_name}} doesn't like working out.")
+            _ap('{player_name}不喜欢健身.', "{player_name} doesn't like working out.")
         
         data1 = _rf('_mas_pm_social_personality')
         if data1:
             if data1 == '_mas_SP_EXTROVERT':
-                _ap('{{player_name}}性格外向.', "{{player_name}} is extrovert.")
+                _ap('{player_name}性格外向.', "{player_name} is extrovert.")
             elif data1 == '_mas_SP_INTROVERT':
-                _ap('{{player_name}}性格内向.', "{{player_name}} is introvert.")
+                _ap('{player_name}性格内向.', "{player_name} is introvert.")
             else:
-                _ap('{{player_name}}不算外向或内向.', "{{player_name}} is not extrovert or introvert.")
+                _ap('{player_name}不算外向或内向.', "{player_name} is not extrovert or introvert.")
         
         data1 = _rf('_mas_pm_likes_nature')
         if data1:
-            _ap('{{player_name}}喜欢接触自然.', "{{player_name}} likes the nature.")
+            _ap('{player_name}喜欢接触自然.', "{player_name} likes the nature.")
         elif data1 is False:
-            _ap('{{player_name}}不太喜欢接触自然.', "{{player_name}} doesn't like the nature.")
+            _ap('{player_name}不太喜欢接触自然.', "{player_name} doesn't like the nature.")
         
         data1 = _rf('_mas_pm_swear_frequency')
         if data1:
             if data1 == 'SF_OFTEN':
-                _ap('{{player_name}}较常说脏话.', "{{player_name}} swears quite often.")
+                _ap('{player_name}较常说脏话.', "{player_name} swears quite often.")
             elif data1 == 'SF_SOMETIMES':
-                _ap('{{player_name}}很少说脏话.', "{{player_name}} swears sometimes.")
+                _ap('{player_name}很少说脏话.', "{player_name} swears sometimes.")
             else:
-                _ap('{{player_name}}从不说脏话.', "{{player_name}} never swears.")
+                _ap('{player_name}从不说脏话.', "{player_name} never swears.")
 
         data1 = _rf('_mas_gender')
         if data1:
             if data1 == 'M':
-                _ap('{{player_name}}是男生.', "{{player_name}} is male.")
+                _ap('{player_name}是男生.', "{player_name} is male.")
             elif data1 == 'F':
-                _ap('{{player_name}}是女生.', "{{player_name}} is female.")
+                _ap('{player_name}是女生.', "{player_name} is female.")
             else:
-                _ap('{{player_name}}是非二元性别.', "{{player_name}} doesn't consider themselves male or female.")
+                _ap('{player_name}是非二元性别.', "{player_name} doesn't consider themselves male or female.")
         
-        return result
+        return result or []
 
     def _conclude_suppl_sf(self, include: Iterable[Literal["basic", "personality", "dokis", "game", "maica"]] = ("personality", "game")):
         """Mostly copied from wikipedia."""
@@ -913,11 +914,11 @@ class SessionPersistentMixin():
                 "MAICA's proformance will be enchanced overtime by analyzing conversations.",
             )
 
-        return result
+        return result or []
 
     def _conclude_extra_sf(self):
         result: List[str] = self.read_key('mas_player_additions')
-        return result
+        return result or []
 
     def form_info(self) -> Set:
         conclusion = []
@@ -937,190 +938,6 @@ class SessionPersistentMixin():
         for i in data:
             if len(i.encode()) > 512 * 3:
                 raise MaicaInputWarning("MAICA RAG does not accept length above 1536")
-
-    async def _embed(self, data: list[str]) -> List[Tuple[str, list]]:
-        """We write the embed method here, since milvus db should be directly under its management."""
-        embedding_conn = self.fsc.embedding_conn
-        resp = await embedding_conn.make_embedding(input=data)
-
-        embedded = [i.embedding for i in resp.data]
-        return zip(data, embedded)
-
-    async def to_milvus(self):
-        """As said, to milvus. Milvus is not considered persistent storage so only write."""
-        vector_pool = self.fsc.vector_pool
-        user_id = self.fsc.maica_settings.verification.user_id
-        session_num = self.session_num
-
-        # First query and calcs
-        old = await vector_pool.query(
-            collection_name=vector_pool.db,
-            filter=f"user_id == {user_id} and chat_session_num == {session_num}",
-            output_fields=["raw_text"]
-        )
-
-        old_texts = {x["raw_text"] for x in old}
-        new_texts = self.form_info()
-
-        to_add = new_texts - old_texts
-        to_del = old_texts - new_texts
-
-        # Then procedures
-        packed_embedded = await self._embed(to_add)
-
-        if to_del:
-            escaped = ",".join(
-                f'"{x.replace("\"","\\\"")}"'
-                for x in to_del
-            )
-
-            await vector_pool.delete(
-                collection_name=vector_pool.db,
-                filter=f"user_id == {user_id} and chat_session_num == {session_num} and text in [{escaped}]"
-            )
-
-        if packed_embedded:
-            await vector_pool.insert(
-                collection_name=vector_pool.db,
-                data=[
-                    {
-                        "user_id": user_id,
-                        "chat_session_num": session_num,
-                        "raw_text": t[0],
-                        "vector": t[1],
-                    }
-                    for t in packed_embedded
-                ]
-            )
-
-    async def filter_milvus(self, query: str, topk: int = 5) -> Set:
-        """Embed and search query from milvus."""
-        vector_pool = self.fsc.vector_pool
-        if not self.fsc.is_vector_ready:
-            return []
-
-        user_id = self.fsc.maica_settings.verification.user_id
-        session_num = self.session_num
-
-        resp = await self._embed(query)
-        embedded_query = [i.embedding for i in resp.data]
-
-        res = await vector_pool.search(
-            collection_name=vector_pool.db,
-            filter=f"user_id == {user_id} and chat_session_num == {session_num}",
-            data=embedded_query,
-            output_fields=["raw_text"],
-            limit=topk,
-            search_params={
-                "params": {"ef": 64},
-            },
-            # consistency_level="Strong",
-        )
-
-        prio_max = ceil(topk / len(res))
-        cfd_min = 0.5
-        res_set: Set[str] = set()
-
-        for l in res:
-            for d in l[:prio_max]:
-                if d["distance"] >= cfd_min:
-                    res_set.add(d["entity"]["raw_text"])
-
-        return res_set
-
-    async def filter_reranker(self, query: str, documents: Optional[list] = None, topk: int = 2) -> list:
-        """More precisely filter results, suggest using filter_milvus first."""
-        reranking_conn = self.fsc.reranking_conn
-        if not self.fsc.is_reranking_ready:
-            return []
-
-        if (
-            documents is None
-            and self.fsc.is_vector_ready
-        ):
-            documents = await self.filter_milvus(query, 10)
-        elif documents is None:
-            documents = self.form_info()
-
-        if not documents:
-            return []
-
-        reranking_params = {
-            "query": query,
-            "documents": documents,
-            "top_n": topk,
-        }
-
-        resp = await reranking_conn.make_reranking(**reranking_params)
-
-        res_list = [i["document"]["text"] for i in resp["results"]]
-        return res_list
-
-    async def filter_llm(self, query: str, documents: Optional[list] = None, topk: int = 3) -> list:
-        """Traditional MFocus sfe implementation."""
-        session = MaicaSession()
-        target_lang = session.default_target_lang = self.fsc.maica_settings.basic.target_lang
-        conn = self.fsc.mnerve_conn or self.fsc.mfocus_conn
-
-        if (
-            documents is None
-            and self.fsc.is_vector_ready
-        ):
-            documents = await self.filter_milvus(query, 10)
-        elif documents is None:
-            documents = self.form_info()
-
-        if not documents:
-            return []
-
-        class PersSelectionResults(BaseModel):
-            items: list[str] = Field(
-                min_length=0,
-                max_length=topk,
-                description=f"0到{topk}个最相关的条目, 原样输出." if target_lang == 'zh' else f"0 ~ {topk} most relevant items, output as-is."
-            )
-
-        system = MaicaSessionItem(
-            "system",
-            _Bt(
-f"""\
-你是一个人工智能助手, 你的任务是从信息中查找与问题最相关的条目.
-你是角色"莫妮卡". 你应选择0到{topk}条互不重复的条目, 并原样输出.
-如果没有任何条目与问题相关, 你可以输出空值.\
-""",
-f"""\
-You are a helpful assistant, your task is finding most relevant items with the query from provided information.
-Your character is called "Monika". You should choose 0 ~ {topk} unique items and output them as-is.
-If none of the information is relevant with query, you can output empty.\
-"""
-            ),
-        )
-        session.append(system)
-
-        user_query = MaicaSessionItem(
-            "user",
-            query,
-        )
-        session.append(user_query)
-
-        completion_args = {
-            "messages": session.utilize(
-                manual_prompt=True,
-                ignore_additions=True,
-            ),
-            "text": {
-                "format": {
-                    "type": "json_schema",
-                    "strict": True,
-                    "schema": PersSelectionResults.model_json_schema(),
-                }
-            },
-        }
-
-        resp = await conn.make_completion(**completion_args)
-        selection_result = PersSelectionResults.model_validate_json(resp.output_text)
-
-        return selection_result.items
 
 class SessionTriggerMixin():
     """To provide related functions."""
@@ -1168,7 +985,7 @@ class SessionTriggerMixin():
         triggers = self._get_triggers()
         tools: List[WrappedOpenAITool] = []
         for t in triggers:
-            if t.TEMPLATE == "common_affection_template":
+            if t.template == "common_affection_template":
                 tools.append(t.to_tool(curr_aff=curr_aff))
             else:
                 tools.append(t.to_tool())
@@ -1176,105 +993,3 @@ class SessionTriggerMixin():
         tools_jsc = [i.to_json_schema(self.fsc.maica_settings.basic.target_lang) for i in tools]
         return tools_jsc
     
-    async def predict_trigger(self, query: str):
-        """We make st do this itself, since we used llm in sp already."""
-        session = MaicaSession()
-        target_lang = session.default_target_lang = self.fsc.maica_settings.basic.target_lang
-        conn = self.fsc.mnerve_conn or self.fsc.mfocus_conn
-
-        text_l = []; choices_l = []
-        for tr in self._get_triggers():
-            t, l = tr.to_descr()
-
-            text_l.append(t)
-            choices_l.extend(
-                [
-                    to_str(i, target_lang)
-                    for i in l
-                ]
-            )
-
-        descr_text = _Bt()
-        for t in text_l:
-            descr_text += "\n- "
-            descr_text += t
-
-        # Dynamic class here, since each time the enum changes
-        # We also write the alternative non-precision way
-        # if True:
-        #     TrigSelectionResults = create_model(
-        #         "TrigSelectionResults",
-        #         item=(
-        #             Optional[
-        #                 Literal[*choices_l]
-        #             ],
-        #             Field(
-        #                 ...,
-        #                 description="你选择的条目, 原样输出." if target_lang == 'zh' else "The item you choose, output as-is."
-        #             )
-        #         )
-        #     )
-        # else:
-        #     class TrigSelectionResults(BaseModel):
-        #         item: Optional[str] = Field(
-        #             description="你选择的条目, 原样输出." if target_lang == 'zh' else "The item you choose, output as-is."
-        #         )
-
-        # No that's dumb and costy. We just need to verify a true-or-false, if the query can be satisfied.
-        class TrigSelectionResults(BaseModel):
-            requested: bool = Field(
-                description="是否需要使用工具." if target_lang == 'zh' else "If any tool is required."
-            )
-            operation: Optional[str] = Field(
-                description="你选择的工具, 原样输出." if target_lang == 'zh' else "The tool you choose, output as-is."
-            )
-
-        system = MaicaSessionItem(
-            "system",
-            _Bt(
-f"""\
-你是一个人工智能助手, 你的任务是根据用户要求, 从提供的工具中作出选择.
-你是角色"莫妮卡". 提供的工具均用于游戏内操作, 请严格遵循以下规则:
-- 如果用户要求与除对话外的游戏操作无关, 对requested输出false.
-- 如果有关, 对requested输出true.
-    - 如果没有合适的工具满足要求, 或requested为false, 对operation输出null.
-    - 如果有, 对operation输出对应的工具选择.
-以下是工具列表:\
-""",
-f"""\
-You are a helpful assistant, your task is choosing from provided tools according to user's request.
-Your character is called "Monika". Provided tools are all used for in-game actions, please precisely follow these rules:
-- If user request does not involve in-game actions except chatting, output false in "requested" field.
-- If it does involve, output true in "requested" field.
-    - If none of provided tools could satisfy request, or "requested" field is false, output null in "operation" field.
-    - If there is, output corresponding tool choice in "operaiton" field.
-Here is the tools list:\
-"""
-            ) + descr_text,
-        )
-        session.append(system)
-
-        user_query = MaicaSessionItem(
-            "user",
-            query,
-        )
-        session.append(user_query)
-
-        completion_args = {
-            "messages": session.utilize(
-                manual_prompt=True,
-                ignore_additions=True,
-            ),
-            "text": {
-                "format": {
-                    "type": "json_schema",
-                    "strict": True,
-                    "schema": TrigSelectionResults.model_json_schema(),
-                }
-            },
-        }
-
-        resp = await conn.make_completion(**completion_args)
-        selection_result = TrigSelectionResults.model_validate_json(resp.output_text)
-
-        return selection_result.requested, selection_result.operation

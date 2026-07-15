@@ -161,7 +161,7 @@ MAICA_F2B_TIME = '600'
 # Use full RESTful API for short connections or not
 MAICA_FULL_RESTFUL = '1'
 # GC stored sessions older than [] hours or not
-MAICA_GC_SESSIONS = '1'
+MAICA_GC_SESSIONS = '8'
 # Rotate MSpire cache every [] hours or not
 MAICA_ROTATE_MSCACHE = '0'
 # Keep [] MVista imgs per user at most

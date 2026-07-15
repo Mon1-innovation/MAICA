@@ -23,7 +23,7 @@ class ConnSocketsContainer(AllowArb):
 
     def spawn_sub(self, rsc=None):
         """Spawns a per-user sub instance."""
-        sub_kwargs = {k: getattr(self, k).summon_sub(rsc) if getattr(self, k) else None for k in ['vector_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn']}
+        sub_kwargs = {k: getattr(self, k).summon_sub(rsc) if getattr(self, k) else None for k in _csc_proxied}
         return ConnSocketsContainer(**sub_kwargs)
 
 _rsc_proxied = ['websocket', 'tracker_id', 'messenger', 'maica_settings']
@@ -90,14 +90,17 @@ class FullSocketsContainer(FscUsersFuncMixin, AllowArb):
     
     @property
     def is_reranking_ready(self):
-        return bool(self.reranking_conn)
+        return bool(
+            self.reranking_conn
+            and self.is_vector_ready
+        )
     
     @property
     def real_sf_access_impl(self):
-        match self.fsc.maica_settings.extra.mf_sf_access_impl:
-            case 1 if self.fsc.is_reranking_ready:
+        match self.maica_settings.extra.mf_sf_access_impl:
+            case 1 if self.is_reranking_ready:
                 return 1
-            case 2 if self.fsc.is_vector_ready:
+            case 2 if self.is_vector_ready:
                 return 2
             case _:
                 return 0

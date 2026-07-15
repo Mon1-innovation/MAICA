@@ -99,3 +99,5 @@ If you want to read in English, use a translator.
 + mas_player_additions扩容到最多512条, 每条最长1536字节
 
 - 弃用了mas_player_additions静默允许超长, 现在超长会拒绝
+
+- 现在对mt的验证要求更严格, 例如switch的条目均必须是str

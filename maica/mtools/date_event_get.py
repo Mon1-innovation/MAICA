@@ -64,7 +64,7 @@ class RegEvent():
                 m, w, wd = self.index
                 solar_week: lunar_python.SolarWeek = lunar_python.SolarMonth.fromYm(y, int(m)).getWeeks(0)[int(w) - 1]
                 solar = solar_week.getDays()[int(wd)]
-        return datetime.date(solar.getYear(), solar.getMonth(), solar.getDay())
+        return datetime.datetime(solar.getYear(), solar.getMonth(), solar.getDay())
 
 class EventsCollection():
     md_dict = {}
@@ -81,7 +81,7 @@ class EventsCollection():
             else:
                 ev_index[event.index].append(event)
 
-    def _add_vacations(self, dt: datetime.date):
+    def _add_vacations(self, dt: datetime.datetime):
         """Note that this is ONLY valid for the target date!"""
 
         # Caution: This function may produce wrong results under certain circumstances:
@@ -162,7 +162,7 @@ class EventsCollection():
         month: lunar_python.LunarMonth = lunar_python.LunarMonth.fromYm(y, m)
         return month.getDayCount()
 
-    def search(self, dt: datetime.date):
+    def search(self, dt: datetime.datetime):
 
         ld = lunar_python.Lunar.fromDate(dt)
         sw = lunar_python.SolarWeek.fromDate(dt, 0)

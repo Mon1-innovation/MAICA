@@ -82,12 +82,15 @@ class CommonScheduler():
                 metas = (await dbs.scalars(stmt)).all()
                 
                 for meta in metas:
-                    processing_img = ImgByUuid(meta.uuid)
-                    processing_img.delete()
+                    try:
+                        processing_img = ImgByUuid(meta.uuid)
+                        processing_img.delete()
+                    except Exception:
+                        # We ignore file <= db inconsistency, because they're temporary anyway
+                        pass
 
-                    await sqlalchemy.delete(meta)
-
-                await dbs.commit()
+                    await dbs.delete(meta)
+                    await dbs.commit()
 
             sync_messenger(info=f'Removed {len(metas)} MVista images', type=MsgType.LOG)
 

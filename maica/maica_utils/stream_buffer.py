@@ -1,12 +1,11 @@
 """
-Import layer 4.1
+Import layer 2.4
 """
 import time
 import asyncio
 
 from typing import *
 from contextlib import asynccontextmanager
-from .fsc_late import FullSocketsContainer
 from .maica_utils import *
 
 class StreamBuffer[T](asyncio.Queue[T]):

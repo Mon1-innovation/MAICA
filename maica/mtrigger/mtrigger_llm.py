@@ -30,16 +30,19 @@ class MtPipeliner():
             self,
             org_session: MaicaSession,
             fsc: FullSocketsContainer,
+            sp: SessionPersistent,
             st: SessionTrigger,
 
         ):
         self.org_session = org_session
         self.fsc = fsc
+        self.sp = sp
         self.st = st
         self.reset()
 
     def _construct_tools(self):
-        tools_jsc = self.st.form_jsc()
+        curr_aff = self.sp.affection
+        tools_jsc = self.st.form_jsc(curr_aff)
 
         # We should explicitly add a stop tool to fit tool_choice required
         agent_finished = _Wt(
@@ -103,13 +106,12 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         self._construct_messages()
 
         completion_args = {
-            "messages": self.mt_session.utilize(
+            "input": self.mt_session.utilize(
                 manual_prompt=True,
                 # Doesn't make a difference, but just for clarity
                 ignore_additions=True,
             ),
             "tools": self.tools,
-            "response_format": {"type": "text"},
 
             # We force tool calling to make it eventually use a stopping tool
             "tool_choice": "required",
@@ -119,7 +121,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         conversation_rnd_end = False
 
         async def tools_loop(a_tool_calls: AsyncIterator[ToolCall]):
-            nonlocal tools_looped_rnds
+            nonlocal tools_looped_rnds, conversation_rnd_end
             tools_looped_rnds += 1
 
             async def tool_respond(tool_call: ToolCall) -> Union[str, False]:
@@ -141,7 +143,6 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
                     case _:
                         trigger_send = {tool_name: arguments}
 
-                        sync_messenger(info=f"MTrigger calling trigger {tool_name}: {arguments}, sending...", type=MsgType.LOG)
                         await self.fsc.messenger('maica_mtrigger_trigger', trigger_send, 200, type=MsgType.CARRIAGE, no_print=True)
 
                         text = _Bt(
@@ -150,30 +151,54 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
                         ).to_str(self.fsc.maica_settings.basic.target_lang)
 
                         return text
-                    
-            async for tool_call in a_tool_calls:
 
-                # Create maica compatible item
-                maica_tool_call = MaicaSessionItem(
-                    preserved=tool_call.model_dump()
+            async def make_call(tool_call: ToolCall):
+                nonlocal conversation_rnd_end
+
+                await self.fsc.messenger(
+                    'maica_mtrigger_tool_call',
+                    f"MTrigger calling tool {tool_call.name}: {tool_call.arguments}, handling trigger...",
+                    201,
+                    type=MsgType.PRIM_LOG,
                 )
-                self.mf_session.append(maica_tool_call)
 
                 # Then if we need to respond
                 tool_response = await tool_respond(tool_call)
+
                 if not tool_response:
                     conversation_rnd_end = True
+
+                else:
+
+                    # Create maica compatible item
+                    maica_tool_call = MaicaSessionItem(
+                        preserved=tool_call.model_dump()
+                    )
+                    self.mt_session.append(maica_tool_call)
+
+                    # Then create the tool response item
+                    maica_tool_response = MaicaSessionItem(
+                        preserved={
+                            "type": "function_call_output",
+                            "call_id": tool_call.call_id,
+                            "output": tool_response,
+                        }
+                    )
+                    self.mt_session.append(maica_tool_response)
+
+            call_tasks = []
+            async for tool_call in a_tool_calls:
+                
+                call_tasks.append(
+                    asyncio.create_task(
+                        make_call(tool_call)
+                    )
+                )
+
+                if conversation_rnd_end:
                     break
 
-                # Then create the tool response item
-                maica_tool_response = MaicaSessionItem(
-                    preserved={
-                        "type": "function_call_output",
-                        "call_id": tool_call.call_id,
-                        "output": tool_response,
-                    }
-                )
-                self.mf_session.append(maica_tool_response)
+            await asyncio.gather(*call_tasks)
 
         await self.fsc.messenger(
             'maica_mtrigger_tool_start',
@@ -194,8 +219,8 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         ):
 
             # Generation
-            task, a_reasoning, a_content, a_tool_calls = await llm_request(conn, **completion_args)
-            await tools_loop(a_tool_calls)
+            async with llm_request(conn, **completion_args) as (task, a_reasoning, a_content, a_tool_calls):
+                await tools_loop(a_tool_calls)
 
         await self.fsc.messenger(
             'maica_mtrigger_tool_fin',

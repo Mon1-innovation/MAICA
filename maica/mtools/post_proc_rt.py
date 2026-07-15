@@ -266,8 +266,7 @@ class PPRTProcessor():
             )
         self._pprt = pprt
 
-        self._target_lang = fsc.maica_settings.basic.target_lang
-        self._mnerve_conn = fsc.mnerve_conn
+        self.fsc = fsc
 
         if self._pprt.split_limit > 0:
             self._buffer = TalkSplitV2(self._pprt.split_limit)
@@ -297,7 +296,7 @@ class PPRTProcessor():
             
     async def _correct_malform(self, sentence: str) -> str:
         if self._pprt.correct_malform:
-            return await post_proc(sentence, self._target_lang, self._mnerve_conn)
+            return await post_proc(sentence, self.fsc)
         else:
             return sentence
 

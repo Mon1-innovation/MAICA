@@ -19,8 +19,8 @@ from . import _activator
 
 def pkg_init_serp_provider():
     global available_list
-    if G.A.NO_SERP != '1':
-        available_list = get_providers()
+    if not int(G.A.NO_SERP):
+        available_list.extend(get_providers())
     sync_messenger(info=f"[maica-serp] Available SERP providers: {', '.join([str(i[0]) for i in available_list]) or None}", type=MsgType.DEBUG)
 
 __all__ = [

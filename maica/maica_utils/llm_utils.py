@@ -4,11 +4,12 @@ Some convenience things, many minor LLM usages will need them.
 """
 
 import asyncio
-import json
+import orjson
 
 from typing import *
 from pydantic import BaseModel, Field, model_validator
 from dataclasses import dataclass
+from contextlib import asynccontextmanager
 from openai import AsyncStream
 from openai.types.responses import Response, ResponseStreamEvent
 from .connection_utils import AiConnectionManager
@@ -28,6 +29,10 @@ class ToolCall(BaseModel):
                 data["arguments"] = data["input"]
             if data.get("function") and not data.get("name"):
                 data["name"] = data["function"]
+
+            if isinstance(data.get("arguments"), str):
+                data["arguments"] = orjson.loads(data["arguments"])
+
         return data
 
 async def parse_responses_output(
@@ -68,11 +73,18 @@ async def parse_responses_output(
 
         # tool call
         elif t in ("tool_call", "function_call", "function"):
-            tool_call = ToolCall.model_validate(item)
-            
-            if not tool_call.call_id in _tool_calls_ids:
-                _tool_calls_ids.add(tool_call.call_id)
-                tool_q.put_nowait(tool_call)
+            if not getattr(item, "status", None) in ("completed", None):
+                # This is likely "in_progress", so we ignore it since the complete result will contain everything
+                return
+
+            else:
+                if isinstance(item, BaseModel):
+                    item = item.model_dump()
+                tool_call = ToolCall.model_validate(item)
+                
+                if not tool_call.call_id in _tool_calls_ids:
+                    _tool_calls_ids.add(tool_call.call_id)
+                    tool_q.put_nowait(tool_call)
 
         else:
             delta = getattr(item, "delta", None)
@@ -82,7 +94,7 @@ async def parse_responses_output(
     async def runner():
         try:
             # streaming
-            if hasattr(resp, "__aiter__") or hasattr(resp, "__iter__"):
+            if hasattr(resp, "__aiter__"):
                 async for event in resp:
                     item = getattr(event, "item", event)
                     handle_item(item)
@@ -123,9 +135,14 @@ async def parse_responses_output(
 
     return task, reasoning_stream(), content_stream(), tool_stream()
 
+@asynccontextmanager
 async def llm_request(conn: AiConnectionManager, *args, **kwargs):
     """
     Send request to LLM and retrieves parsed results.
     """    
     resp = await conn.make_completion(*args, **kwargs)
-    return await parse_responses_output(resp)
+    try:
+        task, a_reasoning, a_content, a_tool_calls = await parse_responses_output(resp)
+        yield (task, a_reasoning, a_content, a_tool_calls, )
+    finally:
+        await task

@@ -245,6 +245,7 @@ class ShortConnHandler(View):
             return jsonify({"success": False, "exception": message}), int(ce.error_code) or 400
 
         except Exception as e:
+            traceback.print_exc()
             _, _, message, _ = sync_messenger(info=f'Handler hit an exception: {str(e)}', type=MsgType.WARN)
             return jsonify({"success": False, "exception": message}), 400
 
@@ -287,6 +288,7 @@ class ShortConnHandler(View):
         async with acquire_dbo("persistent", self.fsc) as persistent:
             persistent.load(query.content)
             await persistent.to_db(skip_sync=True)
+            await persistent.to_milvus()
  
         return jfy_res()
     
@@ -351,7 +353,7 @@ class ShortConnHandler(View):
         query = await self.wrapped_validate(self._dlh_m, request.args.to_dict(flat=True))
 
         async with acquire_session(self.fsc) as session:
-            # This has at least one element: system
+            # It reports 404 on empty
             data_j = session.json()
 
         n = query.content * 2
@@ -368,6 +370,7 @@ class ShortConnHandler(View):
             data_j.insert(0, prompt_obj)
 
         data_str = orjson.dumps(data_j, option=orjson.OPT_SORT_KEYS).decode()
+        print(data_str)
         pss_b64 = await asyncio.to_thread(sign_message, data_str)
 
         return jfy_res([pss_b64, data_j])
@@ -383,12 +386,13 @@ class ShortConnHandler(View):
         """PUT"""
         query = await self.wrapped_validate(self._rsh_m, await request.get_json())
 
-        pss_b64, data_j = query
+        pss_b64, data_j = query.content
 
         data_str = orjson.dumps(data_j, option=orjson.OPT_SORT_KEYS).decode()
-        verify_result = await asyncio.to_thread(verify_message, data_str, pss_b64)
-        
-        if not verify_result:
+        print(data_str)
+        try:
+            await asyncio.to_thread(verify_message, data_str, pss_b64)
+        except ValueError as ve:
             raise MaicaInputWarning("Sign does not match")
 
         async with acquire_session(self.fsc) as session:

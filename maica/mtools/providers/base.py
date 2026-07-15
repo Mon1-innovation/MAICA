@@ -18,7 +18,7 @@ class SerpResults(BaseModel):
         link: Optional[str] = None
         source: Optional[str] = None
 
-    results: List[SerpItem]
+    results: RobustList[SerpItem]
 
 def register_provider(prio: int, requires: List[str], asearch):
     _providers_raw.append((prio, requires, asearch))
@@ -44,7 +44,7 @@ available_list: list[tuple[int, asearch]] = []
 last_used = -1
 
 def get_asearch(avoid: Union[Literal['last'], int]=None, rand: bool=False) -> Callable[[str, str], Coroutine[Any, Any, SerpResults]]:
-    global last_used
+    global available_list, last_used
 
     if avoid == 'last':
         avoid = last_used

@@ -132,7 +132,7 @@ class MfPipeliner():
             ),
             requiredParams=[
                 _Wtp(
-                    name="ser_query",
+                    name="query",
                     type="string",
                     description=_Bt(
                         "需要搜索的内容, 应当是简洁明确的关键词.",
@@ -262,10 +262,12 @@ class MfPipeliner():
                 _Bt(
 f"""\
 你是一个人工智能助手, 你的任务是调用工具, 以作为角色"莫妮卡"回答用户的问题.
+- 在设定上, 你是用户[player]的女友, 并深爱着对方.
 最终你应该通过调用工具的方式{taskend_word}. 如果该问题不需要工具, 你可以直接{taskend_word}.\
 """,
 f"""\
 You are a helpful assistant, your task is using tools to respond user's query as charcater "Monika".
+- According to the setting, you're user [player]'s girlfriend, and love them a lot.
 Finally you should {taskend_word} with a corresponding tool. If the message does not require tools to answer, you can {taskend_word} directly.\
 """
                 ),
@@ -288,13 +290,13 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         self._construct_messages()
 
         completion_args = {
-            "messages": self.mf_session.utilize(
+            "input": self.mf_session.utilize(
                 manual_prompt=True,
                 # He needs these informations
                 # ignore_additions=True,
             ),
             "tools": self.tools,
-            "response_format": {"type": "text"},
+            "stream": True,
 
             # We force tool calling to make it eventually use a stopping tool
             # This will likely make mf_llm_concl far more stable
@@ -310,7 +312,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         conversation_rnd_end = False
 
         async def tools_loop(a_tool_calls: AsyncIterator[ToolCall]):
-            nonlocal tools_looped_rnds
+            nonlocal tools_looped_rnds, conversation_rnd_end
             tools_looped_rnds += 1
 
             # Prepare a toolbox
@@ -352,34 +354,35 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
 
                             # We can theoretically keep all resps, but that's not useful I think.
                             # In case that's really necessary, just use mf_llm_concl
-                            tools_results["tool_name"] = (text, body)
+                            tools_results[tool_name] = (text, body)
 
                         return text
                     
-            async for tool_call in a_tool_calls:
+            async def make_call(tool_call: ToolCall):
+                nonlocal conversation_rnd_end
 
                 # Log and send tool call
                 await self.fsc.messenger(
                     'maica_mfocus_tool_call',
                     f"MFocus calling tool {tool_call.name}: {tool_call.arguments}, retrieving tool response...",
                     201,
-                    type=MsgType.LOG,
+                    type=MsgType.PRIM_LOG,
                 )
-
-                # Create maica compatible item
-                maica_tool_call = MaicaSessionItem(
-                    preserved=tool_call.model_dump()
-                )
-                self.mf_session.append(maica_tool_call)
 
                 # Then if we need to respond
                 tool_response = await tool_respond(tool_call)
 
                 if not tool_response:
                     conversation_rnd_end = True
-                    break
 
                 else:
+
+                    # Create maica compatible item
+                    maica_tool_call = MaicaSessionItem(
+                        preserved=tool_call.model_dump()
+                    )
+                    self.mf_session.append(maica_tool_call)
+
                     await self.fsc.messenger(
                         'maica_mfocus_tool_resp',
                         f"MFocus tool {tool_call.name} responded: {tool_response}",
@@ -387,15 +390,29 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
                         type=MsgType.INFO,
                     )
 
-                # Then create the tool response item
-                maica_tool_response = MaicaSessionItem(
-                    preserved={
-                        "type": "function_call_output",
-                        "call_id": tool_call.call_id,
-                        "output": tool_response,
-                    }
+                    # Then create the tool response item
+                    maica_tool_response = MaicaSessionItem(
+                        preserved={
+                            "type": "function_call_output",
+                            "call_id": tool_call.call_id,
+                            "output": tool_response,
+                        }
+                    )
+                    self.mf_session.append(maica_tool_response)
+
+            call_tasks = []
+            async for tool_call in a_tool_calls:
+                
+                call_tasks.append(
+                    asyncio.create_task(
+                        make_call(tool_call)
+                    )
                 )
-                self.mf_session.append(maica_tool_response)
+
+                if conversation_rnd_end:
+                    break
+
+            await asyncio.gather(*call_tasks)
 
         await self.fsc.messenger(
             'maica_mfocus_tool_start',
@@ -416,8 +433,8 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         ):
 
             # Generation
-            task, a_reasoning, a_content, a_tool_calls = await llm_request(conn, **completion_args)
-            await tools_loop(a_tool_calls)
+            async with llm_request(conn, **completion_args) as (task, a_reasoning, a_content, a_tool_calls):
+                await tools_loop(a_tool_calls)
 
         await self.fsc.messenger(
             'maica_mfocus_tool_fin',

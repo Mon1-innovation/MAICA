@@ -74,7 +74,7 @@ async def pre_core_pipelines(
             and fsc.maica_settings.extra.mf_precheck_mt
         ):
             requested, operation = await st.predict_trigger(session_item.content)
-            sync_messenger(info=f"Precheck mt responded, requested: {requested}, operation: {operation}", type=MsgType.DEBUG)
+            sync_messenger(info=f"Precheck mt responded, requested: {requested}, operation: {operation}", type=MsgType.LOG)
 
             if requested:
                 if operation:
@@ -169,8 +169,12 @@ async def pre_core_pipelines(
     ]
 
     for stage in tasks_stages:
-        await asyncio.gather(
-            *[task() for task in stage]
-        )
+        try:
+            async with asyncio.TaskGroup() as tg:
+                for task in stage:
+                    tg.create_task(task())
+        except* Exception as eg:
+            # We raise the first exception for common excepts to handle
+            raise eg.exceptions[0]
 
     # And we should be good to move on

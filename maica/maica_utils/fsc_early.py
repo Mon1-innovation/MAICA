@@ -11,6 +11,7 @@ from websockets import ServerConnection, WebSocketException
 from Crypto.Random import random as crandom
 from .setting_utils import MaicaSettings
 from .maica_utils import *
+from .stream_buffer import *
 
 class AllowArb(BaseModel):
     """Enable arbitrary_types_allowed."""
@@ -50,7 +51,10 @@ class RealtimeSocketsContainer(AllowArb):
 
         async def release_buffer(self):
             """Always execute to release resource!"""
-            if len(self._w_buffer):
+            if (
+                self._w_buffer
+                and self._w_buffer.qsize()
+            ):
                 self._w_buffer.kill()
 
             self._w_buffer = None
@@ -105,6 +109,7 @@ class RealtimeSocketsContainer(AllowArb):
                 status: str = '',
                 info: str = '',
                 code: int = 0,
+                no_track = False,
                 **kwargs,
             ):
             """These default values are for directly passing exception."""
@@ -117,7 +122,7 @@ class RealtimeSocketsContainer(AllowArb):
                         status=status,
                         info=info,
                         code=code,
-                        tracker_id=self._parent.tracker_id,
+                        tracker_id = '' if no_track else self._parent.tracker_id,
                         **kwargs
                     )
                 except WebSocketException as we:

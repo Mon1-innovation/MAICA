@@ -33,7 +33,7 @@ async def post_core_pipelines(
             fsc.maica_settings.use_mt_now
         ):
 
-            mtp = MtPipeliner(session, fsc, st)
+            mtp = MtPipeliner(session, fsc, sp, st)
             await mtp.run_mt_pipeline()
 
     async def quality_chk_pipeline():
@@ -62,22 +62,28 @@ async def post_core_pipelines(
 
     async def save_session_pipeline():
         """Saving session."""
-        length_stat = await session.wrapped_save()
+        if (
+            fsc.maica_settings.temp.chat_session > 0
+        ):
 
-        match length_stat:
-            case 2:
-                await fsc.messenger(
-                    'maica_history_sliced',
-                    f"Session exceeded {fsc.maica_settings.basic.session_len_limit} characters and sliced",
-                    204,
-                )
-            case 1:
-                await fsc.messenger(
-                    'maica_history_slice_hint',
-                    f"Session exceeded {fsc.maica_settings.basic.session_len_limit * (2/3)} characters, will slice at {fsc.maica_settings.basic.session_len_limit}",
-                    200,
-                    no_print=True,
-                )
+            length_stat = await session.wrapped_save()
+
+            match length_stat:
+                case 2:
+                    await fsc.messenger(
+                        'maica_history_sliced',
+                        f"Session exceeded {fsc.maica_settings.basic.session_len_limit} characters and sliced",
+                        204,
+                    )
+                case 1:
+                    await fsc.messenger(
+                        'maica_history_slice_hint',
+                        f"Session exceeded {fsc.maica_settings.basic.session_len_limit * (2/3)} characters, will slice at {fsc.maica_settings.basic.session_len_limit}",
+                        200,
+                        no_print=True,
+                    )
+                case _:
+                    sync_messenger(info="Session stored, length acceptable", type=MsgType.DEBUG)
 
     # Finally, form all these together
     tasks_stages: list[list[Callable[[], Awaitable]]] = [
@@ -86,8 +92,12 @@ async def post_core_pipelines(
     ]
 
     for stage in tasks_stages:
-        await asyncio.gather(
-            *[task() for task in stage]
-        )
+        try:
+            async with asyncio.TaskGroup() as tg:
+                for task in stage:
+                    tg.create_task(task())
+        except* Exception as eg:
+            # We raise the first exception for common excepts to handle
+            raise eg.exceptions[0]
 
     # And we should be good to move on

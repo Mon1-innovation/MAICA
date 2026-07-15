@@ -66,7 +66,8 @@ from .maica_utils import (
     PydUpdateMixin,
     PydHardResetMixin,
     PydSoftResetMixin,
-    Desc,
+    RobustList,
+    SafeFormatDict,
     DummyClass,
 )
 from .connection_utils import MilvusDbConnectionManager, ConnUtils, AiConnectionManager, validate_input
@@ -77,7 +78,7 @@ from .fsc_late import ConnSocketsContainer, FullSocketsContainer
 from .get_a_sentence import SentenceOfTheDay
 from .locater import locater, get_inner_path, get_outer_path
 from .gvars import online_dict, G
-from .session_mgr import MaicaSession, MaicaSessionItem, SessionPersistent, SessionTrigger, acquire_dbo, acquire_session, dbos_gc
+from .chat_session import MaicaSession, MaicaSessionItem
 from .db_bound_obj import DbBoundObject
 from .agent_tools import WrappedOpenAIToolProperty, WrappedOpenAITool, WrappedOpenAIToolNamespace, BaseTrigger, AffectionTrigger, SwitchTrigger, MeterTrigger, BooleanTrigger, TypeTrigger
 from .llm_utils import ToolCall, llm_request
@@ -86,6 +87,7 @@ from .ws_config import WsPermissionConfig, WsPingConfig, WsSPingConfig, WsReconn
 from .database_utils import DatabaseUtils, sqla_get_or_create, sqla_create_or_update
 from .database_models import SqlBaseAuth, SqlBaseData, SqlUser, SqlAccountStatus, SqlChatSession, SqlCropArchived, SqlCsessionArchived, SqlMsCache, SqlMvMeta, SqlPersistent, SqlTrigger
 from .users_utils import FscUsersFuncMixin
+from .session_mgr import SessionPersistent, SessionTrigger, acquire_dbo, acquire_session, dbos_gc
 
 __all__ = [
     'silent',
@@ -157,7 +159,8 @@ __all__ = [
     'PydUpdateMixin',
     'PydHardResetMixin',
     'PydSoftResetMixin',
-    'Desc',
+    'RobustList',
+    'SafeFormatDict',
     'DummyClass',
     'MilvusDbConnectionManager',
     'ConnUtils',

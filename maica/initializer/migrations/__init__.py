@@ -9,7 +9,7 @@ from . import _activator
 
 def pkg_init_migrations():
     global available_list
-    available_list = get_migrations()
+    available_list.extend(get_migrations())
     sync_messenger(info=f'[maica-mig] {len(available_list)} migrations found', type=MsgType.DEBUG)
 
 __all__ = ['migrate']

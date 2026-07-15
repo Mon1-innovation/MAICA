@@ -72,10 +72,7 @@ def verify_message(message: str, sigb64):
     signature = base64.b64decode(sigb64.encode("utf-8"))
     h = SHA256.new()
     h.update(message)
-    if crypto_object.verifier.verify(h, signature):
-        return True
-    else:
-        return False
+    crypto_object.verifier.verify(h, signature)
 
 if __name__ == '__main__':
     from maica import init

@@ -93,11 +93,9 @@ class WrappedOpenAIToolNamespace():
 
 class _BaseTriggerExprop(BaseModel):
     """Extra props of MTrigger items."""
-    type: Literal["switch", "meter", "boolean"]
     item_name: BilingualText
             
 class _SwitchTriggerExprop(_BaseTriggerExprop):
-    _template: ClassVar[str] = "common_switch_template"
     item_list: list[str]
     curr_item: Optional[str] = None
     suggestion: bool = False
@@ -129,7 +127,6 @@ class _SwitchTriggerExprop(_BaseTriggerExprop):
         return required_params
 
 class _MeterTriggerExprop(_BaseTriggerExprop):
-    _template: ClassVar[str] = "common_meter_template"
     value_limits: list[float] = Field(min_length=2, max_length=2)
     curr_value: Optional[float] = None
 
@@ -152,7 +149,6 @@ class _MeterTriggerExprop(_BaseTriggerExprop):
         return required_params
 
 class _BooleanTriggerExprop(_BaseTriggerExprop):
-    _template: ClassVar[str] = "customized"
 
     def to_properties(self):
         return []
@@ -247,8 +243,12 @@ class SwitchTrigger(BaseTrigger):
             "Change ",
         )\
         + self.exprop.item_name\
-        + ": "\
-        + ", ".join(choose_list)
+        + ": "
+        
+        for index, i in enumerate(choose_list):
+            text += i
+            if index < len(choose_list) - 1:
+                text += ", "
 
         l = choose_list
         return text, l

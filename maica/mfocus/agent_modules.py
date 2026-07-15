@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import pytz
 import json
@@ -19,10 +20,12 @@ class AgentTools():
 
     def _time_tz(self):
         tz = self.fsc.maica_settings.basic.tz
+        if not tz:
+            tz = self.fsc.maica_settings.basic.target_lang
 
         if tz == 'zh':
             tz = "Asia/Shanghai"
-        elif tz == 'en':
+        elif tz in ('en', 'auto'):
             tz = "America/Indiana/Vincennes"
 
         try:
@@ -128,20 +131,22 @@ class AgentTools():
             days_to_search.append((dt, 0))
 
         # Register extras
-        bdays = (
-            RegEvent(md=(9, 22), name="莫妮卡的生日", ename="Monika's birthday", awareness=3),
-        )
+        bdays = set()
+        bdays.add(RegEvent(md=(9, 22), name="莫妮卡的生日", ename="Monika's birthday", awareness=3))
         if player_bday:
-            bdays.add(
-                RegEvent(md=player_bday, name="{player_name}的生日", ename="{player_name}'s birthday", awareness=5)
-            )
+            bdays.add(RegEvent(md=player_bday, name="{player_name}的生日", ename="{player_name}'s birthday", awareness=5))
+
         for bday in bdays:
             ev_collection.add(bday)
 
         # Search
         search_results = []
         for day in days_to_search:
-            search_results.append(ev_collection.search(day[0]))
+            search_results.append(
+                ev_collection.search(
+                    datetime.datetime.combine(day[0], datetime.datetime.min.time())
+                )
+            )
 
         # Friendly strings
         def today_is(indice: int):
@@ -181,7 +186,7 @@ class AgentTools():
                 "and also ",
             )
 
-        # Retrieve results
+        # Retrieve and filter results
         must_name = "name" if target_lang == 'zh' else "ename"
         search_results = [
             [
@@ -247,9 +252,9 @@ class AgentTools():
 
         return text, res
 
-    async def search_internet(self, ser_query: str, org_query: Optional[str] = None, *args, **kwargs):
+    async def search_internet(self, query: str, org_query: Optional[str] = None, *args, **kwargs):
         """Searches result from internet."""
-        text, res_m = await internet_search(self.fsc, ser_query)
+        text, res_m = await internet_search(self.fsc, query)
 
         if not text:
             res_m = None
@@ -271,4 +276,22 @@ class AgentTools():
         return text, img_list
 
 if __name__ == "__main__":
-    pass
+    from maica import init
+    init()
+    async def test():
+        fsc = FullSocketsContainer()
+        fsc.maica_settings.verification.user_id = 18064
+
+        fsc.vector_pool = await ConnUtils.vector_pool()
+        fsc.embedding_conn = await ConnUtils.embedding_conn()
+        fsc.reranking_conn = await ConnUtils.reranking_conn()
+
+        async with acquire_dbo("persistent", fsc) as sp:
+            # await sp.to_milvus(set())
+
+            toolbox = AgentTools(fsc, sp)
+            print(fsc.real_sf_access_impl)
+
+            print(await toolbox.persistent_acquire("用户对奶茶的看法"))
+
+    asyncio.run(test())

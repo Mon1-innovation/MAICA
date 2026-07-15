@@ -45,7 +45,7 @@ If none of the images is relevant with query, you can output null.\
     session.append(user_query)
 
     completion_args = {
-        "messages": session.utilize(
+        "input": session.utilize(
             text_only=False,
             manual_prompt=True,
             ignore_additions=True,
@@ -63,8 +63,6 @@ If none of the images is relevant with query, you can output null.\
     reply_result = VistaSearchConcl.model_validate_json(resp.output_text)
 
     text = reply_result.reply
-        
-    await messenger(None, 'mfocus_mvista_acquire', f"\nMFocus toolchain calling MVista, response is:\n{text}\nEnd of MFocus toolchain calling MVista", 201)
     
     return text
 

@@ -111,7 +111,7 @@ class WsQueryConfig(WsBasicConfig):
     pprt: Union[bool, PprtConfig] = True
     """Post-proc-realtime."""
 
-    activated: ClassVar[Literal["query", "mspire", "mpostal"]] = "query"
+    activated: Literal["query", "mspire", "mpostal"] = "query"
 
     @model_validator(mode="after")
     def exclusion_det(self):
@@ -130,7 +130,7 @@ class WsQueryConfig(WsBasicConfig):
         elif not excl_set:
             raise MaicaInputWarning(f"No action chosen")
         
-        match excl_set[0]:
+        match list(excl_set)[0]:
             case "query":
                 self.activated = "query"
             case "inspire":
@@ -166,6 +166,7 @@ class WsQueryConfig(WsBasicConfig):
             
             if (
                 self.chat_session != 0
+                and self.inspire
                 and self.inspire.use_cache
             ):
                 raise MaicaInputWarning("MSpire use_cache only applies to session 0")
