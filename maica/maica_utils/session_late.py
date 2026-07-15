@@ -178,7 +178,7 @@ class SessionPersistentLlmMixin():
     async def filter_llm(self, query: str, documents: Optional[list] = None, topk: int = 3) -> list:
         """Traditional MFocus sfe implementation."""
         session = MaicaSession()
-        target_lang = session.default_target_lang = self.fsc.maica_settings.basic.target_lang
+        target_lang = self.fsc.maica_settings.basic.target_lang
         conn = self.fsc.mnerve_conn or self.fsc.mfocus_conn
 
         if (
@@ -221,6 +221,7 @@ If none of the information is relevant with query, you can output empty.\
         user_query = MaicaSessionItem(
             "user",
             query,
+            target_lang=target_lang,
         )
         session.append(user_query)
 
@@ -253,7 +254,7 @@ class SessionTriggerLlmMixin():
     async def predict_trigger(self, query: str):
         """We make st do this itself, since we used llm in sp already."""
         session = MaicaSession()
-        target_lang = session.default_target_lang = self.fsc.maica_settings.basic.target_lang
+        target_lang = self.fsc.maica_settings.basic.target_lang
         conn = self.fsc.mnerve_conn or self.fsc.mfocus_conn
 
         text_l = []; choices_l = []
@@ -334,6 +335,7 @@ Here is the tools list:\
         user_query = MaicaSessionItem(
             "user",
             query,
+            target_lang=target_lang,
         )
         session.append(user_query)
 

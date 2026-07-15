@@ -140,7 +140,7 @@ def emo_proc(emo: str, target_lang: Literal['zh', 'en', 'auto']='zh'):
 async def emo_proc_llm(emo: str, fsc: FullSocketsContainer):
     sync_messenger(info=f"Detecting {emo}'s proper replacement...", type=MsgType.DEBUG)
     session = MaicaSession()
-    target_lang = session.default_target_lang = fsc.maica_settings.basic.target_lang
+    target_lang = fsc.maica_settings.basic.target_lang
 
     conn = fsc.mnerve_conn
     if not conn:
@@ -184,6 +184,7 @@ Please choose an emotion that fits best from the given list of standard emotions
     user_query = MaicaSessionItem(
         "user",
         emo,
+        target_lang=target_lang,
     )
     session.append(user_query)
 

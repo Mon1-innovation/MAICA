@@ -647,7 +647,7 @@ class ShortConnHandler(View):
 
     async def any_unknown(self):
         """Handles any unknown endpoint"""
-        sync_messenger(info=f"An unknown access to {request.full_path} handled", type=MsgType.WARN)
+        sync_messenger(info=f"An unknown access to {request.full_path} handled", type=MsgType.LOG)
         return jsonify({"success": False, "exception": 'Unknown request endpoint or method'}), 404
 
 

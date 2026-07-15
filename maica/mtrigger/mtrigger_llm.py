@@ -20,7 +20,6 @@ class MtPipeliner():
 
     def _reset_session(self):
         self.mt_session = MaicaSession()
-        self.mt_session.default_target_lang = self.fsc.maica_settings.basic.target_lang
 
     def reset(self):
         self._reset_tools()
@@ -98,6 +97,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
                 "<task> 观察以上对话历史记录, 依据上一轮对话调用工具. (除调整好感度和结束任务外)不要调用未经明确指示的工具. 每个工具最多调用一次.",
                 "<task> Observe the chat history and make tool calls according to last round of conversation. Do not use tools (except affection and finished) without explicit request. Do not use any tool more than once."
             ),
+            target_lang=target_lang,
         )
         self.mt_session.append(query_item)
 

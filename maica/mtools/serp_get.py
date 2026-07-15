@@ -11,7 +11,7 @@ _Bt = BilingualText
 
 async def internet_search(fsc: FullSocketsContainer, query):
     session = MaicaSession()
-    target_lang = session.default_target_lang = fsc.maica_settings.basic.target_lang
+    target_lang = fsc.maica_settings.basic.target_lang
     conn = fsc.mnerve_conn or fsc.mfocus_conn
 
     @Decos.conn_retryer_factory()
@@ -68,7 +68,8 @@ If none of the information is relevant with query, you can output null.\
 
         user_query = MaicaSessionItem(
             "user",
-            f'Information: {'; '.join(results_list)}\nQuestion: {query}'
+            f'Information: {'; '.join(results_list)}\nQuestion: {query}',
+            target_lang=target_lang,
         )
         session.append(user_query)
 

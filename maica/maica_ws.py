@@ -229,6 +229,8 @@ class WsCoroutine(NoWsCoroutine):
             acquire_session(self.fsc) as session,
         ):
             fdb1 = set()
+            if chat_session >= 1:
+                fdb1.add(session.from_db())
             
             # They're not required at all if just resetting session
             if not ws_config.reset:
@@ -236,25 +238,23 @@ class WsCoroutine(NoWsCoroutine):
                 if self.settings.basic.savefile_access:
                     fdb1.add(sp.from_db())
                 fdb1.add(st.from_db())
-                if chat_session >= 1:
-                    fdb1.add(session.from_db())
 
-            else:
+            await asyncio.gather(*fdb1)
+
+            if ws_config.reset:
                 # To archive first
                 await session.to_entire_archive()
 
                 # Clear and prepare to use
                 session.clear()
                 await session.to_db()
-                
+
                 await self.fsc.messenger(
                     "maica_session_reset",
                     "Determined chat_session reset",
                     204,
                 )
                 return
-
-            await asyncio.gather(*fdb1)
 
             user_query = MaicaSessionItem("user")
             user_query.context_from_fsc(self.fsc)

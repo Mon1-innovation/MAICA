@@ -62,7 +62,13 @@ class MaicaSessionItem(BaseModel):
         super().__init__(**kwargs)
 
     def json(self) -> dict:
-        return self.model_dump()
+
+        # exclude_unset does not track sub-attributes
+        # Normally we just ignore those because only those on role=user is meaningful
+        kwargs = {}
+        if self.role != "user":
+            kwargs["exclude_unset"] = True
+        return self.model_dump(**kwargs)
     
     def utilize(self, text_only: Literal[False, None, True] = None) -> dict:
         """
@@ -133,6 +139,7 @@ class MaicaSessionItem(BaseModel):
 
         context = self.context
         context.strict_conv = fsc.maica_settings.temp.common.strict_conv
+        context.apply_nickname = fsc.maica_settings.extra.prompt_allow_nickname
         context.nsfw_acceptive = fsc.maica_settings.extra.nsfw_acceptive
         context.image_urls = fsc.maica_settings.temp.mvista.mv_imgs or []
 
@@ -147,23 +154,7 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         list.clear(self)
         DbBoundObject.clear(self)
 
-    def reset(self):
-        super().reset()
-
-        self.default_target_lang: Literal['zh', 'en', 'auto'] = 'zh'
-        self.default_context = MaicaSessionItem.Context()
-
-    def default_context_from_fsc(self):
-        # Should we load fsc settings into defaults here?
-        # We probably should.
-        self.default_target_lang = self.fsc.maica_settings.basic.target_lang
-        self.default_context.strict_conv = self.fsc.maica_settings.temp.common.strict_conv
-        self.default_context.apply_nickname = self.fsc.maica_settings.extra.prompt_allow_nickname
-        self.default_context.nsfw_acceptive = self.fsc.maica_settings.extra.nsfw_acceptive
-
     def on_acquire(self):
-        if self.fsc:
-            self.default_context_from_fsc()
         if self.session_num <= 0:
             self.reset()
 
@@ -173,31 +164,6 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         DbBoundObject.__init__(self, session_num, fsc)
         # It should also autorun DbBoundObject.__post_init__()
         # which also runs self.reset()
-
-    def _sync_session_item(self, object: MaicaSessionItem):
-        object.target_lang = object.target_lang if "target_lang" in object.model_fields_set else self.default_target_lang
-
-        for field in self.default_context.__class__.model_fields.keys() - object.context.model_fields_set:
-            setattr(object.context, field, getattr(self.default_context, field))
-
-    # We override append to automatically manage context
-    def append(self, object):
-        if isinstance(object, MaicaSessionItem):
-            self._sync_session_item(object)
-        return super().append(object)
-    
-    # Well we have to use insert sometimes
-    def insert(self, index, object):
-        if isinstance(object, MaicaSessionItem):
-            self._sync_session_item(object)
-        return super().insert(index, object)
-    
-    # Just doing it for safety
-    def extend(self, iterable):
-        for object in iterable:
-            if isinstance(object, MaicaSessionItem):
-                self._sync_session_item(object)
-        return super().extend(iterable)
     
     def load(self, item: Union[list, str]):
         self.clear()
@@ -233,10 +199,17 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
             raise MaicaInputWarning("No item could be utilized", 404)
 
         # Then acquire context
-        curr_item = self[-1]
-        curr_context = curr_item.context
         prompt_item = self[0]
         prompt_context = prompt_item.context
+
+        for item in reversed(self):
+            if item.role == "user":
+                curr_item = item
+                break
+        else:
+            curr_item = prompt_item
+        curr_context = curr_item.context
+
         target_lang = curr_item.target_lang
 
         # Then generate system prompt from context
@@ -316,6 +289,7 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         # Then inject
         # Note that system prompt item should not be modified from external
         self[0].content = prompt
+        print(prompt)
 
     def json(self) -> list:
         self._utilize_context()
@@ -435,9 +409,9 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
                 
         cycle = 0; last_self_len = len(self)
         archiver = MaicaSession()
+        
         if not self.prim_key_id:
             await self.init_db()
-        archiver.default_context = self.default_context
         archiver.prim_key_id = self.prim_key_id
 
         while True:

@@ -24,7 +24,6 @@ async def make_postmail(fsc: FullSocketsContainer):
         """If this is a letter or poem."""
         sync_messenger(info=f"Detecting if letter is poem...", type=MsgType.DEBUG)
         session = MaicaSession()
-        session.default_target_lang = target_lang
 
         class PoemDetectResult(BaseModel):
             is_poem: bool = Field(
@@ -52,6 +51,7 @@ Please decide if it's a poem or normal letter.\
         user_query = MaicaSessionItem(
             "user",
             letter,
+            target_lang=target_lang,
         )
         session.append(user_query)
 

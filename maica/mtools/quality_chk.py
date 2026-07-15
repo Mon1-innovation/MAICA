@@ -9,7 +9,7 @@ _Bt = BilingualText
 async def quality_chk(org_session: MaicaSession, fsc: FullSocketsContainer):
     """Detects if a session is descalated and should be reset."""
     session = MaicaSession()
-    target_lang = session.default_target_lang = fsc.maica_settings.basic.target_lang
+    target_lang = fsc.maica_settings.basic.target_lang
 
     conn = fsc.mnerve_conn
     if not conn:
@@ -60,6 +60,7 @@ Please check the quality of assistant's response.\
     user_query = MaicaSessionItem(
         "user",
         query,
+        target_lang=target_lang,
     )
     session.append(user_query)
 

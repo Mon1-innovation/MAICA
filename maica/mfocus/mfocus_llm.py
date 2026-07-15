@@ -28,7 +28,6 @@ class MfPipeliner():
 
     def _reset_session(self):
         self.mf_session = MaicaSession()
-        self.mf_session.default_target_lang = self.fsc.maica_settings.basic.target_lang
 
     def reset(self):
         self._reset_tools()

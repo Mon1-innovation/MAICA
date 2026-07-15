@@ -9,7 +9,7 @@ _Bt = BilingualText
 async def query_vlm(fsc: FullSocketsContainer, query: str, img_list: list[str]):
     """Ask the vlm about imgs provided. Only used if not is_mcore_vl."""
     session = MaicaSession()
-    target_lang = session.default_target_lang = fsc.maica_settings.basic.target_lang
+    target_lang = fsc.maica_settings.basic.target_lang
     conn = fsc.mvista_conn
 
     assert len(img_list) <= int(G.A.KEEP_MVISTA), f"{G.A.KEEP_MVISTA} images at most per query"
@@ -38,9 +38,10 @@ If none of the images is relevant with query, you can output null.\
     user_query = MaicaSessionItem(
         "user",
         query,
+        target_lang=target_lang,
         context={
             "image_urls": img_list
-        }
+        },
     )
     session.append(user_query)
 
