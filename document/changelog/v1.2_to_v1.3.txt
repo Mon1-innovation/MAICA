@@ -101,3 +101,5 @@ If you want to read in English, use a translator.
 - 弃用了mas_player_additions静默允许超长, 现在超长会拒绝
 
 - 现在对mt的验证要求更严格, 例如switch的条目均必须是str
+
++ gpt建议用http标头传递短连接的token, 并做了兼容
