@@ -714,7 +714,7 @@ class ShortConnHandler(View):
     # ====================================================== Utilizations ends ======================================================
 
 
-async def prepare_thread(**kwargs):
+async def prepare_thread(shutdown_trigger=None, **kwargs):
 
     # Construct csc first
     root_csc_kwargs = {k: kwargs.get(k) for k in _CONNS_LIST}
@@ -733,7 +733,11 @@ async def prepare_thread(**kwargs):
     try:
         config = Config()
         config.bind = [f'{G.A.HTTP_HOST}:{int(G.A.HTTP_PORT)}']
-        task = asyncio.create_task(serve(app, config))
+        # Supplying the application-level trigger keeps Hypercorn from
+        # replacing the process-wide SIGTERM handler installed by the starter.
+        task = asyncio.create_task(
+            serve(app, config, shutdown_trigger=shutdown_trigger)
+        )
 
         task_list = [task] + _watch_start_list
 

@@ -84,7 +84,8 @@ def test_sigterm_path_cancels_service_group(monkeypatch) -> None:
         service_cancelled = asyncio.Event()
         signal_callback = None
 
-        async def hanging_start_all(_target):
+        async def hanging_start_all(_target, shutdown_trigger=None):
+            assert shutdown_trigger is not None
             service_started.set()
             try:
                 await asyncio.Event().wait()
@@ -108,6 +109,55 @@ def test_sigterm_path_cancels_service_group(monkeypatch) -> None:
         signal_callback()
         await asyncio.wait_for(task, timeout=1)
         assert service_cancelled.is_set()
+
+    asyncio.run(scenario())
+
+
+def test_http_uses_external_shutdown_trigger(monkeypatch) -> None:
+    async def scenario() -> None:
+        shutdown_requested = asyncio.Event()
+        shutdown_trigger = shutdown_requested.wait
+        serve_started = asyncio.Event()
+        received_trigger = None
+        old_host, old_port = G.A.HTTP_HOST, G.A.HTTP_PORT
+        G.A.HTTP_HOST, G.A.HTTP_PORT = "127.0.0.1", "5001"
+
+        class FakeWatcher:
+            async def wrapped_main_watcher(self):
+                await asyncio.Event().wait()
+
+            async def close(self):
+                return None
+
+        async def fake_watcher_create(*_args, **_kwargs):
+            return FakeWatcher()
+
+        async def fake_serve(_app, _config, *, shutdown_trigger=None):
+            nonlocal received_trigger
+            received_trigger = shutdown_trigger
+            serve_started.set()
+            await shutdown_trigger()
+
+        monkeypatch.setattr(
+            maica_starter.maica_http.NvWatcher,
+            "async_create",
+            fake_watcher_create,
+        )
+        monkeypatch.setattr(maica_starter.maica_http, "serve", fake_serve)
+
+        try:
+            task = asyncio.create_task(
+                maica_starter.maica_http.prepare_thread(
+                    shutdown_trigger=shutdown_trigger,
+                )
+            )
+            await asyncio.wait_for(serve_started.wait(), timeout=1)
+
+            assert received_trigger is shutdown_trigger
+            shutdown_requested.set()
+            await asyncio.wait_for(task, timeout=1)
+        finally:
+            G.A.HTTP_HOST, G.A.HTTP_PORT = old_host, old_port
 
     asyncio.run(scenario())
 
