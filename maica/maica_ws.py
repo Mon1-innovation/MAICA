@@ -339,7 +339,7 @@ class WsCoroutine(NoWsCoroutine):
                     completion_args['extra_body']["structured_outputs"] = {"regex": r"^[^\u4e00-\u9fa5]*$"}
 
             # Add context log
-            previous_rnds = session.utilize(text_only=True)[1:]
+            previous_rnds = session.utilize(text_only=True)[1:-1]
             previous_rnds_len = int(len(previous_rnds) / 2)
             previous_rnds_ellipsed = previous_rnds[-6:]
 
