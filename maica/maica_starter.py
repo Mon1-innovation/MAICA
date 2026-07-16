@@ -284,7 +284,10 @@ def check_warns():
     if (load_env('MAICA_MCORE_NODE') and load_env('MAICA_MCORE_USER') and load_env('MAICA_MCORE_PWD')) or (load_env('MAICA_MFOCUS_NODE') and load_env('MAICA_MFOCUS_USER') and load_env('MAICA_MFOCUS_PWD')):
         sync_messenger(info='\nOne or more NVwatch nodes detected\nNVwatch of MAICA Illuminator will try to collect nvidia-smi outputs through SSH, which can fail the process if SSH not avaliable\nIf SSH of nodes are not accessable or not wanted to be used, delete X_NODE, X_USER, X_PWD accordingly', type=MsgType.DEBUG)
 
-async def start_all(start_target: Literal['chat', 'tts', 'all']='chat'):
+async def start_all(
+    start_target: Literal['chat', 'tts', 'all']='chat',
+    shutdown_trigger=None,
+):
     if start_target not in {'chat', 'tts', 'all'}:
         raise ValueError(f"Unknown start target: {start_target}")
 
@@ -297,13 +300,18 @@ async def start_all(start_target: Literal['chat', 'tts', 'all']='chat'):
         root_csc_kwargs = dict(zip(connection_names, root_csc_items))
 
         if start_target == 'chat':
-            await maica_start_all(**root_csc_kwargs)
+            await maica_start_all(**root_csc_kwargs, shutdown_trigger=shutdown_trigger)
         elif start_target == 'tts':
             await mtts_start_all(**root_csc_kwargs)
         else:
             await _wait_for_first(
                 [
-                    asyncio.create_task(maica_start_all(**root_csc_kwargs)),
+                    asyncio.create_task(
+                        maica_start_all(
+                            **root_csc_kwargs,
+                            shutdown_trigger=shutdown_trigger,
+                        )
+                    ),
                     asyncio.create_task(mtts_start_all(**root_csc_kwargs)),
                 ],
                 "overall",
@@ -335,10 +343,15 @@ async def _wait_for_first(tasks, label):
     # Propagate failures instead of turning a crashed server into a clean exit.
     await asyncio.gather(*done)
 
-async def maica_start_all(**kwargs):
+async def maica_start_all(shutdown_trigger=None, **kwargs):
 
     task_ws = asyncio.create_task(maica_ws.prepare_thread(**kwargs))
-    task_http = asyncio.create_task(maica_http.prepare_thread(**kwargs))
+    task_http = asyncio.create_task(
+        maica_http.prepare_thread(
+            **kwargs,
+            shutdown_trigger=shutdown_trigger,
+        )
+    )
     task_schedule = asyncio.create_task(common_schedule.prepare_thread(**kwargs, involve_chat=True, involve_tts=False))
 
     await _wait_for_first([task_ws, task_http, task_schedule], "chat")
@@ -359,7 +372,9 @@ async def _start_with_sigterm(target):
     """Translate SIGTERM into task cancellation so every service can clean up."""
     loop = asyncio.get_running_loop()
     shutdown_requested = asyncio.Event()
-    service_task = asyncio.create_task(start_all(target))
+    service_task = asyncio.create_task(
+        start_all(target, shutdown_trigger=shutdown_requested.wait)
+    )
     shutdown_task = asyncio.create_task(shutdown_requested.wait())
     loop_handler_installed = False
     previous_handler = None
