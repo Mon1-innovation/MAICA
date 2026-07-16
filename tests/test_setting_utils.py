@@ -1,6 +1,7 @@
 import pytest
 
 from maica.maica_utils.setting_utils import MaicaSettings
+from maica.maica_utils.maica_utils import MaicaPermissionError
 
 
 def test_verification_properties_are_backed_by_none_private_values() -> None:
@@ -20,14 +21,14 @@ def test_verification_properties_are_backed_by_none_private_values() -> None:
     }
 
     for name in ("user_id", "username", "email"):
-        with pytest.raises(AssertionError, match=f"{name} must be assigned before access"):
+        with pytest.raises(MaicaPermissionError, match=f"{name} must be assigned before access"):
             getattr(verification, name)
 
 
 def test_verification_properties_validate_and_lock_assignments() -> None:
     verification = MaicaSettings.Verification()
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(MaicaPermissionError):
         verification.user_id = "1"
 
     verification.user_id = 1
@@ -40,5 +41,5 @@ def test_verification_properties_validate_and_lock_assignments() -> None:
     assert verification.nickname is None
     assert verification.email == "tester@example.com"
 
-    with pytest.raises(AssertionError, match="user_id is locked"):
+    with pytest.raises(MaicaPermissionError, match="user_id is locked"):
         verification.user_id = 2

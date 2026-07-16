@@ -98,7 +98,7 @@ def set_instance(self, n, v, types: list[type], **kwargs):
             if v is None:
                 break
     else:
-        raise AssertionError
+        raise MaicaPermissionError(f"{v} must be in types {types}")
     return v
 
 class ConfigurableSettingsModel(SettingsModel, PydUpdateMixin, PydSoftResetMixin):
