@@ -76,7 +76,6 @@ class TalkSplitV2():
 
     def add_part(self, part):
         """Simple too."""
-        print(f"add part {part}")
         self.sentence_present += part
 
     def split_present_sentence(self):
@@ -120,11 +119,8 @@ class TalkSplitV2():
             """Just split."""
             sce = self.sentence_present[0:pos]
             self.sentence_present = self.sentence_present[pos:]
-            print(f"base sentence: {self.sentence_present}")
-            print(f"curr sentence: {self.sentence_present[0:pos]}")
 
             if len(sce) > 1 and not sce.isspace():
-                print(f"emitting sce: {sce}")
                 return sce.lstrip()
             else:
                 return None
