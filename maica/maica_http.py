@@ -241,9 +241,6 @@ class ShortConnHandler(View):
             return result
 
         except CommonMaicaException as ce:
-            if ce.is_critical:
-                traceback.print_exc()
-
             _, _, message, _ = sync_messenger(error=ce)
             status_code = int(ce.error_code or 400)
             if not 400 <= status_code <= 599:
@@ -252,7 +249,7 @@ class ShortConnHandler(View):
 
         except Exception as e:
             traceback.print_exc()
-            sync_messenger(info=f'Handler hit an exception: {str(e)}', type=MsgType.ERROR)
+            sync_messenger(info=f'Handler hit an unknown exception: {str(e)}', type=MsgType.ERROR)
             message = (
                 "A critical exception happened serverside, contact administrator"
                 if int(G.A.NO_SEND_ERROR)
@@ -281,6 +278,11 @@ class ShortConnHandler(View):
             raise MaicaInputWarning(f"Query parsing failed: {str(e)}")
         
         if self.val:
+
+            # login could handle empty tokens, but the exception will look weird
+            if not query.access_token:
+                raise MaicaPermissionWarning("access_token not provided")
+
             await self.fsc.login(query.access_token)
 
         if getattr(query, 'chat_session', None) is not None:

@@ -496,10 +496,7 @@ async def main_logic(
         
         except CommonMaicaException as ce:
 
-            # We print original info if is critical
-            if ce.is_critical:
-                traceback.print_exc()
-
+            # The messenger from 1.3 could print tracebacks itself
             await fsc.messenger(error=ce)
 
         except websockets.WebSocketException as we:

@@ -220,7 +220,7 @@ class FscUsersFuncMixin():
                 )
                 obj = await aus.scalar(stmt)
                 if obj is None:
-                    raise MaicaPermissionWarning("User no longer exists")
+                    raise MaicaPermissionError("User no longer exists, something might went wrong")
 
                 is_email_confirmed = obj.is_email_confirmed
                 suspended_until = obj.suspended_until
