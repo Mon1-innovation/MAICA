@@ -768,12 +768,6 @@ async def prepare_thread(shutdown_trigger=None, **kwargs):
             return_exceptions=True,
         )
 
-        # Normally maica_http should be the first one (possibly only one) to
-        # respond to the original SIGINT.
-
-        # So its stop msg will be print first, adding \n after ^C to look prettier.
-
-        sync_messenger(info='\n', type=MsgType.PLAIN)
         sync_messenger(info='MAICA HTTP server stopped!', type=MsgType.PRIM_SYS)
 
 
