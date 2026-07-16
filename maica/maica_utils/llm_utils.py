@@ -196,7 +196,10 @@ async def llm_request(conn: AiConnectionManager, *args, **kwargs):
     task = None
     try:
         task, a_reasoning, a_content, a_tool_calls = await parse_responses_output(resp)
+
+        # We yield task here for possible external interruption. We might not need the model to complete in some scenarios
         yield (task, a_reasoning, a_content, a_tool_calls, )
+        
     finally:
         if task:
             if task.done():
