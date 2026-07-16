@@ -52,76 +52,109 @@ async def parse_responses_output(
 
     reasoning_q: asyncio.Queue[str | None] = asyncio.Queue()
     content_q: asyncio.Queue[str | None] = asyncio.Queue()
-    tool_q: asyncio.Queue[dict | None] = asyncio.Queue()
+    tool_q: asyncio.Queue[ToolCall | None] = asyncio.Queue()
 
     _tool_calls_ids: set[str] = set()
 
     def get_value(item, key, default=None):
         return item.get(key, default) if isinstance(item, dict) else getattr(item, key, default)
 
-    def handle_item(item: Response | ResponseStreamEvent | dict):
+    def handle_tool_item(item: Any):
+        """Extract completed tool calls without replaying completed text."""
         t = get_value(item, "type")
 
-        # Non-streaming Responses wrap text parts inside a message item.
-        if t == "message":
-            for content_item in get_value(item, "content", []) or []:
-                handle_item(content_item)
+        if t in ("tool_call", "function_call", "function"):
+            if get_value(item, "status") != "completed":
+                return
+
+            if isinstance(item, BaseModel):
+                item = item.model_dump()
+            elif not isinstance(item, dict):
+                item = {
+                    key: get_value(item, key)
+                    for key in ("type", "call_id", "name", "arguments")
+                }
+            tool_call = ToolCall.model_validate(item)
+
+            if tool_call.call_id not in _tool_calls_ids:
+                _tool_calls_ids.add(tool_call.call_id)
+                tool_q.put_nowait(tool_call)
             return
 
-        # Some streaming events wrap their actual item/part one level deeper.
-        nested = get_value(item, "item") or get_value(item, "part")
-        if nested is not None and nested is not item:
-            handle_item(nested)
+        for key in ("output", "item"):
+            nested = get_value(item, key)
+            if nested is None or nested is item:
+                continue
+            if isinstance(nested, (list, tuple)):
+                for nested_item in nested:
+                    handle_tool_item(nested_item)
+            else:
+                handle_tool_item(nested)
+
+    def handle_stream_event(event: ResponseStreamEvent | dict):
+        """Stream text deltas, while taking tools only from completed items."""
+        t = get_value(event, "type") or ""
+        delta = get_value(event, "delta")
+
+        if isinstance(delta, str):
+            if "reasoning" in t:
+                reasoning_q.put_nowait(delta)
+            elif "output_text" in t or t in ("text", "output_text"):
+                content_q.put_nowait(delta)
+
+        # Tool calls are complete on output_item.done. response.completed is
+        # also accepted as a fallback, with call_id de-duplication.
+        if t == "response.output_item.done":
+            handle_tool_item(get_value(event, "item"))
+        elif t == "response.completed":
+            handle_tool_item(get_value(event, "response"))
+        elif t in ("tool_call", "function_call", "function"):
+            handle_tool_item(event)
+
+    def handle_non_stream_item(item: Response | dict):
+        t = get_value(item, "type")
+
+        if t == "message":
+            for content_item in get_value(item, "content", []) or []:
+                handle_non_stream_item(content_item)
+            return
+
+        if t == "reasoning":
+            for key in ("summary", "content"):
+                for reasoning_item in get_value(item, key, []) or []:
+                    handle_non_stream_item(reasoning_item)
+            text = get_value(item, "text")
+            if text:
+                reasoning_q.put_nowait(text)
+            return
 
         # reasoning
-        if t and "reasoning" in t:
-            text = get_value(item, "text") or get_value(item, "delta", "")
+        if t and ("reasoning" in t or t == "summary_text"):
+            text = get_value(item, "text", "")
             if text:
                 reasoning_q.put_nowait(text)
 
         # content
         elif t in ("output_text", "text") or (t and "output_text" in t):
-            text = get_value(item, "text") or get_value(item, "delta", "")
+            text = get_value(item, "text", "")
             if text:
                 content_q.put_nowait(text)
 
         # tool call
         elif t in ("tool_call", "function_call", "function"):
-            if get_value(item, "status") not in ("completed", None):
-                # This is likely "in_progress", so we ignore it since the complete result will contain everything
-                return
-
-            else:
-                if isinstance(item, BaseModel):
-                    item = item.model_dump()
-                elif not isinstance(item, dict):
-                    item = {
-                        key: get_value(item, key)
-                        for key in ("type", "call_id", "name", "arguments")
-                    }
-                tool_call = ToolCall.model_validate(item)
-                
-                if tool_call.call_id not in _tool_calls_ids:
-                    _tool_calls_ids.add(tool_call.call_id)
-                    tool_q.put_nowait(tool_call)
-
-        else:
-            delta = get_value(item, "delta")
-            if isinstance(delta, str) and not (t and "function_call" in t):
-                content_q.put_nowait(delta)
+            handle_tool_item(item)
 
     async def runner():
         try:
             # streaming
             if hasattr(resp, "__aiter__"):
                 async for event in resp:
-                    item = getattr(event, "item", event)
-                    handle_item(item)
+                    handle_stream_event(event)
             # non-streaming
             else:
                 outputs = get_value(resp, "output", []) or []
                 for item in outputs:
-                    handle_item(item)
+                    handle_non_stream_item(item)
 
         finally:
             # close streams

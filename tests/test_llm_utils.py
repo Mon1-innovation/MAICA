@@ -59,6 +59,87 @@ def test_function_argument_deltas_are_not_emitted_as_content() -> None:
     asyncio.run(scenario())
 
 
+def test_streaming_uses_text_deltas_and_completed_tools_only() -> None:
+    completed_tool = SimpleNamespace(
+        type="function_call",
+        status="completed",
+        call_id="call-1",
+        name="weather",
+        arguments='{"city":"Wuhan"}',
+    )
+    completed_message = SimpleNamespace(
+        type="message",
+        content=[SimpleNamespace(type="output_text", text="Hello world")],
+    )
+    completed_reasoning = SimpleNamespace(
+        type="reasoning",
+        summary=[SimpleNamespace(type="summary_text", text="Think twice")],
+    )
+
+    class Stream:
+        async def __aiter__(self):
+            yield SimpleNamespace(type="response.output_text.delta", delta="Hello ")
+            yield SimpleNamespace(type="response.output_text.delta", delta="world")
+            yield SimpleNamespace(type="response.output_text.done", text="Hello world")
+            yield SimpleNamespace(
+                type="response.content_part.done",
+                part=SimpleNamespace(type="output_text", text="Hello world"),
+            )
+            yield SimpleNamespace(
+                type="response.reasoning_summary_text.delta",
+                delta="Think ",
+            )
+            yield SimpleNamespace(
+                type="response.reasoning_summary_text.delta",
+                delta="twice",
+            )
+            yield SimpleNamespace(
+                type="response.reasoning_summary_text.done",
+                text="Think twice",
+            )
+            yield SimpleNamespace(
+                type="response.output_item.added",
+                item=SimpleNamespace(
+                    type="function_call",
+                    status="in_progress",
+                    call_id="call-1",
+                    name="weather",
+                    arguments="",
+                ),
+            )
+            yield SimpleNamespace(
+                type="response.output_item.done",
+                item=completed_message,
+            )
+            yield SimpleNamespace(
+                type="response.output_item.done",
+                item=completed_reasoning,
+            )
+            yield SimpleNamespace(
+                type="response.output_item.done",
+                item=completed_tool,
+            )
+            yield SimpleNamespace(
+                type="response.completed",
+                response=SimpleNamespace(
+                    output=[completed_message, completed_reasoning, completed_tool],
+                ),
+            )
+
+    async def scenario() -> None:
+        task, reasoning, content, tools = await parse_responses_output(Stream())
+
+        assert await collect(content) == ["Hello ", "world"]
+        assert await collect(reasoning) == ["Think ", "twice"]
+        parsed_tools = await collect(tools)
+        assert len(parsed_tools) == 1
+        assert parsed_tools[0].call_id == "call-1"
+        assert parsed_tools[0].arguments == {"city": "Wuhan"}
+        await task
+
+    asyncio.run(scenario())
+
+
 def test_llm_request_cancels_parser_when_consumer_exits_early() -> None:
     class HangingStream:
         def __init__(self) -> None:
