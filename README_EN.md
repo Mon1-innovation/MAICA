@@ -33,6 +33,8 @@ Basic datasets of MAICA are at https://huggingface.co/datasets/edgeinfinity/MAIC
 
 MAICA related documents are at https://github.com/Mon1-innovation/MAICA/tree/main/document.
 
+> Anything below this point is written by AI.
+
 ## Quick start
 
 MAICA requires Python 3.12 or newer and supports Windows and Linux. The core and MFocus models are separately deployed OpenAI-compatible Responses API endpoints. MySQL/MariaDB is recommended for public services; SQLite is supported for local testing.

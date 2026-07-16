@@ -325,12 +325,13 @@ async def _wait_for_first(tasks, label):
     try:
         done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
     finally:
+        sync_messenger(info=f"First {label} quit collected", type=MsgType.DEBUG)
         for task in pending:
             task.cancel()
+            await task
         if pending:
             await asyncio.gather(*pending, return_exceptions=True)
 
-    sync_messenger(info=f"First {label} quit collected", type=MsgType.DEBUG)
     # Propagate failures instead of turning a crashed server into a clean exit.
     await asyncio.gather(*done)
 
