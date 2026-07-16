@@ -400,7 +400,7 @@ class WsCoroutine(NoWsCoroutine):
                             if content_delta:
                                 await send_delta(content_delta)
 
-                        content_left = await pprt_processor.exaust_and_split()
+                        content_left = await pprt_processor.exhaust_and_split()
                         for content_delta in content_left:
                             await send_delta(content_delta)
 

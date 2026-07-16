@@ -53,20 +53,20 @@ def create_prop(
 def read_exist(self, n, v, **kwargs):
     """Value must exist on get."""
     if not v:
-        raise AssertionError(f"{n} must be assigned before access")
+        raise MaicaPermissionError(f"{n} must be assigned before access")
     return v
 
 def set_locked(self, n, v, **kwargs):
     """Value can only be rewritten from None."""
     prv_n = f"_{n}"
     if getattr(self, prv_n) is not None:
-        raise AssertionError(f"{n} is locked")
+        raise MaicaPermissionError(f"{n} is locked")
     return v
 
 def set_literal(self, n, v, valid: list[any], **kwargs):
     """Value must in valid list on set."""
     if v not in valid:
-        raise AssertionError(f"{n} must be one of {valid}")
+        raise MaicaPermissionError(f"{n} must be one of {valid}")
     return v
 
 def set_range(self, n, v, lower: Union[int, float], upper: Union[int, float], soft_limit: bool=False, **kwargs):
@@ -85,7 +85,7 @@ def set_range(self, n, v, lower: Union[int, float], upper: Union[int, float], so
             sync_messenger(info=f"{n}={v} out of range [{lower}, {upper}], limiting to {new_v}")
             v = new_v
     if not lower <= v <= upper:
-        raise AssertionError(f"{n} must be between {lower} and {upper}")
+        raise MaicaPermissionError(f"{n} must be between {lower} and {upper}")
     return v
 
 def set_instance(self, n, v, types: list[type], **kwargs):

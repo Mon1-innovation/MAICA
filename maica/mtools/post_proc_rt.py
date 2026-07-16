@@ -316,7 +316,7 @@ class PPRTProcessor():
         else:
             return sentence
 
-    async def exaust_and_split(self, chunk: str='') -> list[str]:
+    async def exhaust_and_split(self, chunk: str='') -> list[str]:
         if chunk:
             self._add_chunk(chunk)
         splits = self._buffer.announce_stop()
@@ -332,6 +332,6 @@ if __name__ == "__main__":
         sce = asyncio.run(pprtp.store_and_split(c))
         if sce:
             print(sce)
-    sces = asyncio.run(pprtp.exaust_and_split())
+    sces = asyncio.run(pprtp.exhaust_and_split())
     for sce in sces:
         print(sce)
