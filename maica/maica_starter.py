@@ -335,10 +335,10 @@ async def _wait_for_first(tasks, label):
     finally:
         for task in pending:
             task.cancel()
+            await task
         if pending:
             await asyncio.gather(*pending, return_exceptions=True)
 
-    sync_messenger(info=f"First {label} quit collected", type=MsgType.DEBUG)
     # Propagate failures instead of turning a crashed server into a clean exit.
     await asyncio.gather(*done)
 
@@ -380,7 +380,6 @@ async def _start_with_sigterm(target):
 
     def request_shutdown():
         if not shutdown_requested.is_set():
-            sync_messenger(info="SIGTERM received, shutting down services...", type=MsgType.PRIM_SYS)
             shutdown_requested.set()
 
     try:
@@ -410,12 +409,18 @@ async def _start_with_sigterm(target):
             # Preserve failures when a service exits without a shutdown signal.
             await service_task
     finally:
+        sync_messenger(info="\n", type=MsgType.PLAIN)
+        sync_messenger(info="SIGTERM received, shutting down services...", type=MsgType.PRIM_SYS)
+
         for task in (service_task, shutdown_task):
             if not task.done():
                 task.cancel()
+
         await asyncio.gather(service_task, shutdown_task, return_exceptions=True)
+
         if loop_handler_installed:
             loop.remove_signal_handler(signal.SIGTERM)
+            
         elif previous_handler is not None:
             signal.signal(signal.SIGTERM, previous_handler)
 

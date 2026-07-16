@@ -119,6 +119,7 @@ class TalkSplitV2():
             """Just split."""
             sce = self.sentence_present[0:pos]
             self.sentence_present = self.sentence_present[pos:]
+
             if len(sce) > 1 and not sce.isspace():
                 return sce.lstrip()
             else:

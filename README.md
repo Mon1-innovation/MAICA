@@ -33,6 +33,8 @@ MAICA的基本数据集仓库位于https://huggingface.co/datasets/edgeinfinity/
 
 MAICA的相关文档存储于https://github.com/Mon1-innovation/MAICA/tree/main/document.
 
+> Anything below this point is written by AI.
+
 ## 快速开始
 
 MAICA 后端需要 Python 3.12 或更高版本，并支持 Windows 与 Linux。核心模型与 MFocus 模型使用 OpenAI-compatible Responses API，需要另行部署；数据库可使用 MySQL/MariaDB，单机测试也可使用 SQLite。

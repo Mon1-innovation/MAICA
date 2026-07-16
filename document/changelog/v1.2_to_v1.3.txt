@@ -103,3 +103,9 @@ If you want to read in English, use a translator.
 - 现在对mt的验证要求更严格, 例如switch的条目均必须是str
 
 + gpt建议用http标头传递短连接的token, 并做了兼容
+
+- 现在mt的所有字符串条目长度不允许超过256
+
+- 现在不再允许mt触发器数量超出上限
+
+- 现在savefile和trigger均严格对照session num, 不再采用0作为默认

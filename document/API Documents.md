@@ -2,7 +2,7 @@ I'm sorry for not offering an English ver of this document but it's just too muc
 If you want to read in English, use a translator.
 
 
-此文档是MAICA后端API接口的使用文档, 编纂版本为v1.2.
+此文档是MAICA后端API接口的使用文档, 编纂版本为v1.3.
 
 > 应当注意, 在v1.1更新之后, API接口的行为有大面积变化. 请以新版文档为准.
 
@@ -1260,7 +1260,7 @@ exprop的值是该模板的附加参数, 其中item_name的值为选择类目的
 
 输出范例: `{"code": 200, "status": "maica_mtrigger_trigger", "content": {"change_clothes": {"choice": "黑色连衣裙"}}, "type": "carriage", "timestamp": 时间戳(秒)}`
 
-该模板的触发器最多存在6个, 超出则随机抽取6个.
+该模板的触发器最多存在6个.
 
 每个该模板触发器的item_list中最多存在72项, 超出则随机抽取72项.
 
@@ -1276,7 +1276,7 @@ exprop的值是该模板的附加参数, 其中item_name的值为选择类目的
 
 输出范例: `{"code": 200, "status": "maica_mtrigger_trigger", "content": {"change_distance": {"value": 0.75}}, "type": "carriage", "timestamp": 时间戳(秒)}`
 
-该模板的触发器最多存在6个, 超出则随机抽取6个.
+该模板的触发器最多存在6个.
 
 ## 自由模板:
 
@@ -1288,10 +1288,12 @@ exprop的值是该模板的附加参数, 其中item_name的值为该触发器的
 
 输出范例: `{"code": 200, "status": "maica_mtrigger_trigger", "content": {"some_name": {}}, "type": "carriage", "timestamp": 时间戳(秒)}`
 
-该模板的触发器最多存在20个, 超出则随机抽取20个.
+该模板的触发器最多存在20个.
 
 对于未注明双语的条目, 可以任选中文或英文, 建议与用户语言保持一致.
 
 > name的值必须为1至64个字母、数字、横杠或下划线；后端会在上传时拒绝其它格式.
+> 自v1.3后, 任何未注明的字符串字段长度不得超过256字符.
+> 自v1.3后, MTrigger不再允许触发器数量超出上限.
 
 最终的触发器表为一包含触发器条目的list.

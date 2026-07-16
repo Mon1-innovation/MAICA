@@ -40,7 +40,7 @@ class SessionPersistent(DbBoundObject, SessionPersistentMixin, SessionPersistent
         self.clear_temp()
 
     def _post_upload(self, *args, **kwargs):
-        self._chk_len(self._conclude_extra_sf())
+        self._conclude_extra_sf()
         return super()._post_upload(*args, **kwargs)
 
 class SessionTrigger(DbBoundObject, SessionTriggerMixin, SessionTriggerLlmMixin):
@@ -57,6 +57,10 @@ class SessionTrigger(DbBoundObject, SessionTriggerMixin, SessionTriggerLlmMixin)
     def on_acquire(self):
         self.clear_temp()
     
+    def _post_upload(self, *args, **kwargs):
+        self._get_triggers()
+        return super()._post_upload(*args, **kwargs)
+    
 # That float is last acquired timestamp
 _sessions_index: Dict[
     str,
@@ -70,6 +74,7 @@ _sessions_index: Dict[
     "session_triggers": {},
 }
 
+@deprecated("We shall deprecate auto default 0 after v1.3, because it causes more troubles when uploading")
 async def _get_real_session_num(dbo: DbBoundObject, fsc: FullSocketsContainer) -> int:
     """Some dbos use session 0 if determined not exist. Input DBO cls here just for convenience."""
     user_id = fsc.maica_settings.verification.user_id
@@ -123,11 +128,12 @@ async def _fsc_acquire_dbo(type: Literal["session", "persistent", "trigger"], fs
         case "persistent":
             sub_dict_k = "session_persistents"
             cls = SessionPersistent
-            session_num = await _get_real_session_num(cls, fsc)
+            # Auto default 0 is deprecated
+            # session_num = await _get_real_session_num(cls, fsc)
         case "trigger":
             sub_dict_k = "session_triggers"
             cls = SessionTrigger
-            session_num = await _get_real_session_num(cls, fsc)
+            # session_num = await _get_real_session_num(cls, fsc)
         case _:
             raise MaicaInputError("Type cannot be recognized")
 
