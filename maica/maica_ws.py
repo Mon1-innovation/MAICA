@@ -167,11 +167,11 @@ class WsCoroutine(NoWsCoroutine):
                     case "reconn":
                         await self.fsc.messenger.exhaust_buffer()
                     case "params":
-                        sync_messenger(info=f'Received params request with {len(ws_config.chat_params)} setting(s)', type=MsgType.RECV)
+                        sync_messenger(info=f'Received params request on stage2: {recv_text}', type=MsgType.RECV)
                         sync_messenger(info=f'From IP {self.remote_addr}, user {self.settings.verification.username}', type=MsgType.DEBUG)
                         await self.change_settings(ws_config)
                     case "query":
-                        sync_messenger(info=f'Received query request for session {ws_config.chat_session}', type=MsgType.RECV)
+                        sync_messenger(info=f'Received query request on stage2: {recv_text}', type=MsgType.RECV)
                         sync_messenger(info=f'From IP {self.remote_addr}, user {self.settings.verification.username}', type=MsgType.DEBUG)
                         await self.generate_response(ws_config)
 
@@ -341,10 +341,22 @@ class WsCoroutine(NoWsCoroutine):
             # Add context log
             previous_rnds = session.utilize(text_only=True)[1:]
             previous_rnds_len = int(len(previous_rnds) / 2)
-            if previous_rnds_len:
-                sync_messenger(info=f'Query has {previous_rnds_len} rounds of history', type=MsgType.RECV)
+            previous_rnds_ellipsed = previous_rnds[-6:]
 
-            sync_messenger(info=f'Query constructed and ready to go ({len(str_query.encode("utf-8"))} bytes)', type=MsgType.PRIM_RECV)
+            previous_rnds_str = '\n'.join(
+                [
+                    (('Q: ' if d['role'] == 'user' else 'A: ') + d['content'])
+                    for d in previous_rnds_ellipsed
+                ]
+            )
+
+            if previous_rnds_len > 3:
+                previous_rnds_str = '... ...\n' + previous_rnds_str
+
+            if previous_rnds_len:
+                sync_messenger(info=f'\nQuery has {previous_rnds_len} rounds of history:\n{previous_rnds_str}\nEnd of query history', type=MsgType.RECV)
+
+            sync_messenger(info=f'\nQuery constructed and ready to go, last input is:\n{str_query}\nSending query...', type=MsgType.PRIM_RECV)
 
             # By default, pprt is disabled on non-streaming output
             if (

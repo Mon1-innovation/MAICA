@@ -104,10 +104,8 @@ class _BaseTriggerExprop(BaseModel):
         return self
             
 class _SwitchTriggerExprop(_BaseTriggerExprop):
-    item_list: list[Annotated[str, Field(min_length=1, max_length=256)]] = Field(
-        min_length=1,
-        max_length=32,
-    )
+    # We still adopt the sampling here because managing them frontend would be tough
+    item_list: list[Annotated[str, Field(min_length=1, max_length=256)]]
     curr_item: Optional[str] = None
     suggestion: bool = False
 
@@ -120,7 +118,7 @@ class _SwitchTriggerExprop(_BaseTriggerExprop):
                     f"根据用户的要求, 从以下{self.item_name.zh}中选出最合适的一项. 如果没有任何一项合适, 则回答null.",
                     f"According to user's request, choose the most proper {self.item_name.en} from the following list. Output null if none of them is proper."
                 ),
-                enum=self.item_list + [None],
+                enum=limit_length(self.item_list, 72) + [None],
             )
         ]
         if self.suggestion:
@@ -337,7 +335,7 @@ class BooleanTrigger(BaseTrigger):
         choices = [text]
         return text, choices
     
-TypeTrigger = Annotated[
+TypeTrigger: TypeAlias = Annotated[
     Union[
         AffectionTrigger,
         SwitchTrigger,

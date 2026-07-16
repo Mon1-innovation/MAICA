@@ -9,7 +9,7 @@ import datetime
 
 from typing import *
 from math import ceil
-from pydantic import BaseModel, Field, TypeAdapter, create_model
+from pydantic import BaseModel, RootModel, Field, TypeAdapter, create_model
 from random import sample
 from dateutil.relativedelta import relativedelta
 from dataclasses import dataclass
@@ -919,10 +919,15 @@ class SessionPersistentMixin():
 
     def _conclude_extra_sf(self):
         result: List[str] = self.read_key('mas_player_additions')
+
         if result is None:
             return []
+        
         if not isinstance(result, list) or any(not isinstance(item, str) for item in result):
             raise MaicaInputWarning("mas_player_additions must be a list of strings")
+        
+        self._chk_len(result)
+        
         return result or []
 
     def form_info(self) -> Set:
@@ -952,37 +957,41 @@ class SessionTriggerMixin():
     content_temp: list
 
     def _get_triggers(self):
-        aff_trigger_dict_list = []
-        switch_trigger_dict_list = []
-        meter_trigger_dict_list = []
-        boolean_trigger_dict_list = []
+        affs = 0
+        switches = 0
+        meters = 0
+        booleans = 0
 
         triggers_dict_list = self.content_temp + self.content
 
         for trigger_dict in triggers_dict_list:
             match trigger_dict['template']:
                 case 'common_affection_template':
-                    aff_trigger_dict_list.append(trigger_dict)
+                    affs += 1
+                    if affs > 1:
+                        raise MaicaInputWarning("common_affection_template amount shouldn't > 1")
                 case 'common_switch_template':
-                    switch_trigger_dict_list.append(trigger_dict)
+                    switches += 1
+                    if switches > 6:
+                        raise MaicaInputWarning("common_switch_template amount shouldn't > 6")
                 case 'common_meter_template':
-                    meter_trigger_dict_list.append(trigger_dict)
+                    meters += 1
+                    if meters > 6:
+                        raise MaicaInputWarning("common_meter_template amount shouldn't > 6")
                 case _:
-                    boolean_trigger_dict_list.append(trigger_dict)
+                    booleans += 1
+                    if booleans > 20:
+                        raise MaicaInputWarning("customized amount shouldn't > 20")
 
-        aff_trigger_dict_list = limit_length(aff_trigger_dict_list, 1)
-        switch_trigger_dict_list = limit_length(switch_trigger_dict_list, 6)
-        meter_trigger_dict_list = limit_length(meter_trigger_dict_list, 6)
-        boolean_trigger_dict_list = limit_length(boolean_trigger_dict_list, 20)
+        class TriggersList(RootModel):
+            root: List[TypeTrigger]
 
-        triggers: List[BaseTrigger] = []
-        trigger_names = set()
-        for trigger_group in (aff_trigger_dict_list, switch_trigger_dict_list, meter_trigger_dict_list, boolean_trigger_dict_list):
-            for i in trigger_group:
-                trigger_model: BaseTrigger = TypeAdapter(TypeTrigger).validate_python(i)
-                if trigger_model.name not in trigger_names:
-                    triggers.append(trigger_model)
-                    trigger_names.add(trigger_model.name)
+        try:
+            triggers_m = TriggersList.model_validate(triggers_dict_list)
+        except Exception as e:
+            raise MaicaInputWarning(f"Triggers list validation failed: {str(e)}")
+        
+        triggers = triggers_m.root
 
         return triggers
     
