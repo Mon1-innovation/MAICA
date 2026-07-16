@@ -139,10 +139,18 @@ class MaicaSettings(BaseModel):
         _nickname: Optional[str] = None
         _email: str = None
 
-        user_id: int = create_prop('user_id', getter_ext=[read_exist], setter_ext=[set_locked, set_instance], setter_kwargs={"types": [int]})
-        username: str = create_prop('username', getter_ext=[read_exist], setter_ext=[set_locked, set_instance], setter_kwargs={"types": [str]})
-        nickname: Optional[str] = create_prop('nickname', setter_ext=[set_instance], setter_kwargs={"types": [str, None]})
-        email: str = create_prop('email', getter_ext=[read_exist], setter_ext=[set_locked, set_instance], setter_kwargs={"types": [str]})
+        # Keep type declarations visible to static analyzers without exposing them
+        # to Pydantic, which would treat each property object as a field default.
+        if TYPE_CHECKING:
+            user_id: int
+            username: str
+            nickname: Optional[str]
+            email: str
+        else:
+            user_id = create_prop('user_id', getter_ext=[read_exist], setter_ext=[set_locked, set_instance], setter_kwargs={"types": [int]})
+            username = create_prop('username', getter_ext=[read_exist], setter_ext=[set_locked, set_instance], setter_kwargs={"types": [str]})
+            nickname = create_prop('nickname', setter_ext=[set_instance], setter_kwargs={"types": [str, None]})
+            email = create_prop('email', getter_ext=[read_exist], setter_ext=[set_locked, set_instance], setter_kwargs={"types": [str]})
 
     class Basic(ConfigurableSettingsModel):
         """Major params that decide MAICA's behavior."""
