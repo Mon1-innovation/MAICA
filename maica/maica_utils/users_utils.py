@@ -6,6 +6,7 @@ Here we handle the users things individually, and provide as mixins.
 import asyncio
 import bcrypt
 import datetime
+import hashlib
 import orjson
 import time
 
@@ -21,6 +22,12 @@ from .database_models import *
 from .gvars import online_dict, online_dict_guard
 
 _DUMMY_PASSWORD_HASH = bcrypt.hashpw(b"maica-invalid-credential", bcrypt.gensalt())
+
+
+def auth_token_reference(token: str) -> str:
+    """Return a short, non-reusable identifier for correlating auth logs."""
+    digest = hashlib.sha256(token.encode("utf-8")).hexdigest()[:12]
+    return f"sha256:{digest}/{len(token)}ch"
 
 if TYPE_CHECKING:
     from .fsc_late import *
@@ -85,14 +92,32 @@ class FscUsersFuncMixin():
         - crid_b64: str, base64 encoded. If not provided, we're running common checks.
         """
         if crid_b64:
+            token_ref = auth_token_reference(crid_b64)
+            sync_messenger(info=f"Authentication attempt token={token_ref}", type=MsgType.RECV)
 
             try:
                 crid = await asyncio.to_thread(decrypt_token, crid_b64)
 
                 token_cridential = self.TokenCridential.model_validate_json(crid)
 
-            except Exception as e:
-                raise MaicaInputWarning(f"Failed parsing access_token: {str(e)}")
+            except Exception as exc:
+                sync_messenger(
+                    info=(
+                        f"Authentication token={token_ref} failed during token decode or validation "
+                        f"({type(exc).__name__})"
+                    ),
+                    type=MsgType.WARN,
+                )
+                raise MaicaInputWarning("Failed parsing access_token") from exc
+
+            sync_messenger(
+                info=(
+                    f"Authentication token={token_ref} decoded for "
+                    f"{token_cridential.type}={token_cridential.identity!s} "
+                    f"with password_length={len(token_cridential.password)}"
+                ),
+                type=MsgType.DEBUG,
+            )
 
             async with DatabaseUtils.SessionAuth() as aus:
 
@@ -106,6 +131,10 @@ class FscUsersFuncMixin():
                         bcrypt.checkpw,
                         token_cridential.password.encode(),
                         _DUMMY_PASSWORD_HASH,
+                    )
+                    sync_messenger(
+                        info=f"Authentication token={token_ref} failed: account was not found",
+                        type=MsgType.WARN,
                     )
                     raise MaicaPermissionWarning("Invalid username/email or password")
 
@@ -170,6 +199,10 @@ class FscUsersFuncMixin():
 
             # It should have committed by now
             if block_auth:
+                sync_messenger(
+                    info=f"Authentication token={token_ref} failed: password mismatch for user_id={user_id}",
+                    type=MsgType.WARN,
+                )
                 raise MaicaPermissionWarning("Invalid username/email or password")
             
         # If running common check, we assert logged in already

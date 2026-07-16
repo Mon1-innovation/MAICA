@@ -2,7 +2,7 @@ import asyncio
 from types import SimpleNamespace
 
 from maica.maica_utils import FakeChatCompletion
-from maica.maica_utils.llm_utils import parse_responses_output
+from maica.maica_utils.llm_utils import llm_request, parse_responses_output
 
 
 async def collect(iterator):
@@ -55,5 +55,35 @@ def test_function_argument_deltas_are_not_emitted_as_content() -> None:
         task, _, content, _ = await parse_responses_output(Stream())
         assert await collect(content) == ["visible"]
         await task
+
+    asyncio.run(scenario())
+
+
+def test_llm_request_cancels_parser_when_consumer_exits_early() -> None:
+    class HangingStream:
+        def __init__(self) -> None:
+            self.started = asyncio.Event()
+            self.cancelled = asyncio.Event()
+
+        async def __aiter__(self):
+            self.started.set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                self.cancelled.set()
+            if False:
+                yield None
+
+    async def scenario() -> None:
+        stream = HangingStream()
+
+        class Connection:
+            async def make_completion(self, **_kwargs):
+                return stream
+
+        async with llm_request(Connection(), stream=True):
+            await stream.started.wait()
+
+        assert stream.cancelled.is_set()
 
     asyncio.run(scenario())

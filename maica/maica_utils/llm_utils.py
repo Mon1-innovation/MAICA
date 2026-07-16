@@ -166,4 +166,8 @@ async def llm_request(conn: AiConnectionManager, *args, **kwargs):
         yield (task, a_reasoning, a_content, a_tool_calls, )
     finally:
         if task:
-            await task
+            if task.done():
+                await task
+            else:
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)

@@ -1,7 +1,6 @@
 import asyncio
 import websockets
 import time
-import functools
 import traceback
 import colorama
 
@@ -83,7 +82,7 @@ class WsCoroutine(NoWsCoroutine):
                     case "ping":
                         await self.fsc.messenger("pong", "Ping received from anonymous and responded", 200)
                     case "auth":
-                        sync_messenger(info='Received auth request on stage1 (token redacted)', type=MsgType.RECV)
+                        sync_messenger(info='Received auth request on stage1', type=MsgType.RECV)
                         sync_messenger(info=f'From IP {self.remote_addr}', type=MsgType.DEBUG)
 
                         # The login procedure
@@ -524,8 +523,14 @@ async def main_logic(
                 # Should just be caused by not locked yet
                 sync_messenger(info="No lock for this connection", type=MsgType.DEBUG)
                 
-            await websocket.close()
-            await websocket.wait_closed()
+            try:
+                async with asyncio.timeout(2):
+                    await websocket.close()
+                    await websocket.wait_closed()
+            except (TimeoutError, websockets.WebSocketException):
+                transport = getattr(websocket, "transport", None)
+                if transport:
+                    transport.abort()
             sync_messenger(info="Closing connection gracefully", type=MsgType.DEBUG)
 
 
@@ -589,17 +594,25 @@ async def prepare_thread(**kwargs):
 
         sync_messenger(info=f"Major model deployment cannot be reached: {str(e)}, running in minimal testing mode", type=MsgType.SYS)
     
+    server = None
+    connection_tasks = set()
+
+    async def connection_handler(websocket):
+        task = asyncio.current_task()
+        connection_tasks.add(task)
+        try:
+            await main_logic(websocket, root_csc=root_csc)
+        finally:
+            connection_tasks.discard(task)
+
     try:
-        async with websockets.serve(
-            functools.partial(
-                main_logic,
-                root_csc=root_csc,
-            ),
+        server = await websockets.serve(
+            connection_handler,
             G.A.WS_HOST,
             int(G.A.WS_PORT),
             max_size=64*1024,
-        ) as server:
-            await server.serve_forever()
+        )
+        await server.serve_forever()
 
     except asyncio.CancelledError:
         raise
@@ -609,6 +622,24 @@ async def prepare_thread(**kwargs):
         raise
 
     finally:
+        if server:
+            # websockets waits for handlers on context-manager exit. Cancel them
+            # explicitly so an in-flight model request cannot block SIGTERM.
+            server.close(close_connections=True)
+            active_tasks = tuple(connection_tasks)
+            for task in active_tasks:
+                task.cancel()
+            if active_tasks:
+                try:
+                    async with asyncio.timeout(5):
+                        await asyncio.gather(*active_tasks, return_exceptions=True)
+                except TimeoutError:
+                    sync_messenger(info="Timed out cancelling WebSocket connection handlers", type=MsgType.WARN)
+            try:
+                async with asyncio.timeout(5):
+                    await server.wait_closed()
+            except TimeoutError:
+                sync_messenger(info="Timed out waiting for WebSocket server shutdown", type=MsgType.WARN)
         sync_messenger(info='MAICA WS server stopped!', type=MsgType.PRIM_SYS)
 
 

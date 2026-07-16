@@ -2,6 +2,7 @@ import os
 import argparse
 import asyncio
 import colorama
+import signal
 from typing import *
 from dotenv import load_dotenv
 from packaging.version import parse
@@ -352,11 +353,62 @@ async def mtts_start_all(**kwargs):
 
     await _wait_for_first([task_tts, task_schedule], "tts")
 
+
+async def _start_with_sigterm(target):
+    """Translate SIGTERM into task cancellation so every service can clean up."""
+    loop = asyncio.get_running_loop()
+    shutdown_requested = asyncio.Event()
+    service_task = asyncio.create_task(start_all(target))
+    shutdown_task = asyncio.create_task(shutdown_requested.wait())
+    loop_handler_installed = False
+    previous_handler = None
+
+    def request_shutdown():
+        if not shutdown_requested.is_set():
+            sync_messenger(info="SIGTERM received, shutting down services...", type=MsgType.PRIM_SYS)
+            shutdown_requested.set()
+
+    try:
+        try:
+            loop.add_signal_handler(signal.SIGTERM, request_shutdown)
+            loop_handler_installed = True
+        except (NotImplementedError, RuntimeError):
+            # ProactorEventLoop on Windows doesn't implement add_signal_handler.
+            try:
+                previous_handler = signal.getsignal(signal.SIGTERM)
+                signal.signal(
+                    signal.SIGTERM,
+                    lambda *_args: loop.call_soon_threadsafe(request_shutdown),
+                )
+            except (AttributeError, OSError, ValueError):
+                previous_handler = None
+
+        done, _ = await asyncio.wait(
+            (service_task, shutdown_task),
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        if shutdown_task in done:
+            if not service_task.done():
+                service_task.cancel()
+            await asyncio.gather(service_task, return_exceptions=True)
+        else:
+            # Preserve failures when a service exits without a shutdown signal.
+            await service_task
+    finally:
+        for task in (service_task, shutdown_task):
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(service_task, shutdown_task, return_exceptions=True)
+        if loop_handler_installed:
+            loop.remove_signal_handler(signal.SIGTERM)
+        elif previous_handler is not None:
+            signal.signal(signal.SIGTERM, previous_handler)
+
 def full_start():
     check_params()
     check_data_init()
     check_warns()
-    asyncio.run(start_all(start_target))
+    asyncio.run(_start_with_sigterm(start_target))
 
 if __name__ == "__main__":
     full_start()
