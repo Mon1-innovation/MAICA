@@ -34,6 +34,15 @@ class ToolCall(BaseModel):
                 data["arguments"] = orjson.loads(data["arguments"])
 
         return data
+    
+    def openai_dump(self):
+        dumped = self.model_dump()
+        arguments = dumped.get("arguments")
+
+        if arguments is not None and not isinstance(arguments, str):
+            dumped["arguments"] = orjson.dumps(arguments).decode()
+
+        return dumped
 
 async def parse_responses_output(
     resp: Response | AsyncStream[ResponseStreamEvent],
@@ -199,7 +208,7 @@ async def llm_request(conn: AiConnectionManager, *args, **kwargs):
 
         # We yield task here for possible external interruption. We might not need the model to complete in some scenarios
         yield (task, a_reasoning, a_content, a_tool_calls, )
-        
+
     finally:
         if task:
             if task.done():

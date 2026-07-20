@@ -271,7 +271,6 @@ class TalkSplitV2():
 
 class PPRTProcessor():
     """Post proc realtime processor."""
-    @Decos.report_limit_warning
     def __init__(self, fsc: FullSocketsContainer, pprt: Union[bool, WsQueryConfig.PprtConfig] = True):
         if pprt is True:
             pprt = WsQueryConfig.PprtConfig()

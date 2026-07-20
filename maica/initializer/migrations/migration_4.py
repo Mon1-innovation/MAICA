@@ -34,7 +34,7 @@ async def migrate():
             sync_messenger(info="[migration-4] Milvus collection already exists, skipping...", type=MsgType.DEBUG)
         else:
 
-            schema: CollectionSchema = await vector_pool.create_schema(
+            schema: CollectionSchema = vector_pool.create_schema(
                 auto_id=True,
                 enable_dynamic_field=True,
                 partition_key_field="user_id",
@@ -60,7 +60,7 @@ async def migrate():
                 schema=schema,
             )
 
-            index_params = await vector_pool.prepare_index_params()
+            index_params = vector_pool.prepare_index_params()
 
             index_params.add_index(
                 field_name="vector",

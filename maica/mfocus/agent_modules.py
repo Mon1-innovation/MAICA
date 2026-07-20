@@ -228,7 +228,10 @@ class AgentTools():
                 text = "今天没有特殊节日或事件." if target_lang == 'zh' else "Today is not special event or holiday."
             else:
                 text = f"{today_is(0)}没有特殊节日或事件." if target_lang == 'zh' else f"{today_is(0)} is not special event or holiday."
-            search_results = None
+
+            # If called by mf_const_tools and nothing found, we suspend its prompt
+            if kwargs.get("is_const"):
+                search_results = None
 
         return text, search_results
 

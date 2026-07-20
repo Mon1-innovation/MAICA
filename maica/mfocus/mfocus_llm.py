@@ -358,7 +358,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
 
                     # Create maica compatible item
                     maica_tool_call = MaicaSessionItem(
-                        preserved=tool_call.model_dump()
+                        preserved=tool_call.openai_dump()
                     )
                     self.mf_session.append(maica_tool_call)
 

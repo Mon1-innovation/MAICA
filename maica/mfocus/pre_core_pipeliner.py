@@ -134,13 +134,13 @@ async def pre_core_pipelines(
 
                 sync_messenger(info="MFocus calling mf_const_tools level 1", type=MsgType.DEBUG)
                 for tool_name in ("time_acquire", "event_acquire"):
-                    tools_results[tool_name] = await getattr(toolbox, tool_name)()
+                    tools_results[tool_name] = await getattr(toolbox, tool_name)(is_const=True)
 
             if mf_const_tools >= 2:
 
                 sync_messenger(info="MFocus calling mf_const_tools level 2", type=MsgType.DEBUG)
                 for tool_name in ("date_acquire", "weather_acquire"):
-                    tools_results[tool_name] = await getattr(toolbox, tool_name)()
+                    tools_results[tool_name] = await getattr(toolbox, tool_name)(is_const=True)
 
             if (
                 mf_const_sf_access >= 1
@@ -148,7 +148,7 @@ async def pre_core_pipelines(
             ):
                 sync_messenger(info="MFocus calling mf_const_sf_access", type=MsgType.DEBUG)
                 tool_name = "persistent_acquire"
-                text, body = await getattr(toolbox, tool_name)(query=session_item.content)
+                text, body = await getattr(toolbox, tool_name)(query=session_item.content, is_const=True)
                 
                 sync_messenger(info=f"MFocus mf_const_sf_access responded: {text}", type=MsgType.INFO)
                 tools_results[tool_name] = (text, body)

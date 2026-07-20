@@ -22,10 +22,12 @@ from .locater import *
 def pkg_init_connection_utils():
     pass
 
+
 class MilvusDbConnectionManager(AsyncCreator):
     """The vector db. We write it here since it's still db."""
 
     db_type = 'milvus'
+
 
     def __init__(self, db, host, user, password, ro=False):
         self.db = db
@@ -38,130 +40,61 @@ class MilvusDbConnectionManager(AsyncCreator):
         self.name = self.db
         self.pool: pymilvus.AsyncMilvusClient = None
         """It ain't pool, we just calling it one."""
-        self.pool_container: list[pymilvus.AsyncMilvusClient] = []
-        self.lock = asyncio.Lock()
 
-    @Decos.catch_exceptions
+
     async def _ainit(self):
         """Initialize Milvus connection."""
-        if not self.lock.locked():
-            async with self.lock:
-                await self.close()
-                self.pool = pymilvus.AsyncMilvusClient(
-                    uri=self.host,
-                    user=self.user,
-                    password=self.password,
-                )
 
-                try:
-                    await self.pool.load_collection(collection_name=self.db)
-                except Exception as e:
-                    sync_messenger(info=f"{self.db} collection cannot be loaded: {str(e)}, could be in create stage", type=MsgType.WARN)
+        await self.close()
+        self.pool = pymilvus.AsyncMilvusClient(
+            uri=self.host,
+            user=self.user,
+            password=self.password,
+        )
 
-                self.pool_container.append(self.pool)
-        else:
-            async with self.lock:
-                return
-
-    @Decos.catch_exceptions
-    async def keep_alive(self):
-        """Check and maintain Milvus connection."""
         try:
-            state = await self.pool.get_load_state(collection_name=self.db)
-            if str(state.get("state")) != "Loaded":
-                raise RuntimeError("Collection not loaded")
+            await self.pool.load_collection(collection_name=self.db)
+        except Exception as e:
+            sync_messenger(info=f"{self.db} collection cannot be loaded: {str(e)}, this is only normal in migrations", type=MsgType.WARN)
 
-        except Exception:
-            sync_messenger(info=f"Recreating {self.db} pool since cannot acquire", type=MsgType.WARN)
-            await self._ainit()
 
     def __getattr__(self, k):
-        @Decos.catch_exceptions
-        @Decos.conn_retryer_factory()
-        async def seq_exc(self, k, *args, **kwargs):
-            await self.keep_alive()
+        return getattr(self.pool, k)
 
-            f = getattr(self.pool, k)
-            next_coro = f(*args, **kwargs)
 
-            if isinstance(next_coro, Awaitable):
-                next_coro = await next_coro
-            else:
-                sync_messenger(info=f"Wrapping sync Milvus function {k} async...", type=MsgType.WARN)
-                pass
-            return next_coro
-        
-        f2 = functools.partial(seq_exc, self, k)
-        return f2
-            
     async def close(self):
         """Close Milvus connection."""
         try:
             await self.pool.close()
         except Exception:...
-        finally:
-            self.pool_container.clear()
 
-    def summon_sub(self, rsc: Optional[RealtimeSocketsContainer]=None):
-        """Summons a per-user instance."""
-        return SubMilvusDbConnectionManager(self, rsc)
-
-class SubMilvusDbConnectionManager(MilvusDbConnectionManager):
-    """Per-user MilvusDbConnectionManager."""
-    def __init__(self, parent: MilvusDbConnectionManager, rsc: Optional[RealtimeSocketsContainer]=None):
-        """Must summon from a parent object."""
-        for k, v in vars(parent).items():
-            setattr(self, k, v)
-
-        self.parent = parent
-        self.rsc = rsc
-
-    async def _ainit(self):
-        """Do not use async_create."""
-        raise NotImplementedError
-    
-    async def keep_alive(self):
-        await self.parent.keep_alive()
-        self.pool = self.pool_container[0]
-
-    async def close(self):...
 
 class AiConnectionManager(AsyncCreator):
     """Maintain an AI connection so you don't have to."""
+
+
     def __init__(self, api_key, base_url, name='ai_conn', model: Union[int, str]=0, caps: Optional[List[Literal["completion", "embedding", "reranking"]]]=None):
         self.test = False
         self.api_key, self.base_url, self.name, self.model = api_key, base_url, name, model
         self.gen_kwargs = {}
         self.caps = caps or ["completion"]
         """Capabilities. I don't know if there're models can both generate and embed but to be safe."""
-        self.sock_container: dict[str, Union[AsyncOpenAI, str, None]] = {
-            "client": None,
-            "choice": None
-        }
-        """We use this thing to sync sub-instances' socks with mother instance."""
-        self.lock = asyncio.Lock()
-        """Client affecting actions are performed with lock acquired."""
 
-    @Decos.catch_exceptions
+
     async def _ainit(self):
         if not self.base_url:
             self.test = True
             self.client = None
             self.model_actual = "DISABLED"
-            self.sock_container["choice"] = self.model_actual
             return
+        
         else:
-            if not self.lock.locked():
-                async with self.lock:
-                    await self.close()
-                    await self._connect()
-            else:
-                async with self.lock:
-                    return
+            await self.close()
+            await self._connect()
+
 
     async def _connect(self):
         self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
-        self.sock_container["client"] = self.client
 
         if isinstance(self.model, int):
 
@@ -171,27 +104,16 @@ class AiConnectionManager(AsyncCreator):
             if not models:
                 raise MaicaResponseError(f"{self.name} returned an empty model list")
             self.model_actual = models[0].id
-            
+
         else:
             self.model_actual = self.model
 
-        self.sock_container["choice"] = self.model_actual
 
     def default_params(self, **kwargs):
         """These params will always be applied to generations. Overwritten."""
         self.gen_kwargs = kwargs
 
-    @Decos.catch_exceptions
-    async def keep_alive(self):
-        """Check and maintain OpenAI connection."""
-        if self.test or self.client is None:
-            raise MaicaResponseError(f"{self.name} is not configured")
-        if self.client.is_closed():
-            sync_messenger(info=f"Recreating {self.name} sock since is closed", type=MsgType.WARN)
-            await self._ainit()
 
-    @Decos.catch_exceptions
-    @Decos.conn_retryer_factory()
     async def make_completion(self, swallow: Union[bool, str]=False, **kwargs) -> Response | AsyncStream[ResponseStreamEvent]:
         """
         Makes completion with arguments.
@@ -234,8 +156,6 @@ class AiConnectionManager(AsyncCreator):
             system = messages.pop(0)
             mixed_kwargs["instructions"] = system["content"]
 
-        await self.keep_alive()
-
         try:
             task_stream_resp = asyncio.create_task(self.client.responses.create(**mixed_kwargs))
             await asyncio.wait_for(task_stream_resp, timeout=int(G.A.OPENAI_TIMEOUT) if G.A.OPENAI_TIMEOUT != '0' else None)
@@ -252,8 +172,7 @@ class AiConnectionManager(AsyncCreator):
 
         return resp
     
-    @Decos.catch_exceptions
-    @Decos.conn_retryer_factory()
+
     async def make_embedding(self, **kwargs) -> CreateEmbeddingResponse:
         """As above, just the embedding version."""
         if "embedding" not in self.caps:
@@ -268,16 +187,13 @@ class AiConnectionManager(AsyncCreator):
         mixed_kwargs = {**self.gen_kwargs, **kwargs}
         mixed_kwargs['extra_body'] = mixed_exbody
 
-        await self.keep_alive()
-
         task_resp = asyncio.create_task(self.client.embeddings.create(**mixed_kwargs))
         await asyncio.wait_for(task_resp, timeout=int(G.A.OPENAI_TIMEOUT) if G.A.OPENAI_TIMEOUT != '0' else None)
         resp = task_resp.result()
 
         return resp
     
-    @Decos.catch_exceptions
-    @Decos.conn_retryer_factory()
+
     async def make_reranking(self, **kwargs) -> dict:
         """Generate reranking. This is acutally not OpenAI but VLLM standard."""
         if "reranking" not in self.caps:
@@ -292,8 +208,6 @@ class AiConnectionManager(AsyncCreator):
         mixed_kwargs = {**self.gen_kwargs, **kwargs}
         mixed_kwargs['extra_body'] = mixed_exbody
 
-        await self.keep_alive()
-
         task_resp = asyncio.create_task(
             self.client.post(
                 "rerank",
@@ -307,37 +221,12 @@ class AiConnectionManager(AsyncCreator):
 
         return resp
 
+
     async def close(self):
         try:
             await self.client.close()
         except Exception:...
-        finally:
-            self.sock_container.clear()
 
-    def summon_sub(self, rsc: Optional[RealtimeSocketsContainer]=None):
-        """Summons a per-user instance."""
-        return SubAiConnectionManager(self, rsc)
-    
-class SubAiConnectionManager(AiConnectionManager):
-    """Per-user AiConnectionManager."""
-    def __init__(self, parent: AiConnectionManager, rsc: Optional[RealtimeSocketsContainer]=None):
-        """Must summon from a parent object."""
-        for k, v in vars(parent).items():
-            setattr(self, k, v)
-
-        self.parent = parent
-        self.rsc = rsc
-
-    async def _ainit(self):
-        """Do not use async_create."""
-        raise NotImplementedError
-    
-    async def keep_alive(self):
-        await self.parent.keep_alive()
-        self.client = self.parent.sock_container.get("client")
-        self.model_actual = self.parent.sock_container.get("choice")
-
-    async def close(self):...
 
 class ConnUtils():
     """Just a wrapping for functions."""

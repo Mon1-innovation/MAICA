@@ -22,7 +22,7 @@ class ConnSocketsContainer(AllowArb):
 
     def spawn_sub(self, rsc=None):
         """Spawns a per-user sub instance."""
-        sub_kwargs = {k: getattr(self, k).summon_sub(rsc) if getattr(self, k) else None for k in _csc_proxied}
+        sub_kwargs = {k: getattr(self, k) if getattr(self, k) else None for k in _csc_proxied}
         return ConnSocketsContainer(**sub_kwargs)
 
 _rsc_proxied = ['websocket', 'tracker_id', 'messenger', 'maica_settings']
