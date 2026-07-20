@@ -222,6 +222,16 @@ class AiConnectionManager(AsyncCreator):
         if "max_tokens" in mixed_kwargs:
             mixed_kwargs["max_output_tokens"] = mixed_kwargs.pop("max_tokens")
 
+        # Flattern system
+        messages = mixed_kwargs.get("input")
+        if (
+            isinstance(messages, list)
+            and messages
+            and messages[0]["role"] == "system"
+        ):
+            system = messages.pop(0)
+            mixed_kwargs["instructions"] = system["content"]
+
         await self.keep_alive()
 
         try:
