@@ -83,5 +83,9 @@ If the conversation lacks content to conclude finally, you can output null.\
 
     conclusion = conclusion_result.conclusion
 
+    # If session has an earlier conclusion but newer emits null, we reuse it
+    if prior_memory and not conclusion:
+        conclusion = prior_memory
+
     sync_messenger(info=f"Finished processing memory_concl to session. Conclusion: {conclusion}", type=MsgType.PRIM_LOG)
     return conclusion

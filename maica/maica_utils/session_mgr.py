@@ -118,6 +118,7 @@ def _id_acquire_dbo[T: DbBoundObject](cls: Type[T], sub_dict_k: str, user_id: in
     return session
         
 async def _fsc_acquire_dbo(type: Literal["session", "persistent", "trigger"], fsc: FullSocketsContainer):
+    """We actually kind of preserve the ability to save a db query on dbo acquires, but it's not necessary for now."""
     user_id = fsc.maica_settings.verification.user_id
     session_num = fsc.maica_settings.temp.chat_session
 

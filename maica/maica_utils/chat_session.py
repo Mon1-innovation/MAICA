@@ -2,6 +2,8 @@
 Import layer 4.1
 This module is for v2 session management, applied for DAA4.
 """
+from __future__ import annotations
+
 import time
 import orjson
 import types
@@ -379,7 +381,7 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
 
         sync_messenger(info=f"Entire archive made for session id {self.prim_key_id}, items {len(self)}", type=MsgType.DEBUG)
     
-    async def crop_length(self) -> Tuple[list, Literal[0, 1, 2]]:
+    async def crop_length(self) -> Tuple[MaicaSession, Literal[0, 1, 2]]:
         """Making it V2 style."""
         use_api = bool(int(G.A.CALC_TOKENS))
         max_length = self.fsc.maica_settings.basic.session_len_limit

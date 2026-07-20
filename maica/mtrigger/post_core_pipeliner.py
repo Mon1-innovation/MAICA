@@ -11,7 +11,7 @@ import asyncio
 from typing import *
 
 from .mtrigger_llm import MtPipeliner
-from maica.mtools import ms_to_cache, quality_chk
+from maica.mtools import ms_to_cache, quality_chk, memory_concl
 from maica.maica_utils import *
 
 _Bt = BilingualText
@@ -62,14 +62,27 @@ async def post_core_pipelines(
             await ms_to_cache(mfc_m, fsc)
 
     async def save_session_pipeline():
-        """Saving session."""
+        """Saving session. Also making memory conclusion if should."""
         if (
             fsc.maica_settings.temp.chat_session > 0
         ):
+            
+            archiver, stat = await session.crop_length()
+            if archiver:
 
-            length_stat = await session.wrapped_save()
+                if fsc.maica_settings.extra.mt_concl_memory >= 1:
+                    # Means we should conclude memory on trim
+                    archiver[0].context.memory_concl = session[0].context.memory_concl
+                    concl = await memory_concl(archiver, fsc)
 
-            match length_stat:
+                    if concl:
+                        session[0].context.memory_concl = concl
+
+                await archiver.to_partial_archive()
+
+            await session.to_db()
+
+            match stat:
                 case 2:
                     await fsc.messenger(
                         'maica_history_sliced',

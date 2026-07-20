@@ -13,6 +13,7 @@ from .nv_watcher import NvWatcher
 from .mvista import ImgByUuid, query_vlm
 from .quality_chk import quality_chk
 from .censor import has_censored
+from .memory_concl import memory_concl
 
 __all__ = [
     'TpAPIKeys',
@@ -37,6 +38,7 @@ __all__ = [
     'query_vlm',
     'quality_chk',
     'has_censored',
+    'memory_concl',
     ]
 
 from .mcp import pkg_init_mcp

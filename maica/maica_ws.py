@@ -240,11 +240,23 @@ class WsCoroutine(NoWsCoroutine):
             await asyncio.gather(*fdb1)
 
             if ws_config.reset:
-                # To archive first
+                concl = None
+                # Conclude memory if required first
+                if self.settings.extra.mt_concl_memory >= 2:
+                    # Means we should conclude memory on reset
+                    concl = await mtools.memory_concl(session, self.fsc)
+
+                # To archive
                 await session.to_entire_archive()
 
                 # Clear and prepare to use
                 session.clear()
+
+                # If we got new memory concl, we apply it here
+                if concl:
+                    session.sanitize()
+                    session[0].context.memory_concl = concl
+
                 await session.to_db()
 
                 await self.fsc.messenger(
