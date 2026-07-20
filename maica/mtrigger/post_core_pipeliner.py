@@ -40,6 +40,7 @@ async def post_core_pipelines(
         """gen_quality_chk implementation."""
         if (
             fsc.maica_settings.extra.gen_quality_chk
+            and len(session) >= 3 * 2 + 1
         ):
             res, cfd = await quality_chk(session, fsc)
             await fsc.messenger(

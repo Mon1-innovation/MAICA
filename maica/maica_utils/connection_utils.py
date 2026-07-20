@@ -163,13 +163,15 @@ class AiConnectionManager(AsyncCreator):
         self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
         self.sock_container["client"] = self.client
 
-        model_list = await self.client.models.list()
-        models = model_list.data
-
         if isinstance(self.model, int):
+
+            model_list = await self.client.models.list()
+            models = model_list.data
+            
             if not models:
                 raise MaicaResponseError(f"{self.name} returned an empty model list")
             self.model_actual = models[0].id
+            
         else:
             self.model_actual = self.model
 

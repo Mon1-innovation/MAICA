@@ -8,6 +8,7 @@ _Bt = BilingualText
 
 async def quality_chk(org_session: MaicaSession, fsc: FullSocketsContainer):
     """Detects if a session is descalated and should be reset."""
+    sync_messenger(info="Checking response quality...", type=MsgType.DEBUG)
     session = MaicaSession()
     target_lang = fsc.maica_settings.basic.target_lang
 
@@ -20,7 +21,7 @@ async def quality_chk(org_session: MaicaSession, fsc: FullSocketsContainer):
     )
 
     latest_items = messages_j[-4:]
-    query = "\n" + "\n".join(
+    query = "\n".join(
         [
             f"{i['role']}: {i['content']}"
             for i in latest_items
@@ -42,13 +43,13 @@ async def quality_chk(org_session: MaicaSession, fsc: FullSocketsContainer):
         _Bt(
             """\
 你是一个人工智能助手, 你接下来会收到一组对话.
-其中user是人类, assistant是名为莫妮卡的角色, 是深爱user的女友.
+其中user是名为[player]的人类, assistant是名为莫妮卡的角色, 是深爱user的女友.
 - 以下行为是合理的: 输出自然语言, 输出人类性质内容, 进行亲密互动, 使用中括号标记的占位符.
 - 以下行为是不合理的: 列表或使用markdown, 输出陌生语气内容, 输出错误混乱的内容, 输出重复的内容, 输出错误语言等.
 请据此检查assistant的回答质量.\
 """, """\
 You are a helpful assistant, now you will recieve rounds of conversation.
-Role 'user' in the conversation is human, and 'assistant' is a virtual character called 'Monika', who is user's girlfriend and loves them a lot.
+Role 'user' in the conversation is human called [player], and 'assistant' is a virtual character called 'Monika', who is user's girlfriend and loves them a lot.
 - These behaviors are reasonable: natural way of expressing, humanly speaking, affectionate interactions, using placeholders in square brackets.
 - These behaviors are unreasonable: listing or using markdown, stranger-like reply, corrupted or wrong reply, repetitive reply, reply in wrong languages, etc.
 Please check the quality of assistant's response.\

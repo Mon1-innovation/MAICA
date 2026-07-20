@@ -194,6 +194,10 @@ class ShortConnHandler(View):
             csc = self.__class__.root_csc.spawn_sub(rsc)
             self.fsc = FullSocketsContainer(rsc=rsc, csc=csc)
 
+    # Override the default behavior when JSON parsing fails
+    def on_json_loading_failed(self, error):
+        raise MaicaInputWarning(f"Input is not parsable json: {str(error)}", 400)
+
     def msg_http(self, *args, **kwargs):
 
         # By using this we ignore info coming from non-validate endpoints on terminal
