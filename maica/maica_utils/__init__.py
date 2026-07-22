@@ -70,7 +70,7 @@ from .maica_utils import (
     SafeFormatDict,
     DummyClass,
 )
-from .connection_utils import MilvusDbConnectionManager, ConnUtils, AiConnectionManager, validate_input
+from .connection_utils import MilvusDbConnectionManager, ConnUtils, AiConnectionManager
 from .setting_utils import MaicaSettings
 from .fsc_early import AllowArb, RealtimeSocketsContainer
 from .encryption_utils import CryptoObject, crypto_object, decrypt_token, encrypt_token, sign_message, verify_message
@@ -129,7 +129,6 @@ __all__ = [
     'proceed_common_text',
     'sync_messenger',
     'messenger',
-    'validate_input',
     'load_env',
     'wrap_run_in_exc',
     'limit_length',

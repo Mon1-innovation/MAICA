@@ -573,7 +573,7 @@ async def prepare_thread(**kwargs):
     sync_messenger(info='MAICA WS server started!' if G.A.DEV_STATUS == 'serving' else 'MAICA WS server started in development mode!', type=MsgType.PRIM_SYS)
 
     try:
-        models_info = "\n"
+        models_info = "\n\n"
         models_info += f"Main model: {root_csc.mcore_conn.model_actual}\n"
         models_info += f"MFocus model: {root_csc.mfocus_conn.model_actual}\n"
 
@@ -607,13 +607,18 @@ async def prepare_thread(**kwargs):
         else:
             models_info += "Reranking model: Disabled\n"
 
-        models_info = models_info.rstrip("\n")
-
         sync_messenger(info=models_info, type=MsgType.PRIM_LOG)
 
     except Exception as e:
 
         sync_messenger(info=f"Major model deployment cannot be reached: {str(e)}, running in minimal testing mode", type=MsgType.SYS)
+
+    # Generic model helper init here
+    if int(G.A.MCORE_GENERIC):
+        try:
+            mtools.generic.generic_helper = await mtools.GenericModelHelper.async_create(csc=root_csc)
+        except Exception as e:
+            sync_messenger(info=f"Mcore generic enabled but failed to spawn helper: {str(e)}, will proceed with limited function set", type=MsgType.WARN)
     
     server = None
     connection_tasks = set()

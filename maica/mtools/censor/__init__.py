@@ -16,7 +16,7 @@ from flashtext import KeywordProcessor
 from typing import *
 from maica.maica_utils import *
 
-kp = KeywordProcessor()
+kp: KeywordProcessor
 
 def pkg_init_censor():
     global kp

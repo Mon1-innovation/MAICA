@@ -27,17 +27,6 @@ class SessionPersistentLlmMixin():
     content: dict
     content_temp: dict
 
-    async def _embed(self, data: list[str]) -> List[Tuple[str, list]]:
-        """We write the embed method here, since milvus db should be directly under its management."""
-        if isinstance(data, str):
-            data = [data]
-        else:
-            data = list(data)
-        embedding_conn = self.fsc.embedding_conn
-        resp = await embedding_conn.make_embedding(input=data)
-
-        embedded = [i.embedding for i in resp.data]
-        return list(zip(data, embedded))
 
     async def to_milvus(self, _data: Optional[list] = None):
         """As said, to milvus. Milvus is not considered persistent storage so only write."""
@@ -47,51 +36,15 @@ class SessionPersistentLlmMixin():
         user_id = self.fsc.maica_settings.verification.user_id
         session_num = self.session_num
 
-        # First query and calcs
-        old = await vector_pool.query(
-            collection_name=vector_pool.db,
-            filter=f"user_id == {user_id} and chat_session_num == {session_num}",
-            output_fields=["id", "raw_text"]
+        await vector_pool.cross_insert(
+            embedding_conn=self.fsc.embedding_conn,
+            data = _data if _data is not None else self.form_info(),
+            filter={
+                "user_id": user_id,
+                "chat_session_num": session_num,
+            },
         )
 
-        old_texts = {x["raw_text"] for x in old}
-        new_texts = set(_data if _data is not None else self.form_info())
-
-        to_add = new_texts - old_texts
-        to_del = old_texts - new_texts
-
-        sync_messenger(info=f"Stashing to milvus, found {len(old_texts)} old; {len(new_texts)} new; {len(to_add)} add; {len(to_del)} del", type=MsgType.DEBUG)
-
-        # Then procedures
-        if to_add:
-            packed_embedded = await self._embed(to_add)
-        else:
-            packed_embedded = []
-
-        if to_del:
-            delete_ids = [item["id"] for item in old if item["raw_text"] in to_del]
-            await vector_pool.delete(
-                collection_name=vector_pool.db,
-                ids=delete_ids,
-                consistency_level="Strong",
-            )
-
-        if packed_embedded:
-            await vector_pool.insert(
-                collection_name=vector_pool.db,
-                data=[
-                    {
-                        "user_id": user_id,
-                        "chat_session_num": session_num,
-                        "raw_text": t[0],
-                        "vector": t[1],
-                    }
-                    for t in packed_embedded
-                ],
-                consistency_level="Strong",
-            )
-
-        sync_messenger(info="Stashed to milvus successfully", type=MsgType.DEBUG)
 
     async def filter_milvus(self, query: str, topk: int = 5) -> Set:
         """Embed and search query from milvus."""
@@ -102,39 +55,17 @@ class SessionPersistentLlmMixin():
         user_id = self.fsc.maica_settings.verification.user_id
         session_num = self.session_num
 
-        resp = await self._embed(query)
-        embedded_query = [i[1] for i in resp]
-
-        res = await vector_pool.search(
-            collection_name=vector_pool.db,
-            filter=f"user_id == {user_id} and chat_session_num == {session_num}",
-            data=embedded_query,
-            output_fields=["raw_text"],
-            limit=topk,
-            search_params={
-                "params": {"ef": 64},
+        res_set = await vector_pool.embed_search(
+            embedding_conn=self.fsc.embedding_conn,
+            data=[query],
+            filter={
+                "user_id": user_id,
+                "chat_session_num": session_num,
             },
-            consistency_level="Strong",
         )
 
-        if not res:
-            return set()
-        prio_max = ceil(topk / len(res))
-        cfd_min = 0.5
-        res_set: Set[str] = set()
-
-        _distances = []
-        for result_group in res:
-            for d in result_group[:prio_max]:
-                if d["distance"] >= cfd_min:
-                    _distances.append(d["distance"])
-                    res_set.add(d["entity"]["raw_text"])
-        if res_set:
-            sync_messenger(info=f"Vector searching found {len(res_set)} results, distance range {min(_distances)}~{max(_distances)}", type=MsgType.DEBUG)
-        else:
-            sync_messenger(info="Vector searching result is empty", type=MsgType.DEBUG)
-
         return res_set
+
 
     async def filter_reranker(self, query: str, documents: Optional[list] = None, topk: int = 2) -> list:
         """More precisely filter results, suggest using filter_milvus first."""
@@ -178,6 +109,7 @@ class SessionPersistentLlmMixin():
             sync_messenger(info="Reranking result is empty", type=MsgType.DEBUG)
 
         return res_list
+
 
     async def filter_llm(self, query: str, documents: Optional[list] = None, topk: int = 3) -> list:
         """Traditional MFocus sfe implementation."""
@@ -248,12 +180,14 @@ If none of the information is relevant with query, you can output empty.\
 
         return selection_result.items
     
+
 class SessionTriggerLlmMixin():
 
     session_num: int
     fsc: FullSocketsContainer
     content: list
     content_temp: list
+
 
     async def predict_trigger(self, query: str):
         """We make st do this itself, since we used llm in sp already."""

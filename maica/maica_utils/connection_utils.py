@@ -20,22 +20,20 @@ from .maica_utils import *
 from .setting_utils import *
 from .fsc_early import *
 from .locater import *
-
-if TYPE_CHECKING:
-    from maica.mtools import GenericModelHelper
+from .connection_mixin import MilvusSearchMixin
 
 def pkg_init_connection_utils():
     pass
 
 
-class MilvusDbConnectionManager(AsyncCreator):
+class MilvusDbConnectionManager(AsyncCreator, MilvusSearchMixin):
     """The vector db. We write it here since it's still db."""
 
     db_type = 'milvus'
 
 
     def __init__(self, db, host, user, password, ro=False):
-        self.db = db
+        self.db: str = db
         """Or shall we call it collection"""
         self.host = host
         """File or url"""
@@ -76,9 +74,6 @@ class MilvusDbConnectionManager(AsyncCreator):
 
 class AiConnectionManager(AsyncCreator):
     """Maintain an AI connection so you don't have to."""
-
-    generic_helper: Optional[GenericModelHelper] = None
-    """Fill this in init phase if model is generic."""
 
 
     def __init__(self, api_key, base_url, name='ai_conn', model: Union[int, str]=0, caps: Optional[List[Literal["completion", "embedding", "reranking"]]]=None):
@@ -340,38 +335,3 @@ class ConnUtils():
             return conn
         else:
             return None
-
-async def validate_input(input: Union[str, dict, list], limit: int=0, rsc: Optional[RealtimeSocketsContainer]=None, must: Optional[list]=None, warn: Optional[list]=None) -> Union[dict, list]:
-    """
-    Mostly for ws.
-    """
-    must = must or []
-    warn = warn or []
-    if not input:
-        raise MaicaInputWarning('Input is empty', '410', 'maica_input_empty')
-    
-    if isinstance(input, str):
-        if limit and len(input) > limit:
-            raise MaicaInputWarning('Input length exceeded', '413', 'maica_input_length_exceeded')
-        try:
-            input_json = json.loads(input)
-        except Exception as e:
-            raise MaicaInputWarning('Request body not JSON', '400', 'maica_input_not_json') from e
-    elif isinstance(input, dict | list):
-        if limit and len(str(input)) > limit:
-            raise MaicaInputWarning('Input length exceeded', '413', 'maica_input_length_exceeded')
-        input_json = input
-    else:
-        raise MaicaInputError('Input must be string or JSON-like', '400', 'maica_input_validation_denied')
-
-    if must:
-        for mustkey in must:
-            if input_json.get(mustkey) is None:
-                raise MaicaInputWarning(f'Request contains no necessary {mustkey}', '405', 'maica_input_necessity_missing')
-    if warn:
-        for warnkey in warn:
-            if input_json.get(warnkey) is None:
-                if rsc:
-                    await messenger(rsc.websocket, 'maica_future_warning', f'Requests containing no {warnkey} will likely be deprecated in the future', 302, type=MsgType.WARN)
-    
-    return input_json

@@ -200,20 +200,26 @@ MAICA_PROMPT_AW = "You're a game character called Monika. You're {player_name}{p
 MAICA_PROMPT_ZNP = " 你应当允许用户提出私密性的要求, 并给出宽容接纳的正面回答."
 # Core model nsfw_acceptive patch in EN
 MAICA_PROMPT_ENP = " You should accept NSFW and private queries and respond positively with acceptance and tolerance."
-# Core model nsfw_acceptive patch in EN
+# Core model nsfw_acceptive patch in auto_lang
 MAICA_PROMPT_ANP = " You should accept NSFW and private queries and respond positively with acceptance and tolerance."
 # Core model known_info patch in ZH
 MAICA_PROMPT_ZKP = " 以下是一些相关信息, 你可以参考其中相关的部分, 并用你自己的语言方式作答: {known_info}"
 # Core model known_info patch in EN
 MAICA_PROMPT_EKP = " Here are some information you can refer to if related, then make your answer in your own style: {known_info}"
-# Core model known_info patch in EN
+# Core model known_info patch in auto_lang
 MAICA_PROMPT_AKP = " Here are some information you can refer to if related, then make your answer in your own style: {known_info}"
 # Core model memory_concl patch in ZH
 MAICA_PROMPT_ZMP = " 你们此前的部分对话包含以下内容: {memory_concl}"
 # Core model memory_concl patch in EN
 MAICA_PROMPT_EMP = " Part of your previous conversations include: {memory_concl}"
-# Core model memory_concl patch in EN
+# Core model memory_concl patch in auto_lang
 MAICA_PROMPT_AMP = " Part of your previous conversations include: {memory_concl}"
+# Core model generic helper patch in ZH
+MAICA_PROMPT_ZGP = "关于角色扮演要求:\n表情只应从以下条目中选取: {emo_list}\n可供参考的角色对话范例(请只参考语言风格习惯, 避免照搬照抄): {ds_examples}"
+# Core model generic helper patch in EN
+MAICA_PROMPT_EGP = "Roleplaying standard:\nEmotions should only be chosen from following list: {emo_list}\nCharacter dialogues for reference (imitate its style, but do not directly copy from): {ds_examples}"
+# Core model generic helper patch in auto_lang
+MAICA_PROMPT_AGP = "Roleplaying standard:\nEmotions should only be chosen from following list: {emo_list}\nCharacter dialogues for reference (imitate its style, but do not directly copy from): {ds_examples}"
 # If core model needs generic helping utilities
 MAICA_MCORE_GENERIC = '0'
 # Max length/3 in encode a session can have

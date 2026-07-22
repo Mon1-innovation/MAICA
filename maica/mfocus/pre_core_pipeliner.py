@@ -12,7 +12,7 @@ from typing import *
 
 from .mfocus_llm import MfPipeliner
 from .agent_modules import AgentTools
-from maica.mtools import make_postmail, make_inspire, ms_from_cache
+from maica.mtools import make_postmail, make_inspire, ms_from_cache, generic
 from maica.maica_utils import *
 
 _Bt = BilingualText
@@ -26,15 +26,6 @@ async def pre_core_pipelines(
     """Schedule everything here."""
     session_item = session[-1]
 
-    # We want it to exist and be empty
-    # If this behavior changes in the future, remember to modify this
-    if not (
-        isinstance(
-            session_item.context.known_info,
-            dict
-        ) and not session_item.context.known_info
-    ):
-        session_item.context.known_info = {}
 
     async def mf_pipeline():
         """
@@ -64,6 +55,7 @@ async def pre_core_pipelines(
             else:
                 session_item.context.known_info.update(parsed_results)
 
+
     async def precheck_mt_pipeline():
         """Former react_trigger. Pre-detects if request could be satisfied by mt."""
         if (
@@ -89,6 +81,7 @@ async def pre_core_pipelines(
                     )
                 session_item.context.known_info.update({"mt_prediction": t})
 
+
     async def form_mp_pipeline():
         """
         This shall go first in sequence, since it fills content.
@@ -99,6 +92,7 @@ async def pre_core_pipelines(
         ):
             prompt_text = await make_postmail(fsc)
             session_item.content = prompt_text
+
 
     async def form_ms_pipeline():
         """Basically same position with mp_pipeline."""
@@ -112,6 +106,7 @@ async def pre_core_pipelines(
             if fsc.maica_settings.temp.mspire.use_cache:
                 mfc_m = await ms_from_cache(prompt_text, fsc)
                 fsc.maica_settings.temp.mspire._mfc_m = mfc_m
+
 
     async def const_mf_pipeline():
         """Call tools for mf_const_tools and mf_const_sf_access."""
@@ -156,15 +151,26 @@ async def pre_core_pipelines(
             parsed_results = MfPipeliner.parse_tools_results(tools_results)
             session_item.context.known_info.update(parsed_results)
 
+
     async def std_content_pipeline():
         """A simple pipeline to make session_item.content str, to avoid confusion."""
         session_item.content = to_str(session_item.content, fsc.maica_settings.basic.target_lang)
+
+
+    async def generic_helper_pipeline():
+        """Utilizes RAG to search datasets for zero-shot like learning for generic core model."""
+        if (
+            generic.generic_helper
+        ):
+            res_set = await generic.generic_helper.search(session_item.content)
+            session_item.context.generic_help = list(res_set)
+
 
     # Finally, form all these together
     tasks_stages: list[list[Callable[[], Awaitable]]] = [
         [form_mp_pipeline, form_ms_pipeline],
         [std_content_pipeline],
-        [precheck_mt_pipeline, const_mf_pipeline],
+        [precheck_mt_pipeline, const_mf_pipeline, generic_helper_pipeline],
         [mf_pipeline],
     ]
 

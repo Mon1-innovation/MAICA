@@ -412,7 +412,11 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         ):
 
             # Include tool calls and outputs appended by the previous round.
-            completion_args["input"] = self.mf_session.utilize(manual_prompt=True)
+            completion_args["input"] = self.mf_session.utilize(
+                manual_prompt=True,
+                # Additions have been added once, so stop adding another time
+                ignore_additions=True,
+            )
             async with llm_request(conn, **completion_args) as (task, a_reasoning, a_content, a_tool_calls):
                 await tools_loop(a_tool_calls)
 

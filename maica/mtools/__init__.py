@@ -7,14 +7,14 @@ from .mspire import make_inspire, ms_from_cache, ms_to_cache
 from .weather_get import name_to_loc, weather_api_get
 from .serp_get import internet_search
 from .date_event_get import RegEvent, EventsCollection
-from .post_proc import emo_proc, emo_proc_llm, emo_proc_auto, post_proc, zlist, elist
+from .post_proc import emo_proc, emo_proc_llm, emo_proc_auto, post_proc
 from .post_proc_rt import PPRTProcessor
 from .nv_watcher import NvWatcher
 from .mvista import ImgByUuid, query_vlm
 from .quality_chk import quality_chk
 from .censor import has_censored
 from .memory_concl import memory_concl
-from .generic import GenericModelHelper
+from .generic import GenericModelHelper, generic_helper
 
 __all__ = [
     'TpAPIKeys',
@@ -31,8 +31,6 @@ __all__ = [
     'emo_proc_llm',
     'emo_proc_auto',
     'post_proc',
-    'zlist',
-    'elist',
     'PPRTProcessor',
     'NvWatcher',
     'ImgByUuid',
@@ -40,6 +38,8 @@ __all__ = [
     'quality_chk',
     'has_censored',
     'memory_concl',
+    'GenericModelHelper',
+    'generic_helper',
     ]
 
 from .mcp import pkg_init_mcp

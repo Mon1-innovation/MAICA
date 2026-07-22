@@ -18,11 +18,26 @@ from .fsc_late import *
 from .db_bound_obj import DbBoundObject
 from .database_utils import *
 from .database_models import *
+from .emotions import *
 
 _Bt = BilingualText
 
+
+def _list_to_bullets(l: list[str | BilingualText], indent: int = 0):
+    """Has a leading slash n, no trailing."""
+    bt = _Bt()
+    for i in l:
+        bt += " " * indent
+        bt += "\n- "
+        bt += i
+
+    return bt
+
+
 class MaicaSessionItem(BaseModel):
     """Element of MaicaSession."""
+
+
     class Context(BaseModel):
         """Specifically context object of MaicaSessionItem."""
         strict_conv: bool = True
@@ -38,6 +53,8 @@ class MaicaSessionItem(BaseModel):
         ] = Field(default_factory=dict)
         image_urls: list[str] = Field(default_factory=list)
         memory_concl: Optional[str] = None
+        generic_help: list[str] = Field(default_factory=list)
+
 
     role: Literal["system", "user", "assistant", "misc"] = 'misc'
     content: str | BilingualText = ''
@@ -48,6 +65,7 @@ class MaicaSessionItem(BaseModel):
     preserved: dict = Field(default_factory=dict)
 
     timestamp: float = Field(default_factory=time.time)
+
 
     # We override its init to allow position-arguments initialization
     def __init__(self, *args, **kwargs):
@@ -65,6 +83,7 @@ class MaicaSessionItem(BaseModel):
 
         super().__init__(**kwargs)
 
+
     def json(self) -> dict:
 
         # exclude_unset does not track sub-attributes
@@ -73,6 +92,7 @@ class MaicaSessionItem(BaseModel):
         if self.role != "user":
             kwargs["exclude_unset"] = True
         return self.model_dump(**kwargs)
+
     
     def utilize(self, text_only: Literal[False, None, True] = None) -> dict:
         """
@@ -106,6 +126,7 @@ class MaicaSessionItem(BaseModel):
         else:
             return self.preserved
 
+
     def form_known_info(self):
         """
         Form the known_info dict into a str. Maybe we use markdown since it's more modern.
@@ -128,14 +149,25 @@ class MaicaSessionItem(BaseModel):
                 known_str = known_info["generated_guidance"]
 
             else:
-                known_str = _Bt()
-                for t in known_info.values():
-                    known_str += "\n- "
-                    known_str += t
-                known_str += "\n"
+                known_str = _list_to_bullets(known_info.values()).to_str(self.target_lang)
         else:
             known_str = ""
         return known_str
+
+
+    def form_generic_help(self):
+        """Much simpler. This needs a default placeholder since it could actually be empty."""
+        generic_help = self.context.generic_help
+        generic_str = _list_to_bullets(generic_help).to_str(self.target_lang)
+
+        if not generic_str:
+            generic_str = _Bt(
+                "当前暂未提供.",
+                "Currently not provided.",
+            ).to_str(self.target_lang)
+
+        return generic_str
+
     
     def context_from_fsc(self, fsc: FullSocketsContainer):
         """Gets session item specifics from a fsc."""
@@ -146,6 +178,7 @@ class MaicaSessionItem(BaseModel):
         context.apply_nickname = fsc.maica_settings.extra.prompt_allow_nickname
         context.nsfw_acceptive = fsc.maica_settings.extra.nsfw_acceptive
         context.image_urls = fsc.maica_settings.temp.mvista.mv_imgs or []
+
 
 class MaicaSession(list[MaicaSessionItem], DbBoundObject):
     """
@@ -191,6 +224,7 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
             self,
             manual_prompt: Optional[Literal[True] | str | BilingualText] = None,
             ignore_additions: bool = False,
+            extra_info: Optional[str | BilingualText] = None,
         ):
         """
         Parses corresponding contexts into prompt information, and automatically replaces it.
@@ -265,12 +299,32 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
 
             # Add memory conclusion
             if prompt_context.memory_concl:
+                prompt += "\n"
                 prompt += _Bt(
                     G.A.PROMPT_ZMP,
                     G.A.PROMPT_EMP,
                     G.A.PROMPT_AMP,
                 )
-                format_kvs['memory_concl'] = prompt_context.memory_concl
+                format_kvs['memory_concl'] = '\n' + prompt_context.memory_concl
+
+            # Add generic help
+            # We do not want to add for mfocus, it's kinda useless, so judge by manual_prompt
+            if not manual_prompt:
+                # We decide by constant because even if no help text acquired, we still want to add emo help
+                if int(G.A.MCORE_GENERIC):
+                    prompt += "\n"
+                    prompt += _Bt(
+                        G.A.PROMPT_ZGP,
+                        G.A.PROMPT_EGP,
+                        G.A.PROMPT_AGP,
+                    )
+                    format_kvs['emo_list'] = _list_to_bullets(zlist_ai if target_lang == 'zh' else elist_ai).to_str(target_lang)
+                    format_kvs['ds_examples'] = curr_item.form_generic_help()
+
+            # Add extra info if required
+            if extra_info:
+                prompt += "\n"
+                prompt += extra_info
 
             for k, v in format_kvs.items():
                 format_kvs[k] = to_str(v, target_lang)
@@ -294,6 +348,9 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         # Note that system prompt item should not be modified from external
         self[0].content = prompt
 
+        # Uncomment this for debugging
+        # print(prompt)
+
     def json(self) -> list:
         self._utilize_context()
         return [i.json() for i in self]
@@ -303,12 +360,13 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
             text_only: Literal[False, None, True] = None,
             manual_prompt: Optional[Literal[True] | str | BilingualText] = None,
             ignore_additions: bool = False,
+            extra_info: Optional[str | BilingualText] = None,
         ):
         # If session == -1, we shall preserve the prompt as-is
         # If using custom inner sessions, override params insead of using -1
         session_num = self.session_num
         if session_num >= 0:
-            self._utilize_context(manual_prompt, ignore_additions)
+            self._utilize_context(manual_prompt, ignore_additions, extra_info)
         else:
             self.sanitize()
         return [i.utilize(text_only) for i in self]

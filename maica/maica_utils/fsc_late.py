@@ -10,6 +10,7 @@ from .fsc_early import AllowArb, RealtimeSocketsContainer, TrackerId
 from .connection_utils import *
 from .users_utils import FscUsersFuncMixin
 
+
 class ConnSocketsContainer(AllowArb):
     """Why so many connections."""
     vector_pool: Optional[MilvusDbConnectionManager]=None
@@ -25,8 +26,26 @@ class ConnSocketsContainer(AllowArb):
         sub_kwargs = {k: getattr(self, k) if getattr(self, k) else None for k in _csc_proxied}
         return ConnSocketsContainer(**sub_kwargs)
 
+    @property
+    def is_vector_ready(self):
+        return bool(
+            self.vector_pool
+            and self.embedding_conn
+        )
+    
+    @property
+    def is_reranking_ready(self):
+        return bool(
+            self.reranking_conn
+            and self.is_vector_ready
+        )
+
+
 _rsc_proxied = ['websocket', 'tracker_id', 'messenger', 'maica_settings']
-_csc_proxied = ['vector_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn', 'embedding_conn', 'reranking_conn']
+_csc_proxied = [
+    'vector_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn', 'embedding_conn', 'reranking_conn',
+    'is_vector_ready', 'is_reranking_ready',
+    ]
 
 class FullSocketsContainer(FscUsersFuncMixin, AllowArb):
     """
@@ -79,20 +98,6 @@ class FullSocketsContainer(FscUsersFuncMixin, AllowArb):
             setattr(self.csc, k, v)
         else:
             super().__setattr__(k, v)
-
-    @property
-    def is_vector_ready(self):
-        return bool(
-            self.vector_pool
-            and self.embedding_conn
-        )
-    
-    @property
-    def is_reranking_ready(self):
-        return bool(
-            self.reranking_conn
-            and self.is_vector_ready
-        )
     
     @property
     def real_sf_access_impl(self):
