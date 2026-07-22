@@ -25,6 +25,16 @@ class DatabaseUtils():
     SessionAuth: async_sessionmaker[AsyncSession] = None
     SessionData: async_sessionmaker[AsyncSession] = None
 
+
+async def dispose_database_engines():
+    """Dispose global database pools before their event loop is closed."""
+    engines = (DatabaseUtils.engine_auth, DatabaseUtils.engine_data)
+    disposed = set()
+    for engine in engines:
+        if engine is not None and id(engine) not in disposed:
+            await engine.dispose()
+            disposed.add(id(engine))
+
 def pkg_init_database_utils():
 
     usr = urllib.parse.quote_plus(G.A.DB_USER)

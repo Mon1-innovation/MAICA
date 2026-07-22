@@ -2,7 +2,7 @@
 from .gen_keys import generate_rsa_keys, export_keys, import_keys
 from .init_db import create_tables
 from .init_marking import check_marking, create_marking
-from .migrations import migrate
+from .migrations import migrate, migrate_async
 
 __all__ = [
     'generate_rsa_keys',
@@ -12,6 +12,7 @@ __all__ = [
     'check_marking',
     'create_marking',
     'migrate',
+    'migrate_async',
 ]
 
 from .migrations import pkg_init_migrations

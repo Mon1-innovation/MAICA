@@ -84,7 +84,7 @@ from .agent_tools import WrappedOpenAIToolProperty, WrappedOpenAITool, WrappedOp
 from .llm_utils import ToolCall, llm_request
 from .stream_buffer import StreamBuffer, no_lock_acquire_buffer, acquire_buffer, buffers_gc
 from .ws_config import WsPermissionConfig, WsPingConfig, WsSPingConfig, WsReconnConfig, WsSettingsConfig, WsQueryConfig, UnionStage1Settings, UnionStage2Settings, Stage1Settings, Stage2Settings
-from .database_utils import DatabaseUtils, sqla_get_or_create, sqla_create_or_update
+from .database_utils import DatabaseUtils, dispose_database_engines, sqla_get_or_create, sqla_create_or_update
 from .database_models import SqlBaseAuth, SqlBaseData, SqlUser, SqlAccountStatus, SqlChatSession, SqlCropArchived, SqlCsessionArchived, SqlMsCache, SqlMvMeta, SqlPersistent, SqlTrigger
 from .users_utils import FscUsersFuncMixin
 from .session_mgr import SessionPersistent, SessionTrigger, acquire_dbo, acquire_session, dbos_gc
@@ -204,7 +204,7 @@ __all__ = [
     'acquire_buffer',
     'buffers_gc',
     'WsPermissionConfig', 'WsPingConfig', 'WsSPingConfig', 'WsReconnConfig', 'WsSettingsConfig', 'WsQueryConfig', 'UnionStage1Settings', 'UnionStage2Settings', 'Stage1Settings', 'Stage2Settings',
-    'SqlBaseAuth', 'SqlBaseData', 'DatabaseUtils', 'sqla_get_or_create', 'sqla_create_or_update',
+    'SqlBaseAuth', 'SqlBaseData', 'DatabaseUtils', 'dispose_database_engines', 'sqla_get_or_create', 'sqla_create_or_update',
     'SqlUser', 'SqlAccountStatus', 'SqlChatSession', 'SqlCropArchived', 'SqlCsessionArchived', 'SqlMsCache', 'SqlMvMeta', 'SqlPersistent', 'SqlTrigger',
     'FscUsersFuncMixin',
 ]

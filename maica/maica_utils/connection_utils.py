@@ -102,6 +102,7 @@ class AiConnectionManager(AsyncCreator):
 
 
     async def _connect(self):
+        print(self.base_url, self.api_key)
         self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
 
         if isinstance(self.model, int):
@@ -336,7 +337,7 @@ class ConnUtils():
                 model=G.A.RERANKING_CHOICE or 0,
                 caps=["reranking"],
             )
-            conn.default_params(**json.loads(G.A.RERANKER_EXTRA))
+            conn.default_params(**json.loads(G.A.RERANKING_EXTRA))
             return conn
         else:
             return None

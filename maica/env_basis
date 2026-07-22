@@ -94,12 +94,12 @@ MAICA_EMBEDDING_EXTRA = '
 # Reranking API is not actually a part of OpenAI standard, mostly used by vllm-like deployments
 MAICA_RERANKING_ADDR = ''
 # Reranker model key
-MAICA_RERANKER_KEY = ''
+MAICA_RERANKING_KEY = ''
 # Reranker model choice, leave empty for first
-MAICA_RERANKER_CHOICE = ''
+MAICA_RERANKING_CHOICE = ''
 # Reranker model completion extra params, must be valid json
 # Not necessarily a part of OpenAI standard, may useful for vllm-like deployments
-MAICA_RERANKER_EXTRA = '
+MAICA_RERANKING_EXTRA = '
     {
     }
 '

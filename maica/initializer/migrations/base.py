@@ -14,7 +14,7 @@ def register_migration(upper_version: str, migrate_func):
 def get_migrations():
     return sorted(_migrations, key=lambda x: x[0])
 
-def migrate(version):
+async def migrate_async(version):
     migrated = False
 
     last_version_parsed = parse(version)
@@ -31,7 +31,7 @@ def migrate(version):
         if curr_version_parsed >= mig_item[0] > last_version_parsed:
             try:
                 sync_messenger(info=f'Running migration upper-version {str(mig_item[0])}...', type=MsgType.PRIM_LOG)
-                asyncio.run(mig_item[1]())
+                await mig_item[1]()
                 sync_messenger(info=f'Finished migration upper-version {str(mig_item[0])}', type=MsgType.PRIM_LOG)
                 migrated = True
             except CommonMaicaException as ce:
@@ -45,3 +45,15 @@ def migrate(version):
         sync_messenger(info='[maica-mig] No migration applied, continuing launch procedure...', type=MsgType.DEBUG)
 
     return migrated
+
+
+def migrate(version):
+    async def run():
+        try:
+            return await migrate_async(version)
+        finally:
+            # AsyncEngine pools must be disposed on the loop that used them.
+            # Runtime code can then reconnect safely on its own event loop.
+            await dispose_database_engines()
+
+    return asyncio.run(run())

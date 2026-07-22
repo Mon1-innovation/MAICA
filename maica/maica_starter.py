@@ -263,13 +263,22 @@ Quitting...\
         generate_rsa_keys()
         pkg_init_maica()
 
-        asyncio.run(create_tables())
+        async def initialize_database():
+            try:
+                await create_tables()
+                return await migrate_async(last_version)
+            finally:
+                # Keep table creation and migrations on one loop, then make
+                # the global engines safe for the runtime loop to reuse.
+                await dispose_database_engines()
+
+        migrated = asyncio.run(initialize_database())
 
         sync_messenger(info="[maica-init] MAICA Illuminator initialization finished", type=MsgType.PRIM_SYS)
     else:
         pkg_init_maica()
         sync_messenger(info="[maica-init] Initiated marking detected, checking migrations...", type=MsgType.DEBUG)
-    migrated = migrate(last_version)
+        migrated = migrate(last_version)
     if is_fresh or migrated:
         create_marking()
     data_initialized = True
