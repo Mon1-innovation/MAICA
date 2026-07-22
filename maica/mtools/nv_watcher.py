@@ -37,8 +37,8 @@ class NvWatcher(AsyncCreator):
             try:
                 await self._connect_remotes()
                 await self._initiate_db()
-            except Exception:
-                self.is_dead = True
+            except Exception as e:
+                self.is_dead = e
 
     @property
     def is_active(self):
@@ -108,7 +108,7 @@ class NvWatcher(AsyncCreator):
     async def main_watcher(self):
         if not self.is_active:
             if self.is_dead:
-                sync_messenger(info=f"Cannot connect to SSH of {self.node}, freezing watcher", type=MsgType.WARN)
+                sync_messenger(info=f"Cannot connect to SSH of {self.node}, freezing watcher: {str(self.is_dead)}", type=MsgType.WARN)
             else:
                 sync_messenger(info=f"Necessary info not complete for watching {self.node}, freezing watcher", type=MsgType.LOG)
             await sleep_forever()
