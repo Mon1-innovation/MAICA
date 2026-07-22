@@ -1,4 +1,6 @@
 """Import layer 3"""
+from __future__ import annotations
+
 import aiomysql
 import aiosqlite
 import pymilvus
@@ -18,6 +20,9 @@ from .maica_utils import *
 from .setting_utils import *
 from .fsc_early import *
 from .locater import *
+
+if TYPE_CHECKING:
+    from maica.mtools import GenericModelHelper
 
 def pkg_init_connection_utils():
     pass
@@ -71,6 +76,9 @@ class MilvusDbConnectionManager(AsyncCreator):
 
 class AiConnectionManager(AsyncCreator):
     """Maintain an AI connection so you don't have to."""
+
+    generic_helper: Optional[GenericModelHelper] = None
+    """Fill this in init phase if model is generic."""
 
 
     def __init__(self, api_key, base_url, name='ai_conn', model: Union[int, str]=0, caps: Optional[List[Literal["completion", "embedding", "reranking"]]]=None):

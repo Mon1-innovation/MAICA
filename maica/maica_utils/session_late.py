@@ -1,6 +1,8 @@
 """
 Import layer 4.2
 """
+from __future__ import annotations
+
 import asyncio
 import orjson
 import datetime
@@ -14,9 +16,7 @@ from .maica_utils import *
 from .chat_session import *
 
 if TYPE_CHECKING:
-    from maica.maica_utils import *
-else:
-    class FullSocketsContainer(): ...
+    from maica.maica_utils import FullSocketsContainer
 
 _Bt = BilingualText
 

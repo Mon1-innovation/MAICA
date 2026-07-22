@@ -214,6 +214,8 @@ MAICA_PROMPT_ZMP = " 你们此前的部分对话包含以下内容: {memory_conc
 MAICA_PROMPT_EMP = " Part of your previous conversations include: {memory_concl}"
 # Core model memory_concl patch in EN
 MAICA_PROMPT_AMP = " Part of your previous conversations include: {memory_concl}"
+# If core model needs generic helping utilities
+MAICA_MCORE_GENERIC = '0'
 # Max length/3 in encode a session can have
 MAICA_SESSION_MAX_LENGTH = '28672'
 # Censor MSpire input or not, number for limit

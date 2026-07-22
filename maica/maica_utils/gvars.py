@@ -1,4 +1,6 @@
 """Import layer 0"""
+from __future__ import annotations
+
 import os
 import asyncio
 
@@ -6,9 +8,7 @@ from dataclasses import dataclass
 from typing import *
 
 if TYPE_CHECKING:
-    from maica.maica_utils import *
-else:
-    class FullSocketsContainer(): ...
+    from maica.maica_utils import FullSocketsContainer
 
 online_dict: dict[
     int,

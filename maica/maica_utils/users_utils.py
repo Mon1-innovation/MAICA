@@ -2,6 +2,7 @@
 Import layer 3.9
 Here we handle the users things individually, and provide as mixins.
 """
+from __future__ import annotations
 
 import asyncio
 import bcrypt
@@ -31,9 +32,6 @@ def auth_token_reference(token: str) -> str:
 
 if TYPE_CHECKING:
     from .fsc_late import *
-else:
-    class ConnSocketsContainer(): ...
-    class RealtimeSocketsContainer(): ...
 
 class FscUsersFuncMixin():
     """User functions for MaicaSetting.Identity, such as logging in."""

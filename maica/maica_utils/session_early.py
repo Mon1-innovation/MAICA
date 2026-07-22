@@ -2,6 +2,7 @@
 Import layer 1.2
 Session related. We break sb_utils apart and rewrite some here.
 """
+from __future__ import annotations
 
 import asyncio
 import orjson
@@ -17,9 +18,7 @@ from .maica_utils import *
 from .agent_tools import *
 
 if TYPE_CHECKING:
-    from maica.maica_utils import *
-else:
-    class FullSocketsContainer(): ...
+    from maica.maica_utils import FullSocketsContainer
 
 _Bt = BilingualText
 
