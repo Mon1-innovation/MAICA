@@ -102,7 +102,6 @@ class AiConnectionManager(AsyncCreator):
 
 
     async def _connect(self):
-        print(self.base_url, self.api_key)
         self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
 
         if isinstance(self.model, int):
