@@ -113,6 +113,39 @@ def test_sigterm_path_cancels_service_group(monkeypatch) -> None:
     asyncio.run(scenario())
 
 
+def test_service_group_cancellation_reaches_every_service() -> None:
+    async def scenario() -> None:
+        started = [asyncio.Event() for _ in range(3)]
+        cancelled = [asyncio.Event() for _ in range(3)]
+
+        async def service(index: int) -> None:
+            started[index].set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cancelled[index].set()
+
+        services = [asyncio.create_task(service(index)) for index in range(3)]
+        group = asyncio.create_task(maica_starter._wait_for_first(services))
+        try:
+            await asyncio.wait_for(
+                asyncio.gather(*(event.wait() for event in started)),
+                timeout=1,
+            )
+            group.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await asyncio.wait_for(group, timeout=1)
+
+            assert all(event.is_set() for event in cancelled)
+            assert all(task.done() for task in services)
+        finally:
+            for task in services:
+                task.cancel()
+            await asyncio.gather(*services, return_exceptions=True)
+
+    asyncio.run(scenario())
+
+
 def test_http_uses_external_shutdown_trigger(monkeypatch) -> None:
     async def scenario() -> None:
         shutdown_requested = asyncio.Event()

@@ -314,7 +314,6 @@ async def start_all(
                     ),
                     asyncio.create_task(mtts_start_all(**root_csc_kwargs)),
                 ],
-                "overall",
             )
     finally:
         sync_messenger(info="Doing final connection cleanup...", type=MsgType.DEBUG)
@@ -326,7 +325,7 @@ async def start_all(
     sync_messenger(info="Everything done, bye", type=MsgType.DEBUG)
 
 
-async def _wait_for_first(tasks, label):
+async def _wait_for_first(tasks):
     """Wait until one service exits, then cancel and await every sibling."""
     done = set()
     pending = set(tasks)
@@ -335,9 +334,7 @@ async def _wait_for_first(tasks, label):
     finally:
         for task in pending:
             task.cancel()
-            await task
-        if pending:
-            await asyncio.gather(*pending, return_exceptions=True)
+        await asyncio.gather(*pending, return_exceptions=True)
 
     # Propagate failures instead of turning a crashed server into a clean exit.
     await asyncio.gather(*done)
@@ -353,7 +350,7 @@ async def maica_start_all(shutdown_trigger=None, **kwargs):
     )
     task_schedule = asyncio.create_task(common_schedule.prepare_thread(**kwargs, involve_chat=True, involve_tts=False))
 
-    await _wait_for_first([task_ws, task_http, task_schedule], "chat")
+    await _wait_for_first([task_ws, task_http, task_schedule])
 
 async def mtts_start_all(**kwargs):
 
@@ -364,7 +361,7 @@ async def mtts_start_all(**kwargs):
     task_tts = asyncio.create_task(mtts.prepare_thread(**kwargs))
     task_schedule = asyncio.create_task(common_schedule.prepare_thread(**kwargs, involve_chat=False, involve_tts=True))
 
-    await _wait_for_first([task_tts, task_schedule], "tts")
+    await _wait_for_first([task_tts, task_schedule])
 
 
 async def _start_with_sigterm(target):
@@ -402,16 +399,13 @@ async def _start_with_sigterm(target):
             return_when=asyncio.FIRST_COMPLETED,
         )
         if shutdown_task in done:
-            if not service_task.done():
-                service_task.cancel()
-            await asyncio.gather(service_task, return_exceptions=True)
+            sync_messenger(info="\n", type=MsgType.PLAIN)
+            sync_messenger(info="SIGTERM received, shutting down services...", type=MsgType.PRIM_SYS)
+            service_task.cancel()
         else:
             # Preserve failures when a service exits without a shutdown signal.
             await service_task
     finally:
-        sync_messenger(info="\n", type=MsgType.PLAIN)
-        sync_messenger(info="SIGTERM received, shutting down services...", type=MsgType.PRIM_SYS)
-
         for task in (service_task, shutdown_task):
             if not task.done():
                 task.cancel()
