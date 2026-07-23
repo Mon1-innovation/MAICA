@@ -311,7 +311,7 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
             # We do not want to add for mfocus, it's kinda useless, so judge by manual_prompt
             if not manual_prompt:
                 # We decide by constant because even if no help text acquired, we still want to add emo help
-                if int(G.A.MCORE_GENERIC):
+                if G.A.MCORE_GENERIC and int(G.A.MCORE_GENERIC):
                     prompt += "\n"
                     prompt += _Bt(
                         G.A.PROMPT_ZGP,

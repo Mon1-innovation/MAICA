@@ -616,7 +616,7 @@ async def prepare_thread(**kwargs):
         sync_messenger(info=f"Major model deployment cannot be reached: {str(e)}, running in minimal testing mode", type=MsgType.SYS)
 
     # Generic model helper init here
-    if int(G.A.MCORE_GENERIC):
+    if G.A.MCORE_GENERIC and int(G.A.MCORE_GENERIC):
         try:
             mtools.generic.generic_helper = await mtools.GenericModelHelper.async_create(csc=root_csc)
         except Exception as e:
