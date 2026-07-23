@@ -109,3 +109,7 @@ If you want to read in English, use a translator.
 - 现在不再允许mt触发器数量超出上限
 
 - 现在savefile和trigger均严格对照session num, 不再采用0作为默认
+
++ 添加了可配置的maica_gnrc功能, 为通用模型补充指导
+
+- 现在临时mf的数量有额外限制, 且对纯rag实现不生效

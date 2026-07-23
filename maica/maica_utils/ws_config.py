@@ -97,7 +97,7 @@ class WsQueryConfig(WsBasicConfig):
 
     class ExTriggers(RootModel):
         """Extra triggers."""
-        root: list[Any]
+        root: list[dict]
 
     class PprtConfig(BaseModel):
         yield_interval: list[Annotated[int, Field(ge=1, le=1000)]] = Field(

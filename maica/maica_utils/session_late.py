@@ -78,6 +78,9 @@ class SessionPersistentLlmMixin():
             and self.fsc.is_vector_ready
         ):
             documents = await self.filter_milvus(query, 10)
+            # We include full extras since there's no other way
+            documents += self.form_info(where='temp')
+
         elif documents is None:
             documents = self.form_info()
 
@@ -122,6 +125,8 @@ class SessionPersistentLlmMixin():
             and self.fsc.is_vector_ready
         ):
             documents = await self.filter_milvus(query, 10)
+            documents += self.form_info(where='temp')
+            
         elif documents is None:
             documents = self.form_info()
 

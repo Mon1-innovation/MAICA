@@ -39,9 +39,13 @@ class SessionPersistent(DbBoundObject, SessionPersistentMixin, SessionPersistent
     def on_acquire(self):
         self.clear_temp()
 
-    def _post_upload(self, *args, **kwargs):
+    def validate(self, *args, **kwargs):
         self._conclude_extra_sf()
-        return super()._post_upload(*args, **kwargs)
+
+        if (l := len(self.form_info('temp'))) > 32:
+            raise MaicaInputWarning(f"Length of temp sf exceeded 32: {l}")
+
+        return super().validate(*args, **kwargs)
 
 class SessionTrigger(DbBoundObject, SessionTriggerMixin, SessionTriggerLlmMixin):
 
@@ -57,9 +61,9 @@ class SessionTrigger(DbBoundObject, SessionTriggerMixin, SessionTriggerLlmMixin)
     def on_acquire(self):
         self.clear_temp()
     
-    def _post_upload(self, *args, **kwargs):
+    def validate(self, *args, **kwargs):
         self._get_triggers()
-        return super()._post_upload(*args, **kwargs)
+        return super().validate(*args, **kwargs)
     
 # That float is last acquired timestamp
 _sessions_index: Dict[

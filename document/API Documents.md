@@ -682,16 +682,17 @@ MAICA长连接有一系列附加功能可用.
 
 query可以携带临时的存档内容, 并逐键临时覆盖上传的存档内容. 该功能适合上传存档中可能频繁变化的内容.
 
-* 应当注意, 由于RAG/Reranker对临时内容缺乏优化, 此功能不适合用于传输完整存档.
+* 应当注意, 由于优化等问题, 此功能不适合用于传输完整存档. 使用此功能传输的存档会更显著地降低sf_access速度.
+* 临时存档总生效条目(含mas_player_additions内部)不允许超过32条.
+* 对于选择纯RAG实现sf_access的用户, 临时存档不会生效.
 * 关于存档的具体格式参见附录.
 
 ### 单轮MTrigger触发器表:
 
-`{"type": "query", "chat_session": "1", "query": "你好啊", "trigger": [{"template": "common_affection_template"}]}`
+`{"type": "query", "chat_session": "1", "query": "你好啊", "trigger": [{"template": "common_affection_template", "name": "alter_affection"}]}`
 
 query可以携带临时的触发器表, 并临时添加到上传的触发器表. 该功能适合上传触发器表中可能频繁变化的内容.
 
-* 应当注意, 由于RAG/Reranker对临时内容缺乏优化, 此功能不适合用于传输完整触发器表.
 * 若临时触发器表中包含与上传的触发器表中name相同的条目, 其将临时update到触发器表.
 * 关于触发器表的具体格式参见附录.
 

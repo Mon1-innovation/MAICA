@@ -295,8 +295,10 @@ class WsCoroutine(NoWsCoroutine):
             # Acquire procedure already clears temp, so write here directly
             if ws_config.savefile:
                 sp.content_temp = ws_config.savefile
+                sp.validate()
             if ws_config.triggers:
                 st.content_temp = ws_config.triggers
+                st.validate()
 
             # MVista
             if ws_config.vision:

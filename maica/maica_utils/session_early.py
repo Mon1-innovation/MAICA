@@ -9,11 +9,9 @@ import orjson
 import datetime
 
 from typing import *
-from math import ceil
 from pydantic import BaseModel, RootModel, Field, TypeAdapter, create_model
 from random import sample
 from dateutil.relativedelta import relativedelta
-from dataclasses import dataclass
 from .maica_utils import *
 from .agent_tools import *
 
@@ -29,18 +27,28 @@ class SessionPersistentMixin():
     content: dict
     content_temp: dict
 
-    def read_key(self, key):
+    def read_key(self, key, where: Literal['all', 'pers', 'temp'] = 'all'):
         def _read_perm(key):
-            if self.fsc.maica_settings.basic.savefile_access:
+            if (
+                self.fsc.maica_settings.basic.savefile_access
+                and where != 'temp'
+            ):
                 return self.content.get(key)
             else:
                 return None
-            
-        if key in self.content_temp:
-            v = self.content_temp[key]
-            if isinstance(v, list) and key == "mas_player_additions":
-                v = v + (_read_perm(key) or [])
-        else:
+
+        v = None
+        # Try getting from temp first
+        if where != 'pers':
+            if key in self.content_temp:
+                v = self.content_temp[key]
+
+        # Specifically handling additions
+        if key == "mas_player_additions":
+            v = v or []
+            v += (_read_perm(key) or [])
+
+        elif v is None:
             v = _read_perm(key)
             
         return v
@@ -60,7 +68,7 @@ class SessionPersistentMixin():
         """Just an alias."""
         return self.read_key("mas_affection")
 
-    def _conclude_basic_sf(self):
+    def _conclude_basic_sf(self, where: Literal['all', 'pers', 'temp'] = 'all'):
         result: List[_Bt] = []
 
         def _ap(zh, en):
@@ -72,7 +80,7 @@ class SessionPersistentMixin():
             )
 
         def _rf(key):
-            return self.read_key(key)
+            return self.read_key(key, where)
             
         def parse_date(dt: datetime.date):
             """Datetime."""
@@ -916,8 +924,8 @@ class SessionPersistentMixin():
 
         return result or []
 
-    def _conclude_extra_sf(self):
-        result: List[str] = self.read_key('mas_player_additions')
+    def _conclude_extra_sf(self, where: Literal['all', 'pers', 'temp'] = 'all'):
+        result: List[str] = self.read_key('mas_player_additions', where)
 
         if result is None:
             return []
@@ -929,11 +937,12 @@ class SessionPersistentMixin():
         
         return result or []
 
-    def form_info(self) -> Set:
+    def form_info(self, where: Literal['all', 'pers', 'temp'] = 'all') -> Set:
         conclusion = []
-        conclusion.extend(self._conclude_basic_sf())
-        conclusion.extend(self._conclude_suppl_sf())
-        conclusion.extend(self._conclude_extra_sf())
+        conclusion.extend(self._conclude_basic_sf(where))
+        if where != 'temp':
+            conclusion.extend(self._conclude_suppl_sf())
+        conclusion.extend(self._conclude_extra_sf(where))
 
         conclusion_strs = set()
         for i in conclusion:
@@ -948,6 +957,19 @@ class SessionPersistentMixin():
             if len(i.encode()) > 512 * 3:
                 raise MaicaInputWarning("MAICA RAG does not accept length above 1536")
 
+
+def _update_on_duplicate(l: list[dict], unique: str):
+    """The latter objs override formers."""
+    dbu: dict[str, dict] = {}
+    for d in l:
+        if (du := d[unique]) in dbu:
+            dbu[du].update(d)
+        else:
+            dbu[du] = d
+
+    return list(dbu.values())
+
+
 class SessionTriggerMixin():
     """To provide related functions."""
     session_num: int
@@ -961,7 +983,8 @@ class SessionTriggerMixin():
         meters = 0
         booleans = 0
 
-        triggers_dict_list = self.content_temp + self.content
+        triggers_dict_list = self.content + self.content_temp
+        triggers_dict_list = _update_on_duplicate(triggers_dict_list, "name")
 
         for trigger_dict in triggers_dict_list:
             match trigger_dict['template']:
