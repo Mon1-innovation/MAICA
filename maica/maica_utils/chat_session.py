@@ -23,10 +23,10 @@ from .emotions import *
 _Bt = BilingualText
 
 
-def _list_to_bullets(l: list[str | BilingualText], indent: int = 0):
+def _list_to_bullets(li: list[str | BilingualText], indent: int = 0):
     """Has a leading slash n, no trailing."""
     bt = _Bt()
-    for i in l:
+    for i in li:
         bt += " " * indent
         bt += "\n- "
         bt += i

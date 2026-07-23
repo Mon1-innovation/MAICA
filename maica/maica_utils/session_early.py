@@ -958,10 +958,10 @@ class SessionPersistentMixin():
                 raise MaicaInputWarning("MAICA RAG does not accept length above 1536")
 
 
-def _update_on_duplicate(l: list[dict], unique: str):
+def _update_on_duplicate(li: list[dict], unique: str):
     """The latter objs override formers."""
     dbu: dict[str, dict] = {}
-    for d in l:
+    for d in li:
         if (du := d[unique]) in dbu:
             dbu[du].update(d)
         else:
