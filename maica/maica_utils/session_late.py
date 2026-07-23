@@ -8,6 +8,7 @@ import orjson
 import datetime
 
 from typing import *
+from enum import StrEnum
 from math import ceil
 from pydantic import BaseModel, Field, TypeAdapter, create_model
 from random import sample
@@ -118,6 +119,8 @@ class SessionPersistentLlmMixin():
         """Traditional MFocus sfe implementation."""
         session = MaicaSession()
         target_lang = self.fsc.maica_settings.basic.target_lang
+        user_id = self.fsc.maica_settings.verification.user_id
+        session_num = self.fsc.maica_settings.temp.chat_session
         conn = self.fsc.mnerve_conn or self.fsc.mfocus_conn
 
         if (
@@ -126,7 +129,7 @@ class SessionPersistentLlmMixin():
         ):
             documents = await self.filter_milvus(query, 10)
             documents += self.form_info(where='temp')
-            
+
         elif documents is None:
             documents = self.form_info()
 
@@ -135,8 +138,19 @@ class SessionPersistentLlmMixin():
         if not documents:
             return []
 
+        if TYPE_CHECKING:
+            type DocEnum = str
+        else:
+            DocEnum = StrEnum(
+                f"DocEnum_{user_id}_{session_num}",
+                {
+                    k: k for k
+                    in documents
+                }
+            )
+
         class PersSelectionResults(BaseModel):
-            items: list[str] = Field(
+            items: list[DocEnum] = Field(
                 min_length=0,
                 max_length=topk,
                 description=f"0到{topk}个最相关的条目, 原样输出." if target_lang == 'zh' else f"0 ~ {topk} most relevant items, output as-is."

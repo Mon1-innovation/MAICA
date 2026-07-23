@@ -42,7 +42,7 @@ class SessionPersistent(DbBoundObject, SessionPersistentMixin, SessionPersistent
     def validate(self, *args, **kwargs):
         self._conclude_extra_sf()
 
-        if (l := len(self.form_info('temp'))) > 32:
+        if (l := len(self.form_info(where='temp'))) > 32:
             raise MaicaInputWarning(f"Length of temp sf exceeded 32: {l}")
 
         return super().validate(*args, **kwargs)
