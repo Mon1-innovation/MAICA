@@ -380,7 +380,6 @@ class ShortConnHandler(View):
         query = await self.wrapped_validate(self._dlh_m, request.args.to_dict(flat=True))
 
         async with acquire_session(self.fsc) as session:
-            # It reports 404 on empty
             data_j = session.json()
 
         n = query.content * 2

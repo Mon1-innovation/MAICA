@@ -84,10 +84,11 @@ class DbBoundObject(CheckDestroyed):
         else:
             item = item.strip()
             if not item:
-                raise MaicaInputWarning("Cannot load empty serialized data")
-            if item[0] not in ('[', '{'):
-                item = f"[{item}]"
-            self.content = orjson.loads(item)
+                self.content = self._empty
+            else:
+                if item[0] not in ('[', '{'):
+                    item = f"[{item}]"
+                self.content = orjson.loads(item)
             self.text = item
 
     def validate(self, *args, **kwargs):

@@ -609,6 +609,10 @@ async def prepare_thread(**kwargs):
         else:
             models_info += "Reranking model: Disabled\n"
 
+        models_info += "\n"
+        models_info += f"Vector searching function set enabled: {root_csc.is_vector_ready}\n"
+        models_info += f"Reranking function set enabled: {root_csc.is_reranking_ready}\n"
+
         sync_messenger(info=models_info, type=MsgType.PRIM_LOG)
 
     except Exception as e:

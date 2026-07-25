@@ -112,8 +112,7 @@ class MaicaSessionItem(BaseModel):
                 ) or
                 text_only is False
             ):
-                image_urls = self.context.image_urls
-                if image_urls:
+                if image_urls := self.context.image_urls:
                     content = [
                         {"type": "text", "text": content}
                     ]
@@ -211,6 +210,8 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
             )
 
     def local_sync(self, from_which = "content"):
+        # Normal dbos' content are directly used, but sessions' are self
+        # So by content here, we want to from self. the actual content just being hidden middleware
         if from_which == "content":
             self.content = self.json()
         super().local_sync(from_which)
@@ -351,8 +352,7 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         # Uncomment this for debugging
         # print(prompt)
 
-    def json(self) -> list:
-        self._utilize_context()
+    def json(self):
         return [i.json() for i in self]
     
     def utilize(

@@ -167,7 +167,7 @@ MFocus等的主要思路, 是通过一个未微调的agent模型与核心模型�
         "session_len_limit": 8192,
 
         "prompt_pname_repl": false,
-        "prompt_allow_nickname": false,
+        "prompt_allow_nickname": true,
         "mf_llm_concl": false,
         "mf_sf_access_impl": 1,
         "mf_const_sf_access": 1,
@@ -1069,7 +1069,7 @@ query可以携带临时的触发器表, 并临时添加到上传的触发器表.
     "seed": null,
     "savefile_access": true,
     "prompt_pname_repl": false,
-    "prompt_allow_nickname": false,
+    "prompt_allow_nickname": true,
     "stream_output": true,
     "target_lang": "zh",
     "temperature": 0.22,

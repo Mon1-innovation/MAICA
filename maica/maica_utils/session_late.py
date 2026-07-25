@@ -68,7 +68,7 @@ class SessionPersistentLlmMixin():
         return res_set
 
 
-    async def filter_reranker(self, query: str, documents: Optional[list] = None, topk: int = 2) -> list:
+    async def filter_reranker(self, query: str, documents: Optional[set] = None, topk: int = 2) -> list:
         """More precisely filter results, suggest using filter_milvus first."""
         reranking_conn = self.fsc.reranking_conn
         if not self.fsc.is_reranking_ready:
@@ -80,7 +80,7 @@ class SessionPersistentLlmMixin():
         ):
             documents = await self.filter_milvus(query, 10)
             # We include full extras since there's no other way
-            documents += self.form_info(where='temp')
+            documents |= self.form_info(where='temp')
 
         elif documents is None:
             documents = self.form_info()
@@ -115,7 +115,7 @@ class SessionPersistentLlmMixin():
         return res_list
 
 
-    async def filter_llm(self, query: str, documents: Optional[list] = None, topk: int = 3) -> list:
+    async def filter_llm(self, query: str, documents: Optional[set] = None, topk: int = 3) -> list:
         """Traditional MFocus sfe implementation."""
         session = MaicaSession()
         target_lang = self.fsc.maica_settings.basic.target_lang
@@ -128,7 +128,7 @@ class SessionPersistentLlmMixin():
             and self.fsc.is_vector_ready
         ):
             documents = await self.filter_milvus(query, 10)
-            documents += self.form_info(where='temp')
+            documents |= self.form_info(where='temp')
 
         elif documents is None:
             documents = self.form_info()

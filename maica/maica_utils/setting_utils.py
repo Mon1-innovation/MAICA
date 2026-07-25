@@ -179,7 +179,7 @@ class MaicaSettings(BaseModel):
 
         prompt_pname_repl: bool = False
         """Use name from savefile instead of [player] in prompts."""
-        prompt_allow_nickname: bool = False
+        prompt_allow_nickname: bool = True
         """Allow model to generate [player_nickname]."""
         mf_llm_concl: bool = False
         """Use agent model's final output instead of instructed guidance."""
