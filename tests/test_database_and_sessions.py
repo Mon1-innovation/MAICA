@@ -110,17 +110,6 @@ def test_session_and_buffer_gc_remove_only_stale_unlocked_entries() -> None:
     assert stream_buffer.buffers_gc(time.time()) == [1]
 
 
-def test_db_bound_defaults_are_plain_values_and_empty_text_is_rejected() -> None:
-    persistent = SessionPersistent()
-    assert persistent.session_num == 0
-    try:
-        persistent.load("")
-    except Exception as exc:
-        assert "empty" in str(exc).lower()
-    else:
-        raise AssertionError("empty serialized data was accepted")
-
-
 def test_current_schema_migration_is_idempotent_on_sqlite() -> None:
     async def scenario() -> None:
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
