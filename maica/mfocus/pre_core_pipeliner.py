@@ -160,7 +160,8 @@ async def pre_core_pipelines(
     async def generic_helper_pipeline():
         """Utilizes RAG to search datasets for zero-shot like learning for generic core model."""
         if (
-            generic.generic_helper
+            fsc.maica_settings.prompt_writable
+            and generic.generic_helper
         ):
             res_set = await generic.generic_helper.search(session_item.content)
             session_item.context.generic_help = list(res_set)
