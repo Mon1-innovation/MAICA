@@ -362,8 +362,8 @@ class MemoryTrigger(BaseTrigger):
         return WrappedOpenAITool(
             self.name,
             _Bt(
-                f"如果用户告知了需要记忆的个人信息, 调用该工具以写入持久性记忆. 该工具无需用户明确指示也可以调用.",
-                f"If user told you personal information that needs to be memorized, Call this tool to write persistent memory. This tool can be called without being explicitly requested by user.",
+                "如果用户告知了需要记忆的个人信息, 调用该工具以写入持久性记忆. 该工具无需用户明确指示也可以调用.",
+                "If user told you personal information that needs to be memorized, Call this tool to write persistent memory. This tool can be called without being explicitly requested by user.",
             ),
             requiredParams=[
                 WrappedOpenAIToolProperty(
