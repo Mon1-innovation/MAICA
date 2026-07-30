@@ -92,10 +92,9 @@ class RealtimeSocketsContainer(AllowArb):
 
                 sent = 0
                 async for ws_packet in r_buffer:
-                    # There could be a None
-                    if ws_packet:
-                        sent += 1
-                        await websocket.send(wrap_ws_formatter(*ws_packet))
+                    # The aiter override handles stopping already
+                    sent += 1
+                    await websocket.send(wrap_ws_formatter(*ws_packet))
                 
                 await self.__call__(
                     'maica_reconn_buffer_drained',
@@ -125,14 +124,16 @@ class RealtimeSocketsContainer(AllowArb):
                         **kwargs
                     )
                 except WebSocketException as we:
-                    # The connection terminated unexpectedly
+                    # The connection terminated
                     if not self._w_buffer:
                         raise
                     else:
+                        # It's during protection, so buffer kicks in
                         self.ws_died = we
-                        sync_messenger(info=f"<{tracker_id}WS_DIED, storing remaining to buffer>", type=MsgType.PLAIN, color=colorama.Fore.LIGHTYELLOW_EX)
+                        sync_messenger(info=f"<{tracker_id} WS_DIED, storing remaining to buffer>", type=MsgType.PLAIN, color=colorama.Fore.LIGHTYELLOW_EX)
 
             if self.ws_died:
+                # The message on breakpoint will be printed twice, but not sent twice so we leave it be
                 ws_packet = sync_messenger(
                     status=status,
                     info=info,
