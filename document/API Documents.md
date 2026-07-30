@@ -1233,9 +1233,13 @@ sessions
 
 ## 模板common_affection_template:
 
-`{"template": "common_affection_template", "name": "alter_affection"}`
+```json
+{
+    "template": "common_affection_template"
+}
+```
 
-其中name的值可以任取, 建议使用alter_affection.
+其中name的值不可设置, 固定为alter_affection.
 
 使用该模板的触发器会根据用户输入与上文内容, 决策对好感度应做的调整.
 
@@ -1243,13 +1247,45 @@ sessions
 
 好感度调幅默认为不超过+3.0, 你可以自行设定乘幅. 简单地对其调幅举例, 日常的问好大约会输出+0.2, 对美貌的称赞大约会输出+0.8, 简短的示爱大约会输出+1.5, 长段的示爱大约会输出+3.0.
 
-输出范例: `{"code": 200, "status": "maica_mtrigger_trigger", "content": {"alter_affection": {"alter_value": 1.5}}, "type": "carriage", "timestamp": 时间戳(秒)}`
+输出范例:
+```json
+{
+    "code": 200,
+    "status": "maica_mtrigger_trigger",
+    "content": {
+        "name": "alter_affection",
+        "arguments": {
+            "alter_value": 1.5
+        }
+    },
+    "type": "carriage",
+    "timestamp": 1234567.89
+}
+```
+> 自v1.3后, 返回值的规范有改动, 由{name: args}变为{"name": name, "arguments": args}
 
 该模板的触发器最多存在一个.
 
 ## 模板common_switch_template:
 
-`{"template": "common_switch_template", "name": "change_clothes", "exprop": {"item_name": {"zh": "衣服", "en": "clothes"}, "item_list": ["白色连衣裙", "黑色连衣裙"], "curr_item": "白色连衣裙", "suggestion": false}}`
+```json
+{
+    "template": "common_switch_template",
+    "name": "change_clothes",
+    "exprop": {
+        "item_name": {
+            "zh": "衣服",
+            "en": "clothes"
+        },
+        "item_list": [
+            "白色连衣裙",
+            "黑色连衣裙"
+        ],
+        "curr_item": "白色连衣裙",
+        "suggestion": false
+    }
+}
+```
 
 其中name的值可以任取, 建议格式与范例尽可能一致且能表明用途.
 
@@ -1259,7 +1295,21 @@ exprop的值是该模板的附加参数, 其中item_name的值为选择类目的
 
 若将suggestion设为true, 则若selection返回false将会额外返回suggestion, 其值为一个推荐参考条目.
 
-输出范例: `{"code": 200, "status": "maica_mtrigger_trigger", "content": {"change_clothes": {"choice": "黑色连衣裙"}}, "type": "carriage", "timestamp": 时间戳(秒)}`
+输出范例:
+```json
+{
+    "code": 200,
+    "status": "maica_mtrigger_trigger",
+    "content": {
+        "name": "change_clothes",
+        "arguments": {
+            "choice": "黑色连衣裙"
+        }
+    },
+    "type": "carriage",
+    "timestamp": 1234567.89
+}
+```
 
 该模板的触发器最多存在6个.
 
@@ -1267,7 +1317,23 @@ exprop的值是该模板的附加参数, 其中item_name的值为选择类目的
 
 ## 模板common_meter_template:
 
-`{"template": "common_meter_template", "name": "change_distance", "exprop": {"item_name": {"zh": "距离", "en": "distance"}, "value_limits": [0.0, 2.5], "curr_value": 0.67}}`
+```json
+{
+    "template": "common_meter_template",
+    "name": "change_distance",
+    "exprop": {
+        "item_name": {
+            "zh": "距离",
+            "en": "distance"
+        },
+        "value_limits": [
+            0,
+            2.5
+        ],
+        "curr_value": 0.67
+    }
+}
+```
 
 其中name的值可以任取, 建议格式与范例尽可能一致且能表明用途.
 
@@ -1275,21 +1341,91 @@ exprop的值是该模板的附加参数, 其中item_name的值为选择类目的
 
 如果触发器匹配了请求, 但范围内没有值满足条件, 返回的选择将是false.
 
-输出范例: `{"code": 200, "status": "maica_mtrigger_trigger", "content": {"change_distance": {"value": 0.75}}, "type": "carriage", "timestamp": 时间戳(秒)}`
+输出范例:
+```json
+{
+    "code": 200,
+    "status": "maica_mtrigger_trigger",
+    "content": {
+        "name": "change_distance",
+        "arguments": {
+            "value": 0.75
+        }
+    },
+    "type": "carriage",
+    "timestamp": 1234567.89
+}
+```
 
 该模板的触发器最多存在6个.
 
 ## 自由模板:
 
-`{"template": "customized", "name": "some_name", "exprop": {"item_name": {"zh": "关闭游戏", "en": "close game"}}}`
+```json
+{
+    "template": "customized",
+    "name": "some_name",
+    "exprop": {
+        "item_name": {
+            "zh": "关闭游戏",
+            "en": "close game"
+        }
+    }
+}
+```
 
 其中name的值可以任取, 建议格式与范例尽可能一致且能表明用途.
 
 exprop的值是该模板的附加参数, 其中item_name的值为该触发器的用途(双语)
 
-输出范例: `{"code": 200, "status": "maica_mtrigger_trigger", "content": {"some_name": {}}, "type": "carriage", "timestamp": 时间戳(秒)}`
+输出范例:
+```json
+{
+    "code": 200,
+    "status": "maica_mtrigger_trigger",
+    "content": {
+        "name": "some_name",
+        "arguments": {}
+    },
+    "type": "carriage",
+    "timestamp": 1234567.89
+}
+```
 
 该模板的触发器最多存在20个.
+
+## 条目记忆模板
+
+```json
+{
+    "template": "memory_template"
+}
+```
+
+其中name的值不可设置, 固定为write_memory.
+
+如果记忆触发器被提供, MTrigger将根据对话内容, 尝试编写简洁的记忆条目, 用于mas_player_additions.
+> mas_player_additions本身由前端管理并上传至后端, 该trigger本身不会将结果同步到后端.  
+> 该记忆与mt_concl_memory性质作用不同, 后者更接近于"会话总结/上下文压缩"的概念.  
+> 此外, 该触发器的输出将被自动与当前mas_player_additions对比去重, 这可能会导致更长的总响应时间.
+
+输出范例:
+```json
+{
+    "code": 200,
+    "status": "maica_mtrigger_trigger",
+    "content": {
+        "name": "write_memory",
+        "arguments": {
+            "memory_item": "{player_name}喜欢巧克力"
+        }
+    },
+    "type": "carriage",
+    "timestamp": 1234567.89
+}
+```
+
+该模板的触发器最多存在一个.
 
 对于未注明双语的条目, 可以任选中文或英文, 建议与用户语言保持一致.
 

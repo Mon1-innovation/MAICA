@@ -979,6 +979,7 @@ class SessionTriggerMixin():
 
     def _get_triggers(self):
         affs = 0
+        mems = 0
         switches = 0
         meters = 0
         booleans = 0
@@ -992,6 +993,10 @@ class SessionTriggerMixin():
                     affs += 1
                     if affs > 1:
                         raise MaicaInputWarning("common_affection_template amount shouldn't > 1")
+                case 'memory_template':
+                    mems += 1
+                    if mems > 1:
+                        raise MaicaInputWarning("memory_template amount shouldn't > 1")
                 case 'common_switch_template':
                     switches += 1
                     if switches > 6:

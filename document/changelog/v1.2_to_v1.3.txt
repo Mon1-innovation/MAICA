@@ -113,3 +113,11 @@ If you want to read in English, use a translator.
 + 添加了可配置的maica_gnrc功能, 为通用模型补充指导
 
 - 现在临时mf的数量有额外限制, 且对纯rag实现不生效
+
+= 现在mas_player_additions中的玩家名建议使用{player_name}
+
+= 修改了mtrigger返回格式
+
+- 现在common_affection_template trigger不再支持自定义名称
+
++ 新增memory_template trigger

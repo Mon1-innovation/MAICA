@@ -643,6 +643,18 @@ def proceed_common_text(text: str, is_json=False) -> Union[str, list, dict]:
         answer_fin = ''
     return answer_fin
 
+
+def list_to_bullets(li: list[str | BilingualText], indent: int = 0):
+    """Has a leading slash n, no trailing."""
+    bt = BilingualText()
+    for i in li:
+        bt += " " * indent
+        bt += "\n- "
+        bt += i
+
+    return bt
+
+
 async def messenger(websocket=None, *args, **kwargs) -> None:
     """Together with websocket.send()."""
     ws_tuple = sync_messenger(*args, **kwargs)

@@ -63,6 +63,7 @@ class MilvusSearchMixin():
         else:
             embedded = []
 
+        sync_messenger(info=f"{len(reused)} items hit cache, {len(embedded)} newly embedded", type=MsgType.DEBUG)
         result = reused + embedded
         return result
 

@@ -11,6 +11,7 @@ from .maica_utils import *
 type _JSCType = Literal["string", "number", "integer", "object", "array", "boolean", "null"]
 type JSCType = List[_JSCType] | _JSCType
 
+
 _Bt = BilingualText
 
 @dataclass
@@ -43,6 +44,7 @@ class WrappedOpenAIToolProperty():
             if v is not None:
                 inner[k] = v
         return {self.name: inner}
+
 
 @dataclass
 class WrappedOpenAITool():
@@ -79,6 +81,7 @@ class WrappedOpenAITool():
         }
         return l3
 
+
 @dataclass
 class WrappedOpenAIToolNamespace():
     name: str
@@ -93,80 +96,6 @@ class WrappedOpenAIToolNamespace():
             "tools": [i.to_json_schema(target_lang) for i in self.tools]
         }
 
-class _BaseTriggerExprop(BaseModel):
-    """Extra props of MTrigger items."""
-    item_name: BilingualText
-
-    @model_validator(mode="after")
-    def limit_item_name(self):
-        if any(len(value) > 256 for value in (self.item_name.zh, self.item_name.en, self.item_name.auto)):
-            raise ValueError("Trigger item names cannot exceed 256 characters")
-        return self
-            
-class _SwitchTriggerExprop(_BaseTriggerExprop):
-    # We still adopt the sampling here because managing them frontend would be tough
-    item_list: list[Annotated[str, Field(min_length=1, max_length=256)]]
-    curr_item: Optional[str] = None
-    suggestion: bool = False
-
-    def to_properties(self):
-        required_params = [
-            WrappedOpenAIToolProperty(
-                "choice",
-                ["string", "null"],
-                _Bt(
-                    f"根据用户的要求, 从以下{self.item_name.zh}中选出最合适的一项. 如果没有任何一项合适, 则回答null.",
-                    f"According to user's request, choose the most proper {self.item_name.en} from the following list. Output null if none of them is proper."
-                ),
-                enum=limit_length(self.item_list, 72) + [None],
-            )
-        ]
-        if self.suggestion:
-            required_params.append(
-                WrappedOpenAIToolProperty(
-                    "suggestion",
-                    ["string", "null"],
-                    _Bt(
-                        f"若你在choice中选择了null, 你需要回答最合适, 但上面未列出的{self.item_name.zh}. 否则回答null.",
-                        f"If you chose null in the choice section, you should provide the most proper {self.item_name.en} not listed above. Otherwise output null."
-                    )
-                )
-            )
-
-        return required_params
-
-class _MeterTriggerExprop(_BaseTriggerExprop):
-    value_limits: list[float] = Field(min_length=2, max_length=2)
-    curr_value: Optional[float] = None
-
-    @model_validator(mode="after")
-    def validate_limits(self):
-        if self.value_limits[0] > self.value_limits[1]:
-            raise ValueError("Trigger value_limits must be ordered from minimum to maximum")
-        return self
-
-    def to_properties(self):
-        lower, upper = self.value_limits
-
-        required_params = [
-            WrappedOpenAIToolProperty(
-                "value",
-                ["number", "null"],
-                _Bt(
-                    f"根据用户的要求, 为{self.item_name.zh}选择一个合适的值. 如果合适的值不存在, 则回答null.",
-                    f"According to user's request, choose a proper value for {self.item_name.en}. Output null if the proper value does not exist."
-                ),
-                minimum=lower,
-                maximum=upper,
-            )
-        ]
-
-        return required_params
-
-class _BooleanTriggerExprop(_BaseTriggerExprop):
-
-    def to_properties(self):
-        return []
 
 _Ct = str | BilingualText
 
@@ -174,6 +103,17 @@ class BaseTrigger(BaseModel, ABC):
     """Base class of MTrigger items."""
     template: ClassVar[str]
     name: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+
+    class _BaseTriggerExprop(BaseModel):
+        """Extra props of MTrigger items."""
+        item_name: BilingualText
+
+        @model_validator(mode="after")
+        def limit_item_name(self):
+            if any(len(value) > 256 for value in (self.item_name.zh, self.item_name.en, self.item_name.auto)):
+                raise ValueError("Trigger item names cannot exceed 256 characters")
+            return self
+
     exprop: Optional[_BaseTriggerExprop] = None
 
     @abstractmethod 
@@ -183,8 +123,11 @@ class BaseTrigger(BaseModel, ABC):
     def to_descr(self) -> Tuple[Optional[_Ct], list[_Ct]]:
         return None, []
 
+
 class AffectionTrigger(BaseTrigger):
     template: Literal["common_affection_template"]
+    # Just for some symmetry
+    name: ClassVar = "alter_affection"
 
     def to_tool(self, curr_aff: Optional[int] = None):
         if curr_aff is not None:
@@ -204,7 +147,7 @@ class AffectionTrigger(BaseTrigger):
                     "number",
                     _Bt(
                         "输出正数以增加好感, 负数以减少好感. 例如, 称赞你的容貌约增加0.8, 表达爱情的短句约增加1.5, 表达爱情的长句约增加3.0.",
-                        "Positive number to increase affection, negative to decrease affection. e.g., +0.8 for a compliment upon your beauty, +1.5 for a short sentence expressing love, +3.0 for a long phrase expressing love."
+                        "Positive number to increase affection, negative to decrease affection. e.g., +0.8 for a compliment upon your beauty, +1.5 for a short sentence expressing love, +3.0 for a long phrase expressing love.",
                     ),
                     minimum=-3.0,
                     maximum=3.0,
@@ -213,13 +156,46 @@ class AffectionTrigger(BaseTrigger):
         )
     
     def to_descr(self):
-
         # We do not want user saying "Give me 5 affection" actually work.
         # Or at least, actually misleading the core model.
         return super().to_descr()
 
+
 class SwitchTrigger(BaseTrigger):
     template: Literal["common_switch_template"]
+    
+    class _SwitchTriggerExprop(BaseTrigger._BaseTriggerExprop):
+        # We still adopt the sampling here because managing them frontend would be tough
+        item_list: list[Annotated[str, Field(min_length=1, max_length=256)]]
+        curr_item: Optional[str] = None
+        suggestion: bool = False
+
+        def to_properties(self):
+            required_params = [
+                WrappedOpenAIToolProperty(
+                    "choice",
+                    ["string", "null"],
+                    _Bt(
+                        f"根据用户的要求, 从以下{self.item_name.zh}中选出最合适的一项. 如果没有任何一项合适, 则回答null.",
+                        f"According to user's request, choose the most proper {self.item_name.en} from the following list. Output null if none of them is proper.",
+                    ),
+                    enum=limit_length(self.item_list, 72) + [None],
+                )
+            ]
+            if self.suggestion:
+                required_params.append(
+                    WrappedOpenAIToolProperty(
+                        "suggestion",
+                        ["string", "null"],
+                        _Bt(
+                            f"若你在choice中选择了null, 你需要回答最合适, 但上面未列出的{self.item_name.zh}. 否则回答null.",
+                            f"If you chose null in the choice section, you should provide the most proper {self.item_name.en} not listed above. Otherwise output null.",
+                        )
+                    )
+                )
+
+            return required_params
+
     exprop: _SwitchTriggerExprop
 
     def to_tool(self):
@@ -268,8 +244,38 @@ class SwitchTrigger(BaseTrigger):
         choices = choose_list
         return text, choices
 
+
 class MeterTrigger(BaseTrigger):
     template: Literal["common_meter_template"]
+
+    class _MeterTriggerExprop(BaseTrigger._BaseTriggerExprop):
+        value_limits: list[float] = Field(min_length=2, max_length=2)
+        curr_value: Optional[float] = None
+
+        @model_validator(mode="after")
+        def validate_limits(self):
+            if self.value_limits[0] > self.value_limits[1]:
+                raise ValueError("Trigger value_limits must be ordered from minimum to maximum")
+            return self
+
+        def to_properties(self):
+            lower, upper = self.value_limits
+
+            required_params = [
+                WrappedOpenAIToolProperty(
+                    "value",
+                    ["number", "null"],
+                    _Bt(
+                        f"根据用户的要求, 为{self.item_name.zh}选择一个合适的值. 如果合适的值不存在, 则回答null.",
+                        f"According to user's request, choose a proper value for {self.item_name.en}. Output null if the proper value does not exist.",
+                    ),
+                    minimum=lower,
+                    maximum=upper,
+                )
+            ]
+
+            return required_params
+
     exprop: _MeterTriggerExprop
 
     def to_tool(self):
@@ -310,8 +316,13 @@ class MeterTrigger(BaseTrigger):
         choices = [t1]
         return text, choices
 
+
 class BooleanTrigger(BaseTrigger):
     template: Literal["customized"]
+
+    class _BooleanTriggerExprop(BaseTrigger._BaseTriggerExprop):
+        """We just need the item_name of it."""
+
     exprop: _BooleanTriggerExprop
 
     def to_tool(self):
@@ -334,13 +345,52 @@ class BooleanTrigger(BaseTrigger):
 
         choices = [text]
         return text, choices
+
+
+class MemoryTrigger(BaseTrigger):
+    """
+    This is our attemptation of another form of memory persistence.
+    We use a trigger because memory in savefile are frontend managed, we need to let the frontend do the actual adding.
+    Up to now, it just sends the trigger. It does not sync savefile itself, let frontend do it.
+    """
+    template: Literal["memory_template"]
+    # We need its name to be fixed in following procd, so we fix it
+    name: ClassVar = "write_memory"
     
-TypeTrigger: TypeAlias = Annotated[
+    def to_tool(self):
+
+        return WrappedOpenAITool(
+            self.name,
+            _Bt(
+                f"如果用户告知了需要记忆的个人信息, 调用该工具以写入持久性记忆. 该工具无需用户明确指示也可以调用.",
+                f"If user told you personal information that needs to be memorized, Call this tool to write persistent memory. This tool can be called without being explicitly requested by user.",
+            ),
+            requiredParams=[
+                WrappedOpenAIToolProperty(
+                    "memory_item",
+                    "string",
+                    _Bt(
+                        "你需要写入的记忆内容, 保持简洁明确. 请将用户称为{player_name}, 如'{player_name}喜欢吃巧克力'.",
+                        "Memory content you want to write, concise and clear. Call user {player_name}, e.g., '{player_name} likes chocolate'.",
+                    ),
+                    maxLength=512,
+                )
+            ]
+        )
+    
+    def to_descr(self):
+        # It would be confusing to core model if we actually consider memory as a request
+        # So we don't
+        return super().to_descr()
+    
+    
+type TypeTrigger = Annotated[
     Union[
         AffectionTrigger,
         SwitchTrigger,
         MeterTrigger,
         BooleanTrigger,
+        MemoryTrigger,
     ],
     Field(discriminator="template"),
 ]

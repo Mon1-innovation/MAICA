@@ -5,6 +5,7 @@ This handles LLM involving MTrigger procedures.
 import asyncio
 
 from typing import *
+from pydantic import BaseModel, Field
 from maica.maica_utils import *
 
 _Bt = BilingualText
@@ -47,8 +48,8 @@ class MtPipeliner():
         agent_finished = _Wt(
             name="agent_finished",
             description=_Bt(
-                "此工具用于表示工具调用完成. 若你已调用了所有其它必要的工具, 或不需要调用任何其它工具, 则在准备作答前调用此工具.",
-                "This tool indicates tool calling has finished. Call this tool when you've finished calling every other necessary tool, or if you don't need any other tool, and are ready to answer."
+                "此工具用于表示工具调用完成. 若你已调用了所有其它必要的工具, 或不需要调用任何其它工具, 则在准备作答前调用此工具. 该工具无需用户明确指示也可以调用.",
+                "This tool indicates tool calling has finished. Call this tool when you've finished calling every other necessary tool, or if you don't need any other tool, and are ready to answer. This tool can be called without being explicitly requested by user."
             )
         )
         tools_jsc.append(agent_finished.to_json_schema(self.fsc.maica_settings.basic.target_lang))
@@ -94,8 +95,8 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         query_item = MaicaSessionItem(
             "user",
             _Bt(
-                "<task> 观察以上对话历史记录, 依据上一轮对话调用工具. (除调整好感度和结束任务外)不要调用未经明确指示的工具. 每个工具最多调用一次.",
-                "<task> Observe the chat history and make tool calls according to last round of conversation. Do not use tools (except affection and finished) without explicit request. Do not use any tool more than once."
+                "<task> 观察以上对话历史记录, 依据最后一轮对话调用工具. 除非工具说明允许, 否则不要调用未经显式指示的工具. 每个工具最多调用一次.",
+                "<task> Observe the chat history and make tool calls according to last round of conversation. Do not use tools without explicit request, unless the tool description allows you to. Do not use any tool more than once."
             ),
             target_lang=target_lang,
         )
@@ -139,11 +140,23 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
                     case "agent_finished":
                         return False
                     
-                    # Common triggers here
                     case _:
-                        trigger_send = {tool_name: arguments}
+                        no_send = False
+                        # We have to explicitly handle memory trigger, since it needs unduplication
+                        if tool_name == "write_memory":
+                            text = arguments["memory_item"]
+                            if not await self._memory_undupl(text):
+                                no_send = True
 
-                        await self.fsc.messenger('maica_mtrigger_trigger', trigger_send, 200, type=MsgType.CARRIAGE, no_print=True)
+                        # Common triggers here
+                        else:
+                            ...
+
+                        if not no_send:
+                            trigger_send = {"name": tool_name, "arguments": arguments}
+                            await self.fsc.messenger('maica_mtrigger_trigger', trigger_send, 200, type=MsgType.CARRIAGE, no_print=True)
+                        else:
+                            sync_messenger(info="Trigger suspended by checkings", type=MsgType.DEBUG)
 
                         text = _Bt(
                             "工具已调用并生效.",
@@ -233,6 +246,83 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         )
 
         return
+
+    async def _memory_undupl(self, text: str):
+        """Used if memory trigger called. We want to ensure no duplications written."""
+        current_memory_items = self.sp._conclude_extra_sf()
+
+        if current_memory_items:
+
+            if text in current_memory_items:
+                sync_messenger(info="Memory item directly in current, duplicated", type=MsgType.DEBUG)
+                return False
+
+            sync_messenger(info="Checking memory item duplication...", type=MsgType.DEBUG)
+            session = MaicaSession()
+            target_lang = self.fsc.maica_settings.basic.target_lang
+
+            conn = self.fsc.mnerve_conn or self.fsc.mfocus_conn
+
+            query = f"New: {text}\n\nCurrent:{list_to_bullets(current_memory_items)}"
+
+            class DuplCheckResult(BaseModel):
+                duplicated: bool = Field(
+                    description="该条目是否可以视为重复的." if target_lang == 'zh' else "If item can be considered duplicated."
+                )
+                confidence: float = Field(
+                    description="你决策的置信度." if target_lang == 'zh' else "The confidence of your decision.",
+                    ge=0.0,
+                    le=1.0,
+                )
+
+            system = MaicaSessionItem(
+                "system",
+                _Bt(
+                    """\
+你是一个人工智能助手, 你接下来会收到一组信息和一条新信息.
+请检查这条信息的内容在现有信息中是否已经存在, 或与之高度重合.\
+""", """\
+You are a helpful assistant, now you will recieve a set of informations and a new information.
+Please check if this new information is already covered by existing ones, or is highly coincided.\
+"""
+                )
+            )
+            session.append(system)
+
+            user_query = MaicaSessionItem(
+                "user",
+                query,
+                target_lang=target_lang,
+            )
+            session.append(user_query)
+
+            completion_args = {
+                "input": session.utilize(
+                    manual_prompt=True,
+                    ignore_additions=True,
+                ),
+                "text": {
+                    "format": {
+                        "type": "json_schema",
+                        "strict": True,
+                        "schema": DuplCheckResult.model_json_schema(),
+                    }
+                },
+            }
+
+            resp = await conn.make_completion(**completion_args)
+            check_result = DuplCheckResult.model_validate_json(resp.output_text)
+
+            dup = check_result.duplicated
+            cfd = check_result.confidence
+
+            sync_messenger(info=f"Finished processing memory_undupl to item. Duplicated: {dup}, confidence: {cfd}", type=MsgType.PRIM_LOG)
+
+            if check_result.duplicated:
+                return False
+
+        return True
+
 
     async def run_mt_pipeline(self):
         """

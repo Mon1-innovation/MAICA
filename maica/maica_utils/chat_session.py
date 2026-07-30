@@ -23,17 +23,6 @@ from .emotions import *
 _Bt = BilingualText
 
 
-def _list_to_bullets(li: list[str | BilingualText], indent: int = 0):
-    """Has a leading slash n, no trailing."""
-    bt = _Bt()
-    for i in li:
-        bt += " " * indent
-        bt += "\n- "
-        bt += i
-
-    return bt
-
-
 class MaicaSessionItem(BaseModel):
     """Element of MaicaSession."""
 
@@ -148,7 +137,7 @@ class MaicaSessionItem(BaseModel):
                 known_str = known_info["generated_guidance"]
 
             else:
-                known_str = _list_to_bullets(known_info.values()).to_str(self.target_lang)
+                known_str = list_to_bullets(known_info.values()).to_str(self.target_lang)
         else:
             known_str = ""
         return known_str
@@ -157,7 +146,7 @@ class MaicaSessionItem(BaseModel):
     def form_generic_help(self):
         """Much simpler. This needs a default placeholder since it could actually be empty."""
         generic_help = self.context.generic_help
-        generic_str = _list_to_bullets(generic_help).to_str(self.target_lang)
+        generic_str = list_to_bullets(generic_help).to_str(self.target_lang)
 
         if not generic_str:
             generic_str = _Bt(
@@ -319,7 +308,7 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
                         G.A.PROMPT_EGP,
                         G.A.PROMPT_AGP,
                     )
-                    format_kvs['emo_list'] = _list_to_bullets(zlist_ai if target_lang == 'zh' else elist_ai).to_str(target_lang)
+                    format_kvs['emo_list'] = list_to_bullets(zlist_ai if target_lang == 'zh' else elist_ai).to_str(target_lang)
                     format_kvs['ds_examples'] = curr_item.form_generic_help()
 
             # Add extra info if required
