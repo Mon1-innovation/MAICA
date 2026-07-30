@@ -398,10 +398,12 @@ class WsCoroutine(NoWsCoroutine):
 
                 async def send_delta(delta: str):
                     nonlocal reply_joined, seq
-                    # Only lstrip for sending, so the data we save is intact
-                    await self.fsc.messenger('maica_core_streaming_continue', delta.lstrip(), 100)
                     reply_joined += delta
-                    seq += 1
+
+                    if striped_delta := delta.lstrip():
+                        # Only lstrip for sending, so the data we save is intact
+                        await self.fsc.messenger('maica_core_streaming_continue', striped_delta, 100)
+                        seq += 1
 
                 # If not skipping generation, we generate it ofc
                 if not self.settings.skip_generation:
