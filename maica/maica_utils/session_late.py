@@ -98,7 +98,7 @@ class SessionPersistentLlmMixin():
 
         resp = await reranking_conn.make_reranking(**reranking_params)
 
-        cfd_min = 0.6
+        cfd_min = 0.5
         res_list = []
 
         _relevances = []
@@ -107,10 +107,9 @@ class SessionPersistentLlmMixin():
                 _relevances.append(i["relevance_score"])
                 res_list.append(i["document"]["text"])
 
-        if res_list:
-            sync_messenger(info=f"Reranking found {len(res_list)} results, distance range {min(_relevances)}~{max(_relevances)}", type=MsgType.DEBUG)
-        else:
-            sync_messenger(info="Reranking result is empty", type=MsgType.DEBUG)
+
+        sync_messenger(info=f"Reranking found {len(_relevances)} results, distance range {min(_relevances)}~{max(_relevances)}", type=MsgType.DEBUG)
+        sync_messenger(info=f"{len(res_list)} results adopted", type=MsgType.DEBUG)
 
         return res_list
 
@@ -222,8 +221,9 @@ class SessionTriggerLlmMixin():
 
         descr_text = _Bt()
         for t in text_l:
-            descr_text += "\n- "
-            descr_text += t
+            if t:
+                descr_text += "\n- "
+                descr_text += t
 
         if not descr_text:
             return False, None

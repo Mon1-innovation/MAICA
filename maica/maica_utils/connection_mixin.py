@@ -58,7 +58,11 @@ class MilvusSearchMixin():
             reused.append((d["raw_text"], d["vector"], ))
             to_embed.remove(d["raw_text"])
 
-        embedded = await self._embed(embedding_conn=embedding_conn, data=to_embed)
+        if to_embed:
+            embedded = await self._embed(embedding_conn=embedding_conn, data=to_embed)
+        else:
+            embedded = []
+
         result = reused + embedded
         return result
 
@@ -153,12 +157,11 @@ class MilvusSearchMixin():
         _distances = []
         for result_group in search_res:
             for d in result_group[:prio_max]:
+                _distances.append(d["distance"])
                 if d["distance"] >= cfd_min:
-                    _distances.append(d["distance"])
                     res_set.add(d["entity"]["raw_text"])
-        if res_set:
-            sync_messenger(info=f"Vector searching found {len(res_set)} results, distance range {min(_distances)}~{max(_distances)}", type=MsgType.DEBUG)
-        else:
-            sync_messenger(info="Vector searching result is empty", type=MsgType.DEBUG)
+
+        sync_messenger(info=f"Vector searching found {len(_distances)} results, distance range {min(_distances)}~{max(_distances)}", type=MsgType.DEBUG)
+        sync_messenger(info=f"{len(res_set)} results adopted", type=MsgType.DEBUG)
 
         return res_set
