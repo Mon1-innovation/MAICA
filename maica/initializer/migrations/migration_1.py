@@ -1,8 +1,10 @@
+"""This migration just changes table name."""
+
 from sqlalchemy import inspect, text
 from maica.maica_utils import *
 from .base import register_migration
 
-upper_version = "1.1.007.post3"
+target_version = "1.1.007.post3"
 
 async def migrate():
 
@@ -20,4 +22,4 @@ async def migrate():
     except Exception as e:
         raise MaicaDbWarning(f'Couldn\'t rename table cchop_archived to crop_archived: {str(e)}, consider doing a manual double-check') from e
 
-register_migration(upper_version, migrate)
+register_migration(target_version, migrate)

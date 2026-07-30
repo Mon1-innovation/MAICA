@@ -1,3 +1,10 @@
+"""
+A complex one for 1.3, this migration:
+- Creates vector db
+- Changes some partial-rw possible columns to JSON
+- Adds union index for user_id + chat_session_num tables
+"""
+
 import asyncio
 import os
 from typing import *
@@ -6,7 +13,7 @@ from sqlalchemy import inspect, text
 from maica.maica_utils import *
 from .base import register_migration
 
-upper_version = "1.2.006.rc6"
+target_version = "1.2.006.rc6"
 
 async def _create_index_if_missing(conn, table_name: str, index_name: str, columns: list[str], ddl: str):
     indexes = await conn.run_sync(lambda sync_conn: inspect(sync_conn).get_indexes(table_name))
@@ -98,7 +105,7 @@ async def migrate():
     except Exception as e:
         raise MaicaDbWarning(f'Couldn\'t alter table: {str(e)}, maybe manually done already?') from e
 
-register_migration(upper_version, migrate)
+register_migration(target_version, migrate)
 
 if __name__ == "__main__":
     from maica import init

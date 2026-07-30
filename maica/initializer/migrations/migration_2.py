@@ -1,8 +1,10 @@
+"""This migration changes columns from former LONGTEXT to common TEXT, because that's obviously overkill."""
+
 from sqlalchemy import text
 from maica.maica_utils import *
 from .base import register_migration
 
-upper_version = "1.2.000.rc2"
+target_version = "1.2.000.rc2"
 
 async def migrate():
 
@@ -18,4 +20,4 @@ async def migrate():
     except Exception as e:
         raise MaicaDbWarning(f'Couldn\'t alter lines LONGTEXT to TEXT and add table mv_meta: {str(e)}, consider doing a manual double-check') from e
         
-register_migration(upper_version, migrate)
+register_migration(target_version, migrate)
