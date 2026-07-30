@@ -213,23 +213,21 @@ class WsQueryConfig(WsBasicConfig):
             
         return self
 
-type UnionStage1Settings = Union[
-    WsPermissionConfig,
-    WsPingConfig,
-    WsSPingConfig,
-]
-type UnionStage2Settings = Union[
-    WsPingConfig,
-    WsSPingConfig,
-    WsReconnConfig,
-    WsSettingsConfig,
-    WsQueryConfig,
-]
-Stage1Settings = Annotated[
-    UnionStage1Settings,
+type Stage1Settings = Annotated[
+    Union[
+        WsPermissionConfig,
+        WsPingConfig,
+        WsSPingConfig,
+    ],
     Field(discriminator="type"),
 ]
-Stage2Settings = Annotated[
-    UnionStage2Settings,
+type Stage2Settings = Annotated[
+    Union[
+        WsPingConfig,
+        WsSPingConfig,
+        WsReconnConfig,
+        WsSettingsConfig,
+        WsQueryConfig,
+    ],
     Field(discriminator="type"),
 ]

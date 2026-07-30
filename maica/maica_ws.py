@@ -66,12 +66,12 @@ class WsCoroutine(NoWsCoroutine):
                 recv_text = await websocket.recv()
                 # Validate text
                 try:
-                    ws_config: UnionStage1Settings = TypeAdapter(Stage1Settings).validate_json(recv_text)
+                    ws_config: Stage1Settings = TypeAdapter(Stage1Settings).validate_json(recv_text)
                 except Exception as e:
                     # We can test if it's caused by wrong stage
                     try:
                         sync_messenger(info='Recieved request on stage1', type=MsgType.DEBUG)
-                        _ws_config: UnionStage2Settings = TypeAdapter(Stage2Settings).validate_json(recv_text)
+                        _ws_config: Stage2Settings = TypeAdapter(Stage2Settings).validate_json(recv_text)
                     except Exception:
                         raise MaicaInputWarning(f"Query parsing failed: {str(e)}") from e
                     raise MaicaPermissionWarning(f"Query type {_ws_config.type} not allowed pre-auth")
@@ -150,11 +150,11 @@ class WsCoroutine(NoWsCoroutine):
                 recv_text = await websocket.recv()
                 try:
                     sync_messenger(info='Recieved request on stage2', type=MsgType.DEBUG)
-                    ws_config: UnionStage2Settings = TypeAdapter(Stage2Settings).validate_json(recv_text)
+                    ws_config: Stage2Settings = TypeAdapter(Stage2Settings).validate_json(recv_text)
                 except Exception as e:
                     # We can test if it's caused by wrong stage
                     try:
-                        _ws_config: UnionStage1Settings = TypeAdapter(Stage1Settings).validate_json(recv_text)
+                        _ws_config: Stage1Settings = TypeAdapter(Stage1Settings).validate_json(recv_text)
                     except Exception:
                         # print(recv_text)
                         raise MaicaInputWarning(f"Query parsing failed: {str(e)}") from e
