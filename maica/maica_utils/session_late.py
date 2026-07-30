@@ -29,7 +29,7 @@ class SessionPersistentLlmMixin():
     content_temp: dict
 
 
-    async def to_milvus(self, _data: Optional[list] = None):
+    async def to_vector(self, _data: Optional[list] = None):
         """As said, to milvus. Milvus is not considered persistent storage so only write."""
         vector_pool = self.fsc.vector_pool
         if not self.fsc.is_vector_ready:

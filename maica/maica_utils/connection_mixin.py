@@ -1,6 +1,8 @@
 """Import layer 2.9"""
 from __future__ import annotations
 
+import orjson
+
 from math import ceil
 from typing import *
 
@@ -17,7 +19,8 @@ if TYPE_CHECKING:
 def _filter_to_sentence(filter: dict):
     filter_sentence = " and ".join(
         [
-            f"{k} == {v}"
+            f"{k} == {v}" if not isinstance(v, Iterable)
+            else f"{k} in {orjson.dumps(list(v)).decode()}"
             for k, v in filter.items()
         ]
     ) if filter else ''
@@ -26,16 +29,38 @@ def _filter_to_sentence(filter: dict):
 
 class MilvusSearchMixin():
 
-    async def _embed(self, embedding_conn: AiConnectionManager, data: list[str]) -> List[Tuple[str, list]]:
+    async def _embed(self, embedding_conn: AiConnectionManager, data: Iterable[str]) -> List[Tuple[str, list]]:
         """We write the embed method here, since it's strongly bound to milvus."""
-        if isinstance(data, str):
-            data = [data]
-        else:
-            data = list(data)
+        data = list(data)
         resp = await embedding_conn.make_embedding(input=data)
 
-        embedded = [i.embedding for i in resp.data]
-        return list(zip(data, embedded))
+        embed_res = [i.embedding for i in resp.data]
+        return list(zip(data, embed_res))
+
+
+    async def _reuse_embed(self, embedding_conn: AiConnectionManager, data: Iterable[str]) -> List[Tuple[str, list]]:
+        """Reuse existing embedding results, since savefiles may have a lot duplications."""
+        rt_filter = set(data)
+        filter = {"raw_text": rt_filter}
+        filter_sentence = _filter_to_sentence(filter)
+
+        to_embed: Set[str] = set(data)
+
+        reusable = await self.query(
+            collection_name=self.db,
+            filter=filter_sentence,
+            output_fields=["raw_text", "vector"],
+            # consistency_level="Strong",
+        )
+
+        reused: List[Tuple[str, list]] = []
+        for d in reusable:
+            reused.append((d["raw_text"], d["vector"], ))
+            to_embed.remove(d["raw_text"])
+
+        embedded = await self._embed(embedding_conn=embedding_conn, data=to_embed)
+        result = reused + embedded
+        return result
 
 
     async def cross_insert(
@@ -67,7 +92,7 @@ class MilvusSearchMixin():
 
         # Then procedures
         if to_add:
-            packed_embedded = await self._embed(embedding_conn, to_add)
+            packed_embedded = await self._reuse_embed(embedding_conn, to_add)
         else:
             packed_embedded = []
 

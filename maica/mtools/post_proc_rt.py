@@ -121,7 +121,7 @@ class TalkSplitV2():
             self.sentence_present = self.sentence_present[pos:]
 
             if len(sce) > 1 and not sce.isspace():
-                return sce.lstrip()
+                return sce
             else:
                 return None
 

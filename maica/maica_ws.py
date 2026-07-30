@@ -156,6 +156,7 @@ class WsCoroutine(NoWsCoroutine):
                     try:
                         _ws_config: UnionStage1Settings = TypeAdapter(Stage1Settings).validate_json(recv_text)
                     except Exception:
+                        # print(recv_text)
                         raise MaicaInputWarning(f"Query parsing failed: {str(e)}") from e
                     raise MaicaPermissionWarning(f"Query type {_ws_config.type} not allowed post-auth")
                     
@@ -395,9 +396,10 @@ class WsCoroutine(NoWsCoroutine):
                 reply_joined = ''
                 seq = 0
 
-                async def send_delta(delta):
+                async def send_delta(delta: str):
                     nonlocal reply_joined, seq
-                    await self.fsc.messenger('maica_core_streaming_continue', delta, 100)
+                    # Only lstrip for sending, so the data we save is intact
+                    await self.fsc.messenger('maica_core_streaming_continue', delta.lstrip(), 100)
                     reply_joined += delta
                     seq += 1
 

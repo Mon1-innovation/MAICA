@@ -314,7 +314,7 @@ class ShortConnHandler(View):
         async with acquire_dbo("persistent", self.fsc) as persistent:
             persistent.load(query.content)
             await persistent.to_db(skip_sync=True)
-            await persistent.to_milvus()
+            await persistent.to_vector()
  
         return jfy_res()
     
@@ -331,7 +331,7 @@ class ShortConnHandler(View):
         async with acquire_dbo("persistent", self.fsc) as persistent:
             persistent.clear()
             await persistent.to_db(skip_sync=True)
-            await persistent.to_milvus(_data=[])
+            await persistent.to_vector(_data=[])
  
         return jfy_res()
         
