@@ -29,14 +29,26 @@ MAICA-MTTS repository is https://github.com/Mon1-innovation/MAICA_MTTS.
 
 ***
 
-LIA branch of MAICA core model is at https://huggingface.co/edgeinfinity/MAICAv0-LIA-72B.
+LOA branch of MAICA core model:
+- MAICAv0-LOA6-7B-Instruct: https://huggingface.co/edgeinfinity/MAICAv0-LOA-7B
 
-LOA branch of MAICA core model is at https://huggingface.co/edgeinfinity/MAICAv0-LOA-7B.
+LIA branch of MAICA core model:
+- MAICAv0-LIA6-72B-Instruct: https://huggingface.co/edgeinfinity/MAICAv0-LIA-72B
 
+DAA branch of MAICA core model:
+- MAICAv1-DAA4L-14B-Instruct: https://huggingface.co/edgeinfinity/MAICAv1-DAA4L-14B-Instruct
+- MAICAv1-DAA4L-14B-Instruct-GGUF: https://huggingface.co/edgeinfinity/MAICAv1-DAA4L-14B-Instruct-GGUF
+- MAICAv0-DAA1-72B-Instruct: Not public
+- MAICAv0-DAA2-72B-Instruct: Not public
+- MAICAv1-DAA3-235B-A22B-Instruct: Not public
+- MAICAv1-DAA4-397B-A17B-Instruct: Not public
 
-MAICA-MTTS model is at https://huggingface.co/edgeinfinity/MTTSv0-VoiceClone.
+MAICA-MTTS model:
+- MTTSv0-VoiceClone: https://huggingface.co/edgeinfinity/MTTSv0-VoiceClone
+- MTTSv1-VoiceClone: https://huggingface.co/edgeinfinity/MTTSv1-VoiceClone
 
-Basic datasets of MAICA are at https://huggingface.co/datasets/edgeinfinity/MAICA_ds_basis.
+Basic datasets of MAICA: 
+- https://huggingface.co/datasets/edgeinfinity/MAICA_ds_basis.
 
 ***
 

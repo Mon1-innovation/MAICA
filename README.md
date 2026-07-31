@@ -29,13 +29,26 @@ MAICA-MTTS的仓库地址是https://github.com/Mon1-innovation/MAICA_MTTS.
 
 ***
 
-MAICA LIA分支的模型地址是https://huggingface.co/edgeinfinity/MAICAv0-LIA-72B.
+MAICA LOA分支的模型:
+- MAICAv0-LOA6-7B-Instruct: https://huggingface.co/edgeinfinity/MAICAv0-LOA-7B
 
-MAICA LOA分支的模型地址是https://huggingface.co/edgeinfinity/MAICAv0-LOA-7B.
+MAICA LIA分支的模型:
+- MAICAv0-LIA6-72B-Instruct: https://huggingface.co/edgeinfinity/MAICAv0-LIA-72B
 
-MAICA-MTTS模型地址是https://huggingface.co/edgeinfinity/MTTSv0-VoiceClone.
+MAICA DAA分支的模型:
+- MAICAv1-DAA4L-14B-Instruct: https://huggingface.co/edgeinfinity/MAICAv1-DAA4L-14B-Instruct
+- MAICAv1-DAA4L-14B-Instruct-GGUF: https://huggingface.co/edgeinfinity/MAICAv1-DAA4L-14B-Instruct-GGUF
+- MAICAv0-DAA1-72B-Instruct: 非公开
+- MAICAv0-DAA2-72B-Instruct: 非公开
+- MAICAv1-DAA3-235B-A22B-Instruct: 非公开
+- MAICAv1-DAA4-397B-A17B-Instruct: 非公开
 
-MAICA的基本数据集仓库位于https://huggingface.co/datasets/edgeinfinity/MAICA_ds_basis.
+MAICA-MTTS模型:
+- MTTSv0-VoiceClone: https://huggingface.co/edgeinfinity/MTTSv0-VoiceClone
+- MTTSv1-VoiceClone: https://huggingface.co/edgeinfinity/MTTSv1-VoiceClone
+
+MAICA的基本数据集仓库: 
+- https://huggingface.co/datasets/edgeinfinity/MAICA_ds_basis.
 
 ***
 
