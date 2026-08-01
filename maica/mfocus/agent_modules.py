@@ -251,6 +251,7 @@ class AgentTools():
                 res = await self.sp.filter_milvus(query)
 
         if res:
+            res = [i.strip('. ') for i in res]
             text = '; '.join(res)
         else:
             text = "没有找到相关记忆, 可能是没有记录." if target_lang == 'zh' else "Relevant memory not found, possibly not recorded."
