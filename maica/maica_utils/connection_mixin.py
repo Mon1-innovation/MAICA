@@ -46,15 +46,15 @@ class MilvusSearchMixin():
 
         to_embed: Set[str] = set(data)
 
-        reusable_ids = await self.query(
+        reusable_texts = await self.query(
             collection_name=self.db,
             filter=filter_sentence,
-            output_fields=["id"],
+            output_fields=["raw_text"],
             group_by_fields=["raw_text"],
             # consistency_level="Strong",
         )
 
-        filter_2 = {"id": [i["id"] for i in reusable_ids]}
+        filter_2 = {"raw_text": [i["raw_text"] for i in reusable_texts]}
         filter_sentence_2 = _filter_to_sentence(filter_2)
         reusable = await self.query(
             collection_name=self.db,

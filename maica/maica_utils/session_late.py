@@ -107,7 +107,6 @@ class SessionPersistentLlmMixin():
             if i["relevance_score"] >= cfd_min:
                 res_list.append(i["document"]["text"])
 
-
         sync_messenger(info=f"Reranking found {len(_relevances)} results" + (f", distance range {min(_relevances)}~{max(_relevances)}" if _relevances else ""), type=MsgType.DEBUG)
         sync_messenger(info=f"{len(res_list)} results adopted", type=MsgType.DEBUG)
 
@@ -216,8 +215,8 @@ class SessionTriggerLlmMixin():
         text_l = []
         for tr in self._get_triggers():
             t, _ = tr.to_descr()
-
-            text_l.append(t)
+            if t:
+                text_l.append(t)
 
         descr_text = list_to_bullets(text_l)
 
