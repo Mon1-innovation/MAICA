@@ -192,9 +192,9 @@ class AgentTools():
             [
                 event
                 for event in events
-                if getattr(event, must_name, None)
+                if getattr(event, must_name, None) and event.awareness >= min_awareness
             ]
-            for events in search_results
+            for events, (_, min_awareness) in zip(search_results, days_to_search)
         ]
 
         text = _Bt()
