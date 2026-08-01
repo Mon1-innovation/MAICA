@@ -183,7 +183,8 @@ class AiConnectionManager(AsyncCreator):
 
         kwargs.update(
             {
-                "model": self.model_actual
+                "model": self.model_actual,
+                "dimensions": G.A.EMBEDDING_DIMS,
             }
         )
         mixed_exbody = {**self.gen_kwargs.get('extra_body', {}), **kwargs.get('extra_body', {})}
