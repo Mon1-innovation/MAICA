@@ -48,7 +48,7 @@ MAICA-MTTS model:
 - MTTSv1-VoiceClone: https://huggingface.co/edgeinfinity/MTTSv1-VoiceClone
 
 Basic datasets of MAICA: 
-- https://huggingface.co/datasets/edgeinfinity/MAICA_ds_basis.
+- https://huggingface.co/datasets/edgeinfinity/MAICA_ds_basis
 
 ***
 

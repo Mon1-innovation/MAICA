@@ -990,10 +990,12 @@ class SessionTriggerMixin():
         for trigger_dict in triggers_dict_list:
             match trigger_dict['template']:
                 case 'common_affection_template':
+                    trigger_dict["name"] = "alter_affection"
                     affs += 1
                     if affs > 1:
                         raise MaicaInputWarning("common_affection_template amount shouldn't > 1")
                 case 'memory_template':
+                    trigger_dict["name"] = "write_memory"
                     mems += 1
                     if mems > 1:
                         raise MaicaInputWarning("memory_template amount shouldn't > 1")

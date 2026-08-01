@@ -48,7 +48,7 @@ MAICA-MTTS模型:
 - MTTSv1-VoiceClone: https://huggingface.co/edgeinfinity/MTTSv1-VoiceClone
 
 MAICA的基本数据集仓库: 
-- https://huggingface.co/datasets/edgeinfinity/MAICA_ds_basis.
+- https://huggingface.co/datasets/edgeinfinity/MAICA_ds_basis
 
 ***
 
