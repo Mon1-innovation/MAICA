@@ -48,7 +48,7 @@ async def pre_core_pipelines(
 
             # Then we inject what we got into session
             if (
-                fsc.maica_settings.extra.mf_llm_concl
+                fsc.maica_settings.mf_concl_now
                 and generated_guidance
             ):
                 session_item.context.known_info.update({"generated_guidance": generated_guidance})

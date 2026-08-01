@@ -197,7 +197,7 @@ class MfPipeliner():
         if self._mfocus_impl_mvista:
             tools.append(vista_acquire)
 
-        if self.fsc.maica_settings.extra.mf_llm_concl:
+        if self.fsc.maica_settings.mf_concl_now:
             tools.append(conclude_information)
         else:
             tools.append(agent_finished)
@@ -231,7 +231,7 @@ class MfPipeliner():
             else:
                 org_items = []
 
-            if self.fsc.maica_settings.extra.mf_llm_concl:
+            if self.fsc.maica_settings.mf_concl_now:
                 taskend_word = "作出总结" if target_lang == 'zh' else "draw a conclusion"
             else:
                 taskend_word = "表示任务完成" if target_lang == 'zh' else "indicate task finished"

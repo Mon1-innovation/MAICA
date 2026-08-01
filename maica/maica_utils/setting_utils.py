@@ -359,6 +359,13 @@ class MaicaSettings(BaseModel):
             self.basic.enable_mt
             and not self.temp.common.bypass_mt
         )
+
+    @property
+    def mf_concl_now(self):
+        return (
+            self.extra.mf_llm_concl
+            and not self.extra.mf_disable_loop
+        )
     
     @property
     def use_stream_now(self):
