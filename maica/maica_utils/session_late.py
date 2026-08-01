@@ -59,6 +59,7 @@ class SessionPersistentLlmMixin():
         res_set = await vector_pool.embed_search(
             embedding_conn=self.fsc.embedding_conn,
             data=[query],
+            topk=topk,
             filter={
                 "user_id": user_id,
                 "chat_session_num": session_num,
