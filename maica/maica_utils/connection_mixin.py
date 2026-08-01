@@ -46,9 +46,19 @@ class MilvusSearchMixin():
 
         to_embed: Set[str] = set(data)
 
-        reusable = await self.query(
+        reusable_ids = await self.query(
             collection_name=self.db,
             filter=filter_sentence,
+            output_fields=["id"],
+            group_by_fields=["raw_text"],
+            # consistency_level="Strong",
+        )
+
+        filter_2 = {"id": [i["id"] for i in reusable_ids]}
+        filter_sentence_2 = _filter_to_sentence(filter_2)
+        reusable = await self.query(
+            collection_name=self.db,
+            filter=filter_sentence_2,
             output_fields=["raw_text", "vector"],
             # consistency_level="Strong",
         )
@@ -162,7 +172,7 @@ class MilvusSearchMixin():
                 if d["distance"] >= cfd_min:
                     res_set.add(d["entity"]["raw_text"])
 
-        sync_messenger(info=f"Vector searching found {len(_distances)} results, distance range {min(_distances)}~{max(_distances)}", type=MsgType.DEBUG)
+        sync_messenger(info=f"Vector searching found {len(_distances)} results" + (f", distance range {min(_distances)}~{max(_distances)}" if _distances else ""), type=MsgType.DEBUG)
         sync_messenger(info=f"{len(res_set)} results adopted", type=MsgType.DEBUG)
 
         return res_set

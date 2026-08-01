@@ -170,8 +170,8 @@ class MfPipeliner():
                     name="conclusion",
                     type=["string", "null"],
                     description=_Bt(
-                        "总结你获取的信息和对应的推理, 并整理成一到数个简洁的句子, 如'现在是上午九点, 因此适合吃早餐; 且天气凉爽, 因此适合户外活动'. 留空以表示没有值得总结的信息.",
-                        "Conclude information you acquired and corresponding reasoning, into one or several concise and clear sentences, e.g., 'It's 9:00 in the morning, suitable for breakfast; The weather is cool, good for exercising'. Leave empty if no information worths concluding."
+                        "总结你获取信息的有效部分, 并整理成一到数个简洁的句子, 如'现在是上午九点, 因此适合吃早餐; 且天气凉爽, 因此适合户外活动'. 留空以表示没有值得总结的信息.",
+                        "Conclude useful part of information you acquired into one or several concise and clear sentences, e.g., 'It's 9:00 in the morning, suitable for breakfast; The weather is cool, good for exercising'. Leave empty if no information worths concluding."
                     )
                 )
             ]

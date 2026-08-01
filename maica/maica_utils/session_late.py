@@ -103,12 +103,12 @@ class SessionPersistentLlmMixin():
 
         _relevances = []
         for i in resp["results"]:
+            _relevances.append(i["relevance_score"])
             if i["relevance_score"] >= cfd_min:
-                _relevances.append(i["relevance_score"])
                 res_list.append(i["document"]["text"])
 
 
-        sync_messenger(info=f"Reranking found {len(_relevances)} results, distance range {min(_relevances)}~{max(_relevances)}", type=MsgType.DEBUG)
+        sync_messenger(info=f"Reranking found {len(_relevances)} results" + (f", distance range {min(_relevances)}~{max(_relevances)}" if _relevances else ""), type=MsgType.DEBUG)
         sync_messenger(info=f"{len(res_list)} results adopted", type=MsgType.DEBUG)
 
         return res_list
@@ -219,11 +219,7 @@ class SessionTriggerLlmMixin():
 
             text_l.append(t)
 
-        descr_text = _Bt()
-        for t in text_l:
-            if t:
-                descr_text += "\n- "
-                descr_text += t
+        descr_text = list_to_bullets(text_l)
 
         if not descr_text:
             return False, None
@@ -303,6 +299,7 @@ Here is the tools list:\
                 }
             },
         }
+        print(completion_args)
 
         resp = await conn.make_completion(**completion_args)
         selection_result = TrigSelectionResults.model_validate_json(resp.output_text)

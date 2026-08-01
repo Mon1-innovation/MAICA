@@ -111,6 +111,7 @@ async def pre_core_pipelines(
     async def const_mf_pipeline():
         """Call tools for mf_const_tools and mf_const_sf_access."""
         if (
+            # (Kind of) suprisingly it does not actually require mf to be enabled
             # Still, we need to confirm prompt writable
             fsc.maica_settings.prompt_writable
         ):
