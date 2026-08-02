@@ -67,10 +67,11 @@ class WsCoroutine(NoWsCoroutine):
                 # Validate text
                 try:
                     ws_config: Stage1Settings = TypeAdapter(Stage1Settings).validate_json(recv_text)
+                    if ws_config.type != "sping":
+                        sync_messenger(info='Recieved request on stage1', type=MsgType.DEBUG)
                 except Exception as e:
                     # We can test if it's caused by wrong stage
                     try:
-                        sync_messenger(info='Recieved request on stage1', type=MsgType.DEBUG)
                         _ws_config: Stage2Settings = TypeAdapter(Stage2Settings).validate_json(recv_text)
                     except Exception:
                         raise MaicaInputWarning(f"Query parsing failed: {str(e)}") from e
@@ -149,8 +150,9 @@ class WsCoroutine(NoWsCoroutine):
                 # Then we examine the input
                 recv_text = await websocket.recv()
                 try:
-                    sync_messenger(info='Recieved request on stage2', type=MsgType.DEBUG)
                     ws_config: Stage2Settings = TypeAdapter(Stage2Settings).validate_json(recv_text)
+                    if ws_config.type != "sping":
+                        sync_messenger(info='Recieved request on stage2', type=MsgType.DEBUG)
                 except Exception as e:
                     # We can test if it's caused by wrong stage
                     try:
