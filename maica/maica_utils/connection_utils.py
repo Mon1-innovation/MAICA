@@ -43,6 +43,7 @@ class MilvusDbConnectionManager(AsyncCreator, MilvusSearchMixin):
         self.name = self.db
         self.pool: pymilvus.AsyncMilvusClient = None
         """It ain't pool, we just calling it one."""
+        self._write_lock = asyncio.Lock()
 
 
     async def _ainit(self):

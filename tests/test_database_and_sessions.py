@@ -26,7 +26,7 @@ from maica.maica_utils import (
 from maica.maica_utils import session_mgr, stream_buffer
 from maica.maica_utils.database_utils import ReadOnlySession
 from maica.maica_utils.users_utils import FscUsersFuncMixin
-from maica.initializer.migrations import migration_4
+from maica.initializer.migrations import migration_4, migration_5
 
 
 def test_create_or_update_flushes_insert_and_updates_existing_row() -> None:
@@ -122,6 +122,8 @@ def test_current_schema_migration_is_idempotent_on_sqlite() -> None:
                 await conn.run_sync(SqlBaseData.metadata.create_all)
             await migration_4.migrate()
             await migration_4.migrate()
+            await migration_5.migrate()
+            await migration_5.migrate()
         finally:
             DatabaseUtils.engine_data = old_engine
             G.A.MILVUS_ADDR = old_milvus
