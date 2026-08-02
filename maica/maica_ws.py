@@ -158,7 +158,6 @@ class WsCoroutine(NoWsCoroutine):
                     try:
                         _ws_config: Stage1Settings = TypeAdapter(Stage1Settings).validate_json(recv_text)
                     except Exception:
-                        # print(recv_text)
                         raise MaicaInputWarning(f"Query parsing failed: {str(e)}") from e
                     raise MaicaPermissionWarning(f"Query type {_ws_config.type} not allowed post-auth")
                     
