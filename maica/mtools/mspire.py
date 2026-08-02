@@ -34,8 +34,18 @@ class ProxiedAsyncHTTPClient(AsyncHTTPClient):
 class ProxiedAsyncWikipedia(AsyncWikipediaResource, ProxiedAsyncHTTPClient):
     pass
 
+
 # We write the new wiki_get logics here
 # The former implementation is shit
+
+
+def _is_not_template(name: str):
+    name = name.casefold().strip()
+    for template_kw in ("模板", "template"):
+        if name.startswith(template_kw) or name.endswith(template_kw):
+            return False
+    return True
+
 
 async def fetch_ms_meta(fsc: FullSocketsContainer):
     """Main."""
@@ -72,11 +82,12 @@ async def fetch_ms_meta(fsc: FullSocketsContainer):
         cates = []
         pages = []
         for member in members.values():
-            match member.ns:
-                case Namespace.MAIN:
-                    pages.append(member.title)
-                case Namespace.CATEGORY:
-                    cates.append(member.title)
+            if _is_not_template(member.title):
+                match member.ns:
+                    case Namespace.MAIN:
+                        pages.append(member.title)
+                    case Namespace.CATEGORY:
+                        cates.append(member.title)
 
         sync_messenger(info=f"Found {len(cates)} categories and {len(pages)} pages underlying", type=MsgType.DEBUG)
         return cates, pages
