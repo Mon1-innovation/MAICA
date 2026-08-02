@@ -265,7 +265,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
 
             query = f"New: {text}\n\nCurrent:{list_to_bullets(current_memory_items)}"
 
-            class DuplCheckResult(BaseModel):
+            class DuplCheckResult(GenCorrectionModel):
                 duplicated: bool = Field(
                     description="该条目是否可以视为重复的." if target_lang == 'zh' else "If item can be considered duplicated."
                 )
@@ -274,6 +274,10 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
                     ge=0.0,
                     le=1.0,
                 )
+                _default_resp = {
+                    "duplicated": False,
+                    "confidence": 0.1,
+                }
 
             system = MaicaSessionItem(
                 "system",
@@ -301,13 +305,7 @@ Please check if this new information is already covered by existing ones, or is 
                     manual_prompt=True,
                     ignore_additions=True,
                 ),
-                "text": {
-                    "format": {
-                        "type": "json_schema",
-                        "strict": True,
-                        "schema": DuplCheckResult.model_json_schema(),
-                    }
-                },
+                "text": pyd_to_openai(DuplCheckResult)
             }
 
             resp = await conn.make_completion(**completion_args)

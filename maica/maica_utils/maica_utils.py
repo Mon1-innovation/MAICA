@@ -497,9 +497,172 @@ class RobustList[T](list[T]):
             list_schema,
         )
 
+
 class SafeFormatDict(dict):
     def __missing__(self, key):
         return "{" + key + "}"
+
+
+class GenCorrectionModel(BaseModel):
+    """
+    Pydantic model with lightweight JSON output repair. GPT wrote this.
+
+    Intended for LLM generated JSON where formatting may be slightly invalid.
+    """
+
+    _default_resp: ClassVar[Optional[dict]] = None
+
+    @classmethod
+    def model_validate_json[T](
+        cls: type[T],
+        json_data: str | bytes,
+        *,
+        strict: bool | None = None,
+        **kwargs: Any,
+    ) -> T:
+        """
+        Try normal validation first.
+        If failed, apply conservative JSON repairs.
+        """
+
+        try:
+            return super().model_validate_json(
+                json_data,
+                strict=strict,
+                **kwargs,
+            )
+
+        except ValidationError as ve:
+            sync_messenger(info=f"Validation failed for LLM response: {str(ve)}, trying basic fixes", type=MsgType.WARN)
+            repaired = cls._repair_json(json_data)
+
+            try:
+                return super().model_validate(
+                    repaired,
+                    strict=strict,
+                    **kwargs,
+                )
+            except ValidationError as ve:
+
+                if default := cls._default_resp:
+                    sync_messenger(info=f"Basic fixes still failed for LLM response: {str(ve)}, returning default", type=MsgType.WARN)
+                    return super().model_validate(
+                        default,
+                        strict=strict,
+                        **kwargs,
+                    )
+                else:
+                    raise
+
+    @classmethod
+    def _repair_json(cls, raw: str | bytes) -> dict[str, Any]:
+        """
+        Apply common LLM JSON output fixes.
+        """
+
+        if isinstance(raw, bytes):
+            raw = raw.decode("utf-8", errors="ignore")
+
+        text = raw.strip()
+
+        # ------------------------------------------------------------
+        # 1. Remove markdown code fences:
+        #
+        # Model:
+        # ```json
+        # {"a":1}
+        # ```
+        # ------------------------------------------------------------
+        text = re.sub(
+            r"^```(?:json)?\s*|\s*```$",
+            "",
+            text,
+            flags=re.I,
+        ).strip()
+
+
+        # ------------------------------------------------------------
+        # 2. Extract first JSON object.
+        #
+        # Model:
+        # "Here is the answer: {...}"
+        # ------------------------------------------------------------
+        match = re.search(
+            r"\{.*\}",
+            text,
+            flags=re.S,
+        )
+
+        if match:
+            text = match.group(0)
+
+
+        # ------------------------------------------------------------
+        # 3. Parse JSON normally.
+        # ------------------------------------------------------------
+        try:
+            data = json.loads(text)
+
+        except json.JSONDecodeError:
+
+            # --------------------------------------------------------
+            # 4. Python dict style:
+            #
+            # {'a': True}
+            #
+            # Common with some reasoning models.
+            # --------------------------------------------------------
+            import ast
+
+            data = ast.literal_eval(text)
+
+
+        if not isinstance(data, dict):
+            raise ValueError(
+                "LLM output is not a JSON object"
+            )
+
+
+        data = cls._repair_schema_echo(data)
+
+
+        return data
+
+
+    @classmethod
+    def _repair_schema_echo(
+        cls,
+        data: dict[str, Any],
+    ) -> dict[str, Any]:
+        """
+        Fix model accidentally returning JSON schema.
+
+        Example:
+
+        {
+            "properties": {
+                "requested": {},
+                "operation": {}
+            }
+        }
+
+        This happens when backend does not implement
+        structured output constrained decoding.
+        """
+
+        if (
+            "properties" in data
+            and isinstance(data["properties"], dict)
+            and not any(
+                k in data
+                for k in cls.model_fields.keys()
+            )
+        ):
+            properties = data["properties"]
+            return properties
+
+        return data
+    
 
 class DummyClass():
     """Yes, dummy class."""
@@ -653,6 +816,39 @@ def list_to_bullets(li: list[str | BilingualText], indent: int = 0):
         bt += i
 
     return bt
+
+
+def pyd_to_openai(
+    model: Type[BaseModel],
+    name: str | None = None,
+) -> dict[str, Any]:
+    """
+    Convert Pydantic model to OpenAI Responses API text.format.
+
+    Args:
+        model:
+            Pydantic BaseModel class.
+        name:
+            Schema name used by Responses API.
+            Defaults to model class name.
+
+    Returns:
+        A valid Responses API `text` field.
+    """
+
+    schema = model.model_json_schema()
+
+    # Responses API strict JSON schema requirements
+    schema.setdefault("additionalProperties", False)
+
+    return {
+        "format": {
+            "type": "json_schema",
+            "name": name or model.__name__,
+            "strict": True,
+            "schema": schema,
+        }
+    }
 
 
 async def messenger(websocket=None, *args, **kwargs) -> None:

@@ -285,7 +285,9 @@ class WsCoroutine(NoWsCoroutine):
                     self.settings.temp.activated = "mspire"
                     self.settings.temp.mspire.update(ws_config.inspire)
                     self.settings.temp.common.update(ws_config.inspire)
-                    str_query = ", ".join(ws_config.inspire.title)
+                    str_query = ", ".join(
+                        [to_str(i, self.settings.basic.target_lang) for i in ws_config.inspire.title]
+                    )
 
                 case "mpostal":
                     self.settings.temp.activated = "mpostal"

@@ -73,7 +73,7 @@ async def emo_proc_llm(emo: str, fsc: FullSocketsContainer):
             }
         )
 
-    class EmoDetectResult(BaseModel):
+    class EmoDetectResult(GenCorrectionModel):
         result: EmoEnum = Field(
             description="选择最合适的标准表情." if target_lang == 'zh' else "Choose the best fitting standard emotion."
         )
@@ -82,6 +82,10 @@ async def emo_proc_llm(emo: str, fsc: FullSocketsContainer):
             ge=0.0,
             le=1.0,
         )
+        _default_resp = {
+            "result": '[微笑]' if target_lang == 'zh' else '[smile]',
+            "confidence": 0.1,
+        }
 
     system = MaicaSessionItem(
         "system",
@@ -108,13 +112,7 @@ Please choose an emotion that fits best from the given list of standard emotions
             manual_prompt=True,
             ignore_additions=True,
         ),
-        "text": {
-            "format": {
-                "type": "json_schema",
-                "strict": True,
-                "schema": EmoDetectResult.model_json_schema(),
-            }
-        },
+        "text": pyd_to_openai(EmoDetectResult)
     }
 
     resp = await conn.make_completion(**completion_args)

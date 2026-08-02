@@ -25,7 +25,7 @@ async def make_postmail(fsc: FullSocketsContainer):
         sync_messenger(info="Detecting if letter is poem...", type=MsgType.DEBUG)
         session = MaicaSession()
 
-        class PoemDetectResult(BaseModel):
+        class PoemDetectResult(GenCorrectionModel):
             is_poem: bool = Field(
                 description="更接近诗歌则输出true, 更接近信件则输出false." if target_lang == 'zh' else "Output true if closer to poem, false if closer to letter."
             )
@@ -34,6 +34,10 @@ async def make_postmail(fsc: FullSocketsContainer):
                 ge=0.0,
                 le=1.0,
             )
+            _default_resp = {
+                "is_poem": False,
+                "confidence": 0.1,
+            }
 
         system = MaicaSessionItem(
             "system",
@@ -60,13 +64,7 @@ Please decide if it's a poem or normal letter.\
                 manual_prompt=True,
                 ignore_additions=True,
             ),
-            "text": {
-                "format": {
-                    "type": "json_schema",
-                    "strict": True,
-                    "schema": PoemDetectResult.model_json_schema(),
-                }
-            },
+            "text": pyd_to_openai(PoemDetectResult)
         }
 
         resp = await conn.make_completion(**completion_args)

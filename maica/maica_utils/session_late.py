@@ -144,7 +144,7 @@ class SessionPersistentLlmMixin():
                 }
             )
 
-        class PersSelectionResults(BaseModel):
+        class PersSelectionResults(GenCorrectionModel):
             items: list[DocEnum] = Field(
                 min_length=0,
                 max_length=topk,
@@ -180,13 +180,7 @@ If none of the information is relevant with query, you can output empty.\
                 manual_prompt=True,
                 ignore_additions=True,
             ),
-            "text": {
-                "format": {
-                    "type": "json_schema",
-                    "strict": True,
-                    "schema": PersSelectionResults.model_json_schema(),
-                }
-            },
+            "text": pyd_to_openai(PersSelectionResults)
         }
 
         resp = await conn.make_completion(**completion_args)
@@ -242,13 +236,17 @@ class SessionTriggerLlmMixin():
         #         )
 
         # No that's dumb and costy. We just need to verify a true-or-false, if the query can be satisfied.
-        class TrigSelectionResults(BaseModel):
+        class TrigSelectionResults(GenCorrectionModel):
             requested: bool = Field(
                 description="是否需要使用工具." if target_lang == 'zh' else "If any tool is required."
             )
             operation: Optional[str] = Field(
                 description="你选择的工具, 原样输出." if target_lang == 'zh' else "The tool you choose, output as-is."
             )
+            _default_resp = {
+                "requested": False,
+                "operation": None,
+            }
 
         system = MaicaSessionItem(
             "system",
@@ -287,15 +285,8 @@ Here is the tools list:\
                 manual_prompt=True,
                 ignore_additions=True,
             ),
-            "text": {
-                "format": {
-                    "type": "json_schema",
-                    "strict": True,
-                    "schema": TrigSelectionResults.model_json_schema(),
-                }
-            },
+            "text": pyd_to_openai(TrigSelectionResults)
         }
-        print(completion_args)
 
         resp = await conn.make_completion(**completion_args)
         selection_result = TrigSelectionResults.model_validate_json(resp.output_text)

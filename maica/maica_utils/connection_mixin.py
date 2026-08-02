@@ -195,7 +195,7 @@ class MilvusSearchMixin():
                 raise
 
         sync_messenger(
-            info=f"Stashed to milvus successfully: {len(new_texts)} references, {len(inserted_hashes)} vectors embedded, {added} added, {removed} removed",
+            info=f"Stashed to milvus successfully: {len(new_texts)} incoming, {len(inserted_hashes)} embedded; {added} added, {removed} removed",
             type=MsgType.DEBUG,
         )
 

@@ -45,7 +45,7 @@ async def internet_search(fsc: FullSocketsContainer, query):
         text = '; '.join(results_list[:5])
     
     else:
-        class EnetSearchConcl(BaseModel):
+        class EnetSearchConcl(GenCorrectionModel):
             conclusion: Optional[str] = Field(
                 description="你总结出的内容, 应是一个单行自然句." if target_lang == 'zh' else "Your conclusion, should be a single line of nature sentence."
             )
@@ -78,13 +78,7 @@ If none of the information is relevant with query, you can output null.\
                 manual_prompt=True,
                 ignore_additions=True,
             ),
-            "text": {
-                "format": {
-                    "type": "json_schema",
-                    "strict": True,
-                    "schema": EnetSearchConcl.model_json_schema(),
-                }
-            },
+            "text": pyd_to_openai(EnetSearchConcl)
         }
 
         resp = await conn.make_completion(**completion_args)

@@ -170,7 +170,7 @@ MFocus等的主要思路, 是通过一个未微调的agent模型与核心模型�
         "prompt_allow_nickname": true,
         "mf_llm_concl": false,
         "mf_sf_access_impl": 1,
-        "mf_const_sf_access": 1,
+        "mf_const_sf_access": 0,
         "mf_const_tools": 1,
         "esearch_llm_concl": true,
         "mf_precheck_mt": true,

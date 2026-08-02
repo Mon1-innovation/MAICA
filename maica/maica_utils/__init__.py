@@ -36,6 +36,7 @@ from .maica_utils import (
     is_word_start,
     proceed_common_text,
     list_to_bullets,
+    pyd_to_openai,
     sync_messenger,
     messenger,
     load_env,
@@ -69,6 +70,7 @@ from .maica_utils import (
     PydSoftResetMixin,
     RobustList,
     SafeFormatDict,
+    GenCorrectionModel,
     DummyClass,
 )
 from .connection_utils import MilvusDbConnectionManager, ConnUtils, AiConnectionManager
@@ -129,6 +131,7 @@ __all__ = [
     'is_word_start',
     'proceed_common_text',
     'list_to_bullets',
+    'pyd_to_openai',
     'sync_messenger',
     'messenger',
     'load_env',
@@ -162,6 +165,7 @@ __all__ = [
     'PydSoftResetMixin',
     'RobustList',
     'SafeFormatDict',
+    'GenCorrectionModel',
     'DummyClass',
     'MilvusDbConnectionManager',
     'ConnUtils',

@@ -28,7 +28,7 @@ async def quality_chk(org_session: MaicaSession, fsc: FullSocketsContainer):
         ]
     )
 
-    class QualityCheckResult(BaseModel):
+    class QualityCheckResult(GenCorrectionModel):
         reasonability: bool = Field(
             description="输出是否合理." if target_lang == 'zh' else "If output is reasonable."
         )
@@ -37,6 +37,10 @@ async def quality_chk(org_session: MaicaSession, fsc: FullSocketsContainer):
             ge=0.0,
             le=1.0,
         )
+        _default_resp = {
+            "reasonability": True,
+            "confidence": 0.1,
+        }
 
     system = MaicaSessionItem(
         "system",
@@ -70,13 +74,7 @@ Please check the quality of assistant's response.\
             manual_prompt=True,
             ignore_additions=True,
         ),
-        "text": {
-            "format": {
-                "type": "json_schema",
-                "strict": True,
-                "schema": QualityCheckResult.model_json_schema(),
-            }
-        },
+        "text": pyd_to_openai(QualityCheckResult)
     }
 
     resp = await conn.make_completion(**completion_args)

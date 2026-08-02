@@ -172,7 +172,7 @@ class WsQueryConfig(WsBasicConfig):
         if not self.reset:
             if self.chat_session <= -1:
                 if not isinstance(self.query, list):
-                    raise MaicaInputWarning("-1 session requires list input")
+                    raise MaicaInputWarning(f"-1 session requires list input, got {type(self.query).__name__}")
                 
                 if len(self.query) > 10:
                     raise MaicaInputWarning(f"-1 session cannot exceed 10 rounds, got {len(self.query)}")
@@ -182,9 +182,10 @@ class WsQueryConfig(WsBasicConfig):
             
             if (
                 self.chat_session >= 0
+                and self.activated == "query"
                 and not isinstance(self.query, str)
             ):
-                raise MaicaInputWarning("0~9 session requires str input")
+                raise MaicaInputWarning(f"0~9 session requires str input, got {type(self.query).__name__}")
             
             if (
                 self.chat_session != 0

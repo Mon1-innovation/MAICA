@@ -30,7 +30,7 @@ async def memory_concl(arc_session: MaicaSession, fsc: FullSocketsContainer):
     if prior_memory:
         query = prior_memory + "\n" + query
 
-    class MemoryConclusionResult(BaseModel):
+    class MemoryConclusionResult(GenCorrectionModel):
         conclusion: Optional[str] = Field(
             description="你的总结, 一般应在300字以内." if target_lang == 'zh' else "Your conclusion, normally below 150 words."
         )
@@ -69,13 +69,7 @@ If the conversation lacks content to conclude finally, you can output null.\
             manual_prompt=True,
             ignore_additions=True,
         ),
-        "text": {
-            "format": {
-                "type": "json_schema",
-                "strict": True,
-                "schema": MemoryConclusionResult.model_json_schema(),
-            }
-        },
+        "text": pyd_to_openai(MemoryConclusionResult)
     }
 
     resp = await conn.make_completion(**completion_args)

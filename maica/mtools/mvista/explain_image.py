@@ -15,7 +15,7 @@ async def query_vlm(fsc: FullSocketsContainer, query: str, img_list: list[str]):
     if len(img_list) > int(G.A.KEEP_MVISTA):
         raise MaicaInputWarning(f"{G.A.KEEP_MVISTA} images at most per query")
 
-    class VistaSearchConcl(BaseModel):
+    class VistaSearchConcl(GenCorrectionModel):
         reply: Optional[str] = Field(
             description="你的回答, 应是一个单行自然句." if target_lang == 'zh' else "Your reply, should be a single line of nature sentence."
         )
@@ -52,13 +52,7 @@ If none of the images is relevant with query, you can output null.\
             manual_prompt=True,
             ignore_additions=True,
         ),
-        "text": {
-            "format": {
-                "type": "json_schema",
-                "strict": True,
-                "schema": VistaSearchConcl.model_json_schema(),
-            }
-        },
+        "text": pyd_to_openai(VistaSearchConcl)
     }
 
     resp = await conn.make_completion(**completion_args)

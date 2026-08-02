@@ -185,7 +185,7 @@ class MaicaSettings(BaseModel):
         """Use agent model's final output instead of instructed guidance."""
         mf_sf_access_impl: Literal[0, 1, 2] = 1
         """Use RAG/Reranker to acquire info from persistent instead of traditional MFocus impl."""
-        mf_const_sf_access: Literal[0, 1, 2] = 1
+        mf_const_sf_access: Literal[0, 1, 2] = 0
         """Add persistent extraction to MFocus instructed guidance even if not called."""
         mf_const_tools: Literal[0, 1, 2] = 1
         """Add information to MFocus instructed guidance even if no tool used."""
@@ -270,7 +270,7 @@ class MaicaSettings(BaseModel):
                 ge=1,
                 le=100,
             )
-            title: Union[str, list] = Field(
+            title: Union[str, list[str | BilingualText]] = Field(
                 default_factory=lambda: [
                     _Bt('自然', 'Nature'),
                     _Bt('自然科学', 'Natural_sciences'),

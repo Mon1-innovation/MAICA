@@ -160,6 +160,9 @@ class AiConnectionManager(AsyncCreator):
             system = messages.pop(0)
             mixed_kwargs["instructions"] = system["content"]
 
+        # Uncomment to debug
+        # print(json.dumps(mixed_kwargs, ensure_ascii=False))
+
         try:
             task_stream_resp = asyncio.create_task(self.client.responses.create(**mixed_kwargs))
             await asyncio.wait_for(task_stream_resp, timeout=int(G.A.OPENAI_TIMEOUT) if G.A.OPENAI_TIMEOUT != '0' else None)
