@@ -40,10 +40,8 @@ class SessionPersistentLlmMixin():
         await vector_pool.cross_insert(
             embedding_conn=self.fsc.embedding_conn,
             data = _data if _data is not None else self.form_info(),
-            filter={
-                "user_id": user_id,
-                "chat_session_num": session_num,
-            },
+            user_id=user_id,
+            chat_session_num=session_num,
         )
 
 
@@ -59,11 +57,9 @@ class SessionPersistentLlmMixin():
         res_set = await vector_pool.embed_search(
             embedding_conn=self.fsc.embedding_conn,
             data=[query],
+            user_id=user_id,
+            chat_session_num=session_num,
             topk=topk,
-            filter={
-                "user_id": user_id,
-                "chat_session_num": session_num,
-            },
         )
 
         return res_set

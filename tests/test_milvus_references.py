@@ -5,7 +5,7 @@ import sqlalchemy
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from maica.maica_utils import DatabaseUtils, SqlBaseData, SqlVectorReference
+from maica.maica_utils import DatabaseUtils, MaicaDbError, SqlBaseData, SqlVectorReference
 from maica.maica_utils.connection_mixin import MilvusSearchMixin
 from maica.initializer.migrations.migration_5 import _is_reference_collection
 
@@ -28,6 +28,7 @@ class FakeVectorStore(MilvusSearchMixin):
         self.pool = self
         self.vectors = {}
         self.fail_deletes = False
+        self._write_lock = asyncio.Lock()
 
     async def _query_vectors(self, content_hashes):
         return {
@@ -87,8 +88,8 @@ def test_vectors_are_shared_and_deleted_after_the_last_reference() -> None:
             first_scope = {"user_id": 1, "chat_session_num": 1}
             second_scope = {"user_id": 1, "chat_session_num": 2}
 
-            await store.cross_insert(embedding, ["shared", "first only"], filter=first_scope)
-            await store.cross_insert(embedding, ["shared"], filter=second_scope)
+            await store.cross_insert(embedding, ["shared", "first only"], **first_scope)
+            await store.cross_insert(embedding, ["shared"], **second_scope)
 
             assert sorted(embedding.inputs) == ["first only", "shared"]
             assert len(store.vectors) == 2
@@ -96,23 +97,47 @@ def test_vectors_are_shared_and_deleted_after_the_last_reference() -> None:
                 refs = (await dbs.scalars(sqlalchemy.select(SqlVectorReference))).all()
                 assert len(refs) == 3
 
-            results = await store.embed_search(embedding, ["query"], filter=second_scope)
+            results = await store.embed_search(embedding, ["query"], **second_scope)
             assert results == {"shared"}
 
             store.fail_deletes = True
             with pytest.raises(RuntimeError, match="Milvus delete failed"):
-                await store.cross_insert(embedding, [], filter=first_scope)
+                await store.cross_insert(embedding, [], **first_scope)
             async with DatabaseUtils.SessionData() as dbs:
                 refs = (await dbs.scalars(sqlalchemy.select(SqlVectorReference))).all()
                 assert len(refs) == 3
             assert len(store.vectors) == 2
 
             store.fail_deletes = False
-            await store.cross_insert(embedding, [], filter=first_scope)
+            await store.cross_insert(embedding, [], **first_scope)
             assert {row["raw_text"] for row in store.vectors.values()} == {"shared"}
 
-            await store.cross_insert(embedding, [], filter=second_scope)
+            await store.cross_insert(embedding, [], **second_scope)
             assert store.vectors == {}
+
+            await store.cross_insert(
+                embedding,
+                ["backend data"],
+                user_id=-1,
+                chat_session_num=0,
+            )
+            results = await store.embed_search(
+                embedding,
+                ["query"],
+                user_id=-1,
+                chat_session_num=0,
+            )
+            assert results == {"backend data"}
+
+            collision_hash = store._content_hash("collision input")
+            store.vectors[collision_hash] = {"raw_text": "different text", "vector": [1.0]}
+            with pytest.raises(MaicaDbError, match="SHA-256 collision"):
+                await store.cross_insert(
+                    embedding,
+                    ["collision input"],
+                    user_id=1,
+                    chat_session_num=1,
+                )
         finally:
             DatabaseUtils.SessionData = old_factory
             await engine.dispose()

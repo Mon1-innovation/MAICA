@@ -21,25 +21,12 @@ if TYPE_CHECKING:
     from .connection_utils import AiConnectionManager
 
 
-def _filter_to_sentence(filter: dict):
-    filter_sentence = " and ".join(
-        [
-            f"{k} in {orjson.dumps(list(v)).decode()}"
-            if isinstance(v, Iterable) and not isinstance(v, (str, bytes, dict))
-            else f"{k} == {orjson.dumps(v).decode()}"
-            for k, v in filter.items()
-        ]
-    ) if filter else ''
-    return filter_sentence
+def _content_hash_filter(content_hashes: Iterable[str]) -> str:
+    return f"content_hash in {orjson.dumps(list(content_hashes)).decode()}"
 
 
 class MilvusSearchMixin():
-
-    @staticmethod
-    def _scope(filter: Optional[dict]) -> tuple[int, int]:
-        if not filter or "user_id" not in filter or "chat_session_num" not in filter:
-            raise ValueError("Milvus operations require user_id and chat_session_num")
-        return int(filter["user_id"]), int(filter["chat_session_num"])
+    _write_lock: asyncio.Lock
 
 
     @staticmethod
@@ -55,11 +42,11 @@ class MilvusSearchMixin():
         return list(zip(data, embed_res))
 
 
-    async def _reference_hashes(self, user_id: int, session_num: int) -> set[str]:
+    async def _reference_hashes(self, user_id: int, chat_session_num: int) -> set[str]:
         async with DatabaseUtils.SessionData() as dbs:
             stmt = sqlalchemy.select(SqlVectorReference.content_hash).where(
                 SqlVectorReference.user_id == user_id,
-                SqlVectorReference.chat_session_num == session_num,
+                SqlVectorReference.chat_session_num == chat_session_num,
             )
             return set((await dbs.scalars(stmt)).all())
 
@@ -69,7 +56,7 @@ class MilvusSearchMixin():
             return {}
         rows = await self.query(
             collection_name=self.db,
-            filter=_filter_to_sentence({"content_hash": content_hashes}),
+            filter=_content_hash_filter(content_hashes),
             output_fields=["content_hash", "raw_text"],
             consistency_level="Strong",
         )
@@ -84,7 +71,7 @@ class MilvusSearchMixin():
         existing = await self._query_vectors(set(texts_by_hash))
         for content_hash, raw_text in existing.items():
             if raw_text != texts_by_hash[content_hash]:
-                raise RuntimeError(f"SHA-256 collision detected for vector {content_hash}")
+                raise MaicaDbError(f"SHA-256 collision detected for vector {content_hash}")
 
         missing_hashes = set(texts_by_hash) - set(existing)
         if not missing_hashes:
@@ -128,14 +115,14 @@ class MilvusSearchMixin():
     async def _sync_references(
         self,
         user_id: int,
-        session_num: int,
+        chat_session_num: int,
         desired_hashes: set[str],
     ) -> tuple[int, int]:
         async with DatabaseUtils.SessionData() as dbs:
             async with dbs.begin():
                 stmt = sqlalchemy.select(SqlVectorReference.content_hash).where(
                     SqlVectorReference.user_id == user_id,
-                    SqlVectorReference.chat_session_num == session_num,
+                    SqlVectorReference.chat_session_num == chat_session_num,
                 )
                 old_hashes = set((await dbs.scalars(stmt)).all())
                 to_add = desired_hashes - old_hashes
@@ -145,14 +132,14 @@ class MilvusSearchMixin():
                     await dbs.execute(
                         sqlalchemy.delete(SqlVectorReference).where(
                             SqlVectorReference.user_id == user_id,
-                            SqlVectorReference.chat_session_num == session_num,
+                            SqlVectorReference.chat_session_num == chat_session_num,
                             SqlVectorReference.content_hash.in_(to_remove),
                         )
                     )
                 dbs.add_all([
                     SqlVectorReference(
                         user_id=user_id,
-                        chat_session_num=session_num,
+                        chat_session_num=chat_session_num,
                         content_hash=content_hash,
                     )
                     for content_hash in to_add
@@ -178,30 +165,23 @@ class MilvusSearchMixin():
     async def cross_insert(
         self,
         embedding_conn: AiConnectionManager,
-        data: Iterable,
-        unique: str = "raw_text",
-        filter: Optional[dict] = None,
+        data: Iterable[str],
+        user_id: int,
+        chat_session_num: int,
     ):
-        """Synchronize one session's references against globally deduplicated vectors."""
-        if unique != "raw_text":
-            raise ValueError("Only raw_text can be used as the vector identity source")
-        user_id, session_num = self._scope(filter)
+        """Synchronize one reference scope against globally deduplicated vectors."""
         data = list(data)
         if any(not isinstance(item, str) for item in data):
             raise TypeError("Milvus raw_text values must be strings")
         new_texts = set(data)
         texts_by_hash = {self._content_hash(raw_text): raw_text for raw_text in new_texts}
 
-        lock = getattr(self, "_write_lock", None)
-        if lock is None:
-            lock = self._write_lock = asyncio.Lock()
-
-        async with lock:
+        async with self._write_lock:
             inserted_hashes = await self._ensure_vectors(embedding_conn, texts_by_hash)
             try:
                 added, removed = await self._sync_references(
                     user_id,
-                    session_num,
+                    chat_session_num,
                     set(texts_by_hash),
                 )
             except Exception:
@@ -223,22 +203,22 @@ class MilvusSearchMixin():
     async def embed_search(
         self,
         embedding_conn: AiConnectionManager,
-        data: Iterable,
-        filter: Optional[dict] = None,
+        data: Iterable[str],
+        user_id: int,
+        chat_session_num: int,
         topk: int = 5,
         cfd_min: float = 0.5,
     ):
         """Embed and search."""
 
-        user_id, session_num = self._scope(filter)
-        reference_hashes = await self._reference_hashes(user_id, session_num)
+        reference_hashes = await self._reference_hashes(user_id, chat_session_num)
         if not reference_hashes:
             return set()
 
         embed_res = await self._embed(embedding_conn, data)
         embedded_query = [i[1] for i in embed_res]
 
-        filter_sentence = _filter_to_sentence({"content_hash": reference_hashes})
+        filter_sentence = _content_hash_filter(reference_hashes)
 
         search_res = await self.pool.search(
             collection_name=self.db,

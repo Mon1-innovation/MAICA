@@ -91,9 +91,8 @@ class GenericModelHelper(AsyncCreator):
         await self.csc.vector_pool.cross_insert(
             embedding_conn=self.csc.embedding_conn,
             data=ds_set,
-            filter={
-                "user_id": -1,
-            }
+            user_id=-1,
+            chat_session_num=0,
         )
 
     async def search(self, query: str):
@@ -102,9 +101,8 @@ class GenericModelHelper(AsyncCreator):
         res_set = await vector_pool.embed_search(
             embedding_conn=self.csc.embedding_conn,
             data=[query],
-            filter={
-                "user_id": -1,
-            },
+            user_id=-1,
+            chat_session_num=0,
             cfd_min=0,
         )
 
