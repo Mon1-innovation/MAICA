@@ -198,8 +198,8 @@ async def make_inspire(fsc: FullSocketsContainer):
     summary = ellipsis_large_str(summary)
 
     prompt = _Bt(
-        f"利用提供的以下信息, 主动阐明话题并和[player]聊聊{title}:\n{summary}\n\n你不必在输出中包含内容的全部信息, 但应当融入自己的理解与思考. 你的回答应当有开头招呼, 表现为由你自主发起话题, 并使用自然有感情的聊天语气. 你应当从你自己的角度思考, 不应盲从信息中的评价和判断.",
-        f"Summarize the topic and talk about {title} with [player] using provided information below:\n{summary}\n\nYou don't have to include all information provided, but you should combine your own thinking and understanding into your response. Your reply should contain a greeting and brief introduction, act as you started the conversation with this topic, and always use natural emotional tone. You should think from your own perspective, avoid blindly following the judgements from the information.",
+        f"利用提供的以下信息, 主动阐明话题并和{{player_name}}聊聊{title}:\n{summary}\n\n你不必在输出中包含内容的全部信息, 但应当融入自己的理解与思考. 你的回答应当有开头招呼, 表现为由你自主发起话题, 并使用自然有感情的聊天语气. 你应当从你自己的角度思考, 不应盲从信息中的评价和判断.",
+        f"Summarize the topic and talk about {title} with {{player_name}} using provided information below:\n{summary}\n\nYou don't have to include all information provided, but you should combine your own thinking and understanding into your response. Your reply should contain a greeting and brief introduction, act as you started the conversation with this topic, and always use natural emotional tone. You should think from your own perspective, avoid blindly following the judgements from the information.",
     )
     return prompt
 

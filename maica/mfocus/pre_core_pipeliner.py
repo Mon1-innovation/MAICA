@@ -27,6 +27,16 @@ async def pre_core_pipelines(
     session_item = session[-1]
 
 
+    async def name_repl_pipeline():
+        """Simple pipeline to assign real name if required."""
+        # prompt_pname_repl implementation
+        if fsc.maica_settings.extra.prompt_pname_repl:
+            pname = sp.pname
+            if pname:
+                sync_messenger(info=f"Using pname {pname} due to prompt_pname_repl", type=MsgType.DEBUG)
+                session_item.context.player_name = pname
+
+
     async def mf_pipeline():
         """
         This shall go last in sequence, since any extra known_info is useful.
@@ -35,13 +45,6 @@ async def pre_core_pipelines(
         if (
             fsc.maica_settings.use_mf_now
         ):
-
-            # prompt_pname_repl implementation
-            if fsc.maica_settings.extra.prompt_pname_repl:
-                pname = sp.pname
-                if pname:
-                    sync_messenger(info=f"Using pname {pname} due to prompt_pname_repl", type=MsgType.DEBUG)
-                    session_item.context.player_name = pname
 
             mfp = MfPipeliner(session, fsc, sp)
             generated_guidance, parsed_results = await mfp.run_mf_pipeline()
@@ -100,6 +103,9 @@ async def pre_core_pipelines(
             fsc.maica_settings.temp.activated == "mspire"
         ):
             prompt_text = await make_inspire(fsc)
+            prompt_text = prompt_text.to_str(fsc.maica_settings.basic.target_lang).format_map(
+                SafeFormatDict({"player_name": session_item.context.player_name})
+            )
             session_item.content = prompt_text
 
             # MSpire has cache mechs
@@ -170,6 +176,7 @@ async def pre_core_pipelines(
 
     # Finally, form all these together
     tasks_stages: list[list[Callable[[], Awaitable]]] = [
+        [name_repl_pipeline],
         [form_mp_pipeline, form_ms_pipeline],
         [std_content_pipeline],
         [precheck_mt_pipeline, const_mf_pipeline, generic_helper_pipeline],

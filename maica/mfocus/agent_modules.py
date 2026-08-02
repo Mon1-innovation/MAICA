@@ -239,9 +239,6 @@ class AgentTools():
         """Gets value from persistent."""
         target_lang = self.fsc.maica_settings.basic.target_lang
 
-        # To improve accuracy in filtering
-        query = query.replace("[player]", "{player_name}")
-
         match self.fsc.real_sf_access_impl:
             case 0:
                 res = await self.sp.filter_llm(query)
