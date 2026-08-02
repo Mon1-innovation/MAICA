@@ -365,6 +365,10 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         # Common
         self._check_ess()
 
+        # Partial archive does not contain system
+        if self[0].role == "system":
+            self.pop(0)
+
         # Ensure row exists
         if not self.prim_key_id:
             await self.init_db()
@@ -460,10 +464,14 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         cycle = 0
         last_self_len = len(self)
         archiver = MaicaSession(self.session_num, self.fsc)
+        # to_partial_archive pops system anyway, so it's okay to sanitize here first for convenience of memory
+        archiver.sanitize()
         
         if not self.prim_key_id:
             await self.init_db()
         archiver.prim_key_id = self.prim_key_id
+        # Inherit its memory
+        archiver[0].context.memory_concl = self[0].context.memory_concl
 
         while True:
             cycle += 1
@@ -489,7 +497,7 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
 
             # Here be the deadlock preventions
             if last_self_len == len(self):
-                raise MaicaDbWarning(f"Session cropper hit unexpected dead loop.\nSelf dump: {str(self)}\nArchiver dump: {str(archiver)}")
+                raise MaicaDbError(f"Session cropper hit unexpected dead loop.\nSelf dump: {str(self)}\nArchiver dump: {str(archiver)}")
             last_self_len = len(self)
 
             if cycle >= 100:

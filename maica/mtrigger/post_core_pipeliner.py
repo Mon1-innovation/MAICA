@@ -72,7 +72,6 @@ async def post_core_pipelines(
 
                 if fsc.maica_settings.extra.mt_concl_memory >= 1:
                     # Means we should conclude memory on trim
-                    archiver[0].context.memory_concl = session[0].context.memory_concl
                     concl = await memory_concl(archiver, fsc)
 
                     if concl:
