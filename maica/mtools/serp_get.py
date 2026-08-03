@@ -86,9 +86,6 @@ If none of the information is relevant with query, you can output null.\
 
         text = selection_result.conclusion
 
-    if not text:
-        text = "未搜索到相关信息." if target_lang == 'zh' else "No relevant information found."
-
     return text, res_m
 
 if __name__ == '__main__':

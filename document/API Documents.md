@@ -174,7 +174,7 @@ MFocus等的主要思路, 是通过一个未微调的agent模型与核心模型�
         "mf_const_tools": 1,
         "esearch_llm_concl": true,
         "mf_precheck_mt": true,
-        "mt_concl_memory": 1,
+        "memory_concl_arc": 1,
         "nsfw_acceptive": true,
         "mf_context_rnds": 1,
         "mt_context_rnds": 1,
@@ -277,7 +277,7 @@ MFocus等的主要思路, 是通过一个未微调的agent模型与核心模型�
 
     + 显著提高设定数据的干预积极性.
     - 容易引入干扰信息, 考验核心模型的抗干扰能力.
-    - 效果偏弱, 在大多数情况下可能只是在浪费时间.
+    - 在大多数情况下可能只是在浪费时间.
 
 * mf_const_tools: 即使MFocus未调用工具, 也提供一些工具的结果.
 
@@ -299,13 +299,13 @@ MFocus等的主要思路, 是通过一个未微调的agent模型与核心模型�
     + 从原理上缓解MTrigger失步问题.
     - 在少数情况下对语言的自然性产生破坏.
 
-* mt_concl_memory: 实验性功能, 在session归档/清除时, 生成记忆概要用于保留有效信息.
+* memory_concl_arc: 实验性功能, 在session归档/清除时, 生成记忆概要用于保留有效信息.
 
     * 0: 关闭.
     * 1: 仅在session超长并自动裁剪时轮转概要.
     * 2: 在session自动裁剪或手动清除时轮转概要.
 
-    + 能从对话中保留持久性信息, 终于不用再全靠手填了.
+    + 对离开上下文窗口的对话生成概要, 作为短时记忆.
     - 触发生成概要的操作会变慢很多.
     - 可能导致注意力涣散, 考验核心模型的抗干扰能力.
 
@@ -1394,11 +1394,11 @@ exprop的值是该模板的附加参数, 其中item_name的值为该触发器的
 
 该模板的触发器最多存在20个.
 
-## 条目记忆模板
+## 长时记忆模板
 
 ```json
 {
-    "template": "memory_template"
+    "template": "memory_writeback_template"
 }
 ```
 
@@ -1406,7 +1406,7 @@ exprop的值是该模板的附加参数, 其中item_name的值为该触发器的
 
 如果记忆触发器被提供, MTrigger将根据对话内容, 尝试编写简洁的记忆条目, 用于mas_player_additions.
 > mas_player_additions本身由前端管理并上传至后端, 该trigger本身不会将结果同步到后端.  
-> 该记忆与mt_concl_memory性质作用不同, 后者更接近于"会话总结/上下文压缩"的概念.  
+> 该记忆与memory_concl_arc性质作用不同, 后者更接近于"会话总结/上下文压缩"的概念.  
 > 此外, 该触发器的输出将被自动与当前mas_player_additions对比去重, 这可能会导致更长的总响应时间.
 
 输出范例:

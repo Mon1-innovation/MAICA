@@ -257,10 +257,18 @@ class AgentTools():
 
     async def search_internet(self, query: str, org_query: Optional[str] = None, *args, **kwargs):
         """Searches result from internet."""
+        target_lang = self.fsc.maica_settings.basic.target_lang
         text, res_m = await internet_search(self.fsc, query)
 
         if not text:
+            text = "未搜索到相关信息." if target_lang == 'zh' else "No relevant information found."
             res_m = None
+        else:
+            instruction_text = _Bt(
+                "来自互联网的搜索结果(仅供参考, 不要照抄): ",
+                "Internet search results (for reference, do not directly copy): ",
+            ).to_str(target_lang)
+            text = instruction_text + text
 
         return text, res_m
     

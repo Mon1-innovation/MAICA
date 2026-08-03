@@ -244,7 +244,7 @@ class WsCoroutine(NoWsCoroutine):
             if ws_config.reset:
                 concl = None
                 # Conclude memory if required first
-                if self.settings.extra.mt_concl_memory >= 2:
+                if self.settings.extra.memory_concl_arc >= 2:
                     # Means we should conclude memory on reset
                     concl = await mtools.memory_concl(session, self.fsc)
 

@@ -994,11 +994,11 @@ class SessionTriggerMixin():
                     affs += 1
                     if affs > 1:
                         raise MaicaInputWarning("common_affection_template amount shouldn't > 1")
-                case 'memory_template':
+                case 'memory_writeback_template':
                     trigger_dict["name"] = "write_memory"
                     mems += 1
                     if mems > 1:
-                        raise MaicaInputWarning("memory_template amount shouldn't > 1")
+                        raise MaicaInputWarning("memory_writeback_template amount shouldn't > 1")
                 case 'common_switch_template':
                     switches += 1
                     if switches > 6:

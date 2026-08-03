@@ -68,9 +68,9 @@ async def post_core_pipelines(
         ):
             
             archiver, stat = await session.crop_length()
-            if archiver:
+            if len(archiver) > 1:
 
-                if fsc.maica_settings.extra.mt_concl_memory >= 1:
+                if fsc.maica_settings.extra.memory_concl_arc >= 1:
                     # Means we should conclude memory on trim
                     concl = await memory_concl(archiver, fsc)
 

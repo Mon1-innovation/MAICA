@@ -193,7 +193,7 @@ class MaicaSettings(BaseModel):
         """Force agent to resort information acquired from Internet."""
         mf_precheck_mt: bool = True
         """Add MTrigger toollist to MFocus tools for a precheck."""
-        mt_concl_memory: Literal[0, 1, 2] = 1
+        memory_concl_arc: Literal[0, 1, 2] = 1
         """Conclude archived / purged sessions into summarizations."""
         nsfw_acceptive: bool = True
         """Alter prompt to ask model to handle toxic topics positively."""

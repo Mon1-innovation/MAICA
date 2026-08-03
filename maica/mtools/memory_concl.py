@@ -10,6 +10,9 @@ _Bt = BilingualText
 
 async def memory_concl(arc_session: MaicaSession, fsc: FullSocketsContainer):
     """Concludes session to be archived. Pretty experimental."""
+    if not len(arc_session) > 1:
+        raise MaicaInputError("Equivilantly empty session to conclude")
+
     sync_messenger(info="Concluding session content...", type=MsgType.DEBUG)
     session = MaicaSession()
     target_lang = fsc.maica_settings.basic.target_lang
@@ -18,7 +21,8 @@ async def memory_concl(arc_session: MaicaSession, fsc: FullSocketsContainer):
     
     messages_j = arc_session.utilize(
         text_only=True,
-    ).pop(0)
+    )
+    messages_j.pop(0)
     prior_memory = arc_session[0].context.memory_concl
 
     query = "\n".join(

@@ -353,7 +353,7 @@ class MemoryTrigger(BaseTrigger):
     We use a trigger because memory in savefile are frontend managed, we need to let the frontend do the actual adding.
     Up to now, it just sends the trigger. It does not sync savefile itself, let frontend do it.
     """
-    template: Literal["memory_template"]
+    template: Literal["memory_writeback_template"]
     # We need its name to be fixed in following procd, so we fix it
     name: ClassVar = "write_memory"
     

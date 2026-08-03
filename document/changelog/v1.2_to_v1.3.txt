@@ -30,7 +30,7 @@ If you want to read in English, use a translator.
 
 + 添加高级设置mf_sf_access_impl
 
-+ 添加高级设置mt_concl_memory
++ 添加高级设置memory_concl_arc
 
 + 现在发送maica_mcore_gen_start标记断点续传介入
 
@@ -120,4 +120,4 @@ If you want to read in English, use a translator.
 
 - 现在common_affection_template trigger不再支持自定义名称
 
-+ 新增memory_template trigger
++ 新增memory_writeback_template trigger
