@@ -1206,7 +1206,7 @@ def beautify_time(dt: datetime.time, target_lang: Literal['zh', 'en', 'auto'] = 
         case time if 18 <= time.hour < 23:
             time_range = _Bt('晚上', ' at night')
         case time if 23 <= time.hour:
-            time_range = _Bt('深夜', ' at midnight')
+            time_range = _Bt('深夜', ' late at night')
 
     if include_adj:
         time_friendly = f"{time_range.zh}{time:%H:%M:%S}" if target_lang == 'zh' else f"{time:%H:%M:%S}{time_range.en}"
