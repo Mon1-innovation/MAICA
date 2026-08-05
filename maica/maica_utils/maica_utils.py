@@ -533,7 +533,7 @@ class GenCorrectionModel(BaseModel):
             )
 
         except ValidationError as ve:
-            sync_messenger(info=f"Validation failed for LLM response: {str(ve)}, trying basic fixes", type=MsgType.WARN)
+            sync_messenger(info=f"Validation failed for LLM response: {str(ve)}, trying basic fixes", type=MsgType.DEBUG)
             repaired = cls._repair_json(json_data)
 
             try:
@@ -863,13 +863,32 @@ def sync_messenger(
         info = '',
         code = 0,
         tracker_id = '',
-        error: Optional[CommonMaicaException] = None,
+        error: Optional[Exception] = None,
         type = '',
         color = '',
         no_print = False,
         **kwargs
-    ) -> tuple:
+    ):
     """It could handle most log printing and exception raising jobs pretty automatically."""
+    # Standardize errors
+    if error and not isinstance(error, CommonMaicaException):
+        if (
+            code >= 500
+            or type == MsgType.ERROR
+        ):
+            ce_type = CommonMaicaError
+        else:
+            ce_type = CommonMaicaWarning
+
+        if not info:
+            info = "Auto exception from unified exception: "
+
+        new_error = ce_type(f"{info}{str(error)}")
+        new_error.__cause__ = error
+        error = new_error
+
+        # Avoid interrupting followings
+        info = ''
 
     # For separator lines
     try:
@@ -1053,10 +1072,6 @@ def sync_messenger(
                     for stack_layer in stack[frametrack_d['error']::-1]:
                         logger.error((color or colorama.Fore.RED) + f"! ERROR happened when executing {stack_layer.function} at {stack_layer.filename}#{stack_layer.lineno}:")
                 logger.error((color or colorama.Fore.LIGHTRED_EX) + msg_print)
-
-    # This is pretty deprecated but leave it be
-    if error and error.send is False:
-        return
     
     ws_tuple = (code, status, msg_send, type)
     return ws_tuple

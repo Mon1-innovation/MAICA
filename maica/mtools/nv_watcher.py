@@ -151,7 +151,7 @@ class NvWatcher(AsyncCreator):
                 await self.main_watcher()
             except Exception as e:
                 time_now = time.time()
-                sync_messenger(info=f'Watcher temporary failure after {int(time_now - start_times[-1])}sec: {str(e)}', type=MsgType.WARN)
+                sync_messenger(info=f'Watcher temporary failure after {int(time_now - start_times[-1])}sec: ', error=e)
                 start_times.append(time_now)
         
         # If while loop quitted, the complete failure has happened
@@ -200,8 +200,7 @@ async def prepare_watcher():
     try:
         await asyncio.gather(watcher_mcore.main_watcher(), watcher_mfocus.main_watcher())
     except Exception as e:
-        traceback.print_exc()
-        sync_messenger(info=str(e), type=MsgType.ERROR)
+        sync_messenger(info="Uncaught error happened in nvwatcher: ", code=504, error=e)
 
 def start_watching():
     asyncio.run(prepare_watcher())

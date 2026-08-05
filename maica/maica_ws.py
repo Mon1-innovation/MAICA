@@ -581,50 +581,45 @@ async def prepare_thread(**kwargs):
 
     sync_messenger(info='MAICA WS server started!' if G.A.DEV_STATUS == 'serving' else 'MAICA WS server started in development mode!', type=MsgType.PRIM_SYS)
 
-    try:
-        models_info = "\n\n"
-        models_info += f"Main model: {root_csc.mcore_conn.model_actual} ({'zero-shot' if G.A.MCORE_GENERIC and int(G.A.MCORE_GENERIC) else 'trained'})\n"
-        models_info += f"MFocus model: {root_csc.mfocus_conn.model_actual}\n"
+    models_info = "\n\n"
+    models_info += f"Main model: {root_csc.mcore_conn.model_actual} ({'zero-shot' if G.A.MCORE_GENERIC and int(G.A.MCORE_GENERIC) else 'trained'})\n"
+    models_info += f"MFocus model: {root_csc.mfocus_conn.model_actual}\n"
 
-        if root_csc.mvista_conn:
-            models_info += f"MVista model: {root_csc.mvista_conn.model_actual}\n"
+    if root_csc.mvista_conn:
+        models_info += f"MVista model: {root_csc.mvista_conn.model_actual}\n"
+    else:
+        if is_mcore_vl():
+            models_info += "MVista model: Native implementation\n"
         else:
-            if is_mcore_vl():
-                models_info += "MVista model: Native implementation\n"
-            else:
-                models_info += "MVista model: Disabled\n"
+            models_info += "MVista model: Disabled\n"
 
-        if root_csc.mnerve_conn:
-            models_info += f"MNerve model: {root_csc.mnerve_conn.model_actual}\n"
-        else:
-            models_info += "MNerve model: Disabled\n"
+    if root_csc.mnerve_conn:
+        models_info += f"MNerve model: {root_csc.mnerve_conn.model_actual}\n"
+    else:
+        models_info += "MNerve model: Disabled\n"
 
-        models_info += "\n"
+    models_info += "\n"
 
-        if root_csc.vector_pool:
-            models_info += "Vector database: Enabled\n"
-        else:
-            models_info += "Vector database: Disabled\n"
+    if root_csc.vector_pool:
+        models_info += "Vector database: Enabled\n"
+    else:
+        models_info += "Vector database: Disabled\n"
 
-        if root_csc.embedding_conn:
-            models_info += f"Embedding model: {root_csc.embedding_conn.model_actual}\n"
-        else:
-            models_info += "Embedding model: Disabled\n"
+    if root_csc.embedding_conn:
+        models_info += f"Embedding model: {root_csc.embedding_conn.model_actual}\n"
+    else:
+        models_info += "Embedding model: Disabled\n"
 
-        if root_csc.reranking_conn:
-            models_info += f"Reranking model: {root_csc.reranking_conn.model_actual}\n"
-        else:
-            models_info += "Reranking model: Disabled\n"
+    if root_csc.reranking_conn:
+        models_info += f"Reranking model: {root_csc.reranking_conn.model_actual}\n"
+    else:
+        models_info += "Reranking model: Disabled\n"
 
-        models_info += "\n"
-        models_info += f"Vector searching function set enabled: {root_csc.is_vector_ready}\n"
-        models_info += f"Reranking function set enabled: {root_csc.is_reranking_ready}\n"
+    models_info += "\n"
+    models_info += f"Vector searching function set enabled: {root_csc.is_vector_ready}\n"
+    models_info += f"Reranking function set enabled: {root_csc.is_reranking_ready}\n"
 
-        sync_messenger(info=models_info, type=MsgType.PRIM_LOG)
-
-    except Exception as e:
-
-        sync_messenger(info=f"Major model deployment cannot be reached: {str(e)}, running in minimal testing mode", type=MsgType.SYS)
+    sync_messenger(info=models_info, type=MsgType.PRIM_LOG)
 
     # Generic model helper init here
     if G.A.MCORE_GENERIC and int(G.A.MCORE_GENERIC):
@@ -656,8 +651,7 @@ async def prepare_thread(**kwargs):
     except asyncio.CancelledError:
         raise
     except Exception as e:
-        error = CommonMaicaError(str(e), '504')
-        sync_messenger(error=error)
+        sync_messenger(info="Uncaught error happened in ws: ", code=504, error=e)
         raise
 
     finally:

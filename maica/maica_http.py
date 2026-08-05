@@ -252,14 +252,8 @@ class ShortConnHandler(View):
             return jsonify({"success": False, "exception": message}), status_code
 
         except Exception as e:
-            traceback.print_exc()
-            sync_messenger(info=f'Handler hit an unknown exception: {str(e)}', type=MsgType.ERROR)
-            message = (
-                "A critical exception happened serverside, contact administrator"
-                if int(G.A.NO_SEND_ERROR)
-                else str(e)
-            )
-            return jsonify({"success": False, "exception": message}), 500
+            _, _, message, _ = sync_messenger(info="Uncaught error happened in http handler: ", code=504, error=e)
+            return jsonify({"success": False, "exception": message}), 504
 
     async def wrapped_validate[T: BaseModel](
         self,
@@ -755,8 +749,7 @@ async def prepare_thread(shutdown_trigger=None, **kwargs):
     except asyncio.CancelledError:
         raise
     except Exception as e:
-        error = CommonMaicaError(str(e), '504')
-        sync_messenger(error=error)
+        sync_messenger(info="Uncaught error happened in http: ", code=504, error=e)
         raise
 
     finally:
