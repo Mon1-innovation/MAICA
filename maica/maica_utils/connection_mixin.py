@@ -188,7 +188,7 @@ class MilvusSearchMixin():
                 try:
                     await self._delete_unreferenced(inserted_hashes)
                 except Exception as cleanup_error:
-                    sync_messenger(info=f"Failed to clean up newly inserted Milvus vectors after SQL rollback: ", error=cleanup_error)
+                    sync_messenger(info="Failed to clean up newly inserted Milvus vectors after SQL rollback: ", error=cleanup_error)
                 raise
 
         sync_messenger(
