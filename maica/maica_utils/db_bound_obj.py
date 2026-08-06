@@ -84,7 +84,7 @@ class DbBoundObject(CheckDestroyed):
         else:
             item = item.strip()
             if not item:
-                self.content = self._empty
+                self.content = self._empty()
             else:
                 if item[0] not in ('[', '{'):
                     item = f"[{item}]"

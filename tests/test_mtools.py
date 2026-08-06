@@ -27,6 +27,52 @@ def test_mspire_prompt_supports_english() -> None:
     asyncio.run(scenario())
 
 
+def test_mspire_passes_query_and_closes_client(monkeypatch) -> None:
+    clients = []
+
+    class FakePage:
+        title = "Result"
+
+        async def exists(self):
+            return True
+
+        @property
+        async def summary(self):
+            return "Summary"
+
+    class FakeWikipedia:
+        def __init__(self, **_kwargs):
+            self.search_calls = []
+            self.closed = False
+            clients.append(self)
+
+        async def search(self, **kwargs):
+            self.search_calls.append(kwargs)
+            return SimpleNamespace(pages={"Result": FakePage()})
+
+        def page(self, _title):
+            return FakePage()
+
+        async def close(self):
+            self.closed = True
+
+    async def scenario() -> None:
+        monkeypatch.setattr(mspire, "ProxiedAsyncWikipedia", FakeWikipedia)
+        fsc = FullSocketsContainer()
+        fsc.maica_settings.basic.target_lang = "en"
+        fsc.maica_settings.temp.mspire.type = "precise_page"
+        fsc.maica_settings.temp.mspire.title = ["search term"]
+        title, summary = await mspire.fetch_ms_meta(fsc)
+
+        assert (title, summary) == ("Result", "Summary")
+        assert clients[0].search_calls == [
+            {"query": "search term", "ns": mspire.Namespace.MAIN, "limit": 1}
+        ]
+        assert clients[0].closed
+
+    asyncio.run(scenario())
+
+
 def test_mpostal_forms_a_letter_without_calling_a_regex_object() -> None:
     class FakeConnection:
         async def make_completion(self, **_kwargs):

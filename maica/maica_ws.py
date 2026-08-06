@@ -25,6 +25,7 @@ _CONNS_LIST = [
 
 _Bt = BilingualText
 
+
 class WsCoroutine(NoWsCoroutine):
     """
     Force ws existence.
@@ -45,7 +46,11 @@ class WsCoroutine(NoWsCoroutine):
 
         # The ip part
         websocket = self.fsc.websocket
-        xff = websocket.request.headers.get("X-Forwarded-For")
+        xff = (
+            websocket.request.headers.get("X-Forwarded-For")
+            if int(G.A.TRUST_XFF)
+            else None
+        )
         if xff:
             self.remote_addr = xff.split(',')[0].strip()
         else:
@@ -500,12 +505,12 @@ async def main_logic(
                 no_print=True,
             )
 
-            thread_instance = await WsCoroutine.async_create(
+            coro_instance = await WsCoroutine.async_create(
                 fsc,
             )
 
             # This is stage 1
-            permit = await thread_instance.check_permit()
+            permit = await _wait_for_permit(coro_instance)
             if not permit.get('id'):
                 raise MaicaPermissionError(f"Authentication returned no user id: {permit}")
 
@@ -513,7 +518,7 @@ async def main_logic(
             sync_messenger(info=f"Locking session for {permit['id']} named {permit['username']}", type=MsgType.LOG)
 
             # Runs until break
-            await thread_instance.function_switch()
+            await coro_instance.function_switch()
         
         except CommonMaicaException as ce:
 
@@ -568,6 +573,19 @@ async def main_logic(
 
 
 # ====================================================== Task starter ======================================================
+
+
+async def _wait_for_permit(coro_instance):
+    try:
+        return await asyncio.wait_for(
+            coro_instance.check_permit(),
+            timeout=float(G.A.AUTH_TIMEOUT),
+        )
+    except TimeoutError as exc:
+        raise MaicaPermissionWarning(
+            "Authentication timed out",
+            408,
+        ) from exc
 
 
 async def prepare_thread(**kwargs):

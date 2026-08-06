@@ -15,7 +15,7 @@ import sqlalchemy
 from sqlalchemy.orm import load_only
 
 from typing import *
-from pydantic import BaseModel, RootModel, EmailStr, Field, model_validator
+from pydantic import BaseModel, RootModel, EmailStr, Field, field_validator, model_validator
 from .encryption_utils import crypto_object, decrypt_token, encrypt_token
 from .maica_utils import *
 from .database_utils import *
@@ -44,6 +44,13 @@ class FscUsersFuncMixin():
         email: Optional[EmailStr] = Field(default=None, max_length=150)
         password: str = Field(min_length=1, max_length=72)
         type: Optional[Literal["username", "email"]] = None
+
+        @field_validator("password")
+        @classmethod
+        def validate_bcrypt_length(cls, value: str):
+            if len(value.encode("utf-8")) > 72:
+                raise ValueError("Password cannot exceed 72 UTF-8 bytes")
+            return value
         
         @property
         def identity(self):

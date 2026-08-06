@@ -1,6 +1,8 @@
 """Import layer 2.1"""
 
 import orjson
+import ipaddress
+import socket
 from urllib.parse import urlsplit
 
 from typing import *
@@ -10,6 +12,92 @@ from .setting_utils import MaicaSettings
 from .maica_utils import *
 
 _Bt = BilingualText
+
+
+def _parse_vision_host_rules(raw_rules: str):
+    denied_hosts: set[str] = set()
+    allowed_hosts: set[str] = set()
+    denied_networks = []
+    allowed_networks = []
+    deny_unmarked = False
+
+    for raw_rule in (raw_rules or "").split(","):
+        raw_rule = raw_rule.strip()
+        if not raw_rule:
+            continue
+        denied = raw_rule.startswith("!")
+        rule = raw_rule[1:].strip() if denied else raw_rule
+        if not rule:
+            raise ValueError("MAICA_VISION_HOST_ALLOWLIST contains an empty negated rule")
+        if rule == "*":
+            if not denied:
+                raise ValueError("MAICA_VISION_HOST_ALLOWLIST supports only the !* wildcard")
+            deny_unmarked = True
+            continue
+
+        try:
+            network = ipaddress.ip_network(rule, strict=False)
+        except ValueError as exc:
+            if "/" in rule or ":" in rule:
+                raise ValueError(
+                    f"Invalid MAICA_VISION_HOST_ALLOWLIST rule: {raw_rule}"
+                ) from exc
+            (denied_hosts if denied else allowed_hosts).add(rule.lower().rstrip("."))
+        else:
+            (denied_networks if denied else allowed_networks).append(network)
+
+    return (
+        denied_hosts,
+        allowed_hosts,
+        denied_networks,
+        allowed_networks,
+        deny_unmarked,
+    )
+
+
+def _vision_host_allowed(host: str, raw_rules: str) -> bool:
+    host = host.lower().rstrip(".")
+    (
+        denied_hosts,
+        allowed_hosts,
+        denied_networks,
+        allowed_networks,
+        deny_unmarked,
+    ) = _parse_vision_host_rules(raw_rules)
+
+    if host in denied_hosts:
+        return False
+    if host in allowed_hosts:
+        return True
+
+    try:
+        host_ip = ipaddress.ip_address(host)
+        resolved_ips = {host_ip}
+    except ValueError:
+        if not denied_networks and not allowed_networks:
+            return not deny_unmarked
+        try:
+            resolved_ips = {
+                ipaddress.ip_address(item[4][0])
+                for item in socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
+            }
+        except socket.gaierror as exc:
+            raise MaicaInputWarning(
+                f"MVista image URL host cannot be resolved: {host}"
+            ) from exc
+
+    def matches(networks) -> bool:
+        return any(
+            ip.version == network.version and ip in network
+            for ip in resolved_ips
+            for network in networks
+        )
+
+    if matches(denied_networks):
+        return False
+    if matches(allowed_networks):
+        return True
+    return not deny_unmarked
 
 class WsBasicConfig(BaseModel):
     type: Literal["auth", "ping", "sping", "reconn", "params", "query"]
@@ -73,11 +161,6 @@ class WsQueryConfig(WsBasicConfig):
             if len(self.root) > int(G.A.KEEP_MVISTA):
                 raise MaicaInputWarning(f"At most {G.A.KEEP_MVISTA} images are allowed per query")
 
-            allowed_hosts = {
-                host.strip().lower()
-                for host in G.A.VISION_HOST_ALLOWLIST.split(",")
-                if host.strip()
-            }
             for image_url in self.root:
                 if len(image_url) > 2048:
                     raise MaicaInputWarning("MVista image URL is too long")
@@ -86,7 +169,7 @@ class WsQueryConfig(WsBasicConfig):
                     raise MaicaInputWarning("MVista accepts only absolute HTTP(S) image URLs")
                 if parsed.username or parsed.password:
                     raise MaicaInputWarning("MVista image URLs cannot contain credentials")
-                if allowed_hosts and parsed.hostname.lower() not in allowed_hosts:
+                if not _vision_host_allowed(parsed.hostname, G.A.VISION_HOST_ALLOWLIST):
                     raise MaicaPermissionWarning("MVista image URL host is not allowed", 403)
 
             return self

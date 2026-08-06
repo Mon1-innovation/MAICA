@@ -6,6 +6,7 @@ If you want to read in English, use a translator.
 + 数据库交互普遍采用sqlalchemy
 
 + 添加与RAG相关的支持
+    > v1.3.000.rc2 的向量引用结构迁移会重建不兼容的 Milvus collection. Milvus 中的 RAG 向量被视为可由客户端启动时重新上传的非持久性缓存; 如需保留该开发版本窗口内的向量, 请在升级前自行备份.
 
 + 更新会话管理到v2
 

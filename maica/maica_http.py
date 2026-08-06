@@ -218,7 +218,11 @@ class ShortConnHandler(View):
             endpoint = request.endpoint
             function_routed = getattr(self, endpoint)
 
-            xff = request.headers.get('X-Forwarded-For')
+            xff = (
+                request.headers.get('X-Forwarded-For')
+                if int(G.A.TRUST_XFF)
+                else None
+            )
             if xff:
                 self.remote_addr = xff.split(',')[0].strip()
             else:

@@ -90,6 +90,12 @@ def test_partial_archive_can_create_its_first_row() -> None:
     asyncio.run(scenario())
 
 
+def test_db_bound_object_loads_blank_text_as_empty_content() -> None:
+    persistent = SessionPersistent()
+    persistent.load("   ")
+    assert persistent.content == {}
+
+
 def test_session_and_buffer_gc_remove_only_stale_unlocked_entries() -> None:
     class Destroyable:
         def __init__(self) -> None:

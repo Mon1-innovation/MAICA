@@ -2,9 +2,10 @@ import asyncio
 from pathlib import Path
 
 import pytest
+from dotenv import dotenv_values
 
 from maica import maica_starter, maica_ws
-from maica.maica_utils import G
+from maica.maica_utils import G, MaicaPermissionWarning
 from maica.maica_utils.users_utils import auth_token_reference
 
 
@@ -193,6 +194,98 @@ def test_http_uses_external_shutdown_trigger(monkeypatch) -> None:
             G.A.HTTP_HOST, G.A.HTTP_PORT = old_host, old_port
 
     asyncio.run(scenario())
+
+
+def test_websocket_authentication_has_a_configurable_timeout() -> None:
+    async def scenario() -> None:
+        old_timeout = G.A.AUTH_TIMEOUT
+        G.A.AUTH_TIMEOUT = "0.01"
+
+        class HangingAuth:
+            async def check_permit(self):
+                await asyncio.Event().wait()
+
+        try:
+            with pytest.raises(MaicaPermissionWarning, match="timed out") as exc_info:
+                await maica_ws._wait_for_permit(HangingAuth())
+            assert exc_info.value.error_code == 408
+        finally:
+            G.A.AUTH_TIMEOUT = old_timeout
+
+    asyncio.run(scenario())
+
+
+def test_partial_root_connection_failure_closes_successes(monkeypatch) -> None:
+    class Connection:
+        def __init__(self):
+            self.closed = False
+
+        async def close(self):
+            self.closed = True
+
+    async def scenario() -> None:
+        connection = Connection()
+
+        async def succeeds():
+            return connection
+
+        async def fails():
+            raise RuntimeError("connection failed")
+
+        monkeypatch.setattr(maica_starter.ConnUtils, "test_success", succeeds, raising=False)
+        monkeypatch.setattr(maica_starter.ConnUtils, "test_failure", fails, raising=False)
+
+        with pytest.raises(RuntimeError, match="connection failed"):
+            await maica_starter._create_root_connections(
+                ["test_success", "test_failure"]
+            )
+        assert connection.closed
+
+    asyncio.run(scenario())
+
+
+def test_config_validation_is_offline_and_reports_invalid_values(monkeypatch) -> None:
+    values = {
+        key: value
+        for key, value in dotenv_values(
+            Path(__file__).parents[1] / "maica" / "env_basis"
+        ).items()
+        if value is not None
+    }
+    values.update({
+        "MAICA_IS_REAL_ENV": "1",
+        "MAICA_DB_ADDR": "sqlite",
+        "MAICA_AUTH_DB": "auth.db",
+        "MAICA_DATA_DB": "data.db",
+        "MAICA_MCORE_ADDR": "http://model.invalid/v1",
+        "MAICA_MFOCUS_ADDR": "http://model.invalid/v1",
+    })
+    monkeypatch.setattr(maica_starter, "load_env", values.get)
+
+    maica_starter.validate_config()
+    values["MAICA_HTTP_PORT"] = "70000"
+    with pytest.raises(RuntimeError, match="MAICA_HTTP_PORT"):
+        maica_starter.validate_config()
+
+
+def test_validate_only_startup_skips_database_initialization(monkeypatch) -> None:
+    old_validate_only = maica_starter.validate_only
+    called = []
+
+    def fake_check_params():
+        maica_starter.validate_only = True
+
+    def fail_database_init():
+        raise AssertionError("database initialization ran")
+
+    monkeypatch.setattr(maica_starter, "check_params", fake_check_params)
+    monkeypatch.setattr(maica_starter, "validate_config", lambda: called.append("validated"))
+    monkeypatch.setattr(maica_starter, "check_data_init", fail_database_init)
+    try:
+        maica_starter.full_start()
+        assert called == ["validated"]
+    finally:
+        maica_starter.validate_only = old_validate_only
 
 
 def test_release_workflow_skips_an_existing_pypi_version() -> None:

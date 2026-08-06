@@ -14,22 +14,19 @@ from wikipediaapi import AsyncWikipedia, Namespace
 from maica.maica_utils import *
 from .censor import *
 
-# We need to apply some patches to make wikipediaapi work with proxy
-import httpx
+# We need an explicit lifecycle hook for the persistent async client.
 from wikipediaapi import AsyncHTTPClient, AsyncWikipediaResource
 
 class ProxiedAsyncHTTPClient(AsyncHTTPClient):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """
-        Patched to accept proxy params.
+        Keep the library client and expose its missing close hook.
         """
         super().__init__(*args, **kwargs)
-        self._client = httpx.AsyncClient(
-            headers=self._default_headers,
-            **self._client_kwargs,
-            # transport=httpx.AsyncHTTPTransport(),
-        )
+
+    async def close(self) -> None:
+        await self._client.aclose()
 
 class ProxiedAsyncWikipedia(AsyncWikipediaResource, ProxiedAsyncHTTPClient):
     pass
@@ -58,6 +55,19 @@ async def fetch_ms_meta(fsc: FullSocketsContainer):
         language = wiki_target_lang,
         proxy = G.A.PROXY_ADDR or None,
     )
+
+    try:
+        return await _fetch_ms_meta(fsc, wiki_cursor, target_lang, ms_m)
+    finally:
+        await wiki_cursor.close()
+
+
+async def _fetch_ms_meta(
+    fsc: FullSocketsContainer,
+    wiki_cursor: ProxiedAsyncWikipedia,
+    target_lang: str,
+    ms_m: MaicaSettings.Temp.MSpire,
+):
 
     async def inspect_page(title: str):
         await fsc.messenger(
@@ -124,6 +134,7 @@ async def fetch_ms_meta(fsc: FullSocketsContainer):
 
     async def fuzzy_search(kwd: str, ns: int = Namespace.MAIN, limit: int = 1):
         results = await wiki_cursor.search(
+            query=kwd,
             ns=ns,
             limit=limit
         )

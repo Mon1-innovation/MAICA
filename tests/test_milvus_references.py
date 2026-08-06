@@ -93,6 +93,12 @@ def test_vectors_are_shared_and_deleted_after_the_last_reference() -> None:
 
             assert sorted(embedding.inputs) == ["first only", "shared"]
             assert len(store.vectors) == 2
+            assert await store.audit_reference_consistency() == set()
+
+            missing_hash = store._content_hash("shared")
+            missing_vector = store.vectors.pop(missing_hash)
+            assert await store.audit_reference_consistency() == {missing_hash}
+            store.vectors[missing_hash] = missing_vector
             async with DatabaseUtils.SessionData() as dbs:
                 refs = (await dbs.scalars(sqlalchemy.select(SqlVectorReference))).all()
                 assert len(refs) == 3
@@ -101,19 +107,18 @@ def test_vectors_are_shared_and_deleted_after_the_last_reference() -> None:
             assert results == {"shared"}
 
             store.fail_deletes = True
-            with pytest.raises(RuntimeError, match="Milvus delete failed"):
-                await store.cross_insert(embedding, [], **first_scope)
+            await store.cross_insert(embedding, [], **first_scope)
             async with DatabaseUtils.SessionData() as dbs:
                 refs = (await dbs.scalars(sqlalchemy.select(SqlVectorReference))).all()
-                assert len(refs) == 3
+                assert len(refs) == 1
             assert len(store.vectors) == 2
 
             store.fail_deletes = False
             await store.cross_insert(embedding, [], **first_scope)
-            assert {row["raw_text"] for row in store.vectors.values()} == {"shared"}
+            assert {row["raw_text"] for row in store.vectors.values()} == {"shared", "first only"}
 
             await store.cross_insert(embedding, [], **second_scope)
-            assert store.vectors == {}
+            assert {row["raw_text"] for row in store.vectors.values()} == {"first only"}
 
             await store.cross_insert(
                 embedding,

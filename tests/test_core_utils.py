@@ -86,6 +86,20 @@ def test_credentials_require_exactly_one_identity() -> None:
             raise AssertionError("ambiguous credentials were accepted")
 
 
+def test_credentials_enforce_flarum_and_bcrypt_length_limits() -> None:
+    for payload in (
+        {"username": "u" * 101, "password": "secret"},
+        {"email": f"{'e' * 139}@example.com", "password": "secret"},
+        {"username": "user", "password": "密" * 25},
+    ):
+        try:
+            FscUsersFuncMixin.TokenCridential.model_validate(payload)
+        except Exception:
+            pass
+        else:
+            raise AssertionError("oversized credentials were accepted")
+
+
 def test_english_ordinal_suffix_handles_teens() -> None:
     assert [add_seq_suffix(value) for value in (1, 2, 3, 11, 12, 13, 21)] == [
         "1 st", "2 nd", "3 rd", "11 th", "12 th", "13 th", "21 st"

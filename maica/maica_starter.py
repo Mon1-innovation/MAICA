@@ -1,6 +1,7 @@
 import os
 import argparse
 import asyncio
+import json
 import colorama
 import signal
 from typing import *
@@ -52,10 +53,11 @@ colorama.init(autoreset=True)
 initialized = False
 data_initialized = False
 start_target: Literal['chat', 'tts', 'all'] = 'chat'
+validate_only = False
 
 def check_params(envdir: str=None, extra_envdir: list=None, silent=False, parse_cli=True, **kwargs):
     """This will only run once. Recalling will not take effect, except passing in extra kwargs."""
-    global initialized, start_target
+    global initialized, start_target, validate_only
 
     def init_parser():
         parser = argparse.ArgumentParser(description="Start MAICA Illuminator deployment or run self-maintenance functions")
@@ -63,6 +65,11 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, parse_
         parser.add_argument('-e', '--envdir', help='Include external env file for running deployment, specify every time')
         parser.add_argument('-s', '--silent', action="store_true", help='Run without logging (unrecommended for deployment)')
         parser.add_argument('--test', action="store_true", help='Run announcing test status')
+        parser.add_argument(
+            '--validate-config',
+            action="store_true",
+            help='Validate configuration without initializing databases or external connections',
+        )
         excluse_1 = parser.add_mutually_exclusive_group()
         excluse_1.add_argument('-k', '--keys', choices=['path', 'export', 'import'], nargs='?', const='path', help='Get path of RSA keys, or export/import to/from current directory')
         excluse_1.add_argument('-d', '--databases', choices=['path', 'export', 'import'], nargs='?', const='path', help='Get path of databases, or export/import to/from current directory')
@@ -75,6 +82,7 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, parse_
     envdir = envdir or args.envdir
     silent = silent or args.silent
     test = args.test
+    validate_only = args.validate_config
     operate_keys = args.keys
     operate_databases = args.databases
     operate_templates = args.templates
@@ -251,11 +259,17 @@ Quitting...\
         raise RuntimeError("MAICA_AUTH_DB and MAICA_DATA_DB must be different SQLite files")
 
     try:
-        if int(load_env("MAICA_F2B_COUNT")) <= 0 or float(load_env("MAICA_F2B_TIME")) < 0:
+        if (
+            int(load_env("MAICA_F2B_COUNT")) <= 0
+            or float(load_env("MAICA_F2B_TIME")) < 0
+            or float(load_env("MAICA_AUTH_TIMEOUT")) <= 0
+        ):
             raise ValueError
     except (TypeError, ValueError) as exc:
         initialized = False
-        raise RuntimeError("MAICA_F2B_COUNT must be positive and MAICA_F2B_TIME non-negative") from exc
+        raise RuntimeError(
+            "MAICA_F2B_COUNT and MAICA_AUTH_TIMEOUT must be positive, and MAICA_F2B_TIME non-negative"
+        ) from exc
 
     last_version = check_marking()
     is_fresh = parse(last_version) <= parse("1.0.000")
@@ -283,6 +297,98 @@ Quitting...\
         create_marking()
     data_initialized = True
 
+
+def validate_config():
+    """Validate deterministic configuration syntax without external I/O."""
+    from maica.maica_utils.ws_config import _parse_vision_host_rules
+
+    errors = []
+
+    def value(key):
+        return load_env(f"MAICA_{key}")
+
+    for key in ("DB_ADDR", "AUTH_DB", "DATA_DB"):
+        if not value(key):
+            errors.append(f"MAICA_{key} is required")
+    if start_target != "tts":
+        for key in ("MCORE_ADDR", "MFOCUS_ADDR"):
+            if not value(key):
+                errors.append(f"MAICA_{key} is required for the {start_target} target")
+
+    if (
+        value("DB_ADDR") == "sqlite"
+        and value("AUTH_DB")
+        and value("DATA_DB")
+        and os.path.abspath(value("AUTH_DB")) == os.path.abspath(value("DATA_DB"))
+    ):
+        errors.append("MAICA_AUTH_DB and MAICA_DATA_DB must be different SQLite files")
+
+    binary_keys = (
+        "IS_REAL_ENV", "CALC_TOKENS", "ALT_TOOLCALL", "BASIC_MFOCUS",
+        "FULL_RESTFUL", "KICK_STALE_CONNS", "ENABLE_X11", "NO_SERP",
+        "NO_SEND_ERROR", "MCORE_GENERIC", "DEBUG_WARNS", "WRITE_NVW",
+        "NVW_INSECURE_SSH", "TRUST_XFF",
+    )
+    for key in binary_keys:
+        if value(key) not in {"0", "1"}:
+            errors.append(f"MAICA_{key} must be 0 or 1")
+    if value("IS_REAL_ENV") != "1":
+        errors.append("MAICA_IS_REAL_ENV must be 1 for deployment")
+
+    integer_ranges = {
+        "WS_PORT": (1, 65535),
+        "HTTP_PORT": (1, 65535),
+        "OPENAI_TIMEOUT": (0, None),
+        "EMBEDDING_DIMS": (1, None),
+        "F2B_COUNT": (1, None),
+        "KEEP_MVISTA": (0, None),
+        "GC_SESSIONS": (0, None),
+        "ROTATE_MSCACHE": (0, None),
+        "ROTATE_MVISTA": (0, None),
+        "SESSION_MAX_LENGTH": (1, None),
+        "CENSOR_MSPIRE": (0, None),
+        "CENSOR_QUERY": (0, None),
+    }
+    for key, (minimum, maximum) in integer_ranges.items():
+        try:
+            parsed = int(value(key))
+            if parsed < minimum or (maximum is not None and parsed > maximum):
+                raise ValueError
+        except (TypeError, ValueError):
+            expected = f">= {minimum}" if maximum is None else f"between {minimum} and {maximum}"
+            errors.append(f"MAICA_{key} must be an integer {expected}")
+
+    for key, minimum, inclusive in (
+        ("F2B_TIME", 0.0, True),
+        ("AUTH_TIMEOUT", 0.0, False),
+    ):
+        try:
+            parsed = float(value(key))
+            if parsed < minimum or (parsed == minimum and not inclusive):
+                raise ValueError
+        except (TypeError, ValueError):
+            operator = ">=" if inclusive else ">"
+            errors.append(f"MAICA_{key} must be a number {operator} {minimum:g}")
+
+    for key in (
+        "MCORE_EXTRA", "MFOCUS_EXTRA", "MVISTA_EXTRA", "MNERVE_EXTRA",
+        "EMBEDDING_EXTRA", "RERANKING_EXTRA", "TP_APIS", "SERVERS_LIST",
+    ):
+        try:
+            parsed = json.loads(value(key))
+            if not isinstance(parsed, dict):
+                raise ValueError
+        except (TypeError, ValueError):
+            errors.append(f"MAICA_{key} must be a JSON object")
+
+    try:
+        _parse_vision_host_rules(value("VISION_HOST_ALLOWLIST"))
+    except ValueError as exc:
+        errors.append(str(exc))
+
+    if errors:
+        raise RuntimeError("Invalid configuration:\n- " + "\n- ".join(errors))
+
 def check_warns():
     if load_env('MAICA_DB_ADDR') == 'sqlite':
         sync_messenger(info='\nMAICA using SQLite database detected\nWhile MAICA Illuminator is fully compatible with SQLite, it can be a significant drawback of performance under heavy workload\nIf this is a public service instance, it\'s strongly recommended to use MySQL/MariaDB instead', type=MsgType.DEBUG)
@@ -303,10 +409,9 @@ async def start_all(
     root_csc_items = []
     try:
         connection_names = _CHAT_CONNS_LIST if start_target != 'tts' else _TTS_CONNS_LIST
-        root_csc_items = await asyncio.gather(
-            *(getattr(ConnUtils, name)() for name in connection_names)
-        )
+        root_csc_items = await _create_root_connections(connection_names)
         root_csc_kwargs = dict(zip(connection_names, root_csc_items))
+        await _audit_vector_consistency(root_csc_kwargs.get("vector_pool"))
 
         if start_target == 'chat':
             await maica_start_all(**root_csc_kwargs, shutdown_trigger=shutdown_trigger)
@@ -332,6 +437,65 @@ async def start_all(
         )
 
     sync_messenger(info="Everything done, bye", type=MsgType.DEBUG)
+
+
+async def _create_root_connections(connection_names):
+    tasks = [
+        asyncio.create_task(getattr(ConnUtils, name)())
+        for name in connection_names
+    ]
+    try:
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+    except BaseException:
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        connections = [
+            task.result()
+            for task in tasks
+            if not task.cancelled() and task.exception() is None and task.result()
+        ]
+        await asyncio.gather(
+            *(connection.close() for connection in connections),
+            return_exceptions=True,
+        )
+        raise
+
+    errors = [result for result in results if isinstance(result, BaseException)]
+    if errors:
+        connections = [
+            result for result in results
+            if result and not isinstance(result, BaseException)
+        ]
+        await asyncio.gather(
+            *(connection.close() for connection in connections),
+            return_exceptions=True,
+        )
+        raise errors[0]
+
+    return results
+
+
+async def _audit_vector_consistency(vector_pool):
+    if not vector_pool:
+        return
+    try:
+        missing = await vector_pool.audit_reference_consistency()
+    except Exception as exc:
+        sync_messenger(
+            info=f"Couldn't audit SQL/Milvus reference consistency during startup: {exc}",
+            type=MsgType.WARN,
+        )
+        return
+    if missing:
+        sync_messenger(
+            info=(
+                f"SQL/Milvus consistency audit found {len(missing)} referenced "
+                "vectors missing from Milvus; clients should re-upload their archives"
+            ),
+            type=MsgType.WARN,
+        )
 
 
 async def _wait_for_first(tasks):
@@ -429,6 +593,10 @@ async def _start_with_sigterm(target):
 
 def full_start():
     check_params()
+    if validate_only:
+        validate_config()
+        print("MAICA configuration is valid")
+        return
     check_data_init()
     check_warns()
     asyncio.run(_start_with_sigterm(start_target))

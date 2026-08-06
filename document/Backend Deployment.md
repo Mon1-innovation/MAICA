@@ -51,11 +51,19 @@ SQLite 部署将 `MAICA_DB_ADDR` 设为 `sqlite`，且认证库与数据库必�
 
 * HTTP 请求优先通过 `Authorization: Bearer <access_token>` 鉴权；URL 参数仅为兼容旧客户端。
 * `POST /register` 用于在线生成令牌；旧的 GET 形式会把凭据放入 URL，不应继续用于新客户端。
-* 设置 `MAICA_VISION_HOST_ALLOWLIST`，避免视觉模型读取非预期主机。
+* `MAICA_VISION_HOST_ALLOWLIST` 接受逗号分隔的主机名、IP 或 CIDR。无前缀条目显式放行，`!` 前缀条目拒绝，`!*` 拒绝所有未显式标记的主机；未标记主机解析出的任一 IP 命中拒绝网段时也会被拒绝。默认拒绝 RFC1918 私网。
+* WebSocket 必须在 `MAICA_AUTH_TIMEOUT` 秒内完成认证，默认 60 秒。
+* `MAICA_TRUST_XFF` 默认为 `0`；仅当客户端无法绕过可信反向代理直连 MAICA 时才设为 `1`。
 * NVWatcher 默认校验 SSH host key。仅在隔离且可信的旧网络中才可设置 `MAICA_NVW_INSECURE_SSH=1`。
 * 不要公开 `.env`、认证数据库、私钥或 NVWatcher 密码。
 
 # 启动前验证
+
+仅检查配置格式且不初始化数据库或外部连接：
+
+```bash
+maica -e .env --validate-config
+```
 
 ```bash
 python -m pip install -e ".[dev]"

@@ -1,4 +1,5 @@
 import asyncio
+import socket
 from io import BytesIO
 
 from PIL import Image
@@ -56,3 +57,48 @@ def test_vision_urls_reject_non_http_schemes_and_honor_allowlist() -> None:
             raise AssertionError(f"unsafe vision URL was accepted: {url}")
 
     G.A.VISION_HOST_ALLOWLIST = ""
+
+
+def test_vision_host_rules_support_deny_cidr_dns_and_default_deny(monkeypatch) -> None:
+    old_keep = G.A.KEEP_MVISTA
+    old_rules = G.A.VISION_HOST_ALLOWLIST
+    G.A.KEEP_MVISTA = "3"
+    base = {"type": "query", "query": "describe", "chat_session": 0}
+
+    def resolve(host, *_args, **_kwargs):
+        address = "10.1.2.3" if host == "internal.example" else "203.0.113.8"
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (address, 0))]
+
+    monkeypatch.setattr(socket, "getaddrinfo", resolve)
+    try:
+        G.A.VISION_HOST_ALLOWLIST = "images.example,!10.0.0.0/8"
+        WsQueryConfig.model_validate(
+            base | {"vision": ["https://images.example/picture.jpg"]}
+        )
+        WsQueryConfig.model_validate(
+            base | {"vision": ["https://public.example/picture.jpg"]}
+        )
+
+        for url in (
+            "https://10.2.3.4/picture.jpg",
+            "https://internal.example/picture.jpg",
+        ):
+            try:
+                WsQueryConfig.model_validate(base | {"vision": [url]})
+            except Exception:
+                pass
+            else:
+                raise AssertionError(f"denied vision URL was accepted: {url}")
+
+        G.A.VISION_HOST_ALLOWLIST = "images.example,!*"
+        try:
+            WsQueryConfig.model_validate(
+                base | {"vision": ["https://public.example/picture.jpg"]}
+            )
+        except Exception:
+            pass
+        else:
+            raise AssertionError("!* accepted an unmarked host")
+    finally:
+        G.A.KEEP_MVISTA = old_keep
+        G.A.VISION_HOST_ALLOWLIST = old_rules

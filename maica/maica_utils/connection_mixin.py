@@ -63,6 +63,21 @@ class MilvusSearchMixin():
         return {row["content_hash"]: row["raw_text"] for row in rows}
 
 
+    async def audit_reference_consistency(self, batch_size: int = 256) -> set[str]:
+        """Return SQL reference hashes whose vectors are missing from Milvus."""
+        async with DatabaseUtils.SessionData() as dbs:
+            stmt = sqlalchemy.select(SqlVectorReference.content_hash).distinct()
+            referenced = set((await dbs.scalars(stmt)).all())
+
+        missing = set()
+        pending = list(referenced)
+        for offset in range(0, len(pending), batch_size):
+            batch = set(pending[offset:offset + batch_size])
+            existing = await self._query_vectors(batch)
+            missing.update(batch - set(existing))
+        return missing
+
+
     async def _ensure_vectors(
         self,
         embedding_conn: AiConnectionManager,
@@ -146,18 +161,16 @@ class MilvusSearchMixin():
                 ])
                 await dbs.flush()
 
-                if to_remove:
-                    still_referenced_stmt = sqlalchemy.select(SqlVectorReference.content_hash).where(
-                        SqlVectorReference.content_hash.in_(to_remove)
-                    ).distinct()
-                    still_referenced = set((await dbs.scalars(still_referenced_stmt)).all())
-                    orphaned = to_remove - still_referenced
-                    if orphaned:
-                        await self.pool.delete(
-                            collection_name=self.db,
-                            ids=list(orphaned),
-                            consistency_level="Strong",
-                        )
+        # SQL is the source of truth. Delete vectors only after its transaction
+        # commits, so a commit failure can never leave live references dangling.
+        if to_remove:
+            try:
+                await self._delete_unreferenced(to_remove)
+            except Exception as e:
+                sync_messenger(
+                    info="Failed to clean up unreferenced Milvus vectors: ",
+                    error=e,
+                )
 
         return len(to_add), len(to_remove)
 

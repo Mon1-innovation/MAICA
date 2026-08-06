@@ -122,6 +122,8 @@ MAICA_WS_HOST = '0.0.0.0'
 MAICA_WS_PORT = '5000'
 MAICA_HTTP_HOST = '0.0.0.0'
 MAICA_HTTP_PORT = '6000'
+# Trust the leftmost xff address from upstream proxy or not
+MAICA_TRUST_XFF = '0'
 
 # Proxy used to access Internet - Not applied to inner connections
 MAICA_PROXY_ADDR = ''# socks5://192.168.1.1:7890
@@ -150,6 +152,10 @@ MAICA_TP_APIS = '
         "GAODE_WEATHER": ""
     }
 '
+# Comma-separated MVista host/IP/CIDR rules. Prefix a deny rule with !.
+# Explicit host rules take precedence over its resolved IP; !* denies any unmarked host.
+# Unmarked hosts are otherwise allowed after their resolved IPs pass deny rules.
+MAICA_VISION_HOST_ALLOWLIST = '!10.0.0.0/8,!172.16.0.0/12,!192.168.0.0/16'
 
 
 # Account level behavior settings
@@ -160,6 +166,8 @@ MAICA_KICK_STALE_CONNS = '1'
 MAICA_F2B_COUNT = '20'
 # Fail2Ban time
 MAICA_F2B_TIME = '600'
+# Seconds allowed for a WebSocket connection to authenticate
+MAICA_AUTH_TIMEOUT = '60'
 
 
 # Miscellaneous behavior settings
@@ -172,9 +180,6 @@ MAICA_GC_SESSIONS = '8'
 MAICA_ROTATE_MSCACHE = '0'
 # Keep [] MVista imgs per user at most
 MAICA_KEEP_MVISTA = '3'
-# Optional comma-separated host allow-list for image URLs sent to model servers.
-# Leave empty for compatibility; public deployments should set their upload host(s).
-MAICA_VISION_HOST_ALLOWLIST = ''
 # Delete each MVista img after [] hours or not
 MAICA_ROTATE_MVISTA = '8'
 # Enable MAICA X11 forwarding for special cases or not
