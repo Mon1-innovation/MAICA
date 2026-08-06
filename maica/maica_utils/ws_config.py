@@ -28,10 +28,10 @@ def _parse_vision_host_rules(raw_rules: str):
         denied = raw_rule.startswith("!")
         rule = raw_rule[1:].strip() if denied else raw_rule
         if not rule:
-            raise ValueError("MAICA_VISION_HOST_ALLOWLIST contains an empty negated rule")
+            raise ValueError("MAICA_MVISTA_TRUSTED contains an empty negated rule")
         if rule == "*":
             if not denied:
-                raise ValueError("MAICA_VISION_HOST_ALLOWLIST supports only the !* wildcard")
+                raise ValueError("MAICA_MVISTA_TRUSTED supports only the !* wildcard")
             deny_unmarked = True
             continue
 
@@ -40,7 +40,7 @@ def _parse_vision_host_rules(raw_rules: str):
         except ValueError as exc:
             if "/" in rule or ":" in rule:
                 raise ValueError(
-                    f"Invalid MAICA_VISION_HOST_ALLOWLIST rule: {raw_rule}"
+                    f"Invalid MAICA_MVISTA_TRUSTED rule: {raw_rule}"
                 ) from exc
             (denied_hosts if denied else allowed_hosts).add(rule.lower().rstrip("."))
         else:
@@ -169,7 +169,7 @@ class WsQueryConfig(WsBasicConfig):
                     raise MaicaInputWarning("MVista accepts only absolute HTTP(S) image URLs")
                 if parsed.username or parsed.password:
                     raise MaicaInputWarning("MVista image URLs cannot contain credentials")
-                if not _vision_host_allowed(parsed.hostname, G.A.VISION_HOST_ALLOWLIST):
+                if not _vision_host_allowed(parsed.hostname, G.A.MVISTA_TRUSTED):
                     raise MaicaPermissionWarning("MVista image URL host is not allowed", 403)
 
             return self

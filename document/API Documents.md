@@ -646,7 +646,7 @@ MAICA长连接有一系列附加功能可用.
 
 * MVista的实现基于独立VLM, 后端部署不一定有实现. 向未实现MVista的后端发起请求会被忽略.
 * MVista是MFocus的下属模块. 要使用MVista, 你必须启用MFocus.
-* 图片链接只接受绝对HTTP(S) URL. 部署可通过`MAICA_VISION_HOST_ALLOWLIST`配置规则, 详见配置注释.
+* 图片链接只接受绝对HTTP(S) URL. 部署可通过`MAICA_MVISTA_TRUSTED`配置规则, 详见配置注释.
 
 * 图片链接可以一次上传多个, 但最多不超过后端实例允许保存的上限.
 * 图片链接必须是完整链接, 可以来自后端专用存储或任意网络图床, 必须开放公开下载.

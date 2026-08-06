@@ -40,7 +40,7 @@ def test_invalid_image_is_rejected() -> None:
 
 def test_vision_urls_reject_non_http_schemes_and_honor_allowlist() -> None:
     G.A.KEEP_MVISTA = "3"
-    G.A.VISION_HOST_ALLOWLIST = "images.example.com"
+    G.A.MVISTA_TRUSTED = "images.example.com"
     base = {"type": "query", "query": "describe", "chat_session": 0}
 
     accepted = WsQueryConfig.model_validate(
@@ -56,12 +56,12 @@ def test_vision_urls_reject_non_http_schemes_and_honor_allowlist() -> None:
         else:
             raise AssertionError(f"unsafe vision URL was accepted: {url}")
 
-    G.A.VISION_HOST_ALLOWLIST = ""
+    G.A.MVISTA_TRUSTED = ""
 
 
 def test_vision_host_rules_support_deny_cidr_dns_and_default_deny(monkeypatch) -> None:
     old_keep = G.A.KEEP_MVISTA
-    old_rules = G.A.VISION_HOST_ALLOWLIST
+    old_rules = G.A.MVISTA_TRUSTED
     G.A.KEEP_MVISTA = "3"
     base = {"type": "query", "query": "describe", "chat_session": 0}
 
@@ -71,7 +71,7 @@ def test_vision_host_rules_support_deny_cidr_dns_and_default_deny(monkeypatch) -
 
     monkeypatch.setattr(socket, "getaddrinfo", resolve)
     try:
-        G.A.VISION_HOST_ALLOWLIST = "images.example,!10.0.0.0/8"
+        G.A.MVISTA_TRUSTED = "images.example,!10.0.0.0/8"
         WsQueryConfig.model_validate(
             base | {"vision": ["https://images.example/picture.jpg"]}
         )
@@ -90,7 +90,7 @@ def test_vision_host_rules_support_deny_cidr_dns_and_default_deny(monkeypatch) -
             else:
                 raise AssertionError(f"denied vision URL was accepted: {url}")
 
-        G.A.VISION_HOST_ALLOWLIST = "images.example,!*"
+        G.A.MVISTA_TRUSTED = "images.example,!*"
         try:
             WsQueryConfig.model_validate(
                 base | {"vision": ["https://public.example/picture.jpg"]}
@@ -101,4 +101,4 @@ def test_vision_host_rules_support_deny_cidr_dns_and_default_deny(monkeypatch) -
             raise AssertionError("!* accepted an unmarked host")
     finally:
         G.A.KEEP_MVISTA = old_keep
-        G.A.VISION_HOST_ALLOWLIST = old_rules
+        G.A.MVISTA_TRUSTED = old_rules

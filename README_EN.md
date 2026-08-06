@@ -79,4 +79,4 @@ python -m pytest -q
 python -m ruff check maica tests examples
 ```
 
-Scripts in `examples/` are manual integration checks requiring real external services. Public deployments should terminate TLS at a reverse proxy, prefer the HTTP `Authorization: Bearer` header, protect `maica/keys/prv.key`, verify NVWatcher SSH host keys, and configure the hostname/IP/CIDR rules in `MAICA_VISION_HOST_ALLOWLIST`.
+Scripts in `examples/` are manual integration checks requiring real external services. Public deployments should terminate TLS at a reverse proxy, prefer the HTTP `Authorization: Bearer` header, protect `maica/keys/prv.key`, verify NVWatcher SSH host keys, and configure the hostname/IP/CIDR rules in `MAICA_MVISTA_TRUSTED`.

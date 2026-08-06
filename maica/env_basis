@@ -155,7 +155,7 @@ MAICA_TP_APIS = '
 # Comma-separated MVista host/IP/CIDR rules. Prefix a deny rule with !.
 # Explicit host rules take precedence over its resolved IP; !* denies any unmarked host.
 # Unmarked hosts are otherwise allowed after their resolved IPs pass deny rules.
-MAICA_VISION_HOST_ALLOWLIST = '!10.0.0.0/8,!172.16.0.0/12,!192.168.0.0/16'
+MAICA_MVISTA_TRUSTED = '!10.0.0.0/8,!172.16.0.0/12,!192.168.0.0/16'
 
 
 # Account level behavior settings

@@ -382,7 +382,7 @@ def validate_config():
             errors.append(f"MAICA_{key} must be a JSON object")
 
     try:
-        _parse_vision_host_rules(value("VISION_HOST_ALLOWLIST"))
+        _parse_vision_host_rules(value("MVISTA_TRUSTED"))
     except ValueError as exc:
         errors.append(str(exc))
 
@@ -482,10 +482,10 @@ async def _audit_vector_consistency(vector_pool):
         return
     try:
         missing = await vector_pool.audit_reference_consistency()
-    except Exception as exc:
+    except Exception as e:
         sync_messenger(
-            info=f"Couldn't audit SQL/Milvus reference consistency during startup: {exc}",
-            type=MsgType.WARN,
+            info=f"Couldn't audit SQL/Milvus reference consistency during startup: ",
+            error=e,
         )
         return
     if missing:
@@ -496,6 +496,8 @@ async def _audit_vector_consistency(vector_pool):
             ),
             type=MsgType.WARN,
         )
+    else:
+        sync_messenger(info="SQL/Milvus integrity check passed", type=MsgType.DEBUG)
 
 
 async def _wait_for_first(tasks):

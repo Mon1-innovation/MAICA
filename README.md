@@ -83,4 +83,4 @@ python -m ruff check maica tests examples
 
 ## 部署安全
 
-公开实例应在反向代理上启用 TLS；HTTP 鉴权优先使用 `Authorization: Bearer <access_token>`，避免把令牌写入 URL。请保管 `maica/keys/prv.key`，为 NVWatcher 配置 SSH host key，并通过 `MAICA_VISION_HOST_ALLOWLIST` 的主机/IP/CIDR 规则限制视觉模型的图片来源。
+公开实例应在反向代理上启用 TLS；HTTP 鉴权优先使用 `Authorization: Bearer <access_token>`，避免把令牌写入 URL。请保管 `maica/keys/prv.key`，为 NVWatcher 配置 SSH host key，并通过 `MAICA_MVISTA_TRUSTED` 的主机/IP/CIDR 规则限制视觉模型的图片来源。
