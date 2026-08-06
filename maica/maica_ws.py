@@ -225,6 +225,8 @@ class WsCoroutine(NoWsCoroutine):
     # Completion section
     async def generate_response(self, ws_config: WsQueryConfig):
 
+        await ws_config.validate_vision_hosts()
+
         # Initiations
         chat_session = self.settings.temp.chat_session = ws_config.chat_session
 

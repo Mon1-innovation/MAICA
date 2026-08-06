@@ -1,5 +1,6 @@
 """Import layer 2.1"""
 
+import asyncio
 import orjson
 import ipaddress
 import socket
@@ -55,7 +56,7 @@ def _parse_vision_host_rules(raw_rules: str):
     )
 
 
-def _vision_host_allowed(host: str, raw_rules: str) -> bool:
+async def _vision_host_allowed(host: str, raw_rules: str) -> bool:
     host = host.lower().rstrip(".")
     (
         denied_hosts,
@@ -81,10 +82,12 @@ def _vision_host_allowed(host: str, raw_rules: str) -> bool:
         if not denied_networks and not allowed_networks:
             return allow_unmarked and not deny_unmarked
         try:
-            resolved_ips = {
-                ipaddress.ip_address(item[4][0])
-                for item in socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
-            }
+            addr_info = await asyncio.get_running_loop().getaddrinfo(
+                host,
+                None,
+                type=socket.SOCK_STREAM,
+            )
+            resolved_ips = {ipaddress.ip_address(item[4][0]) for item in addr_info}
         except socket.gaierror as exc:
             raise MaicaInputWarning(
                 f"MVista image URL host cannot be resolved: {host}"
@@ -173,8 +176,19 @@ class WsQueryConfig(WsBasicConfig):
                     raise MaicaInputWarning("MVista accepts only absolute HTTP(S) image URLs")
                 if parsed.username or parsed.password:
                     raise MaicaInputWarning("MVista image URLs cannot contain credentials")
-                if not _vision_host_allowed(parsed.hostname, G.A.MVISTA_TRUSTED):
-                    raise MaicaPermissionWarning("MVista image URL host is not allowed", 403)
+            return self
+
+        async def validate_hosts(self):
+            hosts = {
+                urlsplit(image_url).hostname
+                for image_url in self.root
+            }
+            allowed = await asyncio.gather(*(
+                _vision_host_allowed(host, G.A.MVISTA_TRUSTED)
+                for host in hosts
+            ))
+            if not all(allowed):
+                raise MaicaPermissionWarning("MVista image URL host is not allowed", 403)
 
             return self
 
@@ -221,6 +235,11 @@ class WsQueryConfig(WsBasicConfig):
     """Post-proc-realtime."""
 
     activated: Literal["query", "mspire", "mpostal"] = "query"
+
+    async def validate_vision_hosts(self):
+        if self.vision:
+            await self.vision.validate_hosts()
+        return self
 
     @model_validator(mode="after")
     def exclusion_det(self):
