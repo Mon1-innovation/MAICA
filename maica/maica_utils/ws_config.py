@@ -70,12 +70,16 @@ def _vision_host_allowed(host: str, raw_rules: str) -> bool:
     if host in allowed_hosts:
         return True
 
+    has_allow_rules = bool(allowed_hosts or allowed_networks)
+    has_deny_rules = bool(denied_hosts or denied_networks)
+    allow_unmarked = has_deny_rules or not has_allow_rules
+
     try:
         host_ip = ipaddress.ip_address(host)
         resolved_ips = {host_ip}
     except ValueError:
         if not denied_networks and not allowed_networks:
-            return not deny_unmarked
+            return allow_unmarked and not deny_unmarked
         try:
             resolved_ips = {
                 ipaddress.ip_address(item[4][0])
@@ -97,7 +101,7 @@ def _vision_host_allowed(host: str, raw_rules: str) -> bool:
         return False
     if matches(allowed_networks):
         return True
-    return not deny_unmarked
+    return allow_unmarked and not deny_unmarked
 
 class WsBasicConfig(BaseModel):
     type: Literal["auth", "ping", "sping", "reconn", "params", "query"]

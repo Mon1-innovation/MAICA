@@ -184,8 +184,8 @@ async def _fetch_ms_meta(
         title = convert(title, 'zh-cn')
         summary = convert(summary, 'zh-cn')
 
-        if G.A.CENSOR_MSPIRE != '0':
-            tolerance = int(G.A.CENSOR_MSPIRE)
+        tolerance = int(G.A.CENSOR_MSPIRE or 0)
+        if tolerance:
 
             title_censor = await has_censored(title)
             summary_censor = await has_censored(summary)
