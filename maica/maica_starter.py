@@ -484,7 +484,7 @@ async def _audit_vector_consistency(vector_pool):
         missing = await vector_pool.audit_reference_consistency()
     except Exception as e:
         sync_messenger(
-            info=f"Couldn't audit SQL/Milvus reference consistency during startup: ",
+            info="Couldn't audit SQL/Milvus reference consistency during startup: ",
             error=e,
         )
         return
