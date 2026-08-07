@@ -21,38 +21,43 @@ async def internet_search(fsc: FullSocketsContainer, query):
             raise MaicaInternetWarning('Search result is empty')
         return res_m
 
-    results_list = []
-    try:
-        res_m = await _search(DummyClass(name="serp"), query, target_lang)
+    class EnetSearchConcl(GenCorrectionModel):
+        conclusion: Optional[str] = Field(
+            description="你总结出的内容, 应是一个单行自然句." if target_lang == 'zh' else "Your conclusion, should be a single line of nature sentence."
+        )
+    completion_args = None
 
-        for index, res_i in enumerate(res_m.results):
-            source = f"({res_i.source}) " if res_i.source else ""
-            results_list.append(
-                f"{index + 1}. {source}{res_i.title}: {res_i.description}"
-            )
+    # Traditional serp impl
+    if not int(G.A.RESPONSES_SERP):
 
-        sync_messenger(info=f'MFocus got {len(res_m.results)} information lines from search engine', type=MsgType.INFO)
+        results_list = []
+        try:
+            res_m = await _search(DummyClass(name="serp"), query, target_lang)
 
-    except Exception as e:
-        res_m = None
-        await messenger(fsc.websocket, "mfocus_serp_failed", f"MFocus serp failed: {str(e)}", 408, fsc.tracker_id)
+            for index, res_i in enumerate(res_m.results):
+                source = f"({res_i.source}) " if res_i.source else ""
+                results_list.append(
+                    f"{index + 1}. {source}{res_i.title}: {res_i.description}"
+                )
 
-    # Early return if llm conc not required
-    if not results_list:
-        text = ''
+            sync_messenger(info=f'MFocus got {len(res_m.results)} information lines from search engine', type=MsgType.INFO)
 
-    elif not fsc.maica_settings.extra.esearch_llm_concl:
-        text = '; '.join(results_list[:5])
+        except Exception as e:
+            res_m = None
+            await messenger(fsc.websocket, "mfocus_serp_failed", f"MFocus serp failed: {str(e)}", 408, fsc.tracker_id)
+
+        # Early return if llm conc not required
+        if not results_list:
+            text = ''
+
+        elif not fsc.maica_settings.extra.esearch_llm_concl:
+            text = '; '.join(results_list[:5])
     
-    else:
-        class EnetSearchConcl(GenCorrectionModel):
-            conclusion: Optional[str] = Field(
-                description="你总结出的内容, 应是一个单行自然句." if target_lang == 'zh' else "Your conclusion, should be a single line of nature sentence."
-            )
+        else:
 
-        system = MaicaSessionItem(
-            "system",
-            _Bt("""\
+            system = MaicaSessionItem(
+                "system",
+                _Bt("""\
 你是一个人工智能助手, 你接下来会收到一些来自互联网的信息和一个问题.
 你应将信息中与问题相关的部分整理总结成一个自然句, 保持内容简洁有效, 并将其输出.
 如果没有任何信息与问题相关, 你可以输出null.\
@@ -62,13 +67,48 @@ You are a helpful assistant, now you will recieve some information from the Inte
 Conclude information related with query briefly in a natural sentence, while keeping it concise and useful, then output.
 If none of the information is relevant with query, you can output null.\
 """
+                )
+            )
+            session.append(system)
+
+            user_query = MaicaSessionItem(
+                "user",
+                f'Information: {'; '.join(results_list)}\nQuestion: {query}',
+                target_lang=target_lang,
+            )
+            session.append(user_query)
+
+            completion_args = {
+                "input": session.utilize(
+                    manual_prompt=True,
+                    ignore_additions=True,
+                ),
+                "text": pyd_to_openai(EnetSearchConcl)
+            }
+
+    # Responses web_search impl
+    else:
+
+        res_m = "RESPONSES_SERP"
+        system = MaicaSessionItem(
+            "system",
+            _Bt("""\
+你是一个人工智能助手, 你接下来会收到一个问题.
+你应调用工具搜索互联网, 将结果整理总结成一个自然句, 保持内容简洁有效, 并将其输出.
+如果没有任何结果与问题相关, 你可以输出null.\
+""",
+"""\
+You are a helpful assistant, now you will recieve a question.
+Search Internet with tool and conclude the results briefly in a natural sentence, keep it concise and useful, then output.
+If none of the results is relevant with query, you can output null.\
+"""
             )
         )
         session.append(system)
 
         user_query = MaicaSessionItem(
             "user",
-            f'Information: {'; '.join(results_list)}\nQuestion: {query}',
+            f'Question: {query}',
             target_lang=target_lang,
         )
         session.append(user_query)
@@ -78,9 +118,11 @@ If none of the information is relevant with query, you can output null.\
                 manual_prompt=True,
                 ignore_additions=True,
             ),
+            "tools": [{"type": "web_search"}],
             "text": pyd_to_openai(EnetSearchConcl)
         }
 
+    if completion_args:
         resp = await conn.make_completion(**completion_args)
         selection_result = EnetSearchConcl.model_validate_json(resp.output_text)
 
