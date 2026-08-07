@@ -174,8 +174,6 @@ class WsQueryConfig(WsBasicConfig):
                 parsed = urlsplit(image_url)
                 if parsed.scheme not in {"http", "https"} or not parsed.hostname:
                     raise MaicaInputWarning("MVista accepts only absolute HTTP(S) image URLs")
-                if parsed.username or parsed.password:
-                    raise MaicaInputWarning("MVista image URLs cannot contain credentials")
             return self
 
         async def validate_hosts(self):

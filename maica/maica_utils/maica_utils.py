@@ -728,6 +728,55 @@ async def sleep_forever() -> None:
     future = asyncio.Future()
     await future
 
+async def run_staged_tasks(
+        tasks_stages: Sequence[Sequence[Callable[[], Awaitable[Any]]]],
+    ) -> None:
+    """Run task factories in stages, allowing a task to span adjacent stages.
+
+    A task factory that occurs in consecutive stages is started at its first
+    occurrence and awaited at its last occurrence. Other tasks are awaited in
+    the stage where they occur. A later, non-consecutive occurrence starts a
+    new task.
+    """
+    stages = tuple(tuple(stage) for stage in tasks_stages)
+
+    for stage in stages:
+        task_ids = [id(task_factory) for task_factory in stage]
+        if len(task_ids) != len(set(task_ids)):
+            raise ValueError("A task may only occur once in the same stage")
+
+    async def invoke(task_factory: Callable[[], Awaitable[Any]]) -> Any:
+        return await task_factory()
+
+    running_tasks: dict[int, asyncio.Task[Any]] = {}
+
+    try:
+        async with asyncio.TaskGroup() as tg:
+            for stage_index, stage in enumerate(stages):
+                next_task_ids = (
+                    {id(task_factory) for task_factory in stages[stage_index + 1]}
+                    if stage_index + 1 < len(stages)
+                    else set()
+                )
+                ending_tasks: list[asyncio.Task[Any]] = []
+
+                for task_factory in stage:
+                    task_id = id(task_factory)
+                    running_task = running_tasks.get(task_id)
+                    if running_task is None:
+                        running_task = tg.create_task(invoke(task_factory))
+                        running_tasks[task_id] = running_task
+
+                    if task_id not in next_task_ids:
+                        ending_tasks.append(running_task)
+                        del running_tasks[task_id]
+
+                if ending_tasks:
+                    await asyncio.gather(*ending_tasks)
+    except* Exception as eg:
+        # Raise one regular exception so callers need not handle ExceptionGroup.
+        raise eg.exceptions[0]
+
 def alt_tools(tools: list) -> list:
     """If ALT_TOOLCALL"""
     match G.A.ALT_TOOLCALL:

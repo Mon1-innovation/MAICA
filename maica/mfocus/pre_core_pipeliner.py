@@ -6,8 +6,6 @@ Could include:
 - mf_check_mt
 ...
 """
-import asyncio
-
 from typing import *
 
 from .mfocus_llm import MfPipeliner
@@ -183,13 +181,6 @@ async def pre_core_pipelines(
         [mf_pipeline],
     ]
 
-    for stage in tasks_stages:
-        try:
-            async with asyncio.TaskGroup() as tg:
-                for task in stage:
-                    tg.create_task(task())
-        except* Exception as eg:
-            # We raise the first exception for common excepts to handle
-            raise eg.exceptions[0]
+    await run_staged_tasks(tasks_stages)
 
     # And we should be good to move on
