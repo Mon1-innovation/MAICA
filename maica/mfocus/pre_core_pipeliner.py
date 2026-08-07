@@ -174,11 +174,30 @@ async def pre_core_pipelines(
 
     # Finally, form all these together
     tasks_stages: list[list[Callable[[], Awaitable]]] = [
-        [name_repl_pipeline],
-        [form_mp_pipeline, form_ms_pipeline],
-        [std_content_pipeline],
-        [precheck_mt_pipeline, const_mf_pipeline, generic_helper_pipeline],
-        [mf_pipeline],
+        [
+            name_repl_pipeline, # sync
+        ],
+        [
+            form_mp_pipeline,
+            form_ms_pipeline,
+        ],
+        [
+            std_content_pipeline, # sync
+        ],
+        [
+            const_mf_pipeline,
+
+            # begin here
+            generic_helper_pipeline,
+            precheck_mt_pipeline, 
+        ],
+        [
+            mf_pipeline,
+
+            # retrieve here
+            generic_helper_pipeline,
+            precheck_mt_pipeline,
+        ],
     ]
 
     await run_staged_tasks(tasks_stages)
