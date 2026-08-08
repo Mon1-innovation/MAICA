@@ -98,8 +98,14 @@ async def post_core_pipelines(
 
     # Finally, form all these together
     tasks_stages: list[list[Callable[[], Awaitable]]] = [
-        [mt_pipeline, quality_chk_pipeline, save_ms_pipeline],
-        [save_session_pipeline],
+        [
+            mt_pipeline,
+            quality_chk_pipeline,
+            save_ms_pipeline,
+        ],
+        [
+            save_session_pipeline, # We make it wait to avoid failure behavior inconsistency
+        ],
     ]
 
     await run_staged_tasks(tasks_stages)
