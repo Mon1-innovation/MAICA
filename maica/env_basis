@@ -313,6 +313,7 @@ MTTS_HTTP_PORT = '7000'
 # These fields of MAICA are used even for deploying MTTS only:
 # MAICA_IS_REAL_ENV (fill manually)
 # MAICA_OPENAI_TIMEOUT
+# MAICA_TRUST_XFF
 # MAICA_DB_ADDR (fill manually)
 # MAICA_DB_USER (fill manually)
 # MAICA_DB_PASSWORD (fill manually)

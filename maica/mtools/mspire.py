@@ -160,18 +160,18 @@ async def _fetch_ms_meta(
         case "in_precise_category":
             step_1 = await fuzzy_search(title, ns=Namespace.CATEGORY)
             step_2 = step_1[0]
-            recur_res = await recur_random(step_2, 7)
+            recur_res = await recur_random(step_2, 10)
             result = recur_res
 
         case "in_fuzzy_category":
             step_1 = await fuzzy_search(title, ns=Namespace.CATEGORY, limit=ms_m.sample)
             step_2 = choice(step_1)
-            recur_res = await recur_random(step_2, 7)
+            recur_res = await recur_random(step_2, 10)
             result = recur_res
 
         case "in_fuzzy_all":
             title = "Category:" + title
-            recur_res = await recur_random(title, 7)
+            recur_res = await recur_random(title, 10)
             result = recur_res
 
     result: list[str]
