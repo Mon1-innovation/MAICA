@@ -250,6 +250,12 @@ class AgentTools():
         if res:
             res = [i.strip('. ') for i in res]
             text = '; '.join(res)
+
+            instruction_text = _Bt(
+                "来自存档的查询结果(仅供参考, 不要逐字照抄): ",
+                "Persistent search results (for reference, do not copy word for word): ",
+            ).to_str(target_lang)
+            text = instruction_text + text
         else:
             text = "没有找到相关记忆, 可能是没有记录." if target_lang == 'zh' else "Relevant memory not found, possibly not recorded."
 
@@ -265,8 +271,8 @@ class AgentTools():
             res_m = None
         else:
             instruction_text = _Bt(
-                "来自互联网的搜索结果(仅供参考, 不要照抄): ",
-                "Internet search results (for reference, do not directly copy): ",
+                "来自互联网的搜索结果(仅供参考, 不要逐字照抄): ",
+                "Internet search results (for reference, do not copy word for word): ",
             ).to_str(target_lang)
             text = instruction_text + text
 
