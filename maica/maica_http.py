@@ -1,6 +1,7 @@
 from quart import Quart, request, jsonify, send_file, Response
 from quart.views import View
 from quart.wrappers import Request as QuartRequest
+from quart.wrappers.request import Body as QuartBody
 import os
 import asyncio
 import json
@@ -12,6 +13,7 @@ import colorama
 import logging
 
 from werkzeug.datastructures import FileStorage
+from werkzeug.exceptions import RequestEntityTooLarge
 from hypercorn.config import Config
 from hypercorn.asyncio import serve
 from typing import *
@@ -39,19 +41,19 @@ _DEFAULT_CONTENT_LENGTH = 1 * 1024 * 1024
 _MVISTA_CONTENT_LENGTH = 32 * 1024 * 1024
 
 
+class AdjustableBody(QuartBody):
+    def set_max_content_length(self, limit, content_length=None):
+        self._max_content_length = limit
+        if limit is not None and (
+            (content_length is not None and content_length > limit)
+            or len(self._data) > limit
+        ):
+            self._must_raise = RequestEntityTooLarge()
+            self.set_complete()
+
+
 class MaicaRequest(QuartRequest):
-    def __init__(self, method, scheme, path, *args, max_content_length=None, **kwargs):
-        if method == "POST" and path == "/vista":
-            max_content_length = _MVISTA_CONTENT_LENGTH
-        super().__init__(
-            method,
-            scheme,
-            path,
-            *args,
-            max_content_length=max_content_length,
-            **kwargs,
-        )
-        self.max_content_length = max_content_length
+    body_class = AdjustableBody
 
 
 # ====================================================== Initiation and registration ======================================================
@@ -108,10 +110,17 @@ def pkg_init_maica_http():
 app = Quart(import_name=__name__)
 app.request_class = MaicaRequest
 app.config['JSON_AS_ASCII'] = False
-app.config['MAX_CONTENT_LENGTH'] = _DEFAULT_CONTENT_LENGTH
+app.config['MAX_CONTENT_LENGTH'] = _MVISTA_CONTENT_LENGTH
 
 quart_logger = logging.getLogger('hypercorn.error')
 quart_logger.disabled = True
+
+
+@app.before_request
+def set_request_content_length():
+    limit = _MVISTA_CONTENT_LENGTH if request.endpoint == 'upload_vista' else _DEFAULT_CONTENT_LENGTH
+    request.max_content_length = limit
+    request.body.set_max_content_length(limit, request.content_length)
 
 # ====================================================== Initiation and registration ends ======================================================
 

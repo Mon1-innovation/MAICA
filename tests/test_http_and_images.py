@@ -4,14 +4,19 @@ import threading
 from io import BytesIO
 
 from PIL import Image
-from werkzeug.datastructures import Headers
+from quart import Quart, request
+from quart.testing import make_test_body_with_headers
+from werkzeug.datastructures import FileStorage
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from maica.maica_http import (
     _DEFAULT_CONTENT_LENGTH,
     _MVISTA_CONTENT_LENGTH,
+    AdjustableBody,
+    MaicaRequest,
     app,
     jfy_res,
+    set_request_content_length,
 )
 from maica.maica_utils import G, MaicaInputWarning, WsQueryConfig
 from maica.mtools.mvista.img_proc import ImgByUuid
@@ -42,52 +47,74 @@ def test_image_detection_conversion_and_save_are_cross_platform(tmp_path, monkey
 
 
 def test_vista_request_body_uses_its_32_mib_limit() -> None:
-    async def send_push_promise(_path, _headers):
-        return None
-
-    def make_request(path: str, content_length: int | None = None):
-        headers = Headers()
-        if content_length is not None:
-            headers["Content-Length"] = str(content_length)
-        return app.request_class(
-            "POST",
-            "http",
-            path,
-            b"",
-            headers,
-            "",
-            "1.1",
-            {"type": "http"},
-            max_content_length=app.config["MAX_CONTENT_LENGTH"],
-            send_push_promise=send_push_promise,
-        )
-
     async def scenario() -> None:
-        body = b"x" * (_DEFAULT_CONTENT_LENGTH + 1)
+        test_app = Quart(__name__)
+        test_app.request_class = MaicaRequest
+        test_app.config["MAX_CONTENT_LENGTH"] = _MVISTA_CONTENT_LENGTH
+        test_app.before_request(set_request_content_length)
 
-        vista_request = make_request("/vista")
-        vista_request.body.set_result(body)
-        assert await vista_request.body == body
-        assert vista_request.max_content_length == _MVISTA_CONTENT_LENGTH
+        async def parse_upload():
+            form = await request.form
+            files = await request.files
+            return {
+                "token": form["access_token"],
+                "size": len(files["content"].read()),
+            }
 
-        oversized_vista_request = make_request(
-            "/vista", _MVISTA_CONTENT_LENGTH + 1
+        test_app.add_url_rule(
+            "/vista",
+            endpoint="upload_vista",
+            methods=["POST"],
+            view_func=parse_upload,
         )
-        try:
-            await oversized_vista_request.body
-        except RequestEntityTooLarge:
-            pass
-        else:
-            raise AssertionError("the MVista request body limit was not enforced")
+        test_app.add_url_rule(
+            "/other",
+            endpoint="other_upload",
+            methods=["POST"],
+            view_func=parse_upload,
+        )
 
-        regular_request = make_request("/other")
-        regular_request.body.set_result(body)
-        try:
-            await regular_request.body
-        except RequestEntityTooLarge:
-            pass
-        else:
-            raise AssertionError("the default request body limit was not enforced")
+        image_data = b"x" * (1024 * 1024 + 1)
+        image_file = FileStorage(
+            stream=BytesIO(image_data),
+            filename="image.jpg",
+            content_type="image/jpeg",
+        )
+        body, headers = make_test_body_with_headers(
+            form={"access_token": "token"},
+            files={"content": image_file},
+            app=test_app,
+        )
+        client = test_app.test_client()
+
+        response = await client.post("/vista", data=body, headers=headers)
+        assert response.status_code == 200
+        assert await response.get_json() == {"token": "token", "size": len(image_data)}
+
+        response = await client.post("/other", data=body, headers=headers)
+        assert response.status_code == 413
+
+    asyncio.run(scenario())
+
+
+def test_adjustable_body_enforces_retroactive_and_hard_limits() -> None:
+    async def scenario() -> None:
+        buffered_body = AdjustableBody(None, _MVISTA_CONTENT_LENGTH)
+        buffered_body.set_result(b"x" * (_DEFAULT_CONTENT_LENGTH + 1))
+        buffered_body.set_max_content_length(_DEFAULT_CONTENT_LENGTH)
+
+        declared_body = AdjustableBody(
+            _MVISTA_CONTENT_LENGTH + 1,
+            _MVISTA_CONTENT_LENGTH,
+        )
+
+        for body in (buffered_body, declared_body):
+            try:
+                await body
+            except RequestEntityTooLarge:
+                pass
+            else:
+                raise AssertionError("the request body limit was not enforced")
 
     asyncio.run(scenario())
 
