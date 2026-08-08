@@ -1,5 +1,6 @@
 from quart import Quart, request, jsonify, send_file, Response
 from quart.views import View
+from quart.wrappers import Request as QuartRequest
 import os
 import asyncio
 import json
@@ -33,6 +34,24 @@ _WATCHES_LIST = [
     "embedding",
     "reranking",
 ]
+
+_DEFAULT_CONTENT_LENGTH = 1 * 1024 * 1024
+_MVISTA_CONTENT_LENGTH = 32 * 1024 * 1024
+
+
+class MaicaRequest(QuartRequest):
+    def __init__(self, method, scheme, path, *args, max_content_length=None, **kwargs):
+        if method == "POST" and path == "/vista":
+            max_content_length = _MVISTA_CONTENT_LENGTH
+        super().__init__(
+            method,
+            scheme,
+            path,
+            *args,
+            max_content_length=max_content_length,
+            **kwargs,
+        )
+        self.max_content_length = max_content_length
 
 
 # ====================================================== Initiation and registration ======================================================
@@ -87,17 +106,12 @@ def pkg_init_maica_http():
     known_servers = json.loads(G.A.SERVERS_LIST)
 
 app = Quart(import_name=__name__)
+app.request_class = MaicaRequest
 app.config['JSON_AS_ASCII'] = False
-app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = _DEFAULT_CONTENT_LENGTH
 
 quart_logger = logging.getLogger('hypercorn.error')
 quart_logger.disabled = True
-
-@app.before_request
-def set_max_content_length():
-    if request.endpoint == 'upload_vista':
-        request.max_content_length = 32 * 1024 * 1024
-
 
 # ====================================================== Initiation and registration ends ======================================================
 

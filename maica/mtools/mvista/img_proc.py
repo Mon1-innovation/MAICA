@@ -140,7 +140,7 @@ class ImgByUuid():
     def compress(self, mw=1920, mh=1080, q=85):
         """Compresses the wrapped picture."""
         try:
-            img = Image.open(self._bio)
+            img = Image.open(BytesIO(self._rfb()))
             if img.format not in _ALLOWED_FORMATS:
                 raise MaicaInputWarning(f"Input file format {img.format!r} is not supported")
             self.format = _FORMAT_MIMES[img.format]
