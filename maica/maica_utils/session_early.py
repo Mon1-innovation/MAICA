@@ -262,42 +262,47 @@ class SessionPersistentMixin():
         data1 = _rf('_mas_pm_would_come_to_spaceroom')
         if data1:
             _ap('{player_name}希望来到太空教室和莫妮卡在一起.', "{player_name} would like to cross over to be together with Monika.")
+
+        # Holidays
         
         data1 = _rf('_mas_o31_tt_count')
         if data1:
             _ap('莫妮卡与{player_name}一起过了万圣节, 并要到了糖果.', "Monika and {player_name} have gone trick-or-treating on Halloween.")
-        elif data1 is False:
+        elif not data1 and data1 is not None:
             _ap('莫妮卡和{player_name}还没有在万圣节要过糖果.', "Monika and {player_name} haven't gone trick-or-treating on Halloween yet.")
         
         data1 = _rf('_mas_d25_spent_d25')
         if data1:
             _ap('莫妮卡与{player_name}一起过了圣诞节.', "Monika and {player_name} have spent Christmas together.")
-        elif data1 is False:
+        else:
             _ap('莫妮卡和{player_name}还没有一起过圣诞节.', "Monika and {player_name} haven't spent Christmas together yet.")
         
         data1 = _rf('_mas_nye_spent_nye')
-        if data1:
+        data2 = _rf('_mas_nye_spent_nyd')
+        if any((data1, data2)):
             _ap('莫妮卡与{player_name}一起过了新年.', "Monika and {player_name} have spent New Year's Eve together.")
-        elif data1 is False:
+        else:
             _ap('莫妮卡和{player_name}还没有一起过新年.', "Monika and {player_name} haven't spent New Year's Eve together yet.")
         
         data1 = _rf('_mas_player_bday_spent_time')
         if data1:
             _ap('莫妮卡给{player_name}庆祝过生日.', "Monika has celebrated {player_name}'s birthday.")
-        elif data1 is False:
+        else:
             _ap('莫妮卡还没有庆祝过{player_name}的生日.', "Monika hasn't celebrated {player_name}'s birthday yet.")
         
         data1 = _rf('_mas_f14_spent_f14')
         if data1:
             _ap('莫妮卡与{player_name}一起过了情人节.', "Monika and {player_name} have spent Valentine's day together.")
-        elif data1 is False:
+        else:
             _ap('莫妮卡和{player_name}还没有一起过情人节.', "Monika and {player_name} haven't spent Valentine's day together yet.")
         
         data1 = _rf('_mas_bday_said_happybday')
         if data1:
             _ap('{player_name}庆祝过莫妮卡的生日.', "{player_name} has celebrated Monika's birthday.")
-        elif data1 is False:
+        else:
             _ap('{player_name}还没有给莫妮卡庆过生.', "{player_name} hasn't celebrated Monika's birthday yet.")
+
+        # Holidays end
         
         data1 = _rf('_mas_pm_religious')
         if data1:
