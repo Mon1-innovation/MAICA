@@ -326,7 +326,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
 
                         # We designed all tools to return Tuple[readable_result, actual_values]
                         # Item should not be added to final results if actual_values bool is false.
-                        text, body = await tool(**arguments)
+                        text, body = await tool(**arguments, force_disp=True)
 
                         # Now we have an extending mech
                         extend_required = False

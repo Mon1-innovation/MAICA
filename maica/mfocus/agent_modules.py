@@ -21,26 +21,54 @@ class AgentTools():
     Packed so more convenient.
     Note: some of these tools return a list that implement agent_reparse, those can be combined and re-parsed.
     """
-    class Reparsable(ABC):
-
+    class TransAdd():
+        """Correctly adding."""
         def __add__(self, other):
             add_res = super().__add__(other)
             new_add_res = self.__class__(add_res)
 
-            if hasattr(self, "target_lang"):
-                new_add_res.target_lang = self.target_lang
-
-            if hasattr(self, "reference_date"):
-                new_add_res.reference_date = (
-                    getattr(other, "reference_date", None)
-                    or self.reference_date
-                )
+            for possible_attr in (
+                "target_lang",
+                "reference_date",
+                "mark_true",
+            ):
+                if hasattr(self, possible_attr):
+                    setattr(new_add_res, possible_attr, (
+                        getattr(other, possible_attr, None)
+                        or getattr(self, possible_attr, None)
+                    ))
 
             return new_add_res
+
+    class Reparsable(ABC, TransAdd):
+        """
+        Result classes inherit from this mixin to enable overlapping.
+
+        Currently using:
+        - event_acquire
+        - persistent_acquire
+        - search_internet
+        - vista_acquire
+        """
 
         @abstractmethod
         def agent_reparse():
             ...
+
+    class MarkableBool():
+        """
+        Result classes inherit from this mixin to enable force displaying.
+        
+        Currently using:
+        - event_acquire
+        """
+        mark_true = False
+
+        def __bool__(self):
+            if self.mark_true:
+                return True
+            else:
+                return super().__bool__()
 
     def __init__(self, fsc: FullSocketsContainer, sp: SessionPersistent):
         self.fsc = fsc
@@ -121,7 +149,7 @@ class AgentTools():
 
         return text, weather
 
-    class AgentEvents(Reparsable, List[
+    class AgentEvents(Reparsable, MarkableBool, List[
             Tuple[
                 DayFormat, list
             ]
@@ -324,6 +352,9 @@ class AgentTools():
             )
 
         text = search_results.agent_reparse()
+
+        if kwargs.get("force_disp"):
+            search_results.mark_true = True
 
         return text, search_results
 
