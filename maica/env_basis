@@ -146,10 +146,12 @@ MAICA_MILVUS_USER = ''# user
 MAICA_MILVUS_PASSWORD = ''# 123456
 # Milvus database collection name
 MAICA_MILVUS_COLL = 'maica_rag'
-# Third party API keys, must be valid json
+# Third party API settings, must be valid json
 MAICA_TP_APIS = '
     {
-        "GAODE_WEATHER": ""
+        "GAODE_WEATHER": "",
+        "SEARXNG_ADDR": "",
+        "SEARXNG_USE_PROXY": false
     }
 '
 # Comma-separated MVista host/IP/CIDR rules. Prefix a deny rule with !.
