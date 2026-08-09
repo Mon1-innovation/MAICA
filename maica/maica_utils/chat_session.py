@@ -4,6 +4,7 @@ This module is for v2 session management, applied for DAA4.
 """
 from __future__ import annotations
 
+import re
 import time
 import orjson
 import types
@@ -21,6 +22,16 @@ from .database_models import *
 from .emotions import *
 
 _Bt = BilingualText
+_PROMPT_PLACEHOLDER_RE = re.compile(r"(?<!\{)\{([A-Za-z_][A-Za-z0-9_]*)\}(?!\})")
+
+
+def _replace_prompt_placeholders(text: str, values: Mapping[str, object]) -> str:
+    """Replace known simple placeholders without parsing arbitrary brace content."""
+    return _PROMPT_PLACEHOLDER_RE.sub(
+        lambda match: str(values[match.group(1)])
+        if match.group(1) in values else match.group(0),
+        text,
+    )
 
 
 class MaicaSessionItem(BaseModel):
@@ -330,9 +341,9 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
             "player_nickname": nickname.to_str(target_lang) if curr_context.apply_nickname else "",
         }
         # First handle info
-        prompt = prompt.format_map(SafeFormatDict(format_kvs))
+        prompt = _replace_prompt_placeholders(prompt, format_kvs)
         # Then handle names, to include name in info
-        prompt = prompt.format_map(SafeFormatDict(pname_format_kvs))
+        prompt = _replace_prompt_placeholders(prompt, pname_format_kvs)
 
         # Then inject
         # Note that system prompt item should not be modified from external
