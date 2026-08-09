@@ -182,8 +182,12 @@ MAICA_ROTATE_MSCACHE = '0'
 MAICA_KEEP_MVISTA = '3'
 # Delete each MVista img after [] hours or not
 MAICA_ROTATE_MVISTA = '8'
+# DEPRECATION WARNING: we're planning to move to SearXNG, this function & config could be removed in the future
 # Enable MAICA X11 forwarding for special cases or not
 MAICA_ENABLE_X11 = '1'
+# DEPRECATION WARNING: we're planning to move to SearXNG, this function & config could be removed in the future
+# Disable native binary MCP SERP or not
+MAICA_NO_SERP = '0'
 # Use responses standard searching tool for mfocus_llm_concl or not
 MAICA_MFOCUS_SERP = '0'
 # Use responses standard searching tool instead of normal serp or not
