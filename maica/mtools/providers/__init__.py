@@ -4,7 +4,7 @@ SERP is really complex if you don't use google's super expensive api, so I made 
 This searches submodules in its folder at a priority sequence from 0 to 99, and adopts 
 the first module that implements a valid 'asearch' function with optional 'requires'.
 
-'asearch' must accept (query, target_lang), and returns a list[dict[#type, #content]]. This 
+'asearch' must accept (query, target_lang), and returns a SerpResults model. This 
 implementation will only take effect if all items in 'requires' exist in TpAPIKeys.
 
 The local solution is not stable and efficient enough, so I might be using some third-
