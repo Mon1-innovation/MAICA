@@ -97,6 +97,14 @@ class WrappedOpenAIToolNamespace():
         }
 
 
+@dataclass
+class NativeOpenAITool():
+    type: str
+
+    def to_json_schema(self, target_lang: TargetLangType='zh'):
+        return {"type": self.type}
+
+
 _Ct = str | BilingualText
 
 class BaseTrigger(BaseModel, ABC):

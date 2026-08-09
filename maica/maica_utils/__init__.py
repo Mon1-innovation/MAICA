@@ -86,7 +86,7 @@ from .locater import locater, get_inner_path, get_outer_path
 from .gvars import online_dict, G
 from .chat_session import MaicaSession, MaicaSessionItem
 from .db_bound_obj import DbBoundObject
-from .agent_tools import WrappedOpenAIToolProperty, WrappedOpenAITool, WrappedOpenAIToolNamespace, BaseTrigger, AffectionTrigger, SwitchTrigger, MeterTrigger, BooleanTrigger, TypeTrigger
+from .agent_tools import WrappedOpenAIToolProperty, WrappedOpenAITool, WrappedOpenAIToolNamespace, NativeOpenAITool, BaseTrigger, AffectionTrigger, SwitchTrigger, MeterTrigger, BooleanTrigger, TypeTrigger
 from .llm_utils import ToolCall, llm_request
 from .stream_buffer import StreamBuffer, no_lock_acquire_buffer, acquire_buffer, buffers_gc
 from .ws_config import WsPermissionConfig, WsPingConfig, WsSPingConfig, WsReconnConfig, WsSettingsConfig, WsQueryConfig, Stage1Settings, Stage2Settings
@@ -202,6 +202,7 @@ __all__ = [
     'WrappedOpenAIToolProperty',
     'WrappedOpenAITool',
     'WrappedOpenAIToolNamespace',
+    'NativeOpenAITool',
     'BaseTrigger',
     'AffectionTrigger',
     'SwitchTrigger',

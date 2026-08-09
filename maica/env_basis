@@ -184,11 +184,10 @@ MAICA_KEEP_MVISTA = '3'
 MAICA_ROTATE_MVISTA = '8'
 # Enable MAICA X11 forwarding for special cases or not
 MAICA_ENABLE_X11 = '1'
-# No use online searching tool or do
-# It's OS dependent, performance consuming and relatively slow since it spawns a full Chrome instance on each search, but google hardly detects it in exchange
-MAICA_NO_SERP = '0'
+# Use responses standard searching tool for mfocus_llm_concl or not
+MAICA_MFOCUS_SERP = '0'
 # Use responses standard searching tool instead of normal serp or not
-MAICA_RESPONSES_SERP = '1'
+MAICA_MNERVE_SERP = '1'
 # No send 5xx exceptions' real content or do
 MAICA_NO_SEND_ERROR = '0'
 # Core model chat generation prompt in ZH

@@ -29,7 +29,7 @@ async def internet_search(fsc: FullSocketsContainer, query):
     results_list = []
 
     # Traditional serp impl
-    if not int(G.A.RESPONSES_SERP):
+    if not int(G.A.MNERVE_SERP):
 
         try:
             res_m = await _search(DummyClass(name="serp"), query, target_lang)

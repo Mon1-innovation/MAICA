@@ -16,6 +16,7 @@ _Bt = BilingualText
 _Wtp = WrappedOpenAIToolProperty 
 _Wt = WrappedOpenAITool
 _Wtn = WrappedOpenAIToolNamespace
+_Nt = NativeOpenAITool
 
 class MfPipeliner():
     """
@@ -140,6 +141,8 @@ class MfPipeliner():
                 )
             ]
         )
+        # The responses standard web search tool
+        responses_search_internet = _Nt("web_search")
         vista_acquire = _Wt(
             name="vista_acquire",
             description=_Bt(
@@ -191,7 +194,12 @@ class MfPipeliner():
         if self.fsc.maica_settings.extra.mf_const_sf_access < 2:
             tools.append(persistent_acquire)
 
-        if providers.get_asearch():
+        if (
+            int(G.A.MFOCUS_SERP)
+            and self.fsc.maica_settings.mf_concl_now
+        ):
+            tools.append(responses_search_internet)
+        elif providers.get_asearch():
             tools.append(search_internet)
 
         if self._mfocus_impl_mvista:
