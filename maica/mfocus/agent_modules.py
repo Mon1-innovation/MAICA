@@ -30,6 +30,12 @@ class AgentTools():
             if hasattr(self, "target_lang"):
                 new_add_res.target_lang = self.target_lang
 
+            if hasattr(self, "reference_date"):
+                new_add_res.reference_date = (
+                    getattr(other, "reference_date", None)
+                    or self.reference_date
+                )
+
             return new_add_res
 
         @abstractmethod
@@ -122,6 +128,7 @@ class AgentTools():
         ]
     ):
         target_lang: TargetLangType = "zh"
+        reference_date: Optional[datetime.date] = None
 
         def __bool__(self):
             return any(
@@ -133,13 +140,12 @@ class AgentTools():
             must_name = "name" if target_lang == 'zh' else "ename"
 
             search_results = self
-            today = datetime.date.today()
-            dt_is_today = any(i[0][0] == today for i in search_results)
+            reference_date = self.reference_date or datetime.date.today()
+            dt_is_today = any(i[0][0] == reference_date for i in search_results)
 
             # Friendly strings
             def today_is(dt: datetime.date):
-                today = datetime.date.today()
-                indice = (dt - today).days
+                indice = (dt - reference_date).days
 
                 if dt_is_today and 0 <= indice < 7:
                     match indice:
@@ -305,6 +311,7 @@ class AgentTools():
         # Search
         search_results = self.AgentEvents()
         search_results.target_lang = target_lang
+        search_results.reference_date = today_dt
 
         must_name = "name" if target_lang == 'zh' else "ename"
 
