@@ -79,6 +79,8 @@ class _lmlogger():
 
 lmlogger = _lmlogger()
 
+type TargetLangType = Literal['zh', 'en', 'auto']
+
 class MsgType():
     """For convenience."""
     PLAIN = 'plain'
@@ -435,7 +437,7 @@ class BilingualText():
             self.auto += other.auto
         return self
     
-    def to_str(self, target_lang: Literal['zh', 'en', 'auto']='zh') -> str:
+    def to_str(self, target_lang: TargetLangType='zh') -> str:
         if target_lang == 'zh':
             return self.zh
         elif target_lang == 'en':
@@ -1259,7 +1261,7 @@ def try_getattr(o, *names) -> Optional[any]:
             break
     return res
 
-def beautify_time(dt: datetime.time, target_lang: Literal['zh', 'en', 'auto'] = 'zh', include_adj = True):
+def beautify_time(dt: datetime.time, target_lang: TargetLangType = 'zh', include_adj = True):
     """
     Beautifies current time. No date.
 
@@ -1294,7 +1296,7 @@ def beautify_time(dt: datetime.time, target_lang: Literal['zh', 'en', 'auto'] = 
 
     return time_friendly
 
-def beautify_date(dt: datetime.date, target_lang: Literal['zh', 'en', 'auto'] = 'zh', hemisphere: Literal['N', 'S'] = 'N', include_adj = True):
+def beautify_date(dt: datetime.date, target_lang: TargetLangType = 'zh', hemisphere: Literal['N', 'S'] = 'N', include_adj = True):
     """
     Beautifies current date. No time.
     
@@ -1373,7 +1375,7 @@ def is_data_sqlite():
     """If data_db is sqlite, else mysql."""
     return bool(G.A.DB_ADDR == "sqlite")
 
-def to_str(obj: str | BilingualText, target_lang: Literal['zh', 'en', 'auto']='zh'):
+def to_str(obj: str | BilingualText, target_lang: TargetLangType='zh'):
     """Call to_str if bt, else as-is."""
     if isinstance(obj, BilingualText):
         return obj.to_str(target_lang)

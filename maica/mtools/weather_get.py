@@ -69,7 +69,7 @@ class WeatherResults(BaseModel):
 
         return data
     
-    def to_friendly(self, target_lang: Literal['zh', 'en', 'auto'] = 'zh'):
+    def to_friendly(self, target_lang: TargetLangType = 'zh'):
         _Bt = BilingualText
         l1 = _Bt(
             f"当前气温{self.current.temperature_2m}度, 相对湿度{self.current.relative_humidity_2m}%, 风速{self.current.wind_speed_10m}m/s",

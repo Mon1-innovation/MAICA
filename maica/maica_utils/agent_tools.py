@@ -34,7 +34,7 @@ class WrappedOpenAIToolProperty():
     maxLength: Optional[int]=None
     """Only if type is string"""
 
-    def to_json_schema(self, target_lang: Literal['zh', 'en', 'auto']='zh'):
+    def to_json_schema(self, target_lang: TargetLangType='zh'):
         inner = {
             "type": self.type,
             "description": self.description.to_str(target_lang),
@@ -60,7 +60,7 @@ class WrappedOpenAITool():
             if not getattr(self, k, None):
                 setattr(self, k, [])
 
-    def to_json_schema(self, target_lang: Literal['zh', 'en', 'auto']='zh'):
+    def to_json_schema(self, target_lang: TargetLangType='zh'):
         l1 = {}
         for prop in self.requiredParams + self.optionalParams:
             l1.update(prop.to_json_schema(target_lang))
@@ -88,7 +88,7 @@ class WrappedOpenAIToolNamespace():
     description: BilingualText
     tools: List[WrappedOpenAITool]
 
-    def to_json_schema(self, target_lang: Literal['zh', 'en', 'auto']='zh'):
+    def to_json_schema(self, target_lang: TargetLangType='zh'):
         return {
             "type": "namespace",
             "name": self.name,

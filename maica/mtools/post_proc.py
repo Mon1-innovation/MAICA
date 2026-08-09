@@ -8,7 +8,7 @@ from maica.maica_utils.emotions import *
 
 _Bt = BilingualText
 
-def emo_proc(emo: str, target_lang: Literal['zh', 'en', 'auto']='zh'):
+def emo_proc(emo: str, target_lang: TargetLangType='zh'):
 
     # Basic cleaning first
     emo_clean = emo.strip().strip('[').strip(']').lower()

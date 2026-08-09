@@ -134,13 +134,13 @@ async def pre_core_pipelines(
 
                 sync_messenger(info="MFocus calling mf_const_tools level 1", type=MsgType.DEBUG)
                 for tool_name in ("time_acquire", "event_acquire"):
-                    tools_results[tool_name] = await getattr(toolbox, tool_name)(is_const=True)
+                    tools_results[tool_name] = await getattr(toolbox, tool_name)()
 
             if mf_const_tools >= 2:
 
                 sync_messenger(info="MFocus calling mf_const_tools level 2", type=MsgType.DEBUG)
                 for tool_name in ("date_acquire", "weather_acquire"):
-                    tools_results[tool_name] = await getattr(toolbox, tool_name)(is_const=True)
+                    tools_results[tool_name] = await getattr(toolbox, tool_name)()
 
             if (
                 mf_const_sf_access >= 1
@@ -148,12 +148,12 @@ async def pre_core_pipelines(
             ):
                 sync_messenger(info="MFocus calling mf_const_sf_access", type=MsgType.DEBUG)
                 tool_name = "persistent_acquire"
-                text, body = await getattr(toolbox, tool_name)(query=session_item.content, is_const=True)
+                text, body = await getattr(toolbox, tool_name)(query=session_item.content)
                 
                 sync_messenger(info=f"MFocus mf_const_sf_access responded: {text}", type=MsgType.INFO)
                 tools_results[tool_name] = (text, body)
 
-            parsed_results = MfPipeliner.parse_tools_results(tools_results)
+            parsed_results = MfPipeliner.parse_tools_results(tools_results, ignore_empty=False)
             session_item.context.known_info.update(parsed_results)
 
 

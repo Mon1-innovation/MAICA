@@ -47,7 +47,7 @@ class MaicaSessionItem(BaseModel):
 
     role: Literal["system", "user", "assistant", "misc"] = 'misc'
     content: str | BilingualText = ''
-    target_lang: Optional[Literal['zh', 'en', 'auto']] = None
+    target_lang: Optional[TargetLangType] = None
     context: Context = Field(default_factory=Context)
 
     # If item role is misc, we stop using maica format and store entire object.

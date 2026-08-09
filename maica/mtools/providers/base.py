@@ -39,7 +39,7 @@ def get_providers():
     return sorted(_providers, key=lambda x: x[0])
 
 @overload
-async def asearch(query: str, target_lang: Literal['zh', 'en', 'auto']) -> SerpResults:...
+async def asearch(query: str, target_lang: TargetLangType) -> SerpResults:...
 
 available_list: list[tuple[int, asearch]] = []
 last_used = -1

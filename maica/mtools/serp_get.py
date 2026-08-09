@@ -26,34 +26,26 @@ async def internet_search(fsc: FullSocketsContainer, query):
             description="你总结出的内容, 应是一个单行自然句." if target_lang == 'zh' else "Your conclusion, should be a single line of nature sentence."
         )
     completion_args = None
+    results_list = []
 
     # Traditional serp impl
     if not int(G.A.RESPONSES_SERP):
 
-        results_list = []
         try:
             res_m = await _search(DummyClass(name="serp"), query, target_lang)
 
             for index, res_i in enumerate(res_m.results):
                 source = f"({res_i.source}) " if res_i.source else ""
                 results_list.append(
-                    f"{index + 1}. {source}{res_i.title}: {res_i.description}"
+                    f"{source}{res_i.title}: {res_i.description}"
                 )
 
             sync_messenger(info=f'MFocus got {len(res_m.results)} information lines from search engine', type=MsgType.INFO)
 
         except Exception as e:
-            res_m = None
             await messenger(fsc.websocket, "mfocus_serp_failed", f"MFocus serp failed: {str(e)}", 408, fsc.tracker_id)
-
-        # Early return if llm conc not required
-        if not results_list:
-            text = ''
-
-        elif not fsc.maica_settings.extra.esearch_llm_concl:
-            text = '; '.join(results_list[:5])
     
-        else:
+        if fsc.maica_settings.extra.esearch_llm_concl:
 
             system = MaicaSessionItem(
                 "system",
@@ -89,7 +81,6 @@ If none of the information is relevant with query, you can output null.\
     # Responses web_search impl
     else:
 
-        res_m = "RESPONSES_SERP"
         system = MaicaSessionItem(
             "system",
             _Bt("""\
@@ -127,8 +118,10 @@ If none of the results is relevant with query, you can output null.\
         selection_result = EnetSearchConcl.model_validate_json(resp.output_text)
 
         text = selection_result.conclusion
+        if text:
+            results_list = [text]
 
-    return text, res_m
+    return results_list
 
 if __name__ == '__main__':
     async def test():

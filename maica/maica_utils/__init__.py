@@ -1,6 +1,7 @@
 
 from .maica_utils import (
     silent,
+    TargetLangType,
     MsgType,
     FakeChatCompletion,
     CommonMaicaException,
@@ -96,6 +97,7 @@ from .session_mgr import SessionPersistent, SessionTrigger, acquire_dbo, acquire
 
 __all__ = [
     'silent',
+    'TargetLangType',
     'MsgType',
     'FakeChatCompletion',
     'CommonMaicaException',

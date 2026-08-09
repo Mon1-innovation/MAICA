@@ -328,11 +328,21 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
                         # Item should not be added to final results if actual_values bool is false.
                         text, body = await tool(**arguments)
 
-                        # Do not record it for mcore if the tool actually failed
-                        if body:
+                        # Now we have an extending mech
+                        extend_required = False
 
-                            # We can theoretically keep all resps, but that's not useful I think.
-                            # In case that's really necessary, just use mf_llm_concl
+                        if curr_res := tools_results.get(tool_name):
+                            if curr_body := curr_res[1]:
+                                if hasattr(curr_body, "agent_reparse"):
+                                    extend_required = True
+
+                        if extend_required:
+                            if body:
+                                new_body = curr_body + body
+                                new_text = new_body.agent_reparse()
+                                tools_results[tool_name] = (new_text, new_body)
+
+                        else:
                             tools_results[tool_name] = (text, body)
 
                         return text
@@ -429,7 +439,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         return generated_guidance, tools_results
     
     @staticmethod
-    def parse_tools_results(tools_results: dict[str, Tuple[str, Any]]):
+    def parse_tools_results(tools_results: dict[str, Tuple[str, Any]], ignore_empty = False):
         def sort_dict(d: dict, seq: list[str]) -> dict:
             """Sorts keys of dict into given list seq."""
             nd = {}
@@ -457,7 +467,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         cleaned_tools_results = {
             k: v[0]
             for k, v in sorted_tools_results.items()
-            if v[0] and v[1]
+            if v[0] and (v[1] or not ignore_empty)
         }
 
         return cleaned_tools_results
@@ -468,7 +478,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         This wrapping is single-round, fits the actual use case.
         """
         generated_guidance, tools_results = await self._query_response()
-        parsed_results = self.parse_tools_results(tools_results)
+        parsed_results = self.parse_tools_results(tools_results, ignore_empty=True)
 
         self.reset()
         return generated_guidance, parsed_results

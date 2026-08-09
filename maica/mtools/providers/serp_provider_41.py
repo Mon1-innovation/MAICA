@@ -27,7 +27,7 @@ class BdSerpResults(SerpResults):
             data = new_data
         return data
 
-async def asearch(query, target_lang: Literal['zh', 'en', 'auto']='zh'):
+async def asearch(query, target_lang: TargetLangType='zh'):
     host = "api.brightdata.com"
     url = f"https://{host}/request"
     zone = TpAPIKeys.BRIGHTDATA_ZONE

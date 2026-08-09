@@ -163,7 +163,7 @@ class MaicaSettings(BaseModel):
         """Enable MTrigger."""
         savefile_access: bool = True
         """Enable savefile extraction."""
-        target_lang: Literal['zh', 'en', 'auto'] = 'zh'
+        target_lang: TargetLangType = 'zh'
         """Target language."""
         tz: Optional[str] = None
         """Timezone."""

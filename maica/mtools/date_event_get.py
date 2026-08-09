@@ -162,7 +162,9 @@ class EventsCollection():
         month: lunar_python.LunarMonth = lunar_python.LunarMonth.fromYm(y, m)
         return month.getDayCount()
 
-    def search(self, dt: datetime.datetime):
+    def search(self, dt: datetime.date, min_awareness: int = 0, must_name: Optional[Literal["name", "ename"]] = None):
+        if not isinstance(dt, datetime.datetime):
+            dt = datetime.datetime.combine(dt, datetime.time.min)
 
         ld = lunar_python.Lunar.fromDate(dt)
         sw = lunar_python.SolarWeek.fromDate(dt, 0)
@@ -196,6 +198,17 @@ class EventsCollection():
             conclusion.extend(results)
 
         self._reset_vacations()
+
+        def allow_this_event(event: RegEvent):
+            return (
+                event.awareness >= min_awareness
+                and getattr(event, must_name)
+            )
+
+        conclusion = [
+            ev for ev in conclusion
+            if allow_this_event(ev)
+        ]
 
         return conclusion
 

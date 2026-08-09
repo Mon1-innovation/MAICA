@@ -24,7 +24,7 @@ class McpSerpResults(SerpResults):
             data = new_data
         return data
 
-async def asearch(query, target_lang: Literal['zh', 'en', 'auto']='zh'):
+async def asearch(query, target_lang: TargetLangType='zh'):
     """Wrapping."""
     res = await _asearch(query, target_lang)
     res_m = McpSerpResults.model_validate_json(res)
