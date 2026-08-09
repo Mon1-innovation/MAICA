@@ -543,7 +543,10 @@ class ShortConnHandler(View):
         )
         query = await self.wrapped_validate(self._dlt_m, data)
 
-        crid_m = FscUsersFuncMixin.TokenCridential.model_validate(query.content)
+        try:
+            crid_m = FscUsersFuncMixin.TokenCridential.model_validate(query.content)
+        except Exception as e:
+            raise MaicaInputWarning(e) from e
         token = await crid_m.generate_token()
 
         return jfy_res(token)
