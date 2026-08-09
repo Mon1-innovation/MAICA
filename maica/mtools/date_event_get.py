@@ -202,7 +202,10 @@ class EventsCollection():
         def allow_this_event(event: RegEvent):
             return (
                 event.awareness >= min_awareness
-                and getattr(event, must_name)
+                and (
+                    must_name is None
+                    or getattr(event, must_name)
+                )
             )
 
         conclusion = [

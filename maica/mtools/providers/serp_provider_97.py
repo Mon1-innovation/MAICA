@@ -8,6 +8,7 @@ from typing import *
 from pydantic import model_validator
 from .base import register_provider, SerpResults
 from maica.mtools.mcp import _asearch
+from maica.maica_utils import TargetLangType
 
 prio = 97
 requires = []

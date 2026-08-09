@@ -45,8 +45,10 @@ async def internet_search(fsc: FullSocketsContainer, query):
         except Exception as e:
             await messenger(fsc.websocket, "mfocus_serp_failed", f"MFocus serp failed: {str(e)}", 408, fsc.tracker_id)
     
-        if fsc.maica_settings.extra.esearch_llm_concl:
+        if not fsc.maica_settings.extra.esearch_llm_concl:
+            results_list = results_list[:5]
 
+        elif results_list:
             system = MaicaSessionItem(
                 "system",
                 _Bt("""\

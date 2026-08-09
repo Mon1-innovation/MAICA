@@ -22,6 +22,16 @@ class AgentTools():
     Note: some of these tools return a list that implement agent_reparse, those can be combined and re-parsed.
     """
     class Reparsable(ABC):
+
+        def __add__(self, other):
+            add_res = super().__add__(other)
+            new_add_res = self.__class__(add_res)
+
+            if hasattr(self, "target_lang"):
+                new_add_res.target_lang = self.target_lang
+
+            return new_add_res
+
         @abstractmethod
         def agent_reparse():
             ...
@@ -154,7 +164,7 @@ class AgentTools():
                                 f"{indice} days later"
                             )
                 else:
-                    today = beautify_date(dt + datetime.timedelta(indice), target_lang, include_adj=False)
+                    today = beautify_date(dt, target_lang, include_adj=False)
                 return today
             
             def and_is(indice: int):
@@ -173,15 +183,20 @@ class AgentTools():
                 List,
             ] = {}
 
-            for day, events in search_results:
+            days_to_remove = set()
+            for day_index, (day, events) in enumerate(search_results):
                 # This is for day-in-range level deduplication
                 day_date = day[0]
                 day_ymd = (day_date.year, day_date.month, day_date.day)
 
                 if day_ymd in days_dict:
-                    days_dict[day_ymd] = days_dict[day_ymd] + events
+                    days_dict[day_ymd] += events
+                    days_to_remove.add(day_index)
                 else:
                     days_dict[day_ymd] = events
+
+            for i in sorted(days_to_remove, reverse=True):
+                self.pop(i)
 
             for events in days_dict.values():
                 # This is for event-in-day level deduplication
@@ -189,7 +204,7 @@ class AgentTools():
                 events_pop = set()
 
                 for index, event in enumerate(events):
-                    if event_name := getattr(event, must_name) in events_exist:
+                    if (event_name := getattr(event, must_name)) in events_exist:
                         events_pop.add(index)
                     else:
                         events_exist.add(event_name)
@@ -204,6 +219,7 @@ class AgentTools():
 
             for day_index, (day, events) in enumerate(search_results):
 
+                dt = day[0]
                 day_is_last = day_index + 1 == len(search_results)
 
                 for ev_index, event in enumerate(events):
@@ -212,7 +228,7 @@ class AgentTools():
                     ev_is_last = ev_index + 1 == len(events)
 
                     if ev_is_first:
-                        text += today_is(day_index)
+                        text += today_is(dt)
 
                     text += and_is(ev_index)
 
@@ -233,8 +249,8 @@ class AgentTools():
                     )
                 else:
                     text = _Bt(
-                        f"{today_is(0)}没有特殊节日或事件.",
-                        f"{today_is(0)} is not special event or holiday.",
+                        "该日期没有特殊节日或事件.",
+                        "This date is not special event or holiday.",
                     )
 
             text = text.to_str(target_lang)
@@ -246,7 +262,7 @@ class AgentTools():
         """
         target_lang = self.fsc.maica_settings.basic.target_lang
 
-        dt = parser.parse(dt_str) if dt_str else None
+        dt = parser.parse(dt_str).date() if dt_str else None
 
         today_dt = self._time_tz().date()
         dt = dt or today_dt
@@ -422,7 +438,7 @@ class AgentTools():
 
         text = await query_vlm(self.fsc, query, img_list)
 
-        res = self.AgentVistas([res])
+        res = self.AgentVistas([text])
         res.target_lang = self.fsc.maica_settings.basic.target_lang
 
         text = res.agent_reparse()
