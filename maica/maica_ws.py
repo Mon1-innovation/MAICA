@@ -540,11 +540,11 @@ async def main_logic(
 
             # We should catch and convert all expected issues in procedure
             # So unconverted exceptions are treated as errors
-            traceback.print_exc()
             await fsc.messenger(
                 'maica_uncaught_exception',
-                f'Coroutine broke by an unknown exception: {str(e)}',
-                500,
+                'Coroutine broke by an unknown exception: ',
+                error=e,
+                code=500,
             )
 
         # Cleanups
