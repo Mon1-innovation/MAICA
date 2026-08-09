@@ -194,12 +194,13 @@ class MfPipeliner():
         if self.fsc.maica_settings.extra.mf_const_sf_access < 2:
             tools.append(persistent_acquire)
 
-        if (
-            int(G.A.MFOCUS_SERP)
-            and self.fsc.maica_settings.mf_concl_now
-        ):
-            tools.append(responses_search_internet)
-        elif providers.get_asearch():
+        # We once wanted to implement this, but it breaks strict tool chain
+        # if (
+        #     int(G.A.MFOCUS_SERP)
+        #     and self.fsc.maica_settings.mf_concl_now
+        # ):
+        #     tools.append(responses_search_internet)
+        if providers.get_asearch():
             tools.append(search_internet)
 
         if self._mfocus_impl_mvista:
