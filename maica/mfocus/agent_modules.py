@@ -20,6 +20,7 @@ class AgentTools():
     """
     Packed so more convenient.
     Note: some of these tools return a list that implement agent_reparse, those can be combined and re-parsed.
+    Note: all tools registered must accept **kwargs, even if not used.
     """
     class TransAdd():
         """Correctly adding."""
