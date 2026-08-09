@@ -620,6 +620,19 @@ class GenCorrectionModel(BaseModel):
 
 
         if not isinstance(data, dict):
+            if isinstance(data, str) and len(cls.model_fields) == 1:
+                field_name, field = next(iter(cls.model_fields.items()))
+
+                try:
+                    TypeAdapter(field.annotation).validate_python(
+                        data,
+                        strict=True,
+                    )
+                except ValidationError:
+                    pass
+                else:
+                    return {field_name: data}
+
             raise ValueError(
                 "LLM output is not a JSON object"
             )
