@@ -5,6 +5,7 @@ from pydantic import TypeAdapter, ValidationError
 
 from maica.maica_utils import MeterTrigger, TypeTrigger
 from maica.mfocus.agent_modules import AgentTools
+from maica.mfocus.mfocus_llm import MfPipeliner
 
 
 def test_event_reparse_uses_acquisition_date_when_combining_results() -> None:
@@ -26,6 +27,26 @@ def test_event_reparse_uses_acquisition_date_when_combining_results() -> None:
 
     assert combined.reference_date == reference_date
     assert combined.agent_reparse() == "31 December, 2098 is Event; Today is Today Event."
+
+
+def test_empty_event_result_is_only_kept_when_forced() -> None:
+    reference_date = datetime.date(2099, 1, 1)
+    events = AgentTools.AgentEvents([((reference_date, 1), [])])
+    events.target_lang = "en"
+    events.reference_date = reference_date
+    text = events.agent_reparse()
+    tools_results = {"event_acquire": (text, events)}
+
+    assert MfPipeliner.parse_tools_results(tools_results, ignore_empty=False) == {
+        "event_acquire": "Today is not special event or holiday."
+    }
+    assert MfPipeliner.parse_tools_results(tools_results, ignore_empty=True) == {}
+
+    events.mark_true = True
+
+    assert MfPipeliner.parse_tools_results(tools_results, ignore_empty=True) == {
+        "event_acquire": "Today is not special event or holiday."
+    }
 
 
 def test_tool_schema_has_single_property_layer_and_keeps_zero_bound() -> None:

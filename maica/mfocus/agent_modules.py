@@ -159,9 +159,7 @@ class AgentTools():
         reference_date: Optional[datetime.date] = None
 
         def __bool__(self):
-            return any(
-                [i[1] for i in self]
-            )
+            return self.mark_true or any(i[1] for i in self)
         
         def agent_reparse(self):
             target_lang = self.target_lang
