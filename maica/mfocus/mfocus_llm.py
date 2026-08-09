@@ -141,8 +141,9 @@ class MfPipeliner():
                 )
             ]
         )
+        # We once wanted to implement this, but it breaks strict tool chain
         # The responses standard web search tool
-        responses_search_internet = _Nt("web_search")
+        # responses_search_internet = _Nt("web_search")
         vista_acquire = _Wt(
             name="vista_acquire",
             description=_Bt(
