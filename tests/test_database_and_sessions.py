@@ -96,6 +96,41 @@ def test_db_bound_object_loads_blank_text_as_empty_content() -> None:
     assert persistent.content == {}
 
 
+def test_dbo_acquire_binds_fsc_only_while_holding_lock() -> None:
+    async def scenario() -> None:
+        def make_fsc() -> FullSocketsContainer:
+            fsc = FullSocketsContainer()
+            fsc.maica_settings.verification.user_id = 1
+            fsc.maica_settings.temp.chat_session = 0
+            return fsc
+
+        session_mgr._sessions_index["session_triggers"].clear()
+        first_fsc = make_fsc()
+        second_fsc = make_fsc()
+        second_seen: list[bool] = []
+        waiter = None
+
+        async def second_request() -> None:
+            async with session_mgr.acquire_dbo("trigger", second_fsc) as trigger:
+                second_seen.append(trigger.fsc is second_fsc)
+                trigger._check_ess()
+
+        try:
+            async with session_mgr.acquire_dbo("trigger", first_fsc) as trigger:
+                waiter = asyncio.create_task(second_request())
+                await asyncio.sleep(0)
+                assert trigger.fsc is first_fsc
+
+            await waiter
+            assert second_seen == [True]
+        finally:
+            if waiter is not None and not waiter.done():
+                await waiter
+            session_mgr._sessions_index["session_triggers"].clear()
+
+    asyncio.run(scenario())
+
+
 def test_session_and_buffer_gc_remove_only_stale_unlocked_entries() -> None:
     class Destroyable:
         def __init__(self) -> None:

@@ -143,23 +143,22 @@ async def _fsc_acquire_dbo(type: Literal["session", "persistent", "trigger"], fs
             raise MaicaInputError("Type cannot be recognized")
 
     session = _id_acquire_dbo(cls, sub_dict_k, user_id, session_num)
-    # If former fsc is already destroyed
-    session.fsc = fsc
-
-    # Trigger on_acquire action
-    session.on_acquire()
-
     return session
 
 @asynccontextmanager
 async def acquire_dbo(type: Literal["session", "persistent", "trigger"], fsc: FullSocketsContainer):
     """This should be used as context manager!"""
     session: MaicaSession | SessionPersistent | SessionTrigger = await _fsc_acquire_dbo(type, fsc)
-    try:
-        async with session.lock:
+    async with session.lock:
+        # Bind request-local state only after acquiring the shared object's lock.
+        # Otherwise a waiter can overwrite the active request's fsc, and an
+        # earlier context's cleanup can clear it before the waiter starts.
+        session.fsc = fsc
+        try:
+            session.on_acquire()
             yield session
-    finally:
-        session.fsc = None
+        finally:
+            session.fsc = None
 
 def acquire_session(fsc):
     """Just an alias now."""
