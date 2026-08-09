@@ -8,6 +8,7 @@ import functools
 import hashlib
 import os
 import re
+import ast
 import json
 import inspect
 import platform
@@ -170,6 +171,9 @@ class MaicaConnectionWarning(CommonMaicaWarning):
 
 class MaicaInternetWarning(CommonMaicaWarning):
     """This suggests the backend request action is not behaving normal."""
+
+class MaicaResponseWarning(CommonMaicaError):
+    """This suggests the output is malformed."""
 
 RETRYABLE_EXCEPTIONS = (
     aiomysql.OperationalError,
@@ -528,18 +532,16 @@ class GenCorrectionModel(BaseModel):
         try:
             return super().model_validate_json(
                 json_data,
-                strict=strict,
                 **kwargs,
             )
 
         except ValidationError as ve:
             sync_messenger(info=f"Validation failed for LLM response: {str(ve)}, trying basic fixes", type=MsgType.DEBUG)
-            repaired = cls._repair_json(json_data)
-
+            
             try:
+                repaired = cls._repair_json(json_data)
                 return super().model_validate(
                     repaired,
-                    strict=strict,
                     **kwargs,
                 )
             except ValidationError as ve:
@@ -548,11 +550,10 @@ class GenCorrectionModel(BaseModel):
                     sync_messenger(info=f"Basic fixes still failed for LLM response: {str(ve)}, returning default", type=MsgType.WARN)
                     return super().model_validate(
                         default,
-                        strict=strict,
                         **kwargs,
                     )
                 else:
-                    raise
+                    raise MaicaResponseWarning(ve) from ve
 
     @classmethod
     def _repair_json(cls, raw: str | bytes) -> dict[str, Any]:
@@ -612,9 +613,10 @@ class GenCorrectionModel(BaseModel):
             #
             # Common with some reasoning models.
             # --------------------------------------------------------
-            import ast
-
-            data = ast.literal_eval(text)
+            try:
+                data = ast.literal_eval(text)
+            except Exception:
+                data = text
 
 
         if not isinstance(data, dict):
