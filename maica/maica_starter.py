@@ -325,9 +325,9 @@ def validate_config():
 
     binary_keys = (
         "IS_REAL_ENV", "CALC_TOKENS", "ALT_TOOLCALL", "BASIC_MFOCUS",
-        "FULL_RESTFUL", "KICK_STALE_CONNS", "ENABLE_X11", "NO_SERP",
-        "NO_SEND_ERROR", "MCORE_GENERIC", "DEBUG_WARNS", "WRITE_NVW",
-        "NVW_INSECURE_SSH", "TRUST_XFF",
+        "FULL_RESTFUL", "KICK_STALE_CONNS",
+        "MFOCUS_SERP", "MNERVE_SERP", "NO_SEND_ERROR", "MCORE_GENERIC",
+        "DEBUG_WARNS", "WRITE_NVW", "NVW_INSECURE_SSH", "TRUST_XFF",
     )
     for key in binary_keys:
         if value(key) not in {"0", "1"}:
