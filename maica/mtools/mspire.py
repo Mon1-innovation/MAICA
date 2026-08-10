@@ -37,7 +37,7 @@ class ProxiedAsyncWikipedia(AsyncWikipediaResource, ProxiedAsyncHTTPClient):
 
 
 def _is_not_template(name: str):
-    name = name.casefold().strip()
+    name = convert(name.casefold().strip(), locale="zh-cn")
     for template_kw in ("模板", "template"):
         if name.startswith(template_kw) or name.endswith(template_kw):
             return False
@@ -197,6 +197,9 @@ async def _fetch_ms_meta(
 
             elif len(total_censor):
                 sync_messenger(info=f"MSpire page {title} has censored words or phrases but ignored: {total_censor}", type=MsgType.DEBUG)
+
+            else:
+                sync_messenger(info=f"MSpire page {title} has nothing censored", type=MsgType.DEBUG)
 
         break
 
