@@ -458,10 +458,13 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
 
         async def tokens_calc(messages):
             if use_api:
-                return await _tokens_calc(messages)
+                tokens = await _tokens_calc(messages)
             else:
                 # It's binary already, we just take bytes / 3 as a approximation of token count
-                return len(orjson.dumps(messages)) / 3
+                tokens = len(orjson.dumps(messages)) / 3
+
+            sync_messenger(info=f"Session has {tokens} tokens in total", type=MsgType.DEBUG)
+            return tokens
 
         def tokens_eval(count):
             match count:

@@ -45,6 +45,7 @@ async def post_core_pipelines(
                 'maica_quality_status',
                 [res, cfd],
                 200,
+                no_print=True,
             )
 
     async def save_ms_pipeline():
