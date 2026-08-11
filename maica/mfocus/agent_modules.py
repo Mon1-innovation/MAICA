@@ -135,18 +135,18 @@ class AgentTools():
         """
         target_lang = self.fsc.maica_settings.basic.target_lang
 
-        location = location or self.sp.read_key('mas_geolocation')
-        if not location:
-            await messenger(self.fsc.websocket, 'maica_mfocus_geoloc_absent', "Cannot use weather tool since no geolocation provided, skipping", 404, self.fsc.tracker_id)
-
         try:
+            location = location or self.sp.read_key('mas_geolocation')
+            if not location:
+                raise MaicaInputWarning("Cannot use weather tool since no geolocation provided, skipping")
+
             weather = await weather_api_get(location)
             text = weather.to_friendly(target_lang)
 
         except CommonMaicaException as ce:
             text = "查询不到当前的天气." if target_lang == 'zh' else "Cannot acquire current weather."
             weather = None
-            await messenger(self.fsc.websocket, 'maica_mfocus_weather_failed', tracker_id=self.fsc.rsc.tracker_id, error=ce)
+            await self.fsc.messenger('maica_mfocus_weather_failed', error=ce)
 
         return text, weather
 
