@@ -1097,6 +1097,7 @@ mas_affection #int
 mas_geolocation #str
 
 mas_player_additions #["[player]喜欢吃寿司.", "[player]喜欢初音未来.", "[player]不喜欢猫"]
+target_lang #Literal["zh", "en", "auto"]
 
 _mas_pm_added_custom_bgm	Player has added custom music to the game before.
 _mas_pm_religious	Is the player religious?
@@ -1224,6 +1225,8 @@ sessions
 
 * ~~mas_sf_hcb为高可自定义性开关. 设为true后, MFocus将停止索引任何来自MAS存档的基本信息, 并能够同时检索至多360项补充数据.~~  
 * mas_sf_hcb自v1.3后被弃用, 请直接管理上传的存档条目实现.
+
+* target_lang为MAICA目标语言, 用于在embedding阶段选择语言.
 
 原理上, 任何条目都是可缺省的. 缺省关键变量将使其被默认值替代, 缺省事件变量将使其退出MFocus索引.
 
