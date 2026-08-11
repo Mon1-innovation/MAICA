@@ -327,23 +327,31 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
                 prompt += "\n"
                 prompt += extra_info
 
+            # Add nickname handling
+            nickname = _Bt(
+                "(昵称[player_nickname])",
+                "(nickname [player_nickname])",
+            )
+            format_kvs["player_nickname"] = nickname if curr_context.apply_nickname else ""
+
             for k, v in format_kvs.items():
                 format_kvs[k] = to_str(v, target_lang)
 
+        pname_format_kvs = {"player_name": curr_context.player_name}
+
         prompt = prompt.to_str(target_lang)
 
-        nickname = _Bt(
-            "(昵称[player_nickname])",
-            "(nickname [player_nickname])",
-        )
-        pname_format_kvs = {
-            "player_name": curr_context.player_name,
-            "player_nickname": nickname.to_str(target_lang) if curr_context.apply_nickname else "",
-        }
         # First handle info
         prompt = _replace_prompt_placeholders(prompt, format_kvs)
         # Then handle names, to include name in info
         prompt = _replace_prompt_placeholders(prompt, pname_format_kvs)
+
+        # If MSpire or MPostal, there will be placeholders in its content
+        if curr_item.role == "user":
+            curr_item.content = _replace_prompt_placeholders(
+                to_str(curr_item.content, target_lang),
+                pname_format_kvs,
+            )
 
         # Then inject
         # Note that system prompt item should not be modified from external
