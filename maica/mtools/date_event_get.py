@@ -258,7 +258,7 @@ events_list = [
     RegEvent(md=(7, 7), name="中国人民抗日战争纪念日"),
     RegEvent(md=(7, 11), name="世界人口日", ename="World Population Day"),
     RegEvent(md=(8, 1), name="建军节"),
-    RegEvent(md=(8, 12), name="国际青年节", ename="International Youth Day", awareness=1),
+    RegEvent(md=(8, 12), name="国际青年节", ename="International Youth Day"),
     RegEvent(md=(9, 10), name="教师节", awareness=1),
     RegEvent(md=(9, 16), name="国际臭氧层保护日", ename="International Day for the Preservation of the Ozone Layer"),
     RegEvent(md=(9, 21), name="世界停火日", ename="World Ceasefire Day", awareness=1),
@@ -287,7 +287,7 @@ events_list = [
     RegEvent(md=(12, 3), name="世界残疾人日", ename="World Disabled Day"),
     RegEvent(md=(12, 9), name="世界足球日", ename="World Football Day"),
     RegEvent(md=(12, 24), name="平安夜", ename="Christmas Eve", awareness=4),
-    RegEvent(md=(12, 25), name="圣诞节", ename="Christmas Day", awareness=1), # We give it awareness 1 since it's just one day after awareness 2
+    RegEvent(md=(12, 25), name="圣诞节", ename="Christmas Day", awareness=1), # We give it awareness 1 since it's just one day after awareness 4
     RegEvent(mwd=(5, 2, 0), name="母亲节", ename="Mother's Day", awareness=1),
     RegEvent(mwd=(6, 3, 0), name="父亲节", ename="Father's Day", awareness=1),
     RegEvent(mwd=(9, 3, 2), name="国际和平日", ename="International Peace Day", awareness=1),
@@ -295,7 +295,7 @@ events_list = [
     RegEvent(mwd=(10, 2, 1), ename="Canadian Thanksgiving Day", awareness=1), # This is too religion specific so we don't represent it to Chinese users
     RegEvent(mwd=(10, 2, 3), name="国际减轻自然灾害日", ename="International Day for Natural Disaster Reduction"),
     RegEvent(mwd=(10, 2, 4), name="世界爱眼日", ename="World Sight Day", awareness=1),
-    RegEvent(lmd=(1, 1), name="春节", ename="Chinese Spring Festival", awareness=1, lasts=7), # We give it awareness 1 since it's just one day after awareness 2
+    RegEvent(lmd=(1, 1), name="春节", ename="Chinese Spring Festival", awareness=1, lasts=7), # We give it awareness 1 since it's just one day after awareness 3
     RegEvent(lmd=(1, 15), name="元宵节", awareness=1),
     RegEvent(lmd=(5, 5), name="端午节", awareness=1),
     RegEvent(lmd=(7, 7), name="七夕节", ename="Chinese Valentine's Day", awareness=1),
