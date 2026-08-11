@@ -555,7 +555,7 @@ class GenCorrectionModel(BaseModel):
                         **kwargs,
                     )
                 else:
-                    raise MaicaResponseWarning(ve) from ve
+                    raise MaicaResponseWarning(f"Basic fixes still failed for LLM response: {str(ve)}, no default provided") from ve
 
     @classmethod
     def _repair_json(cls, raw: str | bytes) -> dict[str, Any]:

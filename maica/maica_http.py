@@ -546,7 +546,7 @@ class ShortConnHandler(View):
         try:
             crid_m = FscUsersFuncMixin.TokenCridential.model_validate(query.content)
         except Exception as e:
-            raise MaicaInputWarning(e) from e
+            raise MaicaInputWarning(f"Input validation failed: {str(e)}") from e
         token = await crid_m.generate_token()
 
         return jfy_res(token)
