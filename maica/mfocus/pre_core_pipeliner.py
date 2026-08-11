@@ -67,7 +67,7 @@ async def pre_core_pipelines(
             and fsc.maica_settings.extra.mf_precheck_mt
         ):
             requested, operation = await st.predict_trigger(session_item.content)
-            sync_messenger(info=f"Precheck mt responded, requested: {requested}, operation: {operation}", type=MsgType.LOG)
+            sync_messenger(info=f"Precheck mt responded, requested: {requested}, operation: {operation}", type=MsgType.PRIM_LOG)
 
             if requested:
                 if operation:
