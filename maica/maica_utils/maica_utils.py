@@ -445,6 +445,18 @@ class BilingualText():
         else:
             return self.auto
 
+    def as_str(self, func: Callable, *args, self_assign=False, **kwargs):
+        """Treat current bt as multiple strings."""
+        results = []
+        for i in (self.zh, self.en, self.auto):
+            results.append(func(*args, **kwargs))
+        results = tuple(results)
+
+        if self_assign:
+            self.zh, self.en, self.auto = results
+        
+        return results
+
 class PydUpdateMixin(BaseModel):
     """This adds update() method to pydantic models."""
     def update(self, m):

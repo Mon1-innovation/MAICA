@@ -94,16 +94,17 @@ class MaicaSessionItem(BaseModel):
         return self.model_dump(**kwargs)
 
     
-    def utilize(self, text_only: Literal[False, None, True] = None) -> dict:
+    def utilize(self, text_only: Literal[False, None, True] = None, target_lang: Optional[TargetLangType] = None) -> dict:
         """
         text_only:
         False: force image
         None: auto decide (for core model)
         True: disable image
         """
+        target_lang = target_lang or self.target_lang or "zh"
         if self.role in ["system", "user", "assistant"]:
             d = {"role": self.role}
-            content = to_str(self.content, self.target_lang)
+            content = to_str(self.content, target_lang)
 
             if (
                 (
@@ -346,16 +347,18 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         # Then handle names, to include name in info
         prompt = _replace_prompt_placeholders(prompt, pname_format_kvs)
 
-        # If MSpire or MPostal, there will be placeholders in its content
-        if curr_item.role == "user":
-            curr_item.content = _replace_prompt_placeholders(
-                to_str(curr_item.content, target_lang),
-                pname_format_kvs,
-            )
-
         # Then inject
         # Note that system prompt item should not be modified from external
         self[0].content = prompt
+
+        # For safety considerations, we just flattern all possible bt contents here
+        for item in self:
+            if isinstance(item.content, _Bt):
+                item.content = item.content.to_str(target_lang)
+
+        # If MSpire or MPostal, there will be placeholders in its content
+        if curr_item.role == "user":
+            curr_item.content = _replace_prompt_placeholders(curr_item.content, pname_format_kvs)
 
         # Uncomment this for debugging
         # print(prompt)
