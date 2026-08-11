@@ -1068,7 +1068,7 @@ def sync_messenger(
             msg_send += f" <{tracker_id}>"
 
     # Frame tracking settings
-    frametrack_d = {"error": 99, "warn": 2}
+    frametrack_d = {"error": 99, "warn": 1}
     if type in frametrack_d:
         stack = inspect.stack()
         stack.pop(0)
