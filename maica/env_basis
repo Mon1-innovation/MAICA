@@ -4,7 +4,7 @@ MAICA_CURR_VERSION = '1.3.000'
 # Oldest capable backend version
 MAICA_LEGC_VERSION = '1.3.000.rc3'
 # Frontend version announcement(s)
-MAICA_BLESSLAND_CAPV = '1.8.0'
+MAICA_BLESSLAND_CAPV = '1.8.2'
 # cp ./env_basis ./.env
 # vim .env
 # Do not mv, rm or edit basis! They're required as default templates.
