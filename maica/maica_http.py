@@ -273,10 +273,13 @@ class ShortConnHandler(View):
 
         except CommonMaicaException as ce:
             _, _, message, _ = sync_messenger(error=ce)
+            
             status_code = int(ce.error_code or 400)
             if not 400 <= status_code <= 599:
                 status_code = 400
-            return jsonify({"success": False, "exception": message}), status_code
+
+            status = ce.status
+            return jsonify({"success": False, "exception": f"{status}: {message}"}), status_code
 
         except Exception as e:
             _, _, message, _ = sync_messenger(info="Uncaught error happened in http handler: ", code=504, error=e)
@@ -339,7 +342,7 @@ class ShortConnHandler(View):
             target_lang = persistent.read_key("target_lang")
             if target_lang:
                 self.fsc.maica_settings.basic.target_lang = target_lang
-                
+
             await persistent.to_db(skip_sync=True)
             await persistent.to_vector()
  
