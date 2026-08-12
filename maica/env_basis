@@ -154,9 +154,9 @@ MAICA_TP_APIS = '
         "SEARXNG_USE_PROXY": false
     }
 '
-# Comma-separated MVista host/IP/CIDR rules. Prefix a deny rule with !.
-# Explicit host rules take precedence over its resolved IP; !* denies any unmarked host.
-# Unmarked hosts are otherwise allowed after their resolved IPs pass deny rules.
+# Comma-separated MVista host/IP/CIDR rules. Prefix a deny rule with !
+# Explicit host rules take precedence over its resolved IP; !* denies any unmarked host
+# Unmarked hosts are otherwise allowed after their resolved IPs pass deny rules
 MAICA_MVISTA_TRUSTED = '!10.0.0.0/8,!172.16.0.0/12,!192.168.0.0/16'
 
 
@@ -170,6 +170,9 @@ MAICA_F2B_COUNT = '20'
 MAICA_F2B_TIME = '600'
 # Seconds allowed for a WebSocket connection to authenticate
 MAICA_AUTH_TIMEOUT = '60'
+# Enforce checking ToS updates using fof/terms, 0 for disabled
+# Use ids separated with commas for terms MAICA users have to check
+MAICA_TOS_IDS = '0'
 
 
 # Miscellaneous behavior settings

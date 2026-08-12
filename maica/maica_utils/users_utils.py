@@ -113,7 +113,7 @@ class FscUsersFuncMixin():
                     ),
                     type=MsgType.WARN,
                 )
-                raise MaicaInputWarning("Failed parsing access_token") from exc
+                raise MaicaInputWarning("Failed parsing access_token", status="maica_login_token_corrupted") from exc
 
             sync_messenger(
                 info=(
@@ -141,7 +141,7 @@ class FscUsersFuncMixin():
                         info=f"Authentication token={token_ref} failed: account was not found",
                         type=MsgType.WARN,
                     )
-                    raise MaicaPermissionWarning("Invalid username/email or password")
+                    raise MaicaPermissionWarning("Invalid username/email or password", status="maica_login_token_invalid")
 
             user_id = obj.id
             username = obj.username
@@ -175,7 +175,7 @@ class FscUsersFuncMixin():
                     if f2b_until > curr_timestamp:
 
                         f2b_display = datetime.datetime.fromtimestamp(f2b_until).isoformat()
-                        raise MaicaPermissionWarning(f"Fail2Ban interventing until {f2b_display}")
+                        raise MaicaPermissionWarning(f"Fail2Ban interventing until {f2b_display}", status="maica_login_f2b")
                     
                     # Then password verification
                     user_pwd_encoded = token_cridential.password.encode()
@@ -208,7 +208,7 @@ class FscUsersFuncMixin():
                     info=f"Authentication token={token_ref} failed: password mismatch for user_id={user_id}",
                     type=MsgType.WARN,
                 )
-                raise MaicaPermissionWarning("Invalid username/email or password")
+                raise MaicaPermissionWarning("Invalid username/email or password", status="maica_login_token_invalid")
             
         # If running common check, we assert logged in already
         else:
@@ -240,11 +240,23 @@ class FscUsersFuncMixin():
             suspended_until
             and suspended_until > time_now
         ):
-            raise MaicaPermissionWarning(f"User banned until {suspended_until.isoformat()}")
+            raise MaicaPermissionWarning(f"User banned until {suspended_until.isoformat()}", status="maica_login_banned")
 
         # Check if email verified here
         if not is_email_confirmed:
-            raise MaicaPermissionWarning("Email not verified, check your inbox")
+            raise MaicaPermissionWarning("Email not verified, check your inbox", status="maica_login_email_unchecked")
+
+        # Check ToS check status here
+        tos_ids = {
+            int(i.strip())
+            for i
+            in G.A.TOS_IDS.split(",")
+        }
+        tos_ids.discard(0)
+        if tos_ids:
+            # So we have ToS to verify
+            ...
+
 
         # Only assign these if not common check
         if crid_b64:
@@ -266,7 +278,7 @@ class FscUsersFuncMixin():
             if self.rsc.websocket:
                 connection_lock = self.rsc.session_lock
                 if connection_lock is None:
-                    raise MaicaConnectionWarning("WebSocket session lock is missing")
+                    raise CriticalMaicaError("WebSocket session lock is missing")
 
                 async with online_dict_guard:
                     stale_entry = online_dict.get(user_id)
