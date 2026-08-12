@@ -37,12 +37,23 @@ def test_create_or_update_flushes_insert_and_updates_existing_row() -> None:
             async with engine.begin() as conn:
                 await conn.run_sync(SqlBaseData.metadata.create_all)
             async with session_factory() as dbs, dbs.begin():
-                await sqla_create_or_update(dbs, SqlMsCache, {"hash": "abc"}, {"content": "first"})
+                await sqla_create_or_update(
+                    dbs,
+                    SqlMsCache,
+                    {"hash": "abc"},
+                    {"user_id": 1, "content": "first"},
+                )
             async with session_factory() as dbs, dbs.begin():
-                await sqla_create_or_update(dbs, SqlMsCache, {"hash": "abc"}, {"content": "second"})
+                await sqla_create_or_update(
+                    dbs,
+                    SqlMsCache,
+                    {"hash": "abc"},
+                    {"user_id": 1, "content": "second"},
+                )
             async with session_factory() as dbs:
                 rows = (await dbs.scalars(sqlalchemy.select(SqlMsCache))).all()
                 assert len(rows) == 1
+                assert rows[0].user_id == 1
                 assert rows[0].content == "second"
         finally:
             await engine.dispose()
