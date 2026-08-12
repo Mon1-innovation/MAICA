@@ -229,15 +229,6 @@ class ShortConnHandler(View):
 
     async def dispatch_request(self, **kwargs):
         try:
-
-            # If validation required, we spawn stem instance
-            if self.val:
-                self.stem_inst = await NoWsCoroutine.async_create(self.fsc)
-                self.settings = self.fsc.maica_settings
-            else:
-                self.stem_inst = None
-                self.settings = None
-
             endpoint = request.endpoint
             function_routed = getattr(self, endpoint)
 
@@ -251,11 +242,18 @@ class ShortConnHandler(View):
             else:
                 self.remote_addr = str(request.remote_addr)
 
-            if self.stem_inst:
-                self.stem_inst.remote_addr = self.remote_addr
-
             self.msg_http(info=f'Recieved request on API endpoint {endpoint}', type=MsgType.RECV)
             self.msg_http(info=f'From IP {self.remote_addr}', type=MsgType.DEBUG)
+
+            # If validation required, we spawn stem instance
+            if self.val:
+                self.stem_inst = await NoWsCoroutine.async_create(self.fsc)
+                self.stem_inst.remote_addr = self.remote_addr
+                self.settings = self.fsc.maica_settings
+            else:
+                self.stem_inst = None
+                self.settings = None
+
             result = await function_routed()
 
             # Printing
@@ -273,7 +271,7 @@ class ShortConnHandler(View):
 
         except CommonMaicaException as ce:
             _, _, message, _ = sync_messenger(error=ce)
-            
+
             status_code = int(ce.error_code or 400)
             if not 400 <= status_code <= 599:
                 status_code = 400
