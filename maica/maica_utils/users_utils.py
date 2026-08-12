@@ -20,6 +20,7 @@ from .encryption_utils import crypto_object, decrypt_token, encrypt_token
 from .maica_utils import *
 from .database_utils import *
 from .database_models import *
+from .terms_utils import check_terms_acceptance, parse_tos_ids
 from .gvars import online_dict, online_dict_guard
 
 _DUMMY_PASSWORD_HASH = bcrypt.hashpw(b"maica-invalid-credential", bcrypt.gensalt())
@@ -247,15 +248,18 @@ class FscUsersFuncMixin():
             raise MaicaPermissionWarning("Email not verified, check your inbox", status="maica_login_email_unchecked")
 
         # Check ToS check status here
-        tos_ids = {
-            int(i.strip())
-            for i
-            in G.A.TOS_IDS.split(",")
-        }
-        tos_ids.discard(0)
+        try:
+            tos_ids = parse_tos_ids(G.A.TOS_IDS)
+        except ValueError as exc:
+            raise CriticalMaicaError(str(exc)) from exc
         if tos_ids:
-            # So we have ToS to verify
-            ...
+            async with DatabaseUtils.SessionAuth() as aus:
+                unaccepted = await check_terms_acceptance(aus, user_id, tos_ids)
+            if unaccepted:
+                raise MaicaPermissionWarning(
+                    "Latest ToS not accepted, check forum",
+                    status="maica_login_tos_unaccepted",
+                )
 
 
         # Only assign these if not common check

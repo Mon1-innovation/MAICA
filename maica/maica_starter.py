@@ -386,6 +386,11 @@ def validate_config():
     except ValueError as exc:
         errors.append(str(exc))
 
+    try:
+        parse_tos_ids(value("TOS_IDS"))
+    except ValueError as exc:
+        errors.append(str(exc))
+
     if errors:
         raise RuntimeError("Invalid configuration:\n- " + "\n- ".join(errors))
 

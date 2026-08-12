@@ -267,6 +267,11 @@ def test_config_validation_is_offline_and_reports_invalid_values(monkeypatch) ->
     with pytest.raises(RuntimeError, match="MAICA_HTTP_PORT"):
         maica_starter.validate_config()
 
+    values["MAICA_HTTP_PORT"] = "5000"
+    values["MAICA_TOS_IDS"] = "1,broken"
+    with pytest.raises(RuntimeError, match="MAICA_TOS_IDS"):
+        maica_starter.validate_config()
+
 
 def test_validate_only_startup_skips_database_initialization(monkeypatch) -> None:
     old_validate_only = maica_starter.validate_only
