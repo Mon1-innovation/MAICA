@@ -262,6 +262,7 @@ async def ms_to_cache(mfc_m: MsFromCacheResult, fsc: FullSocketsContainer):
                 SqlMsCache,
                 {"hash": mfc_m.hash},
                 {
+                    "user_id": fsc.maica_settings.verification.user_id,
                     "content": mfc_m.result,
                 }
             )
