@@ -336,15 +336,15 @@ class WsCoroutine(NoWsCoroutine):
                 st=st,
             )
 
-            # We update str_query here for ms and mp
-            str_query = user_query.content
-
             # Construction part done, communication part started
             completion_args = {
                 "input": session.utilize(),
                 "stream": self.settings.use_stream_now,
                 "extra_body": {},
             }
+
+            # We update str_query here for ms and mp
+            str_query = user_query.content
 
             # Super params apply
             if self.settings.super_writable:

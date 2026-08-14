@@ -95,8 +95,8 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         query_item = MaicaSessionItem(
             "user",
             _Bt(
-                "<task> 观察以上对话历史记录, 依据最后一轮对话调用工具. 除非工具说明允许, 否则不要调用未经显式指示的工具. 每个工具最多调用一次.",
-                "<task> Observe the chat history and make tool calls according to last round of conversation. Do not use tools without explicit request, unless the tool description allows you to. Do not use any tool more than once."
+                "<task> 观察以上对话历史记录, 仅依据最后一轮对话调用工具. 除非工具说明允许, 否则不要调用未经显式指示的工具. 每个工具最多调用一次.",
+                "<task> Observe the chat history and make tool calls according to only the last round of conversation. Do not use tools without explicit request, unless the tool description allows you to. Do not use any tool more than once."
             ),
             target_lang=target_lang,
         )

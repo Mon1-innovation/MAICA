@@ -261,7 +261,6 @@ class FscUsersFuncMixin():
                     status="maica_login_tos_unaccepted",
                 )
 
-
         # Only assign these if not common check
         if crid_b64:
 
@@ -314,14 +313,13 @@ class FscUsersFuncMixin():
                     except Exception as exc:
                         sync_messenger(
                             info=f'The stale connection has died already: {exc}',
-                            type=MsgType.LOG,
+                            type=MsgType.DEBUG,
                         )
 
                     async with stale_lock:
                         sync_messenger(
-                            status='maica_connection_stale_kicked',
                             info='The stale connection is kicked',
-                            code=204,
+                            type=MsgType.DEBUG,
                         )
 
         # Return a True, though we don't need it
