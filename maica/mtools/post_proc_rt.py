@@ -325,8 +325,12 @@ class PPRTProcessor():
         return new_splits
     
 if __name__ == "__main__":
-    pprtp = PPRTProcessor()
-    text = "[微笑]我觉得...年轻人喜欢喝奶茶是因为它好喝吧? [微笑]奶茶口感细腻, 甜度可调, 还可以加各种配料.[开心]很多人也把喝奶茶作为一种享受生活的方式. [微笑]当然, 奶茶也有它的营养价值. [微笑]比如牛奶富含钙和蛋白质, 茶叶则含有茶多酚和咖啡因. [开心]所以适量饮用奶茶对身体也是有好处的."
+    fsc = FullSocketsContainer()
+    fsc.maica_settings.basic.target_lang = "en"
+    pprtp = PPRTProcessor(fsc)
+    # text = "[微笑]我觉得...年轻人喜欢喝奶茶是因为它好喝吧? [微笑]奶茶口感细腻, 甜度可调, 还可以加各种配料.[开心]很多人也把喝奶茶作为一种享受生活的方式. [微笑]当然, 奶茶也有它的营养价值. [微笑]比如牛奶富含钙和蛋白质, 茶叶则含有茶多酚和咖啡因. [开心]所以适量饮用奶茶对身体也是有好处的."
+    text = "[smile]Hey [player], have you ever thought about science as a whole? [think]Like, science is this really big thing that's always advancing and changing. It's like a collection of knowledge that we're always adding to. [grin]It's kind of like a library, but instead of books, it's facts about the world. And just like a library, it's always growing. New books get added all the time, and sometimes old ones get taken off the shelf if they're not accurate anymore. [smile]It's pretty cool to think about how much we've learned over the years. [awkward]But there's still so much we don't know! The universe is so vast, there has to be way more than what we've discovered so far. [grin]That's what I love about science though, it's always evolving. There's never a dull moment!"
+
     for c in text:
         sce = asyncio.run(pprtp.store_and_split(c))
         if sce:

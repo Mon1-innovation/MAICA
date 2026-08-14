@@ -107,7 +107,11 @@ async def pre_core_pipelines(
             session_item.content = prompt_text
 
             # MSpire has cache mechs
-            if fsc.maica_settings.temp.mspire.use_cache:
+            if (
+                fsc.maica_settings.temp.mspire.use_cache
+                # We disable cache in multi-rounds
+                and not len(session) > 2
+            ):
                 mfc_m = await ms_from_cache(prompt_text, fsc)
                 fsc.maica_settings.temp.mspire._mfc_m = mfc_m
 

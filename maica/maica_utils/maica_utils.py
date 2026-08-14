@@ -985,7 +985,10 @@ def sync_messenger(
         status = error.status if not status else status
         info = error.message if not info else info
         code = error.error_code if not code else code
-        no_print = False if error.print is not False else True
+        if error.print is True:
+            no_print = False
+        elif error.print is False:
+            no_print = True
 
         if (
             isinstance(error, CommonMaicaError)

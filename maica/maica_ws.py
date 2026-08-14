@@ -442,8 +442,10 @@ class WsCoroutine(NoWsCoroutine):
 
                 # If skipping generation, we get result from skip_generation and just send it
                 else:
+                    content_all_deltas = await pprt_processor.exhaust_and_split(self.settings.skip_generation)
 
-                    await send_delta(self.settings.skip_generation)
+                    for content_delta in content_all_deltas:
+                        await send_delta(content_delta)
 
                     sync_messenger(info='\n', type=MsgType.PLAIN)
                     await self.fsc.messenger(

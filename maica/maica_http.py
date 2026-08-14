@@ -270,13 +270,18 @@ class ShortConnHandler(View):
             return result
 
         except CommonMaicaException as ce:
-            _, _, message, _ = sync_messenger(error=ce)
-
             status_code = int(ce.error_code or 400)
             if not 400 <= status_code <= 599:
                 status_code = 400
 
             status = ce.status
+
+            no_print = (
+                not ce.is_critical
+                and not self.val
+            )
+            _, _, message, _ = sync_messenger(error=ce, no_print=no_print)
+
             return jsonify({"success": False, "exception": f"{status}: {message}"}), status_code
 
         except Exception as e:
