@@ -101,8 +101,9 @@ async def pre_core_pipelines(
             fsc.maica_settings.temp.activated == "mspire"
         ):
             prompt_text = await make_inspire(fsc)
-            prompt_text = prompt_text.to_str(fsc.maica_settings.basic.target_lang).format_map(
-                SafeFormatDict({"player_name": session_item.context.player_name})
+            prompt_text = replace_prompt_placeholders(
+                prompt_text.to_str(fsc.maica_settings.basic.target_lang),
+                {"player_name": session_item.context.player_name},
             )
             session_item.content = prompt_text
 

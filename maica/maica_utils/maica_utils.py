@@ -521,6 +521,18 @@ class SafeFormatDict(dict):
         return "{" + key + "}"
 
 
+_PROMPT_PLACEHOLDER_RE = re.compile(r"(?<!\{)\{([A-Za-z_][A-Za-z0-9_]*)\}(?!\})")
+
+
+def replace_prompt_placeholders(text: str, values: Mapping[str, object]) -> str:
+    """Replace known simple placeholders without parsing arbitrary brace content."""
+    return _PROMPT_PLACEHOLDER_RE.sub(
+        lambda match: str(values[match.group(1)])
+        if match.group(1) in values else match.group(0),
+        text,
+    )
+
+
 class GenCorrectionModel(BaseModel):
     """
     Pydantic model with lightweight JSON output repair. GPT wrote this.

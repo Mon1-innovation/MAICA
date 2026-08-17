@@ -73,6 +73,7 @@ from .maica_utils import (
     PydSoftResetMixin,
     RobustList,
     SafeFormatDict,
+    replace_prompt_placeholders,
     GenCorrectionModel,
     DummyClass,
 )
@@ -172,6 +173,7 @@ __all__ = [
     'PydSoftResetMixin',
     'RobustList',
     'SafeFormatDict',
+    'replace_prompt_placeholders',
     'GenCorrectionModel',
     'DummyClass',
     'MilvusDbConnectionManager',
