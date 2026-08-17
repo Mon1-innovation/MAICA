@@ -61,11 +61,10 @@ def test_native_vision_binds_to_current_user_for_managed_session(monkeypatch) ->
     })
     session = MaicaSession(0)
 
-    user_query, str_query, vision_urls = worker._prepare_user_query(session, config)
+    user_query, str_query = worker._prepare_user_query(session, config)
 
     assert user_query is session[-1]
     assert str_query == "describe"
-    assert vision_urls == [IMAGE_URL]
     assert user_query.context.image_urls == [IMAGE_URL]
     assert session.utilize()[-1] == _expected_user_input("describe")
 
@@ -84,7 +83,7 @@ def test_native_vision_binds_after_session_minus_one_load(monkeypatch) -> None:
     })
     session = MaicaSession(-1)
 
-    user_query, _, _ = worker._prepare_user_query(session, config)
+    user_query, _ = worker._prepare_user_query(session, config)
 
     assert user_query is session[-1]
     assert user_query.context.image_urls == [IMAGE_URL]

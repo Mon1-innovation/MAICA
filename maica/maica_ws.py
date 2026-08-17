@@ -222,11 +222,7 @@ class WsCoroutine(NoWsCoroutine):
         
         await self.fsc.messenger('maica_params_accepted', f"{accepted_params} out of {len(ws_config.chat_params)} settings accepted", 200)
 
-    def _prepare_user_query(
-            self,
-            session: MaicaSession,
-            ws_config: WsQueryConfig,
-        ) -> tuple[MaicaSessionItem, str, list[str]]:
+    def _prepare_user_query(self, session: MaicaSession, ws_config: WsQueryConfig):
         """Apply request-scoped settings and return the actual current user item."""
         chat_session = ws_config.chat_session
         user_query = MaicaSessionItem("user")
@@ -255,11 +251,12 @@ class WsCoroutine(NoWsCoroutine):
                 self.settings.temp.common.update(ws_config.postmail)
                 str_query = (ws_config.postmail.header or "") + ws_config.postmail.content
 
-        vision_urls = list(ws_config.vision.root) if ws_config.vision else []
-        self.settings.temp.mvista.mv_imgs = vision_urls or None
-        user_query.context_from_fsc(self.fsc, image_urls=vision_urls)
+        vision_urls = ws_config.vision.root if ws_config.vision else None
+        self.settings.temp.mvista.mv_imgs = vision_urls
 
-        return user_query, str_query, vision_urls
+        user_query.context_from_fsc(self.fsc)
+
+        return user_query, str_query
 
     # Completion section
     async def generate_response(self, ws_config: WsQueryConfig):
@@ -314,7 +311,7 @@ class WsCoroutine(NoWsCoroutine):
                 )
                 return
 
-            user_query, str_query, vision_urls = self._prepare_user_query(
+            user_query, str_query = self._prepare_user_query(
                 session,
                 ws_config,
             )
@@ -355,34 +352,6 @@ class WsCoroutine(NoWsCoroutine):
                 "stream": self.settings.use_stream_now,
                 "extra_body": {},
             }
-
-            if vision_urls:
-                vision_route = (
-                    "native-core"
-                    if is_mcore_vl()
-                    else "dedicated-mvista"
-                    if self.fsc.mvista_conn is not None
-                    else "disabled"
-                )
-                core_image_blocks = sum(
-                    1
-                    for message in completion_input
-                    if isinstance(message, dict)
-                    for block in (
-                        message.get("content", [])
-                        if isinstance(message.get("content"), list)
-                        else []
-                    )
-                    if isinstance(block, dict) and block.get("type") == "input_image"
-                )
-                sync_messenger(
-                    info=(
-                        f"Vision payload prepared: route={vision_route}, "
-                        f"request_images={len(vision_urls)}, "
-                        f"core_image_blocks={core_image_blocks}"
-                    ),
-                    type=MsgType.DEBUG,
-                )
 
             # We update str_query here for ms and mp
             str_query = user_query.content

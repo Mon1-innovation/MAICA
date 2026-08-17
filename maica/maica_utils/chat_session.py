@@ -173,12 +173,7 @@ class MaicaSessionItem(BaseModel):
         return generic_str
 
     
-    def context_from_fsc(
-            self,
-            fsc: FullSocketsContainer,
-            *,
-            image_urls: Optional[Iterable[str]] = None,
-        ):
+    def context_from_fsc(self, fsc: FullSocketsContainer):
         """Gets session item specifics from a fsc."""
         self.target_lang = fsc.maica_settings.basic.target_lang
 
@@ -186,9 +181,7 @@ class MaicaSessionItem(BaseModel):
         context.strict_conv = fsc.maica_settings.temp.common.strict_conv
         context.apply_nickname = fsc.maica_settings.extra.prompt_allow_nickname
         context.nsfw_acceptive = fsc.maica_settings.extra.nsfw_acceptive
-        if image_urls is None:
-            image_urls = fsc.maica_settings.temp.mvista.mv_imgs or []
-        context.image_urls = list(image_urls)
+        context.image_urls = fsc.maica_settings.temp.mvista.mv_imgs or []
 
 
 class MaicaSession(list[MaicaSessionItem], DbBoundObject):
@@ -391,7 +384,15 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
             self._utilize_context(manual_prompt, ignore_additions, extra_info)
         else:
             self.sanitize()
-        return [i.utilize(text_only) for i in self]
+
+        # Filter all embedded images here
+        length = len(self)
+        utilized = [
+            j.utilize(text_only = i < length - 1)
+            for i, j in enumerate(self)
+        ]
+
+        return utilized
     
     async def to_partial_archive(self):
         """To crop_archived."""
