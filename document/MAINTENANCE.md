@@ -18,6 +18,7 @@ If you want to read in English, use a translator.
 * `online_dict` 的修改必须在 `online_dict_guard` 内完成；清理连接时仅删除仍指向自身的条目。
 * `DbBoundObject` 必须通过 `acquire_dbo()` / `acquire_session()` 使用，以保证同一用户和会话串行写入。
 * LLM 输出统一由 `llm_request()` 解析 Responses API 的流式与非流式事件。
+* LLM 输入统一使用 Responses API 格式；多模态内容块必须为 `input_text` / `input_image`，不得重新引入 Chat Completions 的 `text` / `image_url` 内容块。
 * schema 迁移全部成功后才能推进 `.initialized` 中的版本。
 
 ## 验证
@@ -35,6 +36,6 @@ python -m pip check
 
 版本来源仅为 `maica/env_basis` 的 `MAICA_CURR_VERSION`。新增或修改数据库结构时，必须新增幂等迁移并同步提升版本；不要修改已发布迁移的触发版本。构建后应执行 `twine check` 并检查 wheel 只包含 `maica*` 包、`env_basis` 和两种 SERP 二进制。
 
-视觉 URL 仍由模型服务实际抓取。`MAICA_MVISTA_TRUSTED` 支持主机名、IP、CIDR、`!` 拒绝规则及 `!*` 默认拒绝；主机规则校验与模型服务实际抓取之间仍存在 DNS 变化窗口，因此还应在网络层阻断模型容器访问云元数据、数据库和管理网段。预编译 SERP 二进制属于独立外部组件，升级时应核对其来源和校验值。
+视觉 URL 仍由模型服务实际抓取。外部请求只能通过顶层 `vision` 字段提交图片；特别是 `chat_session=-1`，不得接受历史项内嵌的图片 URL 或模型图片内容块。`MAICA_MVISTA_TRUSTED` 支持主机名、IP、CIDR、`!` 拒绝规则及 `!*` 默认拒绝；主机规则校验与模型服务实际抓取之间仍存在 DNS 变化窗口，因此还应在网络层阻断模型容器访问云元数据、数据库和管理网段。预编译 SERP 二进制属于独立外部组件，升级时应核对其来源和校验值。
 
 认证日志只记录访问令牌的 SHA-256 短指纹、长度、账号标识和密码长度，并区分令牌解析、账号查找与密码校验阶段。该信息可用于关联客户端请求和排查填错凭据，但不能代替客户端原始输入；不要恢复完整令牌或明文密码日志。

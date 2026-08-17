@@ -106,6 +106,29 @@ async def _vision_host_allowed(host: str, raw_rules: str) -> bool:
         return True
     return allow_unmarked and not deny_unmarked
 
+
+def _contains_embedded_vision(value: Any) -> bool:
+    """Detect model-bound image inputs outside the validated vision field."""
+    pending = [value]
+    while pending:
+        current = pending.pop()
+        if isinstance(current, dict):
+            content_type = current.get("type")
+            if (
+                isinstance(content_type, str)
+                and content_type in {"image_url", "input_image"}
+            ):
+                return True
+            for key, nested in current.items():
+                if key in {"image_url", "image_urls"} and nested:
+                    return True
+                pending.append(nested)
+        elif isinstance(current, list):
+            pending.extend(current)
+
+    return False
+
+
 class WsBasicConfig(BaseModel):
     type: Literal["auth", "ping", "sping", "reconn", "params", "query"]
 
@@ -283,6 +306,11 @@ class WsQueryConfig(WsBasicConfig):
                 
                 if self.activated != "query":
                     raise MaicaInputWarning("MS/MP not allowed for session -1")
+
+                if _contains_embedded_vision(self.query):
+                    raise MaicaInputWarning(
+                        "Session -1 image inputs must use the top-level vision field"
+                    )
             
             if (
                 self.chat_session >= 0

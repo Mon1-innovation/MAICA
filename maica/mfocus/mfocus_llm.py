@@ -51,6 +51,7 @@ class MfPipeliner():
         """If MVista tool should be used."""
         return (
             not is_mcore_vl()
+            and self.fsc.mvista_conn is not None
             and bool(self.fsc.maica_settings.temp.mvista.mv_imgs)
         )
 

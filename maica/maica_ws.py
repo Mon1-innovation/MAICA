@@ -222,6 +222,45 @@ class WsCoroutine(NoWsCoroutine):
         
         await self.fsc.messenger('maica_params_accepted', f"{accepted_params} out of {len(ws_config.chat_params)} settings accepted", 200)
 
+    def _prepare_user_query(
+            self,
+            session: MaicaSession,
+            ws_config: WsQueryConfig,
+        ) -> tuple[MaicaSessionItem, str, list[str]]:
+        """Apply request-scoped settings and return the actual current user item."""
+        chat_session = ws_config.chat_session
+        user_query = MaicaSessionItem("user")
+        session.append(user_query)
+
+        match ws_config.activated:
+            case "query":
+                if chat_session <= -1:
+                    session.load(ws_config.query)
+                    user_query = session[-1]
+                    str_query = user_query.content
+                else:
+                    str_query = user_query.content = ws_config.query
+
+            case "mspire":
+                self.settings.temp.activated = "mspire"
+                self.settings.temp.mspire.update(ws_config.inspire)
+                self.settings.temp.common.update(ws_config.inspire)
+                str_query = ", ".join(
+                    [to_str(i, self.settings.basic.target_lang) for i in ws_config.inspire.title]
+                )
+
+            case "mpostal":
+                self.settings.temp.activated = "mpostal"
+                self.settings.temp.mpostal.update(ws_config.postmail)
+                self.settings.temp.common.update(ws_config.postmail)
+                str_query = (ws_config.postmail.header or "") + ws_config.postmail.content
+
+        vision_urls = list(ws_config.vision.root) if ws_config.vision else []
+        self.settings.temp.mvista.mv_imgs = vision_urls or None
+        user_query.context_from_fsc(self.fsc, image_urls=vision_urls)
+
+        return user_query, str_query, vision_urls
+
     # Completion section
     async def generate_response(self, ws_config: WsQueryConfig):
 
@@ -275,33 +314,10 @@ class WsCoroutine(NoWsCoroutine):
                 )
                 return
 
-            user_query = MaicaSessionItem("user")
-            user_query.context_from_fsc(self.fsc)
-            session.append(user_query)
-
-            match ws_config.activated:
-                case "query":
-                    if chat_session <= -1:
-                        # Overrides it
-                        session.load(ws_config.query)
-                        user_query = session[-1]
-                        str_query = user_query.content
-                    else:
-                        str_query = user_query.content = ws_config.query
-
-                case "mspire":
-                    self.settings.temp.activated = "mspire"
-                    self.settings.temp.mspire.update(ws_config.inspire)
-                    self.settings.temp.common.update(ws_config.inspire)
-                    str_query = ", ".join(
-                        [to_str(i, self.settings.basic.target_lang) for i in ws_config.inspire.title]
-                    )
-
-                case "mpostal":
-                    self.settings.temp.activated = "mpostal"
-                    self.settings.temp.mpostal.update(ws_config.postmail)
-                    self.settings.temp.common.update(ws_config.postmail)
-                    str_query = (ws_config.postmail.header or "") + ws_config.postmail.content
+            user_query, str_query, vision_urls = self._prepare_user_query(
+                session,
+                ws_config,
+            )
 
             # Acquire procedure already clears temp, so write here directly
             if ws_config.savefile:
@@ -310,10 +326,6 @@ class WsCoroutine(NoWsCoroutine):
             if ws_config.triggers:
                 st.content_temp = ws_config.triggers.root
                 st.validate()
-
-            # MVista
-            if ws_config.vision:
-                self.settings.temp.mvista.mv_imgs = ws_config.vision.root
 
             # Query censor
             if G.A.CENSOR_QUERY != '0':
@@ -337,11 +349,40 @@ class WsCoroutine(NoWsCoroutine):
             )
 
             # Construction part done, communication part started
+            completion_input = session.utilize()
             completion_args = {
-                "input": session.utilize(),
+                "input": completion_input,
                 "stream": self.settings.use_stream_now,
                 "extra_body": {},
             }
+
+            if vision_urls:
+                vision_route = (
+                    "native-core"
+                    if is_mcore_vl()
+                    else "dedicated-mvista"
+                    if self.fsc.mvista_conn is not None
+                    else "disabled"
+                )
+                core_image_blocks = sum(
+                    1
+                    for message in completion_input
+                    if isinstance(message, dict)
+                    for block in (
+                        message.get("content", [])
+                        if isinstance(message.get("content"), list)
+                        else []
+                    )
+                    if isinstance(block, dict) and block.get("type") == "input_image"
+                )
+                sync_messenger(
+                    info=(
+                        f"Vision payload prepared: route={vision_route}, "
+                        f"request_images={len(vision_urls)}, "
+                        f"core_image_blocks={core_image_blocks}"
+                    ),
+                    type=MsgType.DEBUG,
+                )
 
             # We update str_query here for ms and mp
             str_query = user_query.content
