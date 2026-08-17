@@ -392,7 +392,7 @@ class AgentTools():
             case 1:
                 res = await self.sp.filter_reranker(query)
             case 2:
-                res = await self.sp.filter_milvus(query)
+                res = await self.sp.filter_vector(query)
 
         res = self.AgentPersistents(res)
         res.target_lang = target_lang

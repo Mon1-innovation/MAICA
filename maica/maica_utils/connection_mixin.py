@@ -217,7 +217,7 @@ class MilvusSearchMixin():
         user_id: int,
         chat_session_num: int,
         topk: int = 5,
-        cfd_min: float = 0.5,
+        cfd_min: float = 0.45,
     ):
         """Embed and search."""
 

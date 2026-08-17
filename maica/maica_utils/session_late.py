@@ -45,7 +45,7 @@ class SessionPersistentLlmMixin():
         )
 
 
-    async def filter_milvus(self, query: str, topk: int = 5) -> Set:
+    async def filter_vector(self, query: str, topk: int = 5) -> Set:
         """Embed and search query from milvus."""
         vector_pool = self.fsc.vector_pool
         if not self.fsc.is_vector_ready:
@@ -66,7 +66,7 @@ class SessionPersistentLlmMixin():
 
 
     async def filter_reranker(self, query: str, documents: Optional[set] = None, topk: int = 2) -> list:
-        """More precisely filter results, suggest using filter_milvus first."""
+        """More precisely filter results, suggest using filter_vector first."""
         reranking_conn = self.fsc.reranking_conn
         if not self.fsc.is_reranking_ready:
             return []
@@ -75,7 +75,7 @@ class SessionPersistentLlmMixin():
             documents is None
             and self.fsc.is_vector_ready
         ):
-            documents = await self.filter_milvus(query, 10)
+            documents = await self.filter_vector(query, 10)
             # We include full extras since there's no other way
             documents |= self.form_info(where='temp')
 
@@ -122,7 +122,7 @@ class SessionPersistentLlmMixin():
             documents is None
             and self.fsc.is_vector_ready
         ):
-            documents = await self.filter_milvus(query, 10)
+            documents = await self.filter_vector(query, 10)
             documents |= self.form_info(where='temp')
 
         elif documents is None:
