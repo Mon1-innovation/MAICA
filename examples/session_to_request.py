@@ -21,6 +21,7 @@ from maica.maica_utils.gvars import pkg_init_gvars
 
 self_path = os.path.dirname(os.path.abspath(__file__))
 session_path = os.path.join(self_path, "debug_session.json")
+body_path = os.path.join(self_path, "debug_body.json")
 
 
 def parse_args() -> argparse.Namespace:
@@ -98,7 +99,9 @@ async def async_main(model_override: str | None) -> None:
         request_body = build_responses_request_body(session, connection)
         if reconfigure := getattr(sys.stdout, "reconfigure", None):
             reconfigure(encoding="utf-8")
-        print(json.dumps(request_body, ensure_ascii=False, indent=2))
+
+        with open(body_path, 'x', encoding='utf-8') as f:
+            f.write(json.dumps(request_body, ensure_ascii=False, indent=2))
     finally:
         await connection.close()
 
