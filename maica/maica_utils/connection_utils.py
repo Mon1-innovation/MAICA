@@ -118,6 +118,52 @@ class AiConnectionManager(AsyncCreator):
         self.gen_kwargs = kwargs
 
 
+    def completions_to_responses(self, **kwargs) -> dict[str, Any]:
+        """Build the keyword arguments passed to ``responses.create``."""
+        kwargs["model"] = self.model_actual
+        mixed_exbody = self.gen_kwargs.get("extra_body", {}) | kwargs.get("extra_body", {})
+        mixed_kwargs = self.gen_kwargs | kwargs
+        mixed_kwargs["extra_body"] = mixed_exbody
+
+        # Parameters unsupported by the Responses SDK are sent through extra_body.
+        for lower_sampling_param in (
+            "seed",
+            "frequency_penalty",
+            "presence_penalty",
+        ):
+            if lower_sampling_param in mixed_kwargs:
+                mixed_kwargs["extra_body"][lower_sampling_param] = mixed_kwargs.pop(lower_sampling_param)
+
+        if "max_tokens" in mixed_kwargs:
+            mixed_kwargs["max_output_tokens"] = mixed_kwargs.pop("max_tokens")
+
+        messages = mixed_kwargs.get("input")
+        if (
+            isinstance(messages, list)
+            and messages
+            and messages[0]["role"] == "system"
+        ):
+            messages = messages.copy()
+            system = messages.pop(0)
+            mixed_kwargs["input"] = messages
+            mixed_kwargs["instructions"] = system["content"]
+
+        return mixed_kwargs
+
+
+    def completions_to_request_body(self, **kwargs) -> dict[str, Any]:
+        """Build the JSON body ultimately sent to the Responses endpoint."""
+        request_kwargs = self.completions_to_responses(**kwargs)
+        extra_body = request_kwargs.pop("extra_body", {})
+
+        # These are OpenAI SDK request options rather than JSON body fields.
+        for option_name in ("extra_headers", "extra_query", "timeout"):
+            request_kwargs.pop(option_name, None)
+
+        request_kwargs.update(extra_body)
+        return request_kwargs
+
+
     async def make_completion(self, swallow: Union[bool, str]=False, **kwargs) -> Response | AsyncStream[ResponseStreamEvent]:
         """
         Makes completion with arguments.
@@ -127,38 +173,7 @@ class AiConnectionManager(AsyncCreator):
         if "completion" not in self.caps:
             raise MaicaResponseError("Connected model is not capable of completion")
 
-        kwargs.update(
-            {
-                "model": self.model_actual
-            }
-        )
-        mixed_exbody = self.gen_kwargs.get('extra_body', {}) | kwargs.get('extra_body', {})
-        mixed_kwargs = self.gen_kwargs | kwargs
-        mixed_kwargs['extra_body'] = mixed_exbody
-
-        # The response patch
-        # Idiot openai
-        for lower_sampling_param in (
-            "seed",
-            "frequency_penalty",
-            "presence_penalty",
-        ):
-            if lower_sampling_param in mixed_kwargs:
-                mixed_kwargs['extra_body'][lower_sampling_param] = mixed_kwargs.pop(lower_sampling_param)
-            
-        # Alter names
-        if "max_tokens" in mixed_kwargs:
-            mixed_kwargs["max_output_tokens"] = mixed_kwargs.pop("max_tokens")
-
-        # Flattern system
-        messages = mixed_kwargs.get("input")
-        if (
-            isinstance(messages, list)
-            and messages
-            and messages[0]["role"] == "system"
-        ):
-            system = messages.pop(0)
-            mixed_kwargs["instructions"] = system["content"]
+        mixed_kwargs = self.completions_to_responses(**kwargs)
 
         # Uncomment to debug
         # print(json.dumps(mixed_kwargs, ensure_ascii=False))
