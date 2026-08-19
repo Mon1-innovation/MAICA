@@ -434,7 +434,7 @@ class WsCoroutine(NoWsCoroutine):
 
                         async for content_delta in a_content:
                             await asyncio.sleep(0)
-                            content_delta: Optional[str] = await pprt_processor.store_and_split(content_delta)
+                            content_delta: Optional[str] = await pprt_processor.stack_and_split(content_delta)
                             if content_delta:
                                 await send_delta(content_delta)
 
