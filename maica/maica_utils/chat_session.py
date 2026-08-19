@@ -178,13 +178,16 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
     SESSION_DB_MIN = 1
     _model = SqlChatSession
 
+
     def clear(self):
         list.clear(self)
         DbBoundObject.clear(self)
 
+
     def on_acquire(self):
         if self.session_num <= 0:
             self.reset()
+
 
     def __init__(self, session_num: int = 0, fsc: Optional[FullSocketsContainer] = None, *args, **kwargs):
         # Initialize the base list class
@@ -193,6 +196,7 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         # It should also autorun DbBoundObject.__post_init__()
         # which also runs self.reset()
     
+
     def load(self, item: Union[list, str]):
         self.clear()
         super().load(item)
@@ -201,6 +205,7 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
                 MaicaSessionItem.model_validate(i)
             )
 
+
     def local_sync(self, from_which = "content"):
         # Normal dbos' content are directly used, but sessions' are self
         # So by content here, we want to from self. the actual content just being hidden middleware
@@ -208,10 +213,12 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
             self.content = self.json()
         super().local_sync(from_which)
 
+
     def sanitize(self):
         # Make sure system is #0
         if not len(self) or not self[0].role == "system":
             self.insert(0, MaicaSessionItem("system"))
+
 
     def _utilize_context(
             self,
@@ -354,8 +361,10 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         # Uncomment this for debugging
         # print(prompt)
 
+
     def json(self):
         return [i.json() for i in self]
+
     
     def utilize(
             self,
@@ -380,6 +389,7 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         ]
 
         return utilized
+
     
     async def to_partial_archive(self):
         """To crop_archived."""
@@ -427,6 +437,7 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
 
         sync_messenger(info=f"Partial archive made for session id {self.prim_key_id}, current length {len(archive_content)}", type=MsgType.DEBUG)
 
+
     async def to_entire_archive(self):
         """To csession_archived."""
         # Common
@@ -452,6 +463,7 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
                 dbs.add(obj)
 
         sync_messenger(info=f"Entire archive made for session id {self.prim_key_id}, items {len(self)}", type=MsgType.DEBUG)
+
     
     async def crop_length(self) -> Tuple[MaicaSession, Literal[0, 1, 2]]:
         """Making it V2 style."""
@@ -530,6 +542,7 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
 
         # Now finished cropping
         return archiver, initial_stat
+
     
     async def wrapped_save(self) -> Literal[0, 1, 2]:
         """V1 comtatible behavior."""
