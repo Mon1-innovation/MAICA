@@ -106,3 +106,129 @@ def test_realtime_splitter_uses_byte_limit_as_a_byte_limit() -> None:
     assert first
     assert len(first.encode("utf-8")) <= 200
     assert splitter.sentence_present
+
+
+def test_realtime_splitter_keeps_astral_characters_intact_at_hard_limit() -> None:
+    text = "a" * 198 + "😀" + "b" * 10
+    splitter = TalkSplitV2(split_limit=180)
+    splitter.add_part(text)
+    first = splitter.split_present_sentence()
+    assert first == "a" * 198
+    assert len(first.encode("utf-8")) <= 200
+    assert "".join([first] + splitter.announce_stop()) == text
+
+
+def test_realtime_splitter_distinguishes_tilde_tone_from_ranges() -> None:
+    range_splitter = TalkSplitV2(split_limit=80)
+    range_splitter.add_part("a" * 30 + "1~2" + "b" * 30)
+    assert range_splitter.split_present_sentence() is None
+
+    spaced_range_splitter = TalkSplitV2(split_limit=80)
+    spaced_range_splitter.add_part("a" * 30 + "1 ～ 2" + "b" * 30)
+    assert spaced_range_splitter.split_present_sentence() is None
+
+    tone_splitter = TalkSplitV2(split_limit=80)
+    expected = "a" * 30 + "hello~"
+    tone_splitter.add_part(expected + " " + "b" * 30)
+    assert tone_splitter.split_present_sentence() == expected
+
+
+def test_realtime_splitter_waits_for_tilde_and_hyphen_right_context() -> None:
+    for left, right in (("1~", "2"), ("well-", "known")):
+        splitter = TalkSplitV2(split_limit=80)
+        splitter.add_part("a" * 70 + left)
+        assert splitter.split_present_sentence() is None
+        splitter.add_part(right + "b" * 5)
+        assert splitter.split_present_sentence() is None
+
+
+def test_realtime_splitter_does_not_split_at_word_hyphens_or_numeric_dashes() -> None:
+    for connector in ("well-known", "1-2", "1 - 2", "1–2", "１－２", "全﹣角"):
+        splitter = TalkSplitV2(split_limit=80)
+        splitter.add_part("a" * 70 + connector + "b" * 10)
+        assert splitter.split_present_sentence() is None
+
+    dash_splitter = TalkSplitV2(split_limit=80)
+    expected = "a" * 70 + "word—"
+    dash_splitter.add_part(expected + "word" + "b" * 20)
+    assert dash_splitter.split_present_sentence() == expected
+
+
+def test_realtime_splitter_protects_decimal_domain_and_abbreviation_dots() -> None:
+    for connector in ("3.14", ".5", ".env", "example.com", "Dr. Smith", "e.g. value"):
+        splitter = TalkSplitV2(split_limit=80)
+        splitter.add_part("a" * 30 + " " + connector + "b" * 30)
+        assert splitter.split_present_sentence() is None
+
+    sentence_splitter = TalkSplitV2(split_limit=80)
+    expected = "a" * 30 + "Hi."
+    sentence_splitter.add_part(expected + " Next" + "b" * 25)
+    assert sentence_splitter.split_present_sentence() == expected
+
+    no_space_sentence_splitter = TalkSplitV2(split_limit=80)
+    expected = "a" * 30 + "Hello."
+    no_space_sentence_splitter.add_part(expected + "World" + "b" * 25)
+    assert no_space_sentence_splitter.split_present_sentence() == expected
+
+
+def test_realtime_splitter_waits_for_context_after_a_streaming_dot() -> None:
+    decimal_splitter = TalkSplitV2(split_limit=80)
+    decimal_splitter.add_part("a" * 70 + "12.")
+    assert decimal_splitter.split_present_sentence() is None
+    decimal_splitter.add_part("34" + "b" * 5)
+    assert decimal_splitter.split_present_sentence() is None
+
+    sentence_splitter = TalkSplitV2(split_limit=80)
+    sentence_splitter.add_part("a" * 70 + "END.")
+    assert sentence_splitter.split_present_sentence() is None
+    sentence_splitter.add_part(" next")
+    assert sentence_splitter.split_present_sentence() == "a" * 70 + "END."
+
+
+def test_realtime_splitter_preserves_single_character_tail() -> None:
+    for text in ("a", "好"):
+        splitter = TalkSplitV2()
+        splitter.add_part(text)
+        assert splitter.announce_stop() == [text]
+
+
+def test_realtime_splitter_preserves_space_before_final_tail() -> None:
+    text = "a" * 30 + "! " + "b" * 30
+    splitter = TalkSplitV2(split_limit=80)
+    splitter.add_part(text)
+    first = splitter.split_present_sentence()
+    assert first == "a" * 30 + "!"
+    assert "".join([first] + splitter.announce_stop()) == text
+
+
+def test_realtime_splitter_preserves_whitespace_only_input() -> None:
+    for text in (" ", " " * 100):
+        splitter = TalkSplitV2(split_limit=40)
+        splitter.add_part(text)
+        assert "".join(splitter.announce_stop()) == text
+
+
+def test_realtime_splitter_recognizes_unicode_ellipsis() -> None:
+    splitter = TalkSplitV2(split_limit=80)
+    expected = "a" * 30 + "……"
+    splitter.add_part(expected + "b" * 30)
+    assert splitter.split_present_sentence() == expected
+
+
+def test_realtime_splitter_preserves_backend_priority_thresholds() -> None:
+    cases = (
+        ("!", "!", 60),
+        (".", ".", 145),
+        (";", ";", 155),
+        (",", ",", 165),
+        (" - ", " -", 175),
+    )
+    for punctuation, expected_punctuation, inactive_length in cases:
+        prefix = "a" * 30
+        splitter = TalkSplitV2(split_limit=180)
+        suffix_length = inactive_length - len(prefix + punctuation)
+        suffix = "B" + "b" * (suffix_length - 1)
+        splitter.add_part(prefix + punctuation + suffix)
+        assert splitter.split_present_sentence() is None
+        splitter.add_part("b")
+        assert splitter.split_present_sentence() == prefix + expected_punctuation

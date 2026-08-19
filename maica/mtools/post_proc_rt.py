@@ -1,23 +1,11 @@
+# -*- coding: utf-8 -*-
+
 import asyncio
 import re
 from typing import *
 from .post_proc import post_proc
 from maica.maica_utils import *
 
-pattern_all_punc = re.compile(r'[.。!！?？；;，,—~-]+')
-pattern_uncrit_punc = re.compile(r'[.。!！?？；;，,~]+')
-pattern_subcrit_punc = re.compile(r'[.。!！?？；;~]+')
-pattern_crit_punc = re.compile(r'[.。!！?？~]+')
-pattern_excrit_punc = re.compile(r'[!！~]+')
-pattern_numeric = re.compile(r'[0-9]')
-pattern_content = re.compile(r'[一-龥A-Za-z]')
-pattern_semileft = re.compile(r'[(（\[]')
-pattern_semiright = re.compile(r'[)）\]]')
-
-list_uncrit_punc = list('.。!！?？；;，,~')
-list_subcrit_punc = list('.。!！?？；;~')
-list_crit_punc = list('.。!！?？~')
-list_excrit_puc = list('!！~')
 
 class TalkSplitPlain():
     """For unchanged output."""
@@ -38,236 +26,323 @@ class TalkSplitPlain():
     def announce_stop(self):
         return [self.sentence_present] if self.sentence_present else []
 
-class TalkSplitV2():
-    """Transplanted from py2 fe. Terribly written."""
+class TalkSplitV2(object):
+    """
+    Incrementally split streamed Unicode text at semantic boundaries.
+
+    The class body intentionally uses Python 2.7-compatible syntax so it can
+    be reused in a UTF-8 Python 2 module. Python 2 callers must pass ``unicode``
+    chunks. The surrounding ``post_proc_rt`` module remains Python 3-only.
+    """
+
+    _PRIORITY_FALLBACK = 0
+    _PRIORITY_LOW = 1
+    _PRIORITY_MEDIUM = 2
+    _PRIORITY_HIGH = 3
+    _PRIORITY_EXHIGH = 4
+
+    _PUNCTUATION_PRIORITY = {
+        u"-": _PRIORITY_FALLBACK,
+        u"‐": _PRIORITY_FALLBACK,
+        u"‑": _PRIORITY_FALLBACK,
+        u"‒": _PRIORITY_FALLBACK,
+        u"–": _PRIORITY_FALLBACK,
+        u"—": _PRIORITY_FALLBACK,
+        u"−": _PRIORITY_FALLBACK,
+        u"﹣": _PRIORITY_FALLBACK,
+        u"－": _PRIORITY_FALLBACK,
+        u",": _PRIORITY_LOW,
+        u"，": _PRIORITY_LOW,
+        u";": _PRIORITY_MEDIUM,
+        u"；": _PRIORITY_MEDIUM,
+        u".": _PRIORITY_HIGH,
+        u"。": _PRIORITY_HIGH,
+        u"?": _PRIORITY_HIGH,
+        u"？": _PRIORITY_HIGH,
+        u"…": _PRIORITY_HIGH,
+        u"!": _PRIORITY_EXHIGH,
+        u"！": _PRIORITY_EXHIGH,
+        u"~": _PRIORITY_EXHIGH,
+        u"～": _PRIORITY_EXHIGH,
+        u"〜": _PRIORITY_EXHIGH,
+    }
+    _PUNCTUATION_PATTERN = re.compile(u'[.。!！?？；;，,—~～〜…\\-‐‑‒–−﹣－]+')
+    _LEFT_BRACKET_PATTERN = re.compile(u'[(（\\[]')
+    _RIGHT_BRACKET_PATTERN = re.compile(u'[)）\\]]')
+
+    _TILDE_CONNECTORS = frozenset((u"~", u"～", u"〜"))
+    _HYPHEN_CONNECTORS = frozenset((u"-", u"‐", u"‑", u"‒", u"–", u"−", u"﹣", u"－"))
+    _COMMON_ABBREVIATIONS = frozenset(
+        (
+            u"co", u"corp", u"dr", u"etc", u"fig", u"inc", u"jr", u"ltd", u"mr",
+            u"mrs", u"ms", u"no", u"prof", u"sr", u"st", u"vs",
+        )
+    )
+
     def __init__(self, split_limit=180):
         self.reset()
         self._split_limit = split_limit
 
     def reset(self):
-        self.sentence_present = ''
+        self.sentence_present = u''
 
-    def _is_decimal(self, five_related_cells):
-        """Not just decimal. Return True if dot shouldn't be considered as a period, vice versa."""
-        def num_amount(text):
-            i = 0
-            for c in text:
-                if c.isdigit():
-                    i += 1
-            return i
+    @staticmethod
+    def _is_word_char(char):
+        return bool(char) and (char.isalnum() or char == u"_")
 
-        if five_related_cells[2] == '.':
-            cnts = len(pattern_content.findall(five_related_cells))
-            if (
-                # If numbers in both previous and after sections, suggesting it a decimal dot
-                (num_amount(five_related_cells[0:2]) and num_amount(five_related_cells[3:5]))
-                # If section has too little content, and dot is not a period after a huge number
-                or (cnts<=1 and num_amount(five_related_cells[0:2]) != 2)
-                # If dot belongs to an abbreviation
-                or five_related_cells[1].isupper()
-            ):
+    @staticmethod
+    def _is_ascii_word_char(char):
+        return bool(char) and (
+            u"0" <= char <= u"9"
+            or u"A" <= char <= u"Z"
+            or u"a" <= char <= u"z"
+            or char == u"_"
+        )
+
+    @staticmethod
+    def _nearest_nonspace(text, index, direction):
+        while 0 <= index < len(text):
+            if not text[index].isspace():
+                return text[index]
+            index += direction
+        return u""
+
+    @staticmethod
+    def _get_utf8_byte_lengths(text):
+        """Return UTF-8 prefix lengths without relying on Python 3 string semantics."""
+        byte_lengths = [0]
+        byte_count = 0
+        index = 0
+        while index < len(text):
+            codepoint = ord(text[index])
+            if 0xD800 <= codepoint <= 0xDBFF and index + 1 < len(text):
+                next_codepoint = ord(text[index + 1])
+                if 0xDC00 <= next_codepoint <= 0xDFFF:
+                    byte_count += 4
+                    # Do not expose a cut point between a surrogate pair.
+                    byte_lengths.append(byte_count)
+                    byte_lengths.append(byte_count)
+                    index += 2
+                    continue
+            if codepoint <= 0x7F:
+                byte_count += 1
+            elif codepoint <= 0x7FF:
+                byte_count += 2
+            elif codepoint <= 0xFFFF:
+                byte_count += 3
+            else:
+                byte_count += 4
+            byte_lengths.append(byte_count)
+            index += 1
+        return byte_lengths
+
+    @classmethod
+    def _ascii_token_before(cls, text, index):
+        start = index
+        while start and cls._is_ascii_word_char(text[start - 1]):
+            start -= 1
+        return text[start:index].lower()
+
+    @classmethod
+    def _ascii_token_after(cls, text, index):
+        end = index
+        while end < len(text) and cls._is_ascii_word_char(text[end]):
+            end += 1
+        return text[index:end]
+
+    @classmethod
+    def _dot_is_connector(cls, text, index):
+        left = text[index - 1] if index else u""
+        right = text[index + 1] if index + 1 < len(text) else u""
+
+        # A trailing dot is ambiguous until the next streaming chunk arrives.
+        if not right:
+            return True
+        if left.isdigit() and right.isdigit():
+            return True
+        if right.isdigit() and (not left or left.isspace() or left in u"+-−"):
+            return True
+        if cls._is_ascii_word_char(right) and (not left or left.isspace()):
+            return True
+
+        token = cls._ascii_token_before(text, index)
+        following_token = cls._ascii_token_after(text, index + 1)
+        if cls._is_ascii_word_char(left) and cls._is_ascii_word_char(right):
+            # Lowercase token pairs are typical domains/file names. A pair of
+            # single uppercase letters is the common ``U.S.`` abbreviation.
+            if token.islower() and following_token.islower():
                 return True
+            if len(token) == 1 and len(following_token) == 1 and left.isupper() and right.isupper():
+                return True
+        if token in cls._COMMON_ABBREVIATIONS:
+            return True
+        if index >= 2 and text[index - 2] == u"." and cls._is_ascii_word_char(left):
+            return True
+        if len(token) == 1 and u"A" <= text[index - 1] <= u"Z":
+            return True
         return False
-    
-    # @staticmethod
-    # def insert_string(original_str, insert_str, index):
-    #     """Simple."""
-    #     return original_str[:index] + insert_str + original_str[index:]
+
+    @classmethod
+    def _run_is_connector(cls, text, start, end):
+        content = text[start:end]
+        left = text[start - 1] if start else u""
+        right = text[end] if end < len(text) else u""
+        left_nonspace = cls._nearest_nonspace(text, start - 1, -1)
+        right_nonspace = cls._nearest_nonspace(text, end, 1)
+
+        if content == u".":
+            return cls._dot_is_connector(text, start)
+        if all(char == u"." for char in content):
+            return left_nonspace.isdigit() and right_nonspace.isdigit()
+
+        if all(char in cls._TILDE_CONNECTORS for char in content):
+            if not right:
+                return True
+            if left_nonspace.isdigit() and right_nonspace.isdigit():
+                return True
+            if cls._is_word_char(left) and cls._is_word_char(right):
+                return True
+            if (not left or left.isspace()) and (cls._is_word_char(right) or right in u"/\\"):
+                return True
+            return False
+
+        if all(char in cls._HYPHEN_CONNECTORS for char in content):
+            if not right:
+                return True
+            if left_nonspace.isdigit() and right_nonspace.isdigit():
+                return True
+            if cls._is_word_char(left) and cls._is_word_char(right):
+                return True
+            if right_nonspace.isdigit() and (not left or left.isspace()):
+                return True
+            if len(content) > 1 and (not left or left.isspace()) and cls._is_word_char(right):
+                return True
+            return False
+
+        # Also protect compact negative decimals such as ``-.5``.
+        if content.endswith(u".") and right.isdigit():
+            prefix = content[:-1]
+            if prefix and all(char in cls._HYPHEN_CONNECTORS for char in prefix):
+                return not left or left.isspace()
+        return False
+
+    @classmethod
+    def _get_break_priority(cls, text, match):
+        if cls._run_is_connector(text, match.start(), match.end()):
+            return None
+        return max(cls._PUNCTUATION_PRIORITY[char] for char in match.group())
 
     def add_part(self, part):
-        """Simple too."""
+        """Append a Unicode streaming chunk."""
         self.sentence_present += part
 
     def split_present_sentence(self):
-        """Main function."""
-        apc = []
-        upc = []
-        spc = []
-        cpc = []
-        epc = []
-        slc = []
-        src = []
-        length_present = len(self.sentence_present.encode())
+        """Return the next safe segment, or ``None`` when more context is needed."""
+        byte_lengths = self._get_utf8_byte_lengths(self.sentence_present)
+        length_present = byte_lengths[-1]
 
-        if length_present <= 60:
+        if length_present <= min(60, self._split_limit):
             return None
-    
-        def get_pos_len(pos):
-            """Get length of context before position."""
-            sce = self.sentence_present[0:pos]
-            return len(sce.encode())
-        
+
+        candidates = []
+        for match in self._PUNCTUATION_PATTERN.finditer(self.sentence_present):
+            priority = self._get_break_priority(self.sentence_present, match)
+            if priority is not None:
+                candidates.append((match.end(), priority))
+
+        left_brackets = [match.end() for match in self._LEFT_BRACKET_PATTERN.finditer(self.sentence_present)]
+        right_brackets = [match.end() for match in self._RIGHT_BRACKET_PATTERN.finditer(self.sentence_present)]
+
         def check_sanity_pos(pos):
             """Checks brackets' consistency."""
             lc = rc = 0
-            if slc:
-                for match in slc:
-                    if match.end() > pos:
-                        break
-                    else:
-                        lc += 1
-            if src:
-                for match in src:
-                    if match.end() > pos:
-                        break
-                    else:
-                        rc += 1
-
+            for bracket_pos in left_brackets:
+                if bracket_pos > pos:
+                    break
+                lc += 1
+            for bracket_pos in right_brackets:
+                if bracket_pos > pos:
+                    break
+                rc += 1
             return lc == rc
-            
+
         def split_at_pos(pos):
-            """Just split."""
             sce = self.sentence_present[0:pos]
             self.sentence_present = self.sentence_present[pos:]
+            return sce or None
 
-            if len(sce) > 1 and not sce.isspace():
-                return sce
-            else:
-                return None
+        def find_candidate(min_priority, min_length, max_length, check_brackets=True):
+            for pos, priority in reversed(candidates):
+                if priority < min_priority:
+                    continue
+                if min_length <= byte_lengths[pos] <= max_length:
+                    if not check_brackets or check_sanity_pos(pos):
+                        return pos
+            return None
 
-        matches = pattern_all_punc.finditer(self.sentence_present)
-        for match in matches:
-            pos = match.end()
-            content = match.group()
-            apc.append(match)
-            if len(content) > 1 or not self._is_decimal(('   ' + self.sentence_present + ' ')[pos:pos+5]):
-                if has_words_in(content, *list_uncrit_punc):
-                    upc.append(match)
-                    if has_words_in(content, *list_subcrit_punc):
-                        spc.append(match)
-                        if has_words_in(content, *list_crit_punc):
-                            cpc.append(match)
-                            if has_words_in(content, *list_excrit_puc):
-                                epc.append(match)
-
-        slc = list(pattern_semileft.finditer(self.sentence_present))
-        src = list(pattern_semiright.finditer(self.sentence_present))
-
-        # if length_present <= 60:
-        #     return None
-        if epc:
-            for match in reversed(epc):
-                if 30 <= get_pos_len(match.end()) <= self._split_limit and check_sanity_pos(match.end()):
-                    return split_at_pos(match.end())
-        # No epc or none fits
+        pos = find_candidate(self._PRIORITY_EXHIGH, 30, self._split_limit)
+        if pos is not None:
+            return split_at_pos(pos)
         if length_present <= self._split_limit - 35:
             return None
-        if cpc:
-            for match in reversed(cpc):
-                if 30 <= get_pos_len(match.end()) <= self._split_limit and check_sanity_pos(match.end()):
-                    return split_at_pos(match.end())
-        # No cpc or still none fits
+
+        pos = find_candidate(self._PRIORITY_HIGH, 30, self._split_limit)
+        if pos is not None:
+            return split_at_pos(pos)
         if length_present <= self._split_limit - 25:
             return None
-        if spc:
-            for match in reversed(spc):
-                if 20 <= get_pos_len(match.end()) <= self._split_limit and check_sanity_pos(match.end()):
-                    return split_at_pos(match.end())
-        # No spc or still none fits
+
+        pos = find_candidate(self._PRIORITY_MEDIUM, 20, self._split_limit)
+        if pos is not None:
+            return split_at_pos(pos)
         if length_present <= self._split_limit - 15:
             return None
-        if upc:
-            for match in reversed(upc):
-                if 10 <= get_pos_len(match.end()) <= self._split_limit and check_sanity_pos(match.end()):
-                    return split_at_pos(match.end())
-        # No upc or still none fits
+
+        pos = find_candidate(self._PRIORITY_LOW, 10, self._split_limit)
+        if pos is not None:
+            return split_at_pos(pos)
         if length_present <= self._split_limit - 5:
             return None
-        if apc:
-            for match in reversed(apc):
-                if 3 <= get_pos_len(match.end()) <= self._split_limit and check_sanity_pos(match.end()):
-                    return split_at_pos(match.end())
-        # Falling back -- sanity given up
-            if length_present <= self._split_limit:
-                return None
-            for match in reversed(apc):
-                if 3 <= get_pos_len(match.end()) <= self._split_limit + 20:
-                    return split_at_pos(match.end())
-        byte_limit = self._split_limit + 20
-        byte_count = 0
+
+        pos = find_candidate(self._PRIORITY_FALLBACK, 3, self._split_limit)
+        if pos is not None:
+            return split_at_pos(pos)
+        if length_present <= self._split_limit:
+            return None
+
+        hard_limit = self._split_limit + 20
+        pos = find_candidate(self._PRIORITY_FALLBACK, 3, hard_limit, check_brackets=False)
+        if pos is not None:
+            return split_at_pos(pos)
+        if length_present <= hard_limit:
+            return None
+
         char_position = len(self.sentence_present)
-        for index, char in enumerate(self.sentence_present, start=1):
-            char_size = len(char.encode("utf-8"))
-            if byte_count + char_size > byte_limit:
+        for index, byte_length in enumerate(byte_lengths[1:], start=1):
+            if byte_length > hard_limit:
                 char_position = max(1, index - 1)
                 break
-            byte_count += char_size
+
+        minimum_space_length = max(3, self._split_limit - 20)
+        for index in range(char_position, 0, -1):
+            if self.sentence_present[index - 1].isspace() and byte_lengths[index] >= minimum_space_length:
+                char_position = index
+                break
         return split_at_pos(char_position)
-    
-    def announce_stop(self) -> List[str]:
+
+    def announce_stop(self):
         """Exhausts remaining buffer."""
         sce_list = []
-        res = True
-        while res:
+        while True:
             res = self.split_present_sentence()
-            if res:
-                sce_list.append(res)
-        if self.sentence_present and len(self.sentence_present) > 1 and not self.sentence_present.isspace():
-            sce_list.append(self.sentence_present.lstrip())
+            if not res:
+                break
+            sce_list.append(res)
+        if self.sentence_present:
+            sce_list.append(self.sentence_present)
         self.reset()
         return sce_list
 
-    # def add_pauses(self, strin):
-    #     """Add pauses to punctuations. Suppose we aren't using this in backend."""
-    #     if not isinstance(strin, str):
-    #         raise TypeError("Input should be a string, get {}".format(type(strin)))
-        
-    #     def get_pre_i_space(ele, list):
-    #         pre_index = list.index(ele) - 1
-    #         pre_pos = list[pre_index][3] if pre_index >= 0 else 0
-    #         return ele[3] - pre_pos
-
-    #     iupc=[]; icpc=[]; iepc=[]
-        
-    #     matches = pattern_all_punc.finditer(strin)
-    #     lmatch = None; i = 0 
-    #     # This is a iterator but we need a list
-    #     matches = list(matches)
-    #     for match in matches:
-    #         # No pause needed for last punc
-    #         i += 1
-    #         if i == len(matches):
-    #             break
-    #         pos = match.end(); content = match.group()
-    #         if not lmatch:
-    #             preseq = strin[:match.start()]
-    #         else:
-    #             preseq = strin[lmatch.end():match.start()]
-    #         prelen = len(preseq.encode('utf-8'))
-    #         alllen = len(strin[:match.start()].encode('utf-8'))
-    #         lmatch = match
-    #         match_tuple_b = (pos, content, prelen, alllen)
-    #         # print(('   ' + strin + ' ')[pos:pos+5])
-    #         if len(content) > 1 or not self._is_decimal(('   ' + strin + ' ')[pos:pos+5]):
-    #             if has_words_in(content, list_excrit_puc):
-    #                 iepc.append(match_tuple_b)
-    #             elif has_words_in(content, list_crit_punc):
-    #                 icpc.append(match_tuple_b)
-    #             elif has_words_in(content, list_uncrit_punc):
-    #                 iupc.append(match_tuple_b)
-
-    #     pending_insert = []
-
-    #     for mb in iupc:
-    #         if prelen > 80:
-    #             pending_insert.append(('{w=0.3}', mb[0]))
-
-    #     for mb in icpc:
-    #         if len(mb[1]) > 1:
-    #             # ellipsis?
-    #             if get_pre_i_space(mb, icpc) > 30:
-    #                 pending_insert.append(('{w=0.5}', mb[0]))
-    #         elif get_pre_i_space(mb, icpc) > 45:
-    #             pending_insert.append(('{w=0.3}', mb[0]))
-
-    #     for mb in iepc:
-    #         if prelen > 45:
-    #             pending_insert.append(('{w=0.2}', mb[0]))
-
-    #     for tup in pending_insert[::-1]:
-    #         strin = self.insert_string(strin, *tup)
-                
-    #     return strin
 
 class PPRTProcessor():
     """Post proc realtime processor."""
@@ -299,7 +374,7 @@ class PPRTProcessor():
     def _try_yield(self):
         return self._buffer.split_present_sentence()
 
-    async def store_and_split(self, chunk: str) -> Optional[str]:
+    async def stack_and_split(self, chunk: str) -> Optional[str]:
         self._add_chunk(chunk)
         if self._add_counter >= sum(self._pprt.yield_interval[:self._yield_counter + 1]):
             split = self._buffer.split_present_sentence()
@@ -332,7 +407,7 @@ if __name__ == "__main__":
     text = "[smile]Hey [player], have you ever thought about science as a whole? [think]Like, science is this really big thing that's always advancing and changing. It's like a collection of knowledge that we're always adding to. [grin]It's kind of like a library, but instead of books, it's facts about the world. And just like a library, it's always growing. New books get added all the time, and sometimes old ones get taken off the shelf if they're not accurate anymore. [smile]It's pretty cool to think about how much we've learned over the years. [awkward]But there's still so much we don't know! The universe is so vast, there has to be way more than what we've discovered so far. [grin]That's what I love about science though, it's always evolving. There's never a dull moment!"
 
     for c in text:
-        sce = asyncio.run(pprtp.store_and_split(c))
+        sce = asyncio.run(pprtp.stack_and_split(c))
         if sce:
             print(sce)
     sces = asyncio.run(pprtp.exhaust_and_split())
