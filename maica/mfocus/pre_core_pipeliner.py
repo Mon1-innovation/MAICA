@@ -28,7 +28,7 @@ async def pre_core_pipelines(
     async def name_repl_pipeline():
         """Simple pipeline to assign real name if required."""
         # prompt_pname_repl implementation
-        if fsc.maica_settings.extra.prompt_pname_repl:
+        if fsc.maica_settings.pname_repl_now:
             pname = sp.pname
             if pname:
                 sync_messenger(info=f"Using pname {pname} due to prompt_pname_repl", type=MsgType.DEBUG)

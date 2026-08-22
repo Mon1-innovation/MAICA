@@ -376,6 +376,16 @@ class MaicaSettings(BaseModel):
         )
 
     @property
+    def pname_repl_now(self):
+        return (
+            self.extra.prompt_pname_repl
+            and not (
+                "use_cache" in self.temp.mspire.model_fields_set
+                and self.temp.mspire.use_cache
+            )
+        )
+
+    @property
     def prompt_writable(self):
         return (
             self.temp.chat_session >= 0
