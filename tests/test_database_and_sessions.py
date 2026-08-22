@@ -26,7 +26,7 @@ from maica.maica_utils import (
 from maica.maica_utils import session_mgr, stream_buffer
 from maica.maica_utils.database_utils import ReadOnlySession
 from maica.maica_utils.users_utils import FscUsersFuncMixin
-from maica.initializer.migrations import migration_4, migration_5
+from maica.initializer.migrations import migration_4, migration_5, migration_6
 
 
 def test_create_or_update_flushes_insert_and_updates_existing_row() -> None:
@@ -176,9 +176,61 @@ def test_current_schema_migration_is_idempotent_on_sqlite() -> None:
             await migration_4.migrate()
             await migration_5.migrate()
             await migration_5.migrate()
+            await migration_6.migrate()
+            await migration_6.migrate()
         finally:
             DatabaseUtils.engine_data = old_engine
             G.A.MILVUS_ADDR = old_milvus
+            await engine.dispose()
+
+    asyncio.run(scenario())
+
+
+def test_mspire_prompt_migration_adds_nullable_column_without_touching_rows() -> None:
+    async def scenario() -> None:
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        old_engine = DatabaseUtils.engine_data
+        DatabaseUtils.engine_data = engine
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(
+                    sqlalchemy.text(
+                        """
+                        CREATE TABLE ms_cache (
+                            spire_id INTEGER PRIMARY KEY,
+                            user_id INTEGER NOT NULL,
+                            hash VARCHAR(255) NOT NULL,
+                            content TEXT,
+                            timestamp DATETIME
+                        )
+                        """
+                    )
+                )
+                await conn.execute(
+                    sqlalchemy.text(
+                        "INSERT INTO ms_cache (spire_id, user_id, hash, content) "
+                        "VALUES (1, 7, 'legacy-hash', 'legacy-content')"
+                    )
+                )
+
+            await migration_6.migrate()
+            await migration_6.migrate()
+
+            async with engine.connect() as conn:
+                columns = await conn.run_sync(
+                    lambda sync_conn: sqlalchemy.inspect(sync_conn).get_columns("ms_cache")
+                )
+                assert [column["name"] for column in columns].count("prompt") == 1
+                row = (
+                    await conn.execute(
+                        sqlalchemy.text(
+                            "SELECT hash, content, prompt FROM ms_cache WHERE spire_id = 1"
+                        )
+                    )
+                ).one()
+                assert tuple(row) == ("legacy-hash", "legacy-content", None)
+        finally:
+            DatabaseUtils.engine_data = old_engine
             await engine.dispose()
 
     asyncio.run(scenario())

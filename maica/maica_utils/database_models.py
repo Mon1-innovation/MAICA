@@ -100,6 +100,7 @@ class SqlMsCache(SqlBaseData):
     id: Mapped[int] = mapped_column("spire_id", primary_key=True)
     user_id: Mapped[int]
     hash: Mapped[str] = mapped_column(String(255))
+    prompt: Mapped[Optional[str]] = mapped_column(Text)
     content: Mapped[Optional[str]] = mapped_column(Text)
     timestamp: Mapped[datetime.datetime] = mapped_column(
         server_default=func.now(),

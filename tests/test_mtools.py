@@ -1,11 +1,47 @@
 import asyncio
 from types import SimpleNamespace
 
-from maica.maica_utils import FullSocketsContainer
+import sqlalchemy
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+from maica.maica_utils import DatabaseUtils, FullSocketsContainer, SqlBaseData
 from maica.mtools import mspire
 from maica.mtools.mpostal import make_postmail
 from maica.mtools.post_proc import post_proc
 from maica.mtools.post_proc_rt import TalkSplitV2
+
+
+def test_mspire_cache_keeps_the_prompt_used_to_generate_hash() -> None:
+    async def scenario() -> None:
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        old_factory = DatabaseUtils.SessionData
+        DatabaseUtils.SessionData = async_sessionmaker(engine, expire_on_commit=False)
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(SqlBaseData.metadata.create_all)
+
+            fsc = FullSocketsContainer()
+            fsc.maica_settings.verification.user_id = 7
+            prompt = "prompt used for training"
+            cached = await mspire.ms_from_cache(prompt, fsc)
+
+            assert cached.prompt == prompt
+            assert cached.result is None
+
+            cached.result = "generated answer"
+            await mspire.ms_to_cache(cached, fsc)
+
+            async with DatabaseUtils.SessionData() as dbs:
+                row = await dbs.scalar(sqlalchemy.select(mspire.SqlMsCache))
+                assert row is not None
+                assert row.hash == cached.hash
+                assert row.prompt == prompt
+                assert row.content == "generated answer"
+        finally:
+            DatabaseUtils.SessionData = old_factory
+            await engine.dispose()
+
+    asyncio.run(scenario())
 
 
 def test_mspire_prompt_supports_english() -> None:

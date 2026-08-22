@@ -233,7 +233,7 @@ MsFromCacheResult = MaicaSettings.Temp.MSpire.MsFromCacheResult
 async def ms_from_cache(prompt: str, fsc: FullSocketsContainer):
 
     prompt_sha = await hash_sha256(prompt)
-    mfc_m = MsFromCacheResult(hash=prompt_sha)
+    mfc_m = MsFromCacheResult(hash=prompt_sha, prompt=prompt)
 
     async with DatabaseUtils.SessionData() as dbs:
 
@@ -263,6 +263,7 @@ async def ms_to_cache(mfc_m: MsFromCacheResult, fsc: FullSocketsContainer):
                 {"hash": mfc_m.hash},
                 {
                     "user_id": fsc.maica_settings.verification.user_id,
+                    "prompt": mfc_m.prompt,
                     "content": mfc_m.result,
                 }
             )

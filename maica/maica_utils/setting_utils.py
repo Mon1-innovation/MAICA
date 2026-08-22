@@ -251,6 +251,7 @@ class MaicaSettings(BaseModel):
 
             class MsFromCacheResult(BaseModel):
                 hash: Optional[str] = None
+                prompt: Optional[str] = None
                 result: Optional[str] = None
 
             type: Literal[
