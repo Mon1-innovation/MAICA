@@ -90,3 +90,4 @@ v1.3.003: pprt介入修复, MVista不生效修复, 一系列其它调整
 v1.3.003.post1: 修复MSpire可能因大括号失败的问题
 v1.3.003.post2: 添加LLM调试相关接口, 杂项调整
 v1.3.003.post3: MSpire缓存现在保留prompt
+v1.3.004.rc1: 调整了get_sentence相关

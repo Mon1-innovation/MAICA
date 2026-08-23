@@ -86,7 +86,7 @@ class WsCoroutine(NoWsCoroutine):
                     case "sping":
                         pass
                     case "ping":
-                        await self.fsc.messenger("pong", "Ping received from anonymous and responded", 200)
+                        await self.fsc.messenger("pong", get_sentence(common_only=True), 200, no_print=True, no_track=True)
                     case "auth":
                         sync_messenger(info='Received auth request on stage1', type=MsgType.RECV)
                         sync_messenger(info=f'From IP {self.remote_addr}', type=MsgType.DEBUG)
@@ -170,7 +170,7 @@ class WsCoroutine(NoWsCoroutine):
                     case "sping":
                         pass
                     case "ping":
-                        await self.fsc.messenger("pong", f"Ping received from {self.settings.verification.username} and responded", 200)
+                        await self.fsc.messenger("pong", get_sentence(), 200, no_print=True, no_track=True)
                     case "reconn":
                         await self.fsc.messenger.exhaust_buffer()
                     case "params":
@@ -510,10 +510,9 @@ async def main_logic(
         try:
 
             # This tiny welcome
-            sentence_of_the_day = SentenceOfTheDay().get_sentence()
             await fsc.messenger(
                 'maica_connection_initiated',
-                sentence_of_the_day,
+                get_sentence(common_only=True),
                 200,
                 type=MsgType.INFO,
                 no_print=True,
