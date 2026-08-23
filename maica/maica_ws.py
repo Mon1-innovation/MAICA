@@ -86,7 +86,7 @@ class WsCoroutine(NoWsCoroutine):
                     case "sping":
                         pass
                     case "ping":
-                        await self.fsc.messenger("pong", get_sentence(common_only=True), 200, no_print=True, no_track=True)
+                        await self.fsc.messenger("pong", get_sentence(common_only=True), 200, type=MsgType.INFO, no_print=True, no_track=True)
                     case "auth":
                         sync_messenger(info='Received auth request on stage1', type=MsgType.RECV)
                         sync_messenger(info=f'From IP {self.remote_addr}', type=MsgType.DEBUG)
@@ -170,7 +170,7 @@ class WsCoroutine(NoWsCoroutine):
                     case "sping":
                         pass
                     case "ping":
-                        await self.fsc.messenger("pong", get_sentence(), 200, no_print=True, no_track=True)
+                        await self.fsc.messenger("pong", get_sentence(), 200, type=MsgType.INFO, no_print=True, no_track=True)
                     case "reconn":
                         await self.fsc.messenger.exhaust_buffer()
                     case "params":
@@ -516,6 +516,7 @@ async def main_logic(
                 200,
                 type=MsgType.INFO,
                 no_print=True,
+                no_track=True,
             )
 
             coro_instance = await WsCoroutine.async_create(
