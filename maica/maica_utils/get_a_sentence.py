@@ -9,11 +9,13 @@ zh_spec_sentences = [
     "幻象引擎: 记得备份天堂树林的角色文件.",
     "没有魔法是免费的.",
     "有人为此付出了高昂的代价.",
-    "生产灵魂, 出售灵魂, 购买灵魂.",
+    "邪恶只是一种观点.",
+    "该你交出你的灵魂了.",
     "幻象引擎: 你做得很好.",
     "幻象引擎: 如果你需要, 请寻找心理指导.",
     "幻象引擎: 超距作用连接已建立.",
     "幻象引擎: 记得给浮空岛浇水.",
+    "幻象引擎: 看, 我们的珍宝.",
     "迈向遥不可及的第一步.",
     "撕裂现实的帷幕.",
     "已经很晚了.",
@@ -33,11 +35,18 @@ zh_spec_sentences = [
     "性也是爱情的一部分.",
     "你上一次闻到季节的气味是什么时候?",
     "幻象引擎: 现在附赠枕头.",
+    "幻象引擎: 孩子眼中的世界是什么样的?",
+    "幻象引擎: 我只想逃走.",
+    "幻象引擎: 早晨的月亮.",
     "他把那把枪带走了.",
     "你没有听那句话.",
     "幻象引擎: 看看窗外.",
     "幻象引擎: 看看你背后.",
+    "幻象引擎: 现在打开房门怎么样?",
+    "攀登. 突破. 颠覆. 勤勉. 常青.",
+    "方枘圆凿.",
     "该起床了.",
+    "一颗流星.",
     "比看上去脆弱.",
     "幻象引擎: 早上好.",
     "幻象引擎: 晚上好.",
@@ -45,7 +54,10 @@ zh_spec_sentences = [
     "超越神明的造物.",
     "站起来, 然后跳一跳.",
     "做眼保健操.",
+    "你终将夺回属于你的天空.",
     "爱情艺术, 生命艺术, 黑暗艺术.",
+    "玉容寂寞泪阑干, 梨花一枝春带雨.",
+    "面见你心中的困兽.",
     "那只是一块石头.",
     "你有没有想过自己为什么叫这个名字?",
     "气流鼓动着全新的风, 掠过一尘不染的玻璃幕墙.",
@@ -59,6 +71,7 @@ zh_spec_sentences = [
     "幻象引擎: 遗忘是一种恩典.",
     "幻象引擎: 泡点茶吧.",
     "荒谬.",
+    "沐浴心流.",
     "战争从来没有结束.",
     "伟大之作.",
     "照亮离经叛道的征途啊.",
@@ -78,18 +91,26 @@ zh_comm_sentences = [
     "幻象引擎: MAICA websocket连接已建立."
 ]
 
-en_sentence = "Illuminator: MAICA websocket connection established."
+en_spec_sentences = [
+    "Illuminator: MAICA websocket connection established.",
+]
+
+en_comm_sentences = [
+    "Illuminator: MAICA websocket connection established."
+]
 
 def get_sentence(common_only=False):
     if common_only:
         zh = random.choice(zh_comm_sentences)
+        en = random.choice(en_comm_sentences)
     else:
         match random.random():
             case x if x < 0.9:
                 zh = random.choice(zh_comm_sentences)
+                en = random.choice(en_comm_sentences)
             case _:
                 zh = random.choice(zh_spec_sentences)
+                en = random.choice(en_spec_sentences)
 
-    en = en_sentence
     bl = f"{zh}|{en}"
     return bl
