@@ -48,6 +48,11 @@ class SessionPersistentMixin():
             v = v or []
             v += (_read_perm(key) or [])
 
+            # We require this being list, since strings are also iterable
+            # We will enforce this check after a grace period
+            if not isinstance(v, list):
+                v = []
+
         elif v is None:
             v = _read_perm(key)
             
