@@ -152,7 +152,10 @@ class AiConnectionManager(AsyncCreator):
 
 
     def completions_to_request_body(self, **kwargs) -> dict[str, Any]:
-        """Build the JSON body ultimately sent to the Responses endpoint."""
+        """
+        Build the JSON body ultimately sent to the Responses endpoint.
+        Notice: This is a debugging function, not used normally.
+        """
         request_kwargs = self.completions_to_responses(**kwargs)
         extra_body = request_kwargs.pop("extra_body", {})
 
@@ -162,6 +165,14 @@ class AiConnectionManager(AsyncCreator):
 
         request_kwargs.update(extra_body)
         return request_kwargs
+
+
+    async def _time_counter(self):
+        time_elps = 0
+        while True:
+            await asyncio.sleep(5)
+            time_elps += 5
+            sync_messenger(info=f"A response from {self.model_actual} has delayed for over {time_elps}s", type=MsgType.WARN)
 
 
     async def make_completion(self, swallow: Union[bool, str]=False, **kwargs) -> Response | AsyncStream[ResponseStreamEvent]:
@@ -180,7 +191,11 @@ class AiConnectionManager(AsyncCreator):
 
         try:
             task_stream_resp = asyncio.create_task(self.client.responses.create(**mixed_kwargs))
+            task_time_counter = asyncio.create_task(self._time_counter())
+
             await asyncio.wait_for(task_stream_resp, timeout=int(G.A.OPENAI_TIMEOUT) if G.A.OPENAI_TIMEOUT != '0' else None)
+            task_time_counter.cancel()
+            
             resp = task_stream_resp.result()
 
         except openai.InternalServerError as oe:

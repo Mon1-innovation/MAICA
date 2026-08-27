@@ -369,9 +369,9 @@ class WsCoroutine(NoWsCoroutine):
             completion_args.update(super_args.model_dump())
 
             # Enforce lang (guided regex)
-            if self.settings.extra.gen_enforce_lang:
-                if self.settings.basic.target_lang == 'en':
-                    completion_args['extra_body']["structured_outputs"] = {"regex": r"^[^\u4e00-\u9fa5]*$"}
+            # if self.settings.extra.gen_enforce_lang:
+            #     if self.settings.basic.target_lang == 'en':
+            #         completion_args['extra_body']["structured_outputs"] = {"regex": r"^[^\u4e00-\u9fa5]*$"}
 
             # Add context log
             previous_rnds = session.utilize(text_only=True)[1:-1]
