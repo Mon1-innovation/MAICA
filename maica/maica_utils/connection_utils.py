@@ -194,8 +194,7 @@ class AiConnectionManager(AsyncCreator):
             task_time_counter = asyncio.create_task(self._time_counter())
 
             await asyncio.wait_for(task_stream_resp, timeout=int(G.A.OPENAI_TIMEOUT) if G.A.OPENAI_TIMEOUT != '0' else None)
-            task_time_counter.cancel()
-            
+
             resp = task_stream_resp.result()
 
         except openai.InternalServerError as oe:
@@ -206,6 +205,9 @@ class AiConnectionManager(AsyncCreator):
                 fake_text = swallow if isinstance(swallow, str) else 'null'
                 resp = FakeChatCompletion(fake_text)
                 sync_messenger(info=f"Swallowed OpenAI api exception: {str(oe)}, returning default: {fake_text}")
+                
+        finally:
+            task_time_counter.cancel()
 
         return resp
     
