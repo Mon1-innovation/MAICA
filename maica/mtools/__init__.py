@@ -14,7 +14,7 @@ from .mvista import ImgByUuid, query_vlm
 from .quality_chk import quality_chk
 from .censor import has_censored
 from .memory_concl import memory_concl
-from .generic import GenericModelHelper, generic_helper
+from .zsco import GenericModelHelper, generic_helper
 
 __all__ = [
     'TpAPIKeys',

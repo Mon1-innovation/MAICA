@@ -660,7 +660,7 @@ async def prepare_thread(**kwargs):
     # Generic model helper init here
     if G.A.MCORE_GENERIC and int(G.A.MCORE_GENERIC):
         try:
-            mtools.generic.generic_helper = await mtools.GenericModelHelper.async_create(csc=root_csc)
+            mtools.zsco.generic_helper = await mtools.GenericModelHelper.async_create(csc=root_csc)
         except Exception as e:
             sync_messenger(info=f"Mcore generic enabled but failed to spawn helper: {str(e)}, will proceed with limited function set", type=MsgType.WARN)
     

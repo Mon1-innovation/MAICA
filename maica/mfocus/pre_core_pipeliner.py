@@ -10,7 +10,7 @@ from typing import *
 
 from .mfocus_llm import MfPipeliner
 from .agent_modules import AgentTools
-from maica.mtools import make_postmail, make_inspire, ms_from_cache, generic
+from maica.mtools import make_postmail, make_inspire, ms_from_cache, zsco
 from maica.maica_utils import *
 
 _Bt = BilingualText
@@ -171,9 +171,9 @@ async def pre_core_pipelines(
         """Utilizes RAG to search datasets for zero-shot like learning for generic core model."""
         if (
             fsc.maica_settings.prompt_writable
-            and generic.generic_helper
+            and zsco.generic_helper
         ):
-            res_set = await generic.generic_helper.search(session_item.content)
+            res_set = await zsco.generic_helper.search(session_item.content)
             session_item.context.generic_help = list(res_set)
 
 
