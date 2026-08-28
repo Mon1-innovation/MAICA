@@ -68,7 +68,7 @@ class GenericModelHelper(AsyncCreator):
                 sync_messenger(info=f"Error processing line: {str(e)}, skipping...")
 
         try:
-            base_path = get_inner_path('mtools/generic')
+            base_path = get_inner_path('mtools/zsco')
             ds_set = set()
             with os.scandir(base_path) as ds_file_entries:
                 for entry in ds_file_entries:
