@@ -80,10 +80,10 @@ class GenericModelHelper(AsyncCreator):
                                 if line.strip()
                             )
         
-            sync_messenger(info=f"[maica-gnrc] Loaded dataset lines for generic: {len(ds_set)}", type=MsgType.DEBUG)
+            sync_messenger(info=f"[maica-zsco] Loaded dataset lines for generic: {len(ds_set)}", type=MsgType.DEBUG)
 
         except Exception as e:
-            sync_messenger(info=f"[maica-gnrc] Datasets may not exist: {str(e)}, ignoring and continuing", type=MsgType.DEBUG)
+            sync_messenger(info=f"[maica-zsco] Datasets may not exist: {str(e)}, ignoring and continuing", type=MsgType.DEBUG)
 
         if not ds_set:
             raise MaicaDbWarning("No dataset line found finally")
