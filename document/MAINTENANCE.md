@@ -2,7 +2,6 @@ I'm sorry for not offering an English ver of this document but it's just too muc
 If you want to read in English, use a translator.
 > This document is written by AI.
 
-
 # MAICA 后端维护说明
 
 ## 运行结构

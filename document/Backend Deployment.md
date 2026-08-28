@@ -34,6 +34,31 @@ If you want to read in English, use a translator.
     maica -e .env
     ```
 
++ 或者, 直接通过pypi安装:
+
+    > 便捷但不适合开发, 兼容性有待测试.
+
+    安装:
+
+    ```
+    pip install mi-maica
+    ```
+
+    配置:
+
+    ```
+    maica -t create
+    vim .env
+    ```
+
+    启动实例:
+
+    ```
+    maica -e .env
+    ```
+
+> Anything below this point is written by AI.
+
 # 必要配置
 
 MAICA 要求 Python 3.12 或更高版本。生成 `.env` 后，至少检查以下项目：
@@ -73,26 +98,3 @@ python -m pip check
 ```
 
 离线测试不要求模型、Milvus、SSH 或互联网。真实端点可使用 `examples/model_smoke.py` 与 `examples/milvus_smoke.py` 手工检查。
-
-+ 或者, 直接通过pypi安装:
-
-    > 便捷但不适合开发, 兼容性有待测试.
-
-    安装:
-
-    ```
-    pip install mi-maica
-    ```
-
-    配置:
-
-    ```
-    maica -t create
-    vim .env
-    ```
-
-    启动实例:
-
-    ```
-    maica -e .env
-    ```
