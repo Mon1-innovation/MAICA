@@ -70,6 +70,27 @@ MAICA 要求 Python 3.12 或更高版本。生成 `.env` 后，至少检查以�
 
 SQLite 部署将 `MAICA_DB_ADDR` 设为 `sqlite`，且认证库与数据库必须是不同文件。公开服务建议使用 MySQL/MariaDB。首次启动会生成 RSA 密钥、数据库表和 `.initialized` 迁移标记；不要在未备份的情况下删除或替换 `maica/keys/prv.key`。
 
+# Censor 词表
+
+`maica/mtools/censor` 用于过滤用户输入和 MSpire 检索结果。请在该目录下放置一个或多个 UTF-8 编码的 `.txt` 文件，每个非空行是一条词或短语；文件可任意命名，但扩展名必须为 `.txt`，子目录不会被扫描。词表文件默认被 Git 忽略，部署或迁移时需要单独保留。修改词表后须重启 MAICA。
+
+* `MAICA_CENSOR_QUERY`：用户输入中不同命中项的数量达到该值时拒绝请求；
+* `MAICA_CENSOR_MSPIRE`：MSpire 页面标题与摘要中不同命中项的总数达到该值时跳过该页面。
+
+两项均须为非负整数，`0` 表示关闭对应检查，`1` 表示命中任意一项即触发。
+
+# ZSCO 通用模型辅助
+
+`maica/mtools/zsco` 通过 RAG 为未微调的核心模型检索角色对话范例。启用前应配置可用的 Embedding 端点和 Milvus（`MAICA_EMBEDDING_*`、`MAICA_EMBEDDING_DIMS` 与 `MAICA_MILVUS_*`），再设置 `MAICA_MCORE_GENERIC=1`。
+
+请将数据文件放在 `maica/mtools/zsco` 目录下，并使用 UTF-8 编码的 `.jsonl` 格式。每个非空行必须是独立 JSON，可直接使用消息数组，也可使用包含 `messages` 或 `conversations` 数组的对象；消息支持 `role`/`content`，并兼容 ms-swift 的 `from`/`value`，只会保留 `user` 与 `assistant` 消息。例如：
+
+```json
+{"messages":[{"role":"user","content":"你好。"},{"role":"assistant","content":"很高兴见到你。"}]}
+```
+
+启动时数据会去重、向量化并同步到 Milvus，首次导入可能耗时；修改数据集后须重启 MAICA。若 ZSCO 辅助器因前置条件未满足、目录为空或数据格式错误而初始化失败，WebSocket 服务会记录警告并以受限功能继续运行，不再提供对话范例。
+
 # 网络与安全
 
 默认监听地址为 `0.0.0.0:5000`（WebSocket）和 `0.0.0.0:6000`（HTTP），分别由 `MAICA_WS_HOST/PORT`、`MAICA_HTTP_HOST/PORT` 控制。公开部署应使用反向代理提供 HTTPS/WSS，并限制管理网络和数据库端口。
