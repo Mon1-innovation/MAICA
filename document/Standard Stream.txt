@@ -91,3 +91,4 @@ v1.3.003.post1: 修复MSpire可能因大括号失败的问题
 v1.3.003.post2: 添加LLM调试相关接口, 杂项调整
 v1.3.003.post3: MSpire缓存现在保留prompt
 v1.3.004.rc1: 调整了get_sentence相关
+v1.3.004.rc2: 正式命名zsco(ZeroShot Characteristic Optimization)功能, 一些文档与累积更新
