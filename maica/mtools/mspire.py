@@ -80,33 +80,39 @@ async def _fetch_ms_meta(
             raise MaicaInternetWarning(f"Wikipedia page does not exist: {title}")
         return await page.summary
     
-    async def get_category(title: str):
+    async def get_category(title: str, use_search=False):
         await fsc.messenger(
             "maica_mspire_searching",
-            f"MSpire searching category: {title}",
+            f"MSpire searching {'pseudo' if use_search else ''} category: {title}",
             200,
         )
-        cate = wiki_cursor.page(title)
-        members = await cate.categorymembers
 
-        cates = []
-        pages = []
-        for member in members.values():
-            if _is_not_template(member.title):
-                match member.ns:
-                    case Namespace.MAIN:
-                        pages.append(member.title)
-                    case Namespace.CATEGORY:
-                        cates.append(member.title)
+        if use_search:
+            cates = fuzzy_search(title, ns=Namespace.CATEGORY, limit=ms_m.sample)
+            pages = fuzzy_search(title, limit=ms_m.sample)
+
+        else:
+            cate = wiki_cursor.page(title)
+            members = await cate.categorymembers
+
+            cates = []
+            pages = []
+            for member in members.values():
+                if _is_not_template(member.title):
+                    match member.ns:
+                        case Namespace.MAIN:
+                            pages.append(member.title)
+                        case Namespace.CATEGORY:
+                            cates.append(member.title)
 
         sync_messenger(info=f"Found {len(cates)} categories and {len(pages)} pages underlying", type=MsgType.DEBUG)
         return cates, pages
     
     ctg_decay_factor = 0.8
 
-    async def recur_random(title: str, remaining_depth: int):
+    async def recur_random(title: str, remaining_depth: int, use_search=False):
         remaining_depth -= 1
-        cates, pages = await get_category(title)
+        cates, pages = await get_category(title, use_search)
 
         # Sampling
         prob_cates = len(cates) * ms_m.ctg_weight * (1 - (1 / remaining_depth) * ctg_decay_factor)
@@ -170,8 +176,7 @@ async def _fetch_ms_meta(
             result = recur_res
 
         case "in_fuzzy_all":
-            title = "Category:" + title
-            recur_res = await recur_random(title, 10)
+            recur_res = await recur_random(title, 10, use_search=True)
             result = recur_res
 
     result: list[str]
