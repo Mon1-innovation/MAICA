@@ -337,6 +337,15 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
 
                         # We designed all tools to return Tuple[readable_result, actual_values]
                         # Item should not be added to final results if actual_values bool is false.
+
+                        # Why we use force_disp here:
+                        # force_disp is only respected by event_acquire. So if:
+                        # - MFocus called event_acquire explicitly, because a date is mentioned
+                        # - This tool said "No event on that date"
+                        # - We still tell the core model no event is on that date, that's necessary
+                        # Calling event_acquire in mf_const_tools does not force disp, since "Today is not special event"
+                        # is normally not necessary.
+
                         text, body = await tool(**arguments, force_disp=True)
 
                         # Now we have an extending mech
@@ -349,11 +358,15 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
 
                         if extend_required:
                             if body:
+                                # Just add it, the agent_reparse will handle deduplication
                                 new_body = curr_body + body
                                 new_text = new_body.agent_reparse()
                                 tools_results[tool_name] = (new_text, new_body)
 
                         else:
+                            # If it's not an extending, we fill it in even if bool(body) is False
+                            # Empty bodies should be handled by ignore_empty. Preserving them is not necessary, but logically smoother.
+                            # Also, if we consider adding a "force insert all" option in the future, this is gonna be helpful.
                             tools_results[tool_name] = (text, body)
 
                         return text

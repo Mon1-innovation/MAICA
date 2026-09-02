@@ -971,14 +971,11 @@ def sync_messenger(
             ce_type = CommonMaicaWarning
 
         if not info:
-            info = "Auto exception from unified exception: "
+            info = f"Auto exception from unified exception: {str(error)}"
 
-        new_error = ce_type(f"{info}{str(error)}")
+        new_error = ce_type(info)
         new_error.__cause__ = error
         error = new_error
-
-        # Avoid interrupting followings
-        info = ''
 
     # For separator lines
     try:

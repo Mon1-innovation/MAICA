@@ -150,13 +150,15 @@ async def pre_core_pipelines(
 
                 sync_messenger(info="MFocus calling mf_const_tools level 1", type=MsgType.DEBUG)
                 for tool_name in ("time_acquire", "event_acquire"):
-                    tools_results[tool_name] = await getattr(toolbox, tool_name)()
+                    # By this const param, we mark this tool query is sent by mf_const_tools which may affect tools' behavior
+                    # All mf tools are enforced to accept **kwrags, so this is fine even when it does nothing
+                    tools_results[tool_name] = await getattr(toolbox, tool_name)(const=True)
 
             if mf_const_tools >= 2:
 
                 sync_messenger(info="MFocus calling mf_const_tools level 2", type=MsgType.DEBUG)
                 for tool_name in ("date_acquire", "weather_acquire"):
-                    tools_results[tool_name] = await getattr(toolbox, tool_name)()
+                    tools_results[tool_name] = await getattr(toolbox, tool_name)(const=True)
 
             if (
                 mf_const_sf_access >= 1
@@ -164,11 +166,15 @@ async def pre_core_pipelines(
             ):
                 sync_messenger(info="MFocus calling mf_const_sf_access", type=MsgType.DEBUG)
                 tool_name = "persistent_acquire"
-                text, body = await getattr(toolbox, tool_name)(query=session_item.content)
+                text, body = await getattr(toolbox, tool_name)(query=session_item.content, const=True)
                 
                 sync_messenger(info=f"MFocus mf_const_sf_access responded: {text}", type=MsgType.INFO)
                 tools_results[tool_name] = (text, body)
 
+            # Why we keep empty here:
+            # In short terms, to prevent MFocus calling known-already info again, even if the answer is "there's no".
+            # At the end of mf_pipeline, another parse_tools_results is run but ignore_empty = True.
+            # This way only MFocus model gains a full glance of negative info, core model's prompt still keeps concise.
             parsed_results = MfPipeliner.parse_tools_results(tools_results, ignore_empty=False)
             session_item.context.known_info.update(parsed_results)
 
