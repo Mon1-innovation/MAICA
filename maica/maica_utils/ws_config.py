@@ -156,18 +156,15 @@ class WsQueryConfig(WsBasicConfig):
     """This takes and validates a query input."""
     type: Literal["query"]
 
-    class MCommonConfig(BaseModel):
-        bypass_mf: bool = False
-        bypass_mt: bool = False
-        bypass_stream: bool = False
-        twk_super: bool = False
-        strict_conv: bool = True
+    class MCommonConfig(MaicaSettings.Temp.Common):
+        ...
 
     class MSpireConfig(MCommonConfig, MaicaSettings.Temp.MSpire):
 
         # And its defaults
         bypass_mf: bool = True
         bypass_mt: bool = True
+        twk_info: bool = True
 
     class MPostalConfig(MCommonConfig, MaicaSettings.Temp.MPostal):
         """content is enforced for MPostal, ofc."""
@@ -177,6 +174,7 @@ class WsQueryConfig(WsBasicConfig):
         bypass_mt: bool = True
         bypass_stream: bool = True
         twk_super: bool = True
+        twk_info: bool = True
         strict_conv: bool = False
 
     class MVistaConfig(RootModel):

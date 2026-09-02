@@ -141,6 +141,11 @@ async def pre_core_pipelines(
 
             toolbox = AgentTools(fsc, sp)
 
+            # Tweak mf_const_tools level if twk_info should be applied
+            # The datetime and possibly weather will be useful for MP and MS, especially when they don't actively call tools by default
+            if fsc.maica_settings.temp.common.twk_info:
+                mf_const_tools = max(mf_const_tools, 2)
+
             if mf_const_tools >= 1:
 
                 sync_messenger(info="MFocus calling mf_const_tools level 1", type=MsgType.DEBUG)

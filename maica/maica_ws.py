@@ -347,6 +347,9 @@ class WsCoroutine(NoWsCoroutine):
 
             # Construction part done, communication part started
             completion_input = session.utilize()
+            # Uncomment this to debug
+            # import json
+            # print(json.dumps(completion_input, ensure_ascii=False, indent=2))
             completion_args = {
                 "input": completion_input,
                 "stream": self.settings.use_stream_now,
@@ -360,6 +363,7 @@ class WsCoroutine(NoWsCoroutine):
             if self.settings.super_writable:
                 super_args = self.settings.super.model_copy()
 
+                # Decrease prep for writting letters, it's better this way sometimes
                 if self.settings.temp.common.twk_super:
                     super_args.presence_penalty = 1.0 - (1.0 - super_args.presence_penalty) * (2/3)
 

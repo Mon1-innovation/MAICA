@@ -639,7 +639,7 @@ MAICA长连接有一系列附加功能可用.
 
 在MSpire和MPostal使用详细设置时, 均有以下配置可用:
 
-`{"bypass_mf": true, "bypass_mt": true, "bypass_stream": true, "twk_super": true, "strict_conv": false}`
+`{"bypass_mf": true, "bypass_mt": true, "bypass_stream": true, "twk_super": true, "twk_info": true, "strict_conv": false}`
 
 * bypass_mf: 本轮响应中是否不调用MFocus, 普通对话中为false, MSpire/MPostal默认为true.
 
@@ -647,7 +647,9 @@ MAICA长连接有一系列附加功能可用.
 
 * bypass_stream: 本轮响应是否忽略流式输出. MSpire默认/普通对话中为false, MPostal默认为true.
 
-* twk_super: 本轮响应是否微调超参数和工具表现, 以获取更适合书面语的生成结果. MSpire默认/普通对话中为false, MPostal默认为true.
+* twk_super: 本轮响应是否微调超参数, 以获取更适合书面语的生成结果. MSpire默认/普通对话中为false, MPostal默认为true.
+
+* twk_info: 本轮响应是否微调工具表现, 以提供对静态生成可能有帮助的信息. 普通对话中为false, MSpire/MPostal默认为true.
 
 * strict_conv: 本轮响应是否使用对话格式回答, 反之则使用书面语. MSpire默认/普通对话中为true, MPostal默认为false.
 

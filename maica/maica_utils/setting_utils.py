@@ -316,6 +316,8 @@ class MaicaSettings(BaseModel):
             """Bypass stream output once."""
             twk_super: bool = False
             """Tweak super params (for written language)."""
+            twk_info: bool = False
+            """Tweak mf_const_tools info (for ms and mp)."""
             strict_conv: bool = True
             """Restrict conversation schema."""
 
