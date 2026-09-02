@@ -262,7 +262,7 @@ class MaicaSettings(BaseModel):
                 "in_precise_category",
                 "in_fuzzy_category",
                 "in_fuzzy_all",
-            ] = "in_fuzzy_all"
+            ] = "in_precise_category"
             sample: int = Field(
                 default=250,
                 ge=2,
@@ -380,27 +380,25 @@ class MaicaSettings(BaseModel):
     @property
     def pname_repl_now(self):
         return (
-            self.extra.prompt_pname_repl
-            and not (
-                self.temp.activated == "mspire"
-                and self.temp.mspire.use_cache
-            )
+            self.prompt_writable
+            and self.extra.prompt_pname_repl
         )
 
     @property
     def monika_nickname_now(self):
         return (
-            self.extra.prompt_monika_nickname
-            and not (
-                self.temp.activated == "mspire"
-                and self.temp.mspire.use_cache
-            )
+            self.prompt_writable
+            and self.extra.prompt_monika_nickname
         )
 
     @property
     def prompt_writable(self):
         return (
             self.temp.chat_session >= 0
+            and not (
+                self.temp.activated == "mspire"
+                and self.temp.mspire.use_cache
+            )
         )
     
     @property

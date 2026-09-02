@@ -88,8 +88,10 @@ async def _fetch_ms_meta(
         )
 
         if use_search:
-            cates = fuzzy_search(title, ns=Namespace.CATEGORY, limit=ms_m.sample)
-            pages = fuzzy_search(title, limit=ms_m.sample)
+            cates, pages = await asyncio.gather(
+                fuzzy_search(title, ns=Namespace.CATEGORY, limit=ms_m.sample, no_raise=True),
+                fuzzy_search(title, limit=ms_m.sample, no_raise=True),
+            )
 
         else:
             cate = wiki_cursor.page(title)
@@ -138,7 +140,7 @@ async def _fetch_ms_meta(
             # We leave candidates in case one does not pass censoring
             return pages
 
-    async def fuzzy_search(kwd: str, ns: int = Namespace.MAIN, limit: int = 1):
+    async def fuzzy_search(kwd: str, ns: int = Namespace.MAIN, limit: int = 1, no_raise=False):
         results = await wiki_cursor.search(
             query=kwd,
             ns=ns,
@@ -147,7 +149,12 @@ async def _fetch_ms_meta(
         members = [i.title for i in results.pages.values()]
 
         if not members:
-            raise MaicaInternetWarning(f"No result for kwd={kwd} ns={ns}")
+            msg = f"No result for kwd={kwd} ns={ns}"
+            if not no_raise:
+                raise MaicaInternetWarning(msg)
+            else:
+                sync_messenger(info=msg, type=MsgType.DEBUG)
+                members = []
         
         return members
     
@@ -156,17 +163,15 @@ async def _fetch_ms_meta(
 
     match ms_m.type:
         case "precise_page":
-            step_1 = await fuzzy_search(title)
-            result = step_1
+            result = [title]
 
         case "fuzzy_page":
             step_1 = await fuzzy_search(title, limit=ms_m.sample)
             result = step_1
 
         case "in_precise_category":
-            step_1 = await fuzzy_search(title, ns=Namespace.CATEGORY)
-            step_2 = step_1[0]
-            recur_res = await recur_random(step_2, 10)
+            step_1 = "Category:" + title
+            recur_res = await recur_random(step_1, 10)
             result = recur_res
 
         case "in_fuzzy_category":
