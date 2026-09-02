@@ -83,7 +83,7 @@ async def _fetch_ms_meta(
     async def get_category(title: str, use_search=False):
         await fsc.messenger(
             "maica_mspire_searching",
-            f"MSpire searching {'pseudo' if use_search else ''} category: {title}",
+            f"MSpire searching {'pseudo ' if use_search else ''}category: {title}",
             200,
         )
 
