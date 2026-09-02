@@ -64,7 +64,20 @@ class SessionPersistentMixin():
         return self.read_key("mas_playername")
 
     @property
-    def pbday(self) -> Optional[Tuple[int, int, int]]:
+    def mname(self) -> Optional[str]:
+        """We add some filtering logics here."""
+        target_lang = self.fsc.maica_settings.basic.target_lang
+        mname = self.read_key("mas_monikaname")
+        if (
+            (target_lang == 'zh' and mname == "莫妮卡")
+            or (target_lang != 'zh' and mname == "Monika")
+            ):
+            mname = None
+
+        return mname
+
+    @property
+    def pbday(self) -> Optional[List[int]]:
         """Just an alias."""
         return self.read_key("mas_player_bday")
 
@@ -107,14 +120,21 @@ class SessionPersistentMixin():
 
         # Seriously hard work begins here
         # First three manuals
-        data1 = _rf('mas_playername')
+        data1 = self.pname
         if data1:
             _ap(
                 f'{{player_name}}的真名是{data1}.',
                 f"{{player_name}}'s real name is {data1}."
             )
 
-        data1 = _rf('mas_player_bday')
+        data1 = self.mname
+        if data1:
+            _ap(
+                f'{{player_name}}也会称你为{data1}.',
+                f"{{player_name}} would also call you {data1}."
+            )
+
+        data1 = self.pbday
         if data1:
             dt = datetime.date(*data1)
             _ap(
@@ -127,7 +147,7 @@ class SessionPersistentMixin():
                 f"{{player_name}} is {o} years old."
             )
 
-        data1 = _rf('mas_affection')
+        data1 = self.affection
         if data1:
             match float(data1):
                 case affection if affection < 200:

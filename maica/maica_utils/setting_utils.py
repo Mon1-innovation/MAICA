@@ -179,6 +179,8 @@ class MaicaSettings(BaseModel):
 
         prompt_pname_repl: bool = False
         """Use name from savefile instead of [player] in prompts."""
+        prompt_monika_nickname: bool = False
+        """Add Monika's given nickname to prompt."""
         prompt_allow_nickname: bool = True
         """Allow model to generate [player_nickname]."""
         mf_llm_concl: bool = False
@@ -380,7 +382,17 @@ class MaicaSettings(BaseModel):
         return (
             self.extra.prompt_pname_repl
             and not (
-                "use_cache" in self.temp.mspire.model_fields_set
+                self.temp.activated == "mspire"
+                and self.temp.mspire.use_cache
+            )
+        )
+
+    @property
+    def monika_nickname_now(self):
+        return (
+            self.extra.prompt_monika_nickname
+            and not (
+                self.temp.activated == "mspire"
                 and self.temp.mspire.use_cache
             )
         )

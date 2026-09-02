@@ -167,6 +167,7 @@ MFocus等的主要思路, 是通过一个未微调的agent模型与核心模型�
         "session_len_limit": 8192,
 
         "prompt_pname_repl": false,
+        "prompt_monika_nickname": false,
         "prompt_allow_nickname": true,
         "mf_llm_concl": false,
         "mf_sf_access_impl": 1,
@@ -245,11 +246,16 @@ MFocus等的主要思路, 是通过一个未微调的agent模型与核心模型�
     + 模型对玩家的名字有实质性理解.
     - 更容易发生表现离群和混乱.
 
+* prompt_monika_nickname: 在prompt中补充莫妮卡的昵称.
+
+    + 模型能理解自身昵称, 即使其与"莫妮卡"可能完全无关.
+    - 更容易发生表现离群和混乱.
+
 * prompt_allow_nickname: 实验性功能, 在prompt中允许模型生成[player_nickname]占位符.
 
     + 更符合MAS的对话风格.
     - 需要一些额外的前端设计.
-    - 这可能会造成意料之外的问题.
+    - 产生的表现可能有轻微差异.
 
 * mf_llm_concl: 要求agent模型生成最终指导, 并替代默认MFocus指导.
 
@@ -347,6 +353,7 @@ MFocus等的主要思路, 是通过一个未微调的agent模型与核心模型�
     * 截至文档编纂时为止, 该功能仅对目标生成语言en有效. 在目标生成语言为zh时, 该功能无法阻止模型错误地使用英文作答.
     * 不同解码后端对regex引导的支持性不同, 可能导致表达式失效或工作异常.
     * 启用该功能可能影响模型的表现, 或导致其它意料之外的问题.
+    - 自v1.3.004.rc2后, 该功能被暂时撤销, 因为其与vllm默认的解码后端(xgrammar)不兼容.
 
 ### 超参数:
 
@@ -1096,10 +1103,10 @@ query可以携带临时的触发器表, 并临时添加到上传的触发器表.
 
 ```
 mas_playername #str
+mas_monikaname #str
 mas_player_bday #tuple["yyyy", "mm", "dd"]
 mas_affection #int
 mas_geolocation #str
-
 mas_player_additions #["[player]喜欢吃寿司.", "[player]喜欢初音未来.", "[player]不喜欢猫"]
 target_lang #Literal["zh", "en", "auto"]
 
@@ -1214,9 +1221,11 @@ _mas_o31_tt_count
 sessions
 ```
 
-其中, 除前六行外均为原版可调用的变量:
+其中, 除第一段外均为原版可调用的变量. 第一段的变量含义如下:
 
 * mas_playername为str格式的玩家名称.
+
+* mas_monikaname为str格式的莫妮卡名称(昵称).
 
 * mas_player_bday为list格式的玩家生日.
 

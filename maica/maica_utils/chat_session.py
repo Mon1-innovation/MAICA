@@ -26,9 +26,13 @@ class MaicaSessionItem(BaseModel):
 
 
     class Context(BaseModel):
-        """Specifically context object of MaicaSessionItem."""
+        """
+        Specifically context object of MaicaSessionItem.
+        Things are here because they affect the prompt/query building.
+        """
         strict_conv: bool = True
         player_name: str = "[player]"
+        monika_nickname: Optional[str] = None
         apply_nickname: bool = True
         nsfw_acceptive: bool = True
         known_info: dict[
@@ -39,8 +43,10 @@ class MaicaSessionItem(BaseModel):
             ]
         ] = Field(default_factory=dict)
         image_urls: list[str] = Field(default_factory=list)
-        memory_concl: Optional[str] = None
         generic_help: list[str] = Field(default_factory=list)
+
+        memory_concl: Optional[str] = None
+        """memory_concl param should only exist for system block, at least for now. Others should only exist for user block."""
 
 
     role: Literal["system", "user", "assistant", "misc"] = 'misc'
@@ -48,8 +54,8 @@ class MaicaSessionItem(BaseModel):
     target_lang: Optional[TargetLangType] = None
     context: Context = Field(default_factory=Context)
 
-    # If item role is misc, we stop using maica format and store entire object.
     preserved: dict = Field(default_factory=dict)
+    """If item role is misc, we stop using maica format and store entire object."""
 
     timestamp: float = Field(default_factory=time.time)
 
@@ -326,7 +332,26 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
                 prompt += "\n"
                 prompt += extra_info
 
-            # Add nickname handling
+            # Add Monika nickname handling
+            _m_nickname = curr_context.monika_nickname or ""
+            # Some more detailed filtering rules here, because attention in prompt is much more expensive than MFocus
+            # If the nickname looks really like Monika already, we ignore it
+            if any([
+                    i in _m_nickname.lower()
+                    for i in (
+                        "moni",
+                        "momo",
+                        "mony",
+                    )
+                ]):
+                _m_nickname = ""
+            m_nickname = _Bt(
+                f"(昵称{_m_nickname})",
+                f"(nickname {_m_nickname})",
+            )
+            format_kvs["monika_nickname"] = m_nickname if _m_nickname else ""
+
+            # Add player nickname handling
             nickname = _Bt(
                 "(昵称[player_nickname])",
                 "(nickname [player_nickname])",

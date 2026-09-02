@@ -33,6 +33,12 @@ async def pre_core_pipelines(
             if pname:
                 sync_messenger(info=f"Using pname {pname} due to prompt_pname_repl", type=MsgType.DEBUG)
                 session_item.context.player_name = pname
+        # prompt_monika_nickname implementation
+        if fsc.maica_settings.monika_nickname_now:
+            mname = sp.mname
+            if mname:
+                sync_messenger(info=f"Adding mname {pname} due to prompt_monika_nickname", type=MsgType.DEBUG)
+                session_item.context.monika_nickname = mname
 
 
     async def mf_pipeline():
