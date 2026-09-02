@@ -108,7 +108,7 @@ class WsCoroutine(NoWsCoroutine):
                     raise
                 else:
                     await self.fsc.messenger(error=ce)
-                    # await messenger(websocket, 'maica_loop_warn_finished', 'Loop hit a user level exception, stopped and reset', 304)
+                    await self.fsc.messenger('maica_loop_warn_reset', 'Loop hit a user level exception, reset in stage 2', 400)
                     continue
 
 
