@@ -135,15 +135,28 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, parse_
     def get_templates():
         with open(get_inner_path('env_basis'), 'r', encoding='utf-8') as env_e:
             env_c = env_e.readlines()
-        i = 0
-        j = 0
+        line_num = 0
+        first_block_ends = False
         for line in env_c:
-            i += 1
-            if len(line) <= 5:
-                j = 1
-            if j and len(line) > 5:
+            line_num += 1
+            # So we can add a placeholding mark each line, and it still considers it one codeblock
+            if len(line) <= 1:
+                first_block_ends = True
+            if first_block_ends and len(line) > 1:
                 break
-        env_c = ''.join(env_c[i - 1:])
+        env_c = env_c[line_num - 1:]
+
+        # These could change with updates and normally not necessary to customize
+        # So we should comment them out by default to prevent neutualizing new feats
+        mute_by_default = (
+            'MAICA_PROMPT_',
+        )
+        for index, line in enumerate(env_c):
+            for m in mute_by_default:
+                if line.startswith(m):
+                    env_c[index] = "#" + line
+
+        env_c = ''.join(env_c)
         return env_c
     
     def separate_line(title: str):
