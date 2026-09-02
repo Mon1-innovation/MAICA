@@ -70,6 +70,8 @@ MAICA 要求 Python 3.12 或更高版本。生成 `.env` 后，至少检查以�
 
 SQLite 部署将 `MAICA_DB_ADDR` 设为 `sqlite`，且认证库与数据库必须是不同文件。公开服务建议使用 MySQL/MariaDB。首次启动会生成 RSA 密钥、数据库表和 `.initialized` 迁移标记；不要在未备份的情况下删除或替换 `maica/keys/prv.key`。
 
+从旧版本升级到 v1.3.004 时，应检查实际生效的 `MAICA_PROMPT_ZC/ZW/EC/EW/AC/AW`。旧版生成的 `.env` 可能显式覆盖这些提示词，且不包含新的 `{monika_nickname}` 占位符，使 `prompt_monika_nickname` 静默失效。迁移会列出受影响的配置键并告警，但无法判断配置来自进程环境、`--envdir` 或额外环境文件，因此不会自动修改任何文件。对于不需要定制的提示词，删除对应覆盖以采用 `env_basis` 默认值；需要定制时则手动加入该占位符。
+
 # Censor 词表
 
 `maica/mtools/censor` 用于过滤用户输入和 MSpire 检索结果。请在该目录下放置一个或多个 UTF-8 编码的 `.txt` 文件，每个非空行是一条词或短语；文件可任意命名，但扩展名必须为 `.txt`，子目录不会被扫描。词表文件默认被 Git 忽略，部署或迁移时需要单独保留。修改词表后须重启 MAICA。

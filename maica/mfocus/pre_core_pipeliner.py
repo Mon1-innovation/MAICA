@@ -37,7 +37,7 @@ async def pre_core_pipelines(
         if fsc.maica_settings.monika_nickname_now:
             mname = sp.mname
             if mname:
-                sync_messenger(info=f"Adding mname {pname} due to prompt_monika_nickname", type=MsgType.DEBUG)
+                sync_messenger(info=f"Adding mname {mname} due to prompt_monika_nickname", type=MsgType.DEBUG)
                 session_item.context.monika_nickname = mname
 
 
@@ -181,7 +181,7 @@ async def pre_core_pipelines(
     async def generic_helper_pipeline():
         """Utilizes RAG to search datasets for zero-shot like learning for generic core model."""
         if (
-            fsc.maica_settings.prompt_writable
+            fsc.maica_settings.prompt_system_writable
             and zsco.generic_helper
         ):
             res_set = await zsco.generic_helper.search(session_item.content)

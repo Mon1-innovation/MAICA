@@ -616,7 +616,7 @@ MAICA长连接有一系列附加功能可用.
 
 * use_cache: 是否存储和使用缓存, 若命中缓存则直接通过缓存响应. 默认为false.
 
-    * 仅当chat_session为0时use_cache可以使用. 当use_cache设置为true时, 会强制使用默认超参数, 禁用prompt_pname_repl.
+    * 仅当chat_session为0时use_cache可以使用. 当use_cache设置为true时, 基于超参数和用户级prompt修改的功能均不会生效, 例如prompt_pname_repl, prompt_monika_nickname, MFocus相关功能等.
 
 ### 生成MPostal响应:
 

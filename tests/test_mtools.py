@@ -63,7 +63,7 @@ def test_mspire_prompt_supports_english() -> None:
     asyncio.run(scenario())
 
 
-def test_mspire_passes_query_and_closes_client(monkeypatch) -> None:
+def test_mspire_precise_page_bypasses_search_and_closes_client(monkeypatch) -> None:
     clients = []
 
     class FakePage:
@@ -79,6 +79,7 @@ def test_mspire_passes_query_and_closes_client(monkeypatch) -> None:
     class FakeWikipedia:
         def __init__(self, **_kwargs):
             self.search_calls = []
+            self.page_calls = []
             self.closed = False
             clients.append(self)
 
@@ -86,7 +87,8 @@ def test_mspire_passes_query_and_closes_client(monkeypatch) -> None:
             self.search_calls.append(kwargs)
             return SimpleNamespace(pages={"Result": FakePage()})
 
-        def page(self, _title):
+        def page(self, title):
+            self.page_calls.append(title)
             return FakePage()
 
         async def close(self):
@@ -100,10 +102,9 @@ def test_mspire_passes_query_and_closes_client(monkeypatch) -> None:
         fsc.maica_settings.temp.mspire.title = ["search term"]
         title, summary = await mspire.fetch_ms_meta(fsc)
 
-        assert (title, summary) == ("Result", "Summary")
-        assert clients[0].search_calls == [
-            {"query": "search term", "ns": mspire.Namespace.MAIN, "limit": 1}
-        ]
+        assert (title, summary) == ("search term", "Summary")
+        assert clients[0].search_calls == []
+        assert clients[0].page_calls == ["search term"]
         assert clients[0].closed
 
     asyncio.run(scenario())

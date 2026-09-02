@@ -63,18 +63,24 @@ class SessionPersistentMixin():
         """Just an alias."""
         return self.read_key("mas_playername")
 
-    @property
-    def mname(self) -> Optional[str]:
-        """We add some filtering logics here."""
+    def _read_mname(self, where: Literal['all', 'pers', 'temp'] = 'all') -> Optional[str]:
+        mname = self.read_key("mas_monikaname", where)
+        if mname is not None and not isinstance(mname, str):
+            raise MaicaInputWarning("mas_monikaname must be a string")
+
         target_lang = self.fsc.maica_settings.basic.target_lang
-        mname = self.read_key("mas_monikaname")
         if (
             (target_lang == 'zh' and mname == "莫妮卡")
             or (target_lang != 'zh' and mname == "Monika")
-            ):
-            mname = None
+        ):
+            return None
 
         return mname
+
+    @property
+    def mname(self) -> Optional[str]:
+        """We add some filtering logics here."""
+        return self._read_mname()
 
     @property
     def pbday(self) -> Optional[List[int]]:
@@ -120,21 +126,21 @@ class SessionPersistentMixin():
 
         # Seriously hard work begins here
         # First three manuals
-        data1 = self.pname
+        data1 = _rf('mas_playername')
         if data1:
             _ap(
                 f'{{player_name}}的真名是{data1}.',
                 f"{{player_name}}'s real name is {data1}."
             )
 
-        data1 = self.mname
+        data1 = self._read_mname(where)
         if data1:
             _ap(
                 f'{{player_name}}也会称你为{data1}.',
                 f"{{player_name}} would also call you {data1}."
             )
 
-        data1 = self.pbday
+        data1 = _rf('mas_player_bday')
         if data1:
             dt = datetime.date(*data1)
             _ap(
@@ -147,7 +153,7 @@ class SessionPersistentMixin():
                 f"{{player_name}} is {o} years old."
             )
 
-        data1 = self.affection
+        data1 = _rf('mas_affection')
         if data1:
             match float(data1):
                 case affection if affection < 200:

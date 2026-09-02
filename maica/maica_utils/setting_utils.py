@@ -394,9 +394,17 @@ class MaicaSettings(BaseModel):
         )
 
     @property
-    def prompt_writable(self):
+    def prompt_system_writable(self):
+        """Allow writing from system level, like zsco."""
         return (
             self.temp.chat_session >= 0
+        )
+
+    @property
+    def prompt_writable(self):
+        """Allow writing from user level and above (system), like mf."""
+        return (
+            self.prompt_system_writable
             and not (
                 self.temp.activated == "mspire"
                 and self.temp.mspire.use_cache

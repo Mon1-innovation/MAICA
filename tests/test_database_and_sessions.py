@@ -2,6 +2,7 @@ import asyncio
 import time
 
 import bcrypt
+import pytest
 import sqlalchemy
 from cryptography.hazmat.primitives.asymmetric import rsa
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -10,6 +11,7 @@ from maica.maica_utils import (
     DatabaseUtils,
     FullSocketsContainer,
     G,
+    MaicaInputWarning,
     MaicaSession,
     MaicaSessionItem,
     SqlBaseData,
@@ -105,6 +107,58 @@ def test_db_bound_object_loads_blank_text_as_empty_content() -> None:
     persistent = SessionPersistent()
     persistent.load("   ")
     assert persistent.content == {}
+
+
+def test_persistent_info_respects_temp_and_persistent_boundaries() -> None:
+    fsc = FullSocketsContainer()
+    fsc.maica_settings.basic.target_lang = "en"
+    persistent = SessionPersistent(fsc=fsc)
+
+    persistent.content = {
+        "mas_playername": "Persistent Player",
+        "mas_monikaname": "Persistent Nickname",
+        "mas_player_bday": [2000, 1, 2],
+        "mas_affection": 100,
+    }
+    temporary_only = "\n".join(persistent.form_info(where="temp"))
+    assert "Persistent Player" not in temporary_only
+    assert "Persistent Nickname" not in temporary_only
+    assert "2000" not in temporary_only
+    assert "new lovers" not in temporary_only
+
+    persistent.content = {}
+    persistent.content_temp = {
+        "mas_playername": "Temporary Player",
+        "mas_monikaname": "Temporary Nickname",
+        "mas_player_bday": [2001, 2, 3],
+        "mas_affection": 200,
+    }
+    persistent_only = "\n".join(persistent.form_info(where="pers"))
+    assert "Temporary Player" not in persistent_only
+    assert "Temporary Nickname" not in persistent_only
+    assert "2001" not in persistent_only
+    assert "harmonious lovers" not in persistent_only
+
+
+def test_temp_info_limit_does_not_count_persistent_basic_fields() -> None:
+    fsc = FullSocketsContainer()
+    persistent = SessionPersistent(fsc=fsc)
+    persistent.content = {"mas_playername": "Persistent Player"}
+    persistent.content_temp = {
+        "mas_player_additions": [f"Temporary item {index}" for index in range(27)]
+    }
+
+    persistent.validate()
+    assert len(persistent.form_info(where="temp")) == 32
+
+
+def test_monika_nickname_rejects_non_string_values() -> None:
+    fsc = FullSocketsContainer()
+    persistent = SessionPersistent(fsc=fsc)
+    persistent.content_temp = {"mas_monikaname": 123}
+
+    with pytest.raises(MaicaInputWarning, match="mas_monikaname must be a string"):
+        _ = persistent.mname
 
 
 def test_dbo_acquire_binds_fsc_only_while_holding_lock() -> None:
