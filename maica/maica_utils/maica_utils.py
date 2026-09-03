@@ -972,6 +972,8 @@ def sync_messenger(
 
         if not info:
             info = f"Auto exception from unified exception: {str(error)}"
+        else:
+            info += str(error)
 
         new_error = ce_type(info)
         new_error.__cause__ = error
