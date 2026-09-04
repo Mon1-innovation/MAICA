@@ -167,8 +167,9 @@ class AiConnectionManager(AsyncCreator):
         return request_kwargs
 
 
-    async def _time_counter(self):
-        time_elps = 0
+    async def _time_counter(self, delay=0):
+        await asyncio.sleep(delay)
+        time_elps = delay
         while True:
             await asyncio.sleep(5)
             time_elps += 5
@@ -191,7 +192,13 @@ class AiConnectionManager(AsyncCreator):
 
         try:
             task_stream_resp = asyncio.create_task(self.client.responses.create(**mixed_kwargs))
-            task_time_counter = asyncio.create_task(self._time_counter())
+
+            # If this is non-streaming task, we allow a longer delay before warning
+            if mixed_kwargs.get("stream", False):
+                delay = 0
+            else:
+                delay = 15
+            task_time_counter = asyncio.create_task(self._time_counter(delay))
 
             await asyncio.wait_for(task_stream_resp, timeout=int(G.A.OPENAI_TIMEOUT) if G.A.OPENAI_TIMEOUT != '0' else None)
 
