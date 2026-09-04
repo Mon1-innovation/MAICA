@@ -33,6 +33,11 @@ class CommonScheduler():
                 id='rotate_mv_imgs'
             )
             self.schedule.add_job(
+                self.rotate_vectors,
+                trigger=IntervalTrigger(hours=1),
+                id='rotate_vectors'
+            )
+            self.schedule.add_job(
                 self.gc_sessions,
                 trigger=IntervalTrigger(hours=1),
                 id='gc_sessions'
@@ -95,6 +100,20 @@ class CommonScheduler():
                 await dbs.commit()
 
             sync_messenger(info=f'Removed {len(metas)} MVista images', type=MsgType.LOG)
+
+    @Decos.log_task
+    async def rotate_vectors(self):
+        """Deletes references to savefiles that have not been uploaded recently."""
+        keep_time = int(G.A.ROTATE_VECTOR)
+        vector_pool = self.root_csc.vector_pool if self.root_csc else None
+        if keep_time and vector_pool:
+            timestamp = datetime.datetime.now()
+            earliest_timestamp = timestamp - datetime.timedelta(hours=keep_time)
+            scopes, references = await vector_pool.rotate_vector_references(earliest_timestamp)
+            sync_messenger(
+                info=f'Removed {references} vector references from {scopes} savefiles',
+                type=MsgType.LOG,
+            )
 
     @Decos.log_task
     async def gc_sessions(self):

@@ -358,6 +358,7 @@ def validate_config():
         "GC_SESSIONS": (0, None),
         "ROTATE_MSCACHE": (0, None),
         "ROTATE_MVISTA": (0, None),
+        "ROTATE_VECTOR": (0, None),
         "SESSION_MAX_LENGTH": (1, None),
         "CENSOR_MSPIRE": (0, None),
         "CENSOR_QUERY": (0, None),
@@ -429,7 +430,6 @@ async def start_all(
         connection_names = _CHAT_CONNS_LIST if start_target != 'tts' else _TTS_CONNS_LIST
         root_csc_items = await _create_root_connections(connection_names)
         root_csc_kwargs = dict(zip(connection_names, root_csc_items))
-        await _audit_vector_consistency(root_csc_kwargs.get("vector_pool"))
 
         if start_target == 'chat':
             await maica_start_all(**root_csc_kwargs, shutdown_trigger=shutdown_trigger)
@@ -493,29 +493,6 @@ async def _create_root_connections(connection_names):
         raise errors[0]
 
     return results
-
-
-async def _audit_vector_consistency(vector_pool):
-    if not vector_pool:
-        return
-    try:
-        missing = await vector_pool.audit_reference_consistency()
-    except Exception as e:
-        sync_messenger(
-            info="Couldn't audit SQL/Milvus reference consistency during startup: ",
-            error=e,
-        )
-        return
-    if missing:
-        sync_messenger(
-            info=(
-                f"SQL/Milvus consistency audit found {len(missing)} referenced "
-                "vectors missing from Milvus; clients should re-upload their archives"
-            ),
-            type=MsgType.WARN,
-        )
-    else:
-        sync_messenger(info="SQL/Milvus integrity check passed", type=MsgType.DEBUG)
 
 
 async def _wait_for_first(tasks):

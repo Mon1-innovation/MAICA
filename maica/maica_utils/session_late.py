@@ -29,7 +29,11 @@ class SessionPersistentLlmMixin():
     content_temp: dict
 
 
-    async def to_vector(self, _data: Optional[list] = None):
+    async def to_vector(
+        self,
+        _data: Optional[list] = None,
+        target_lang: Optional[TargetLangType] = None,
+    ):
         """As said, to milvus. Milvus is not considered persistent storage so only write."""
         vector_pool = self.fsc.vector_pool
         if not self.fsc.is_vector_ready:
@@ -39,10 +43,22 @@ class SessionPersistentLlmMixin():
 
         await vector_pool.cross_insert(
             embedding_conn=self.fsc.embedding_conn,
-            data = _data if _data is not None else self.form_info(),
+            data = _data if _data is not None else self.form_info(target_lang=target_lang),
             user_id=user_id,
             chat_session_num=session_num,
         )
+
+
+    async def _sync_vectors_from_db(self):
+        """Rebuild this scope's vector references from the persisted archive."""
+        await self.from_db()
+
+        target_lang = self.read_key("target_lang", where="pers") or self.fsc.maica_settings.basic.target_lang
+        data = self.form_info(
+            where="pers",
+            target_lang=target_lang,
+        ) if self.content else []
+        await self.to_vector(_data=data, target_lang=target_lang)
 
 
     async def filter_vector(self, query: str, topk: int = 5) -> Set:
@@ -53,6 +69,8 @@ class SessionPersistentLlmMixin():
 
         user_id = self.fsc.maica_settings.verification.user_id
         session_num = self.session_num
+
+        await self._sync_vectors_from_db()
 
         res_set = await vector_pool.embed_search(
             embedding_conn=self.fsc.embedding_conn,

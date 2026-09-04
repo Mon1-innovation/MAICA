@@ -1,11 +1,20 @@
 import asyncio
+import datetime
 from types import SimpleNamespace
 
 import sqlalchemy
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from maica.maica_utils import DatabaseUtils, MaicaDbError, SqlBaseData, SqlVectorReference
+from maica.maica_utils import (
+    DatabaseUtils,
+    FullSocketsContainer,
+    MaicaDbError,
+    SessionPersistent,
+    SqlBaseData,
+    SqlPersistent,
+    SqlVectorReference,
+)
 from maica.maica_utils.connection_mixin import MilvusSearchMixin
 from maica.initializer.migrations.migration_5 import _is_reference_collection
 
@@ -143,6 +152,168 @@ def test_vectors_are_shared_and_deleted_after_the_last_reference() -> None:
                     user_id=1,
                     chat_session_num=1,
                 )
+        finally:
+            DatabaseUtils.SessionData = old_factory
+            await engine.dispose()
+
+    asyncio.run(scenario())
+
+
+def test_vector_rotation_keeps_persistent_text_and_shared_vectors() -> None:
+    async def scenario():
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        old_factory = DatabaseUtils.SessionData
+        DatabaseUtils.SessionData = async_sessionmaker(engine, expire_on_commit=False)
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(SqlBaseData.metadata.create_all)
+
+            now = datetime.datetime.now()
+            async with DatabaseUtils.SessionData() as dbs, dbs.begin():
+                dbs.add_all([
+                    SqlPersistent(
+                        user_id=1,
+                        chat_session_num=1,
+                        content="old archive",
+                        timestamp=now - datetime.timedelta(hours=48),
+                    ),
+                    SqlPersistent(
+                        user_id=1,
+                        chat_session_num=2,
+                        content="recent archive",
+                        timestamp=now,
+                    ),
+                ])
+
+            store = FakeVectorStore()
+            embedding = FakeEmbeddingConnection()
+            await store.cross_insert(
+                embedding,
+                ["old only", "shared"],
+                user_id=1,
+                chat_session_num=1,
+            )
+            await store.cross_insert(
+                embedding,
+                ["recent only", "shared"],
+                user_id=1,
+                chat_session_num=2,
+            )
+            await store.cross_insert(
+                embedding,
+                ["system data"],
+                user_id=-1,
+                chat_session_num=0,
+            )
+
+            scopes, references = await store.rotate_vector_references(
+                now - datetime.timedelta(hours=24)
+            )
+
+            assert (scopes, references) == (1, 2)
+            async with DatabaseUtils.SessionData() as dbs:
+                refs = (await dbs.scalars(sqlalchemy.select(SqlVectorReference))).all()
+                persistent = (
+                    await dbs.scalar(
+                        sqlalchemy.select(SqlPersistent).where(
+                            SqlPersistent.user_id == 1,
+                            SqlPersistent.chat_session_num == 1,
+                        )
+                    )
+                )
+
+            assert {(ref.user_id, ref.chat_session_num, ref.content_hash) for ref in refs} == {
+                (1, 2, store._content_hash("recent only")),
+                (1, 2, store._content_hash("shared")),
+                (-1, 0, store._content_hash("system data")),
+            }
+            assert persistent.content == "old archive"
+            assert {row["raw_text"] for row in store.vectors.values()} == {
+                "recent only",
+                "shared",
+                "system data",
+            }
+        finally:
+            DatabaseUtils.SessionData = old_factory
+            await engine.dispose()
+
+    asyncio.run(scenario())
+
+
+def test_vector_search_rebuilds_scope_from_persistent_archive() -> None:
+    async def scenario():
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        old_factory = DatabaseUtils.SessionData
+        DatabaseUtils.SessionData = async_sessionmaker(engine, expire_on_commit=False)
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(SqlBaseData.metadata.create_all)
+
+            store = FakeVectorStore()
+            embedding = FakeEmbeddingConnection()
+            fsc = FullSocketsContainer()
+            fsc.maica_settings.verification.user_id = 1
+            fsc.maica_settings.temp.chat_session = 1
+            fsc.maica_settings.basic.target_lang = "zh"
+            fsc.vector_pool = store
+            fsc.embedding_conn = embedding
+            persistent = SessionPersistent(session_num=1, fsc=fsc)
+            persistent.load({
+                "target_lang": "en",
+                "mas_playername": "Alice",
+            })
+            await persistent.to_db(skip_sync=True)
+
+            await store.cross_insert(
+                embedding,
+                ["stale vector"],
+                user_id=1,
+                chat_session_num=1,
+            )
+            results = await persistent.filter_vector("query", topk=100)
+
+            assert "{player_name}'s real name is Alice." in results
+            assert "stale vector" not in results
+            assert fsc.maica_settings.basic.target_lang == "zh"
+        finally:
+            DatabaseUtils.SessionData = old_factory
+            await engine.dispose()
+
+    asyncio.run(scenario())
+
+
+def test_vector_search_does_not_repopulate_deleted_empty_archive() -> None:
+    async def scenario():
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        old_factory = DatabaseUtils.SessionData
+        DatabaseUtils.SessionData = async_sessionmaker(engine, expire_on_commit=False)
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(SqlBaseData.metadata.create_all)
+
+            store = FakeVectorStore()
+            embedding = FakeEmbeddingConnection()
+            fsc = FullSocketsContainer()
+            fsc.maica_settings.verification.user_id = 1
+            fsc.maica_settings.temp.chat_session = 1
+            fsc.vector_pool = store
+            fsc.embedding_conn = embedding
+            persistent = SessionPersistent(session_num=1, fsc=fsc)
+            persistent.load({})
+            await persistent.to_db(skip_sync=True)
+            await store.cross_insert(
+                embedding,
+                ["stale vector"],
+                user_id=1,
+                chat_session_num=1,
+            )
+
+            assert await persistent.filter_vector("query") == set()
+            async with DatabaseUtils.SessionData() as dbs:
+                refs = (await dbs.scalars(sqlalchemy.select(SqlVectorReference))).all()
+
+            assert refs == []
+            assert store.vectors == {}
         finally:
             DatabaseUtils.SessionData = old_factory
             await engine.dispose()

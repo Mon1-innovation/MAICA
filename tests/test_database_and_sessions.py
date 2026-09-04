@@ -140,6 +140,21 @@ def test_persistent_info_respects_temp_and_persistent_boundaries() -> None:
     assert "harmonious lovers" not in persistent_only
 
 
+def test_persistent_info_accepts_explicit_target_language() -> None:
+    fsc = FullSocketsContainer()
+    fsc.maica_settings.basic.target_lang = "zh"
+    persistent = SessionPersistent(fsc=fsc)
+    persistent.content = {
+        "target_lang": "en",
+        "mas_playername": "Persistent Player",
+    }
+
+    english = persistent.form_info(where="pers", target_lang="en")
+
+    assert "{player_name}'s real name is Persistent Player." in english
+    assert fsc.maica_settings.basic.target_lang == "zh"
+
+
 def test_temp_info_limit_does_not_count_persistent_basic_fields() -> None:
     fsc = FullSocketsContainer()
     persistent = SessionPersistent(fsc=fsc)

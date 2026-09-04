@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import orjson
 import asyncio
+import datetime
 import hashlib
 import sqlalchemy
 
@@ -15,7 +16,7 @@ from .setting_utils import *
 from .fsc_early import *
 from .locater import *
 from .database_utils import DatabaseUtils
-from .database_models import SqlVectorReference
+from .database_models import SqlPersistent, SqlVectorReference
 
 if TYPE_CHECKING:
     from .connection_utils import AiConnectionManager
@@ -64,7 +65,7 @@ class MilvusSearchMixin():
 
 
     async def audit_reference_consistency(self, batch_size: int = 256) -> set[str]:
-        """Return SQL reference hashes whose vectors are missing from Milvus."""
+        """Return SQL reference hashes missing from Milvus for explicit diagnostics."""
         async with DatabaseUtils.SessionData() as dbs:
             stmt = sqlalchemy.select(SqlVectorReference.content_hash).distinct()
             referenced = set((await dbs.scalars(stmt)).all())
@@ -173,6 +174,60 @@ class MilvusSearchMixin():
                 )
 
         return len(to_add), len(to_remove)
+
+
+    async def rotate_vector_references(
+        self,
+        earliest_timestamp: datetime.datetime,
+    ) -> tuple[int, int]:
+        """Drop references for savefiles that have not been uploaded recently."""
+        async with self._write_lock:
+            async with DatabaseUtils.SessionData() as dbs:
+                stale_scopes = (
+                    await dbs.execute(
+                        sqlalchemy.select(
+                            SqlPersistent.user_id,
+                            SqlPersistent.chat_session_num,
+                        ).where(
+                            SqlPersistent.timestamp < earliest_timestamp,
+                            SqlPersistent.user_id > 0,
+                        )
+                    )
+                ).all()
+
+                if not stale_scopes:
+                    return 0, 0
+
+                stale_reference = sqlalchemy.exists(
+                    sqlalchemy.select(SqlPersistent.id).where(
+                        SqlPersistent.user_id == SqlVectorReference.user_id,
+                        SqlPersistent.chat_session_num == SqlVectorReference.chat_session_num,
+                        SqlPersistent.timestamp < earliest_timestamp,
+                        SqlPersistent.user_id > 0,
+                    )
+                )
+                references = (
+                    await dbs.scalars(
+                        sqlalchemy.select(SqlVectorReference.content_hash).where(stale_reference)
+                    )
+                ).all()
+                candidates = set(references)
+
+                await dbs.execute(
+                    sqlalchemy.delete(SqlVectorReference).where(stale_reference)
+                )
+                await dbs.commit()
+
+            if candidates:
+                try:
+                    await self._delete_unreferenced(candidates)
+                except Exception as e:
+                    sync_messenger(
+                        info=f"Failed to clean up unreferenced Milvus vectors: {e}",
+                        type=MsgType.DEBUG,
+                    )
+
+            return len(stale_scopes), len(references)
 
 
     async def cross_insert(

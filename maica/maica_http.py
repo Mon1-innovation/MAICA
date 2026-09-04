@@ -343,11 +343,10 @@ class ShortConnHandler(View):
 
             # We'll need a target lang here for embedding in correct language
             target_lang = persistent.read_key("target_lang")
-            if target_lang:
-                self.fsc.maica_settings.basic.target_lang = target_lang
+            target_lang = target_lang or self.fsc.maica_settings.basic.target_lang
 
             await persistent.to_db(skip_sync=True)
-            await persistent.to_vector()
+            await persistent.to_vector(target_lang=target_lang)
  
         return jfy_res()
     

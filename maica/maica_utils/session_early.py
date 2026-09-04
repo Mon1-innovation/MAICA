@@ -63,12 +63,16 @@ class SessionPersistentMixin():
         """Just an alias."""
         return self.read_key("mas_playername")
 
-    def _read_mname(self, where: Literal['all', 'pers', 'temp'] = 'all') -> Optional[str]:
+    def _read_mname(
+        self,
+        where: Literal['all', 'pers', 'temp'] = 'all',
+        target_lang: Optional[TargetLangType] = None,
+    ) -> Optional[str]:
         mname = self.read_key("mas_monikaname", where)
         if mname is not None and not isinstance(mname, str):
             raise MaicaInputWarning("mas_monikaname must be a string")
 
-        target_lang = self.fsc.maica_settings.basic.target_lang
+        target_lang = target_lang or self.fsc.maica_settings.basic.target_lang
         if (
             (target_lang == 'zh' and mname == "莫妮卡")
             or (target_lang != 'zh' and mname == "Monika")
@@ -92,8 +96,13 @@ class SessionPersistentMixin():
         """Just an alias."""
         return self.read_key("mas_affection")
 
-    def _conclude_basic_sf(self, where: Literal['all', 'pers', 'temp'] = 'all'):
+    def _conclude_basic_sf(
+        self,
+        where: Literal['all', 'pers', 'temp'] = 'all',
+        target_lang: Optional[TargetLangType] = None,
+    ):
         result: List[_Bt] = []
+        target_lang = target_lang or self.fsc.maica_settings.basic.target_lang
 
         def _ap(zh, en):
             result.append(
@@ -110,14 +119,14 @@ class SessionPersistentMixin():
             """Datetime."""
             return beautify_date(
                 dt,
-                target_lang=self.fsc.maica_settings.basic.target_lang,
+                target_lang=target_lang,
                 include_adj=False
             )
             
         def parse_date_time(dt: datetime.datetime):
             """Datetime but with hms."""
             date = parse_date(dt)
-            if self.fsc.maica_settings.basic.target_lang == 'zh':
+            if target_lang == 'zh':
                 time = beautify_time(dt, 'zh', include_adj=False)
                 return f"{date}{time}"
             else:
@@ -133,7 +142,7 @@ class SessionPersistentMixin():
                 f"{{player_name}}'s real name is {data1}."
             )
 
-        data1 = self._read_mname(where)
+        data1 = self._read_mname(where, target_lang)
         if data1:
             _ap(
                 f'{{player_name}}也会称你为{data1}.',
@@ -973,16 +982,21 @@ class SessionPersistentMixin():
         
         return result or []
 
-    def form_info(self, where: Literal['all', 'pers', 'temp'] = 'all') -> Set:
+    def form_info(
+        self,
+        where: Literal['all', 'pers', 'temp'] = 'all',
+        target_lang: Optional[TargetLangType] = None,
+    ) -> Set:
+        target_lang = target_lang or self.fsc.maica_settings.basic.target_lang
         conclusion = []
-        conclusion.extend(self._conclude_basic_sf(where))
+        conclusion.extend(self._conclude_basic_sf(where, target_lang))
         if where != 'temp':
             conclusion.extend(self._conclude_suppl_sf())
         conclusion.extend(self._conclude_extra_sf(where))
 
         conclusion_strs = set()
         for i in conclusion:
-            conclusion_strs.add(to_str(i, self.fsc.maica_settings.basic.target_lang))
+            conclusion_strs.add(to_str(i, target_lang))
 
         return conclusion_strs
     
