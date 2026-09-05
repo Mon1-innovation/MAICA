@@ -78,11 +78,13 @@ class MtPipeliner():
                 "system",
                 _Bt(
 f"""\
-你是一个人工智能助手, 你的任务是调用工具, 以作为角色"莫妮卡"执行游戏内操作.
+你是一个人工智能助手, 你接下来会收到一组对话历史和一则任务指示.
+你的任务是根据指示, 调用工具, 以作为角色"莫妮卡"执行游戏内操作.
 最终你应该通过调用工具的方式{taskend_word}. 如果该问题不需要工具, 你可以直接{taskend_word}.\
 """,
 f"""\
-You are a helpful assistant, your task is using tools to perform in-game actions as charcater "Monika".
+You are a helpful assistant, now you will recieve rounds of conversation history and a task instruction.
+Your task is using tools according to instruction, to perform in-game actions as charcater "Monika".
 Finally you should {taskend_word} with a corresponding tool. If the message does not require tools to answer, you can {taskend_word} directly.\
 """
                 ),
@@ -95,8 +97,20 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         query_item = MaicaSessionItem(
             "user",
             _Bt(
-                "<task> 观察以上对话历史记录, 仅依据最后一轮对话调用工具. 除非工具说明允许, 否则不要调用未经显式指示的工具. 每个工具最多调用一次.",
-                "<task> Observe the chat history and make tool calls according to only the last round of conversation. Do not use tools without explicit request, unless the tool description allows you to. Do not use any tool more than once."
+"""\
+<task>
+观察以上对话历史记录, 并调用工具.
+仅依据最后一轮对话调用工具, 提供的更早轮次仅用于理解上下文.
+除非工具说明允许, 否则不要调用未经显式指示的工具.
+每个工具最多调用一次.\
+""",
+"""\
+<task>
+Observe the conversation history, and make tool calls accordingly.
+Only call tools according to the last round of conversation, earlier rounds are just for context understanding.
+Do not use tools without explicit request, unless the tool description allows you to.
+Do not use any tool more than once.\
+""",
             ),
             target_lang=target_lang,
         )

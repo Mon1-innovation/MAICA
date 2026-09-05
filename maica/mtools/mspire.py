@@ -233,20 +233,24 @@ async def make_inspire(fsc: FullSocketsContainer):
     summary = ellipsis_large_str(summary)
 
     prompt = _Bt(
-        f"""你在随意翻阅维基百科时, 看到了以下条目:
+f"""\
+你在随意翻阅维基百科时, 看到了以下条目:
 
 {title}
 {summary}
 
 请以此为话题引子, 以自然的聊天语气发起话题, 与{{player_name}}聊天. 输出应包括合理的开头, 介绍, 衔接与收尾.
-你不必在输出中包含内容的全部信息, 但应当融入自己的理解与思考, 不应盲从信息中的评价和判断.""",
-        f"""You came across the following entry on Wikipedia while surfing:
+你不必在输出中包含内容的全部信息, 但应当融入自己的理解与思考, 不应盲从信息中的评价和判断.\
+""",
+f"""\
+You came across the following entry on Wikipedia while surfing:
 
 {title}
 {summary}
 
 Use it as a topic starter, and start a casual conversation with {{player_name}} in natural tone. Include necessary beginning, introduction, connecting and ending.
-You don't have to include all information provided, but you should combine your own thinking and understanding into your response, avoid blindly following the judgements from the information.""",
+You don't have to include all information provided, but you should combine your own thinking and understanding into your response, avoid blindly following the judgements from the information.\
+""",
     )
     return prompt
 
