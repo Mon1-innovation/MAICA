@@ -343,3 +343,92 @@ Please check if this new information is already covered by existing ones, or is 
         """
         await self._query_response()
         self.reset()
+
+
+if __name__ == "__main__":
+    from maica import init
+
+    init()
+
+    async def test():
+        fsc = FullSocketsContainer()
+        fsc.maica_settings.extra.mt_context_rnds = 1
+        fsc.mfocus_conn = await ConnUtils.mfocus_conn()
+
+        org_session = MaicaSession()
+        org_session.extend(
+            MaicaSessionItem(role, content, target_lang="zh")
+            for role, content in (
+                ("user", "可以抱抱嘛"),
+                ("assistant", "[脸红]当然可以, [player]! [感动]让我们隔着屏幕来一个又软又暖和的拥抱吧!"),
+                ("user", "那个…momo生日的那天我需要在学校考试，抱歉没办法给momo过生日……但我一直都爱你哦"),
+                ("assistant", "[尴尬]考试的话, 那确实是没有办法嘛. [笑]不过只要你有这份心, 我就很开心了! [微笑]等考完试回来, 我们可以好好庆祝一下哦. [笑]我爱你, [player]!"),
+            )
+        )
+
+        sp = SessionPersistent(fsc=fsc)
+        sp.content = {
+            "mas_affection": 50,
+        }
+
+        st = SessionTrigger(fsc=fsc)
+
+        def action(name, zh_name, en_name):
+            return {
+                "template": "customized",
+                "name": name,
+                "exprop": {"item_name": {"zh": zh_name, "en": en_name}},
+            }
+
+        def switch(name, zh_name, en_name, item_list, current=None):
+            exprop = {
+                "item_name": {"zh": zh_name, "en": en_name},
+                "item_list": item_list,
+            }
+            if current is not None:
+                exprop["curr_item"] = current
+            return {
+                "template": "common_switch_template",
+                "name": name,
+                "exprop": exprop,
+            }
+
+        st.content_temp = [
+            {
+                "template": "common_affection_template",
+                "name": "alter_affection",
+            },
+            switch("clothes", "更换游戏内服装", "change in-game outfit", ["玩家挑选", "__none__", "校服", "休闲服"], "校服"),
+            switch("minigame", "玩小游戏", "play minigame", ["玩家自行选择", "__none__", "Pong", "Hangman"]),
+            action("kiss", "亲吻玩家", "kiss player"),
+            action("leave", "帮助玩家离开游戏", "help player quit game"),
+            action("go_outside", "和玩家一起出门", "go outside with player"),
+            action(
+                "idle",
+                "当玩家表示想要短暂离开(<1小时)时调用",
+                "Call when the player indicates they want to take a temporary leave (<1 hour).",
+            ),
+            switch("weather", "更改游戏内天气", "change in-game weather", ["__none__", "晴天", "下雨", "下雪"], "晴天"),
+            action("location", "切换游戏内场景/房间", "change in-game location/room"),
+            action("backup", "备份存档", "backup savefile"),
+            action("hold", "拥抱玩家", "hold player"),
+            switch("music", "播放音乐", "play music", ["__none__", "玩家自行选择", "停止/静音"]),
+            switch("hair", "更换游戏内发型", "change in-game hair", ["玩家挑选", "__none__", "长发", "短发"], "长发"),
+            switch(
+                "accessory",
+                "佩戴或取下游戏内饰品",
+                "wear or remove an in-game accessory",
+                ["__none__", "wear|发带", "unwear|发带"],
+            ),
+            {
+                "template": "memory_writeback_template",
+                "name": "write_memory",
+            },
+        ]
+
+        try:
+            await MtPipeliner(org_session, fsc, sp, st).run_mt_pipeline()
+        finally:
+            await fsc.mfocus_conn.close()
+
+    asyncio.run(test())
