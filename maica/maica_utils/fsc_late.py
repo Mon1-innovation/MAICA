@@ -41,7 +41,7 @@ class ConnSocketsContainer(AllowArb):
         )
 
 
-_rsc_proxied = ['websocket', 'tracker_id', 'messenger', 'maica_settings']
+_rsc_proxied = ['websocket', 'session_lock', 'tracker_id', 'messenger', 'maica_settings', 'frontend_id']
 _csc_proxied = [
     'vector_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn', 'embedding_conn', 'reranking_conn',
     'is_vector_ready', 'is_reranking_ready',

@@ -136,6 +136,7 @@ class WsPermissionConfig(WsBasicConfig):
     """This takes and validates a login input."""
     type: Literal["auth"]
     access_token: str = Field(min_length=1, max_length=4096)
+    frontend_id: Optional[str] = Field(default=None, max_length=4096)
 
 class WsPingConfig(WsBasicConfig):
     type: Literal["ping"]

@@ -58,7 +58,6 @@ class WsCoroutine(NoWsCoroutine):
 
         sync_messenger(info='An anonymous connection initiated', type=MsgType.PRIM_LOG)
         sync_messenger(info=f'From IP {self.remote_addr}', type=MsgType.DEBUG)
-        sync_messenger(info=f'Current online users: {list(online_dict.keys())}', type=MsgType.DEBUG)
 
         # Starting loop from here
         while True:
@@ -95,11 +94,12 @@ class WsCoroutine(NoWsCoroutine):
                         await self.fsc.login(ws_config.access_token)
 
                         # Cookies are deprecated
-                        sync_messenger(info=f'Authentication passed: {self.settings.verification.username}({self.settings.verification.user_id})', type=MsgType.LOG)
+                        sync_messenger(info=f"Authentication passed: {self.settings.verification.username}({self.settings.verification.user_id}){(' with ' + ws_config.frontend_id) if ws_config.frontend_id else ''}", type=MsgType.LOG)
                         await self.fsc.messenger('maica_login_id', f"{self.settings.verification.user_id}", 200, no_print=True, no_track=True)
                         await self.fsc.messenger('maica_login_user', f"{self.settings.verification.username}", 200, no_print=True, no_track=True)
                         await self.fsc.messenger('maica_login_nickname', f"{self.settings.verification.nickname}", 200, no_print=True, no_track=True)
 
+                        self.fsc.frontend_id = ws_config.frontend_id
                         return {'id': self.settings.verification.user_id, 'username': self.settings.verification.username}
 
             # Handle expected exceptions
@@ -533,6 +533,7 @@ async def main_logic(
 
             # Login atomically reserved the online status.
             sync_messenger(info=f"Locking session for {permit['id']} named {permit['username']}", type=MsgType.LOG)
+            sync_messenger(info=f'Current online users: {list(online_dict.keys())}', type=MsgType.DEBUG)
 
             # Runs until break
             await coro_instance.function_switch()

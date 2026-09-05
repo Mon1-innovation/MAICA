@@ -147,10 +147,12 @@ class RealtimeSocketsContainer(AllowArb):
     # session: Any = None
 
     websocket: Optional[ServerConnection] = None
-    session_lock: Optional[asyncio.Lock] = None
+    session_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     tracker_id: TrackerId = field(default_factory=TrackerId)
     messenger: Optional[RscMessenger] = None
     maica_settings: MaicaSettings = field(default_factory=MaicaSettings)
+    frontend_id: Optional[str] = None
+    """Standard for frontend_id: <type>|<version>. For example, `blessland|1.9.1`."""
 
     @model_validator(mode="after")
     def spawn_messenger(self):
