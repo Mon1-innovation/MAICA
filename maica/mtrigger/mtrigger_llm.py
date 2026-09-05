@@ -100,14 +100,14 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
 """\
 <task>
 观察以上对话历史记录, 并调用工具.
-仅依据最后一轮对话调用工具, 提供的更早轮次仅用于理解上下文.
+仅依据最后一轮对话调用工具. 提供的更早轮次仅用于理解上下文, 不作为调用工具的依据.
 除非工具说明允许, 否则不要调用未经显式指示的工具.
 每个工具最多调用一次.\
 """,
 """\
 <task>
 Observe the conversation history, and make tool calls accordingly.
-Only call tools according to the last round of conversation, earlier rounds are just for context understanding.
+Only call tools according to the last round of conversation. Earlier rounds are just for context understanding, not basis of calling tools.
 Do not use tools without explicit request, unless the tool description allows you to.
 Do not use any tool more than once.\
 """,
