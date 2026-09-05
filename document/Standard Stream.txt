@@ -94,3 +94,4 @@ v1.3.004.rc1: 调整了get_sentence相关
 v1.3.004.rc2: 正式命名zsco(ZeroShot Characteristic Optimization)功能, 一些文档与累积更新
 v1.3.004: 添加高级参数prompt_monika_nickname, ms/mp参数twk_info, 调整ms type, 一些其他修复与更新
 v1.3.004.post1: 添加向量数据库清理, 改良ms prompt, 添加前端识别, 一些修复, 调整与规范化
+v1.3.004.post2: 调整默认高级参数, 优化提示词, 一些修复
