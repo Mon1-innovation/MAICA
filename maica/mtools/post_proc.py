@@ -121,7 +121,7 @@ Please choose an emotion that fits best from the given list of standard emotions
     res = detection_result.result
     cfd = detection_result.confidence
 
-    sync_messenger(info=f"Finished processing emo_proc_llm to letter. Result: {res}, confidence: {cfd}", type=MsgType.PRIM_LOG)
+    sync_messenger(info=f"Finished processing emo_proc_llm to {emo}. Result: {res}, confidence: {cfd}", type=MsgType.PRIM_LOG)
     return f"[{res}]", cfd
 
 async def emo_proc_auto(emo: str, fsc: FullSocketsContainer) -> tuple[str, float]:
