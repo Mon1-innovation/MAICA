@@ -93,21 +93,25 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
 
             self.mt_session.extend(org_items)
 
+        if num_org_rnds > 1:
+            multirnd_inst = "\n仅依据最后一轮对话调用工具. 提供的更早轮次仅用于理解上下文, 不作为调用工具的依据." if target_lang == 'zh'\
+            else "\nOnly call tools according to the last round of conversation. Earlier rounds are just for context understanding, not basis of calling tools."
+        else:
+            multirnd_inst = ""
+
         # We're creating a new query_item here, since we don't need known_info
         query_item = MaicaSessionItem(
             "user",
             _Bt(
-"""\
+f"""\
 <task>
-观察以上对话历史记录, 并调用工具.
-仅依据最后一轮对话调用工具. 提供的更早轮次仅用于理解上下文, 不作为调用工具的依据.
+观察以上对话历史记录, 并调用工具.{multirnd_inst}
 除非工具说明允许, 否则不要调用未经显式指示的工具.
 每个工具最多调用一次.\
 """,
-"""\
+f"""\
 <task>
-Observe the conversation history, and make tool calls accordingly.
-Only call tools according to the last round of conversation. Earlier rounds are just for context understanding, not basis of calling tools.
+Observe the conversation history, and make tool calls accordingly.{multirnd_inst}
 Do not use tools without explicit request, unless the tool description allows you to.
 Do not use any tool more than once.\
 """,
