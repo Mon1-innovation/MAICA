@@ -10,7 +10,7 @@ from typing import *
 from maica.mtools import ImgByUuid
 from maica.maica_utils import *
 
-_CONNS_LIST = []
+_CONNS_LIST = ['vector_pool']
 
 class CommonScheduler():
     """Keeps a schedule running."""
