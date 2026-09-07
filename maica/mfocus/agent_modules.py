@@ -62,6 +62,10 @@ class AgentTools():
         
         Currently using:
         - event_acquire
+        - vista_acquire
+
+        Where not to use them:
+        Those nulls are not valuable info. They'll just distract the model.
         """
         mark_true = False
 
@@ -441,7 +445,7 @@ class AgentTools():
 
         return text, res
 
-    class AgentVistas(Reparsable, list[str]):
+    class AgentVistas(Reparsable, MarkableBool, list[str]):
         target_lang: TargetLangType = "zh"
 
         def agent_reparse(self):
@@ -482,6 +486,9 @@ class AgentTools():
         res.target_lang = self.fsc.maica_settings.basic.target_lang
 
         text = res.agent_reparse()
+
+        if kwargs.get("force_disp"):
+            res.mark_true = True
 
         return text, res
 
