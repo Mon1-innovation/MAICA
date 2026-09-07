@@ -9,7 +9,7 @@ Could include:
 from typing import *
 
 from .mfocus_llm import MfPipeliner
-from .agent_modules import AgentTools
+from .agent_modules import AgentTools, agent_tools
 from maica.mtools import make_postmail, make_inspire, ms_from_cache, zsco
 from maica.maica_utils import *
 
@@ -52,6 +52,10 @@ async def pre_core_pipelines(
 
             mfp = MfPipeliner(session, fsc, sp)
             generated_guidance, parsed_results = await mfp.run_mf_pipeline()
+
+            # We pop all tool results to apply the parsed results
+            for i in agent_tools:
+                session_item.context.known_info.pop(i, None)
 
             # Then we inject what we got into session
             if (

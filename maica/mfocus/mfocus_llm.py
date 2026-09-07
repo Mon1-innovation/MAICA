@@ -366,7 +366,6 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
                         else:
                             # If it's not an extending, we fill it in even if bool(body) is False
                             # Empty bodies should be handled by ignore_empty. Preserving them is not necessary, but logically smoother.
-                            # Also, they'll be kept in the jsonified session.
                             # Also, if we consider adding a "force insert all" option in the future, this is gonna be helpful.
                             tools_results[tool_name] = (text, body)
 
