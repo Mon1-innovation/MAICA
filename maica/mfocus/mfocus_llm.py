@@ -9,8 +9,13 @@ from .agent_modules import AgentTools
 from maica.mtools import providers
 from maica.maica_utils import *
 
-_JSCType = Literal["string", "number", "integer", "object", "array", "boolean", "null"]
-JSCType = List[_JSCType] | _JSCType
+type _JSCType = Literal["string", "number", "integer", "object", "array", "boolean", "null"]
+type JSCType = List[_JSCType] | _JSCType
+
+type ToolsResults = dict[
+    str,
+    Tuple[str, AgentTools.Reparsable | Any],
+]
         
 _Bt = BilingualText
 _Wtp = WrappedOpenAIToolProperty 
@@ -39,11 +44,12 @@ class MfPipeliner():
             org_session: MaicaSession,
             fsc: FullSocketsContainer,
             sp: SessionPersistent,
-
+            tools_results: Optional[ToolsResults] = None
         ):
         self.org_session = org_session
         self.fsc = fsc
         self.sp = sp
+        self.tools_results = tools_results or {}
         self.reset()
 
     @property
@@ -294,10 +300,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         }
 
         generated_guidance: str = ""
-        tools_results: dict[
-            str,
-            Tuple[str, Any],
-        ] = {}
+        tools_results = self.tools_results
         tools_looped_rnds = 0
         conversation_rnd_end = False
 
@@ -460,7 +463,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
             200,
         )
 
-        return generated_guidance, tools_results
+        return generated_guidance
     
     @staticmethod
     def parse_tools_results(tools_results: dict[str, Tuple[str, Any]], ignore_empty = False):
@@ -501,8 +504,8 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         This wraps _query_response, since it's designed to be multiple-rounds compatible.
         This wrapping is single-round, fits the actual use case.
         """
-        generated_guidance, tools_results = await self._query_response()
-        parsed_results = self.parse_tools_results(tools_results, ignore_empty=True)
+        generated_guidance = await self._query_response()
+        parsed_results = self.parse_tools_results(self.tools_results, ignore_empty=True)
 
         self.reset()
         return generated_guidance, parsed_results

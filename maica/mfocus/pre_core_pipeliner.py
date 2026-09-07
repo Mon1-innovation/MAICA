@@ -8,7 +8,7 @@ Could include:
 """
 from typing import *
 
-from .mfocus_llm import MfPipeliner
+from .mfocus_llm import MfPipeliner, ToolsResults
 from .agent_modules import AgentTools, agent_tools
 from maica.mtools import make_postmail, make_inspire, ms_from_cache, zsco
 from maica.maica_utils import *
@@ -23,6 +23,9 @@ async def pre_core_pipelines(
     ):
     """Schedule everything here."""
     session_item = session[-1]
+
+    # Tools result must be kept along the whole procedure to ensure filtering working
+    tools_results: ToolsResults = {}
 
 
     async def name_repl_pipeline():
@@ -50,7 +53,7 @@ async def pre_core_pipelines(
             fsc.maica_settings.use_mf_now
         ):
 
-            mfp = MfPipeliner(session, fsc, sp)
+            mfp = MfPipeliner(session, fsc, sp, tools_results)
             generated_guidance, parsed_results = await mfp.run_mf_pipeline()
 
             # We pop all tool results to apply the parsed results
@@ -137,11 +140,6 @@ async def pre_core_pipelines(
 
             mf_const_tools = fsc.maica_settings.extra.mf_const_tools
             mf_const_sf_access = fsc.maica_settings.extra.mf_const_sf_access
-
-            tools_results: dict[
-                Optional[str],
-                Tuple[str, Any],
-            ] = {}
 
             toolbox = AgentTools(fsc, sp)
 
