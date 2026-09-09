@@ -1006,11 +1006,11 @@ class SessionPersistentMixin():
         if len(data) > 512:
             raise MaicaInputWarning("mas_player_additions does not accept items more than 512")
         for i in data[:]:
-            if len(i.encode()) > 512 * 3:
+            if (ie := len(i.encode())) > 512 * 3:
                 raise MaicaInputWarning("mas_player_additions does not accept length above 1536")
 
             # A too short item is meaningless and probably mistaken
-            if len(i.encode) <= 5:
+            elif ie <= 5:
                 data.remove(i)
 
 def _update_on_duplicate(li: list[dict], unique: str):
