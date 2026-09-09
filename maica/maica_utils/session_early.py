@@ -46,12 +46,14 @@ class SessionPersistentMixin():
         # Specifically handling additions
         if key == "mas_player_additions":
             v = v or []
-            v += (_read_perm(key) or [])
 
             # We require this being list, since strings are also iterable
-            # We will enforce this check after a grace period
-            if not isinstance(v, list):
-                v = []
+            if not isinstance(vp := _read_perm(key), Optional[list]):
+                raise MaicaInputWarning("mas_player_additions must be a list of strings")
+            if vp:
+                v += vp
+
+            # We also enforce this through the following check in _conclude_extra_sf
 
         elif v is None:
             v = _read_perm(key)
@@ -1002,11 +1004,14 @@ class SessionPersistentMixin():
     
     def _chk_len(self, data: list[str]):
         if len(data) > 512:
-            raise MaicaInputWarning("MAICA RAG does not accept items more than 512")
-        for i in data:
+            raise MaicaInputWarning("mas_player_additions does not accept items more than 512")
+        for i in data[:]:
             if len(i.encode()) > 512 * 3:
-                raise MaicaInputWarning("MAICA RAG does not accept length above 1536")
+                raise MaicaInputWarning("mas_player_additions does not accept length above 1536")
 
+            # A too short item is meaningless and probably mistaken
+            if len(i.encode) <= 5:
+                data.remove(i)
 
 def _update_on_duplicate(li: list[dict], unique: str):
     """The latter objs override formers."""
