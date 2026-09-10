@@ -174,7 +174,7 @@ class MaicaConnectionWarning(CommonMaicaWarning):
 class MaicaInternetWarning(CommonMaicaWarning):
     """This suggests the backend request action is not behaving normal."""
 
-class MaicaResponseWarning(CommonMaicaError):
+class MaicaResponseWarning(CommonMaicaWarning):
     """This suggests the output is malformed."""
 
 RETRYABLE_EXCEPTIONS = (
