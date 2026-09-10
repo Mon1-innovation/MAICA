@@ -256,7 +256,7 @@ class SessionTriggerLlmMixin():
         # No that's dumb and costy. We just need to verify a true-or-false, if the query can be satisfied.
         class TrigSelectionResults(GenCorrectionModel):
             requested: bool = Field(
-                description="是否需要使用工具." if target_lang == 'zh' else "If any tool is required."
+                description="是否涉及游戏操作." if target_lang == 'zh' else "If any in-game action is involved."
             )
             operation: Optional[str] = Field(
                 description="你选择的工具, 原样输出." if target_lang == 'zh' else "The tool you choose, output as-is."
