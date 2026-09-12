@@ -316,7 +316,11 @@ class AgentTools():
         """
         target_lang = self.fsc.maica_settings.basic.target_lang
 
-        dt = parser.parse(dt_str).date() if dt_str else None
+        # Deepseek could even mess this up sometimes. Damnit.
+        try:
+            dt = parser.parse(dt_str).date() if dt_str else None
+        except Exception:
+            dt = None
 
         today_dt = self._time_tz().date()
         dt = dt or today_dt
