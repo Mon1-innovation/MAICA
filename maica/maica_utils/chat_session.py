@@ -494,7 +494,7 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
         """Making it V2 style."""
         use_api = bool(int(G.A.CALC_TOKENS))
         max_length = self.fsc.maica_settings.basic.session_len_limit
-        warn_length = int(max_length * (2/3))
+        warn_length = int(max_length * get_slice_threshold())
         async def _tokens_calc(messages):
             # This method lets model deployment calculate tokens amount
             # With vllm optimizations and local network, it should be fast enough for loop calculation

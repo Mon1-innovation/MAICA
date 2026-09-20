@@ -90,7 +90,7 @@ async def post_core_pipelines(
                 case 1:
                     await fsc.messenger(
                         'maica_history_slice_hint',
-                        f"Session exceeded {fsc.maica_settings.basic.session_len_limit * (2/3)} characters, will slice at {fsc.maica_settings.basic.session_len_limit}",
+                        f"Session exceeded {fsc.maica_settings.basic.session_len_limit * get_slice_threshold()} characters, will slice at {fsc.maica_settings.basic.session_len_limit}",
                         200,
                         no_print=True,
                     )

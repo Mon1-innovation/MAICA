@@ -110,9 +110,6 @@ MAICA_EMBEDDING_DIMS = '4096'
 MAICA_OPENAI_TIMEOUT = '90'
 # is /tokenizer endpoint open or not
 MAICA_CALC_TOKENS = '0'
-# DEPRECATED: just use modern way
-# 0 = ms-swift, 1 = modern openai
-MAICA_ALT_TOOLCALL = '1'
 # MFocus provide trained data or not
 MAICA_BASIC_MFOCUS = '1'
 
@@ -234,6 +231,8 @@ MAICA_PROMPT_AGP = "Roleplaying standard:\nEmotions should only be chosen from f
 MAICA_MCORE_GENERIC = '0'
 # Max length/3 in encode a session can have
 MAICA_SESSION_MAX_LENGTH = '28672'
+# Proportion of length to keep after slicing
+MAICA_SESSION_SLICE_KEPT = '2/3'
 # Censor MSpire input or not, number for limit
 # Custom vocabularies required to take effect, see maica.mtools.censor for details
 MAICA_CENSOR_MSPIRE = '2'

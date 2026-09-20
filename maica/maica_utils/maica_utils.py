@@ -820,18 +820,18 @@ async def run_staged_tasks(
         # Raise one regular exception so callers need not handle ExceptionGroup.
         raise eg.exceptions[0]
 
-def alt_tools(tools: list) -> list:
-    """If ALT_TOOLCALL"""
-    match G.A.ALT_TOOLCALL:
-        case '0':
-            return tools
-        case '1':
-            new_tools = []
-            for tool in tools:
-                new_tools.append({})
-                new_tools[-1]['function'] = tool
-                new_tools[-1]['type'] = 'function'
-            return new_tools
+def get_slice_threshold():
+    raw_threshold = G.A.SESSION_SLICE_KEPT
+    if '/' in raw_threshold:
+        nmr, dmr = raw_threshold.split('/', 1)
+        nmr = int(nmr); dmr = int(dmr)
+        threshold_rto = nmr / dmr
+    else:
+        threshold_rto = float(raw_threshold)
+
+    if not 0 < threshold_rto < 1:
+        raise CommonMaicaError(f"SESSION_SLICE_KEPT should be 0 ~ 1, {threshold_rto} found")
+    return threshold_rto
         
 def clean_msgs(msgs: list[dict | ChatCompletionMessage], include: Optional[list[str]]=None, exclude: Optional[list[str]]=None) -> list[dict]:
     """Clean a set of OpenAI msgs."""

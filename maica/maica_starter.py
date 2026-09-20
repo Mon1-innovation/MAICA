@@ -337,7 +337,7 @@ def validate_config():
         errors.append("MAICA_AUTH_DB and MAICA_DATA_DB must be different SQLite files")
 
     binary_keys = (
-        "IS_REAL_ENV", "CALC_TOKENS", "ALT_TOOLCALL", "BASIC_MFOCUS",
+        "IS_REAL_ENV", "CALC_TOKENS", "BASIC_MFOCUS",
         "FULL_RESTFUL", "KICK_STALE_CONNS",
         "RESPONSES_SERP", "NO_SEND_ERROR", "MCORE_GENERIC",
         "DEBUG_WARNS", "WRITE_NVW", "NVW_INSECURE_SSH", "TRUST_XFF",
