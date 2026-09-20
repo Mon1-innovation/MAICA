@@ -263,6 +263,14 @@ def test_config_validation_is_offline_and_reports_invalid_values(monkeypatch) ->
     monkeypatch.setattr(maica_starter, "load_env", values.get)
 
     maica_starter.validate_config()
+
+    values["MAICA_SESSION_SLICE_KEPT"] = "1"
+    with pytest.raises(RuntimeError, match="MAICA_SESSION_SLICE_KEPT"):
+        maica_starter.validate_config()
+
+    values["MAICA_SESSION_SLICE_KEPT"] = "3/4"
+    maica_starter.validate_config()
+
     values["MAICA_HTTP_PORT"] = "70000"
     with pytest.raises(RuntimeError, match="MAICA_HTTP_PORT"):
         maica_starter.validate_config()

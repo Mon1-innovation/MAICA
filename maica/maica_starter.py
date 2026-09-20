@@ -384,6 +384,16 @@ def validate_config():
             operator = ">=" if inclusive else ">"
             errors.append(f"MAICA_{key} must be a number {operator} {minimum:g}")
 
+    slice_threshold = value("SESSION_SLICE_KEPT")
+    try:
+        if slice_threshold is None:
+            raise ValueError
+        get_slice_threshold(slice_threshold)
+    except (TypeError, ValueError, ZeroDivisionError, CommonMaicaError):
+        errors.append(
+            "MAICA_SESSION_SLICE_KEPT must be a decimal or fraction strictly between 0 and 1"
+        )
+
     for key in (
         "MCORE_EXTRA", "MFOCUS_EXTRA", "MVISTA_EXTRA", "MNERVE_EXTRA",
         "EMBEDDING_EXTRA", "RERANKING_EXTRA", "TP_APIS", "SERVERS_LIST",
