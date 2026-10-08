@@ -5,11 +5,12 @@ MAICA_CURR_VERSION = '1.3.004.post4'
 MAICA_LEGC_VERSION = '1.3.004'
 # Frontend version announcement(s)
 MAICA_BLESSLAND_CAPV = '1.9.0'
-# cp ./env_basis ./.env
+# maica -t create
 # vim .env
 # Do not mv, rm or edit basis! They're required as default templates.
 
 # All envs of MAICA are under namespace MAICA_, and MTTS' under MTTS_. Please don't violate.
+# MTTS settings are included from mtts/mtts_env_basis when MTTS is installed.
 
 
 # If this env is manually configured
@@ -277,67 +278,3 @@ MAICA_NVW_INSECURE_SSH = '0'
 # MAICA_MFOCUS_USER = ''# root
 # Password for SSH login
 # MAICA_MFOCUS_PWD = ''# 123456
-
-
-# MTTS specified settings
-
-
-# MTTS model endpoint
-MTTS_TTS_ADDR = ''# http://172.17.0.1:80/v1
-# MTTS model api key
-MTTS_TTS_KEY = ''
-# MTTS model choice, leave empty for first
-MTTS_TTS_CHOICE = ''
-# MTTS model generation extra params, must be valid json
-# Not necessarily a part of OpenAI standard, may useful for vllm-like deployments
-MTTS_TTS_EXTRA = '
-    {
-    }
-'
-
-
-# MTTS extra settings
-
-# Rotate MTTS cache every [] hours or not
-MTTS_ROTATE_TTSCACHE = '168'
-# TTS language of reference audio
-MTTS_REF_LANG = 'en'
-# TTS text of reference audio
-MTTS_REF_TEXT = 'Now, I actually do have the perspective of the other Monika, too. And you know, honestly, the side of me that let those insults get to me is kind of frustrated.'
-# Censor TTS input or not, number for limit
-MTTS_CENSOR_QUERY = '0'
-
-
-# MTTS data exchanging endpoint settings
-
-# WebSocket and HTTP listening addresses
-MTTS_HTTP_HOST = '0.0.0.0'
-MTTS_HTTP_PORT = '7000'
-
-
-# MTTS NVWatcher settings
-
-# Name of MTTS deployment device
-# MTTS_TTS_NODE = ''
-# Username to access nvidia-smi through SSH
-# MTTS_TTS_USER = ''
-# Password for SSH login
-# MTTS_TTS_PWD = ''
-
-
-
-# These fields of MAICA are used even for deploying MTTS only:
-# MAICA_IS_REAL_ENV (fill manually)
-# MAICA_OPENAI_TIMEOUT
-# MAICA_TRUST_XFF
-# MAICA_DB_ADDR (fill manually)
-# MAICA_DB_USER (fill manually)
-# MAICA_DB_PASSWORD (fill manually)
-# MAICA_AUTH_DB (fill manually)
-# MAICA_DATA_DB (fill manually)
-# MAICA_F2B_COUNT
-# MAICA_F2B_TIME
-# MAICA_TOS_IDS
-# MAICA_FULL_RESTFUL
-# MAICA_NO_SEND_ERROR
-# MAICA_DEV_STATUS

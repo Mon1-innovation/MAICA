@@ -133,18 +133,26 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, parse_
             raise Exception('env basis lost')
 
     def get_templates():
-        with open(get_inner_path('env_basis'), 'r', encoding='utf-8') as env_e:
-            env_c = env_e.readlines()
-        line_num = 0
-        first_block_ends = False
-        for line in env_c:
-            line_num += 1
-            # So we can add a placeholding mark each line, and it still considers it one codeblock
-            if len(line) <= 1:
-                first_block_ends = True
-            if first_block_ends and len(line) > 1:
-                break
-        env_c = env_c[line_num - 1:]
+        env_paths = [get_inner_path('env_basis')]
+        if mtts_installed:
+            env_paths.append(mtts_locater.get_inner_path('mtts_env_basis'))
+
+        env_c = []
+        for env_path in env_paths:
+            with open(env_path, 'r', encoding='utf-8') as env_e:
+                env_lines = env_e.readlines()
+            line_num = 0
+            first_block_ends = False
+            for line in env_lines:
+                line_num += 1
+                # Strip each package's version block before combining templates.
+                if len(line) <= 1:
+                    first_block_ends = True
+                if first_block_ends and len(line) > 1:
+                    break
+            if env_c:
+                env_c.append('\n\n')
+            env_c.extend(env_lines[line_num - 1:])
 
         # These could change with updates and normally not necessary to customize
         # So we should comment them out by default to prevent neutualizing new feats
