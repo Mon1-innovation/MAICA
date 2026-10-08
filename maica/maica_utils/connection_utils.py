@@ -12,7 +12,7 @@ import json
 
 from typing import *
 from typing_extensions import deprecated
-from openai import AsyncOpenAI, AsyncStream
+from openai import AsyncOpenAI, AsyncStream, HttpxBinaryResponseContent
 from openai.types.responses import Response, ResponseStreamEvent
 from openai.types.create_embedding_response import CreateEmbeddingResponse
 from .gvars import *
@@ -263,6 +263,27 @@ class AiConnectionManager(AsyncCreator):
             )
         )
 
+        await asyncio.wait_for(task_resp, timeout=int(G.A.OPENAI_TIMEOUT) if G.A.OPENAI_TIMEOUT != '0' else None)
+        resp = task_resp.result()
+
+        return resp
+
+
+    async def make_speech(self, **kwargs) -> HttpxBinaryResponseContent:
+        """Generate TTS. Used by MTTS."""
+        if "speech" not in self.caps:
+            raise MaicaResponseError("Connected model is not capable of tts")
+        
+        kwargs.update(
+            {
+                "model": self.model_actual
+            }
+        )
+        mixed_exbody = {**self.gen_kwargs.get('extra_body', {}), **kwargs.get('extra_body', {})}
+        mixed_kwargs = {**self.gen_kwargs, **kwargs}
+        mixed_kwargs['extra_body'] = mixed_exbody
+
+        task_resp = asyncio.create_task(self.client.audio.speech.create(**mixed_kwargs))
         await asyncio.wait_for(task_resp, timeout=int(G.A.OPENAI_TIMEOUT) if G.A.OPENAI_TIMEOUT != '0' else None)
         resp = task_resp.result()
 
