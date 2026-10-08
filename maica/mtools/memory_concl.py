@@ -38,6 +38,9 @@ async def memory_concl(arc_session: MaicaSession, fsc: FullSocketsContainer):
         conclusion: Optional[str] = Field(
             description="你的总结, 一般应在300字以内." if target_lang == 'zh' else "Your conclusion, normally below 150 words."
         )
+        _default_resp = {
+            "conclusion": None,
+        }
 
     system = MaicaSessionItem(
         "system",
@@ -86,7 +89,8 @@ If the conversation lacks content to conclude finally, you can output null.\
         conclusion = prior_memory
 
     # Name replacing
-    conclusion = conclusion.replace("[player]", "{player_name}")
+    if isinstance(conclusion, str):
+        conclusion = conclusion.replace("[player]", "{player_name}")
 
     sync_messenger(info=f"Finished processing memory_concl to session. Conclusion: {conclusion}", type=MsgType.PRIM_LOG)
     return conclusion
