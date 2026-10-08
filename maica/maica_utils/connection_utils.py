@@ -379,3 +379,19 @@ class ConnUtils():
             return conn
         else:
             return None
+
+    @staticmethod
+    async def mtts_conn():
+        """This is designed for MTTSv2, since it's openai compatible."""
+        if G.T.TTS_ADDR:
+            conn = await AiConnectionManager.async_create(
+                api_key=G.T.TTS_KEY,
+                base_url=G.T.TTS_ADDR,
+                name='mtts_conn',
+                model=G.T.TTS_CHOICE or 0,
+                caps=["speech"],
+            )
+            conn.default_params(**json.loads(G.T.TTS_EXTRA))
+            return conn
+        else:
+            return None

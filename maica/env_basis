@@ -283,7 +283,21 @@ MAICA_NVW_INSECURE_SSH = '0'
 
 
 # MTTS model endpoint
-MTTS_TTS_ADDR = ''# http://172.17.0.1:80/tts
+MTTS_TTS_ADDR = ''# http://172.17.0.1:80/v1
+# MTTS model api key
+MTTS_TTS_KEY = ''
+# MTTS model choice, leave empty for first
+MTTS_TTS_CHOICE = ''
+# MTTS model generation extra params, must be valid json
+# Not necessarily a part of OpenAI standard, may useful for vllm-like deployments
+MTTS_TTS_EXTRA = '
+    {
+    }
+'
+
+
+# MTTS extra settings
+
 # Rotate MTTS cache every [] hours or not
 MTTS_ROTATE_TTSCACHE = '168'
 # TTS language of reference audio
