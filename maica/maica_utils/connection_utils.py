@@ -77,7 +77,7 @@ class AiConnectionManager(AsyncCreator):
     """Maintain an AI connection so you don't have to."""
 
 
-    def __init__(self, api_key, base_url, name='ai_conn', model: Union[int, str]=0, caps: Optional[List[Literal["completion", "embedding", "reranking"]]]=None):
+    def __init__(self, api_key, base_url, name='ai_conn', model: Union[int, str]=0, caps: Optional[List[Literal["completion", "embedding", "reranking", "speech"]]]=None):
         self.test = False
         self.api_key, self.base_url, self.name, self.model = api_key, base_url, name, model
         self.gen_kwargs = {}
