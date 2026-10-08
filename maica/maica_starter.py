@@ -51,7 +51,9 @@ _CHAT_CONNS_LIST = [
     'embedding_conn',
     'reranking_conn',
 ]
-_TTS_CONNS_LIST = []
+_TTS_CONNS_LIST = [
+    'mtts_conn',
+]
 
 def pkg_init_maica():
     pkg_init_initializer()
