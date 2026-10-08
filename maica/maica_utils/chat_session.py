@@ -82,7 +82,7 @@ class MaicaSessionItem(BaseModel):
         # exclude_unset does not track sub-attributes
         # Normally we just ignore those because only those on role=user/system is meaningful
         kwargs = {}
-        if not self.role in ("user", "system"):
+        if self.role not in ("user", "system"):
             kwargs["exclude_unset"] = True
         return self.model_dump(**kwargs)
 
