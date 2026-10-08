@@ -20,6 +20,7 @@ class ConnSocketsContainer(AllowArb):
     mnerve_conn: Optional[AiConnectionManager]=None
     embedding_conn: Optional[AiConnectionManager]=None
     reranking_conn: Optional[AiConnectionManager]=None
+    mtts_conn: Optional[AiConnectionManager]=None
 
     def spawn_sub(self, rsc=None):
         """Spawns a per-user sub instance."""
@@ -43,7 +44,7 @@ class ConnSocketsContainer(AllowArb):
 
 _rsc_proxied = ['websocket', 'session_lock', 'tracker_id', 'messenger', 'maica_settings', 'frontend_id']
 _csc_proxied = [
-    'vector_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn', 'embedding_conn', 'reranking_conn',
+    'vector_pool', 'mcore_conn', 'mfocus_conn', 'mvista_conn', 'mnerve_conn', 'embedding_conn', 'reranking_conn', 'mtts_conn',
     'is_vector_ready', 'is_reranking_ready',
     ]
 
@@ -71,6 +72,7 @@ class FullSocketsContainer(FscUsersFuncMixin, AllowArb):
     mnerve_conn: ClassVar[Optional[AiConnectionManager]]
     embedding_conn: ClassVar[Optional[AiConnectionManager]]
     reranking_conn: ClassVar[Optional[AiConnectionManager]]
+    mtts_conn: ClassVar[Optional[AiConnectionManager]]
 
     rsc: Optional[RealtimeSocketsContainer]=None
     csc: Optional[ConnSocketsContainer]=None
