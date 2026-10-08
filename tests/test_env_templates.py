@@ -1,8 +1,10 @@
+import asyncio
 import json
 import os
+import subprocess
 import sys
 from io import StringIO
-from types import SimpleNamespace
+from pathlib import Path
 
 import pytest
 from dotenv import dotenv_values
@@ -37,12 +39,8 @@ def env_setup(monkeypatch, tmp_path):
         encoding="utf-8",
     )
     monkeypatch.setattr(maica_starter, "mtts_installed", True)
-    monkeypatch.setattr(
-        maica_starter,
-        "mtts_locater",
-        SimpleNamespace(get_inner_path=lambda filename: str(tmp_path / filename)),
-        raising=False,
-    )
+    monkeypatch.setattr(maica_starter, "mtts_import_error", None)
+    monkeypatch.setattr(maica_starter, "mtts_env_basis_path", str(mtts_basis))
     return tmp_path
 
 
@@ -52,6 +50,8 @@ def test_templates_include_installed_package_settings(
     env_setup, monkeypatch, capsys, mtts_installed, operation
 ) -> None:
     monkeypatch.setattr(maica_starter, "mtts_installed", mtts_installed)
+    if not mtts_installed:
+        monkeypatch.setattr(maica_starter, "mtts_env_basis_path", None)
     monkeypatch.setattr(sys, "argv", ["maica", "-t", operation])
 
     with pytest.raises(SystemExit) as exc_info:
@@ -83,11 +83,17 @@ def test_templates_include_installed_package_settings(
         assert not any(key.startswith("MTTS_") for key in values)
 
 
-@pytest.mark.parametrize("mtts_installed", [False, True])
+@pytest.mark.parametrize(
+    ("mtts_installed", "import_error"),
+    [(False, None), (True, None), (True, ModuleNotFoundError("missing audioop"))],
+)
 def test_runtime_loads_defaults_from_installed_packages(
-    env_setup, monkeypatch, mtts_installed
+    env_setup, monkeypatch, mtts_installed, import_error
 ) -> None:
     monkeypatch.setattr(maica_starter, "mtts_installed", mtts_installed)
+    monkeypatch.setattr(maica_starter, "mtts_import_error", import_error)
+    if not mtts_installed:
+        monkeypatch.setattr(maica_starter, "mtts_env_basis_path", None)
     maica_starter.check_params(envdir=str(env_setup / ".env"), parse_cli=False)
 
     assert os.environ["MAICA_WS_PORT"] == "5000"
@@ -126,3 +132,47 @@ def test_user_settings_take_precedence_over_package_defaults(env_setup, monkeypa
     assert os.environ["MTTS_HTTP_PORT"] == "7400"
     assert os.environ["MTTS_TTS_ADDR"] == "http://kwargs.invalid/tts"
     assert os.environ["MTTS_FUTURE_SETTING"] == "extra-override"
+
+
+@pytest.mark.parametrize("error_type", ["ModuleNotFoundError", "RuntimeError"])
+def test_installed_but_broken_mtts_warns_and_still_exports_template(
+    env_setup, error_type
+) -> None:
+    package = env_setup / "mtts"
+    package.mkdir()
+    (package / "__init__.py").write_text(
+        f"raise {error_type}('audio dependency failed')\n", encoding="utf-8"
+    )
+    (package / "mtts_env_basis").write_bytes((env_setup / "mtts_env_basis").read_bytes())
+    result = subprocess.run(
+        [
+            sys.executable, "-c",
+            "import sys; sys.path.insert(0, sys.argv.pop(1)); "
+            "sys.path.insert(0, sys.argv.pop(1)); "
+            "from maica.maica_starter import full_start; full_start()",
+            str(Path(maica_starter.__file__).resolve().parents[1]),
+            str(env_setup), "-t",
+        ],
+        cwd=env_setup,
+        env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+        capture_output=True, text=True, encoding="utf-8", timeout=30,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "MTTS is installed but failed to import" in result.stderr
+    assert f"{error_type}: audio dependency failed" in result.stderr
+    assert "MTTS is installed but failed to import" not in result.stdout
+    assert "MTTS_FUTURE_SETTING = 'from-installed-mtts'" in result.stdout
+    assert "MTTS_HTTP_PORT = '7100'" in result.stdout
+    assert "MTTS_CURR_VERSION" not in result.stdout
+
+
+def test_starting_broken_mtts_reports_original_import_error(env_setup, monkeypatch) -> None:
+    error = ModuleNotFoundError("No module named 'audioop'", name="audioop")
+    monkeypatch.setattr(maica_starter, "mtts_import_error", error)
+
+    with pytest.raises(RuntimeError, match="MTTS is installed but failed to import") as exc_info:
+        asyncio.run(maica_starter.mtts_start_all())
+
+    assert exc_info.value.__cause__ is error
+    assert "ModuleNotFoundError: No module named 'audioop'" in str(exc_info.value)

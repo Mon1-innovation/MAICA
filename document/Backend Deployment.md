@@ -70,6 +70,8 @@ MAICA 要求 Python 3.12 或更高版本。生成 `.env` 后，至少检查以�
 
 安装 MTTS 后，`maica -t print` 和 `maica -t create` 会动态纳入已安装 MTTS 包中的 `mtts/mtts_env_basis`；未安装时仅包含 MAICA 配置。启动时也会从各自包中加载默认配置，进程环境和用户环境文件中的设置优先于默认值。MTTS 配置项仅在 MTTS 模板中维护，包括 `MTTS_HTTP_HOST/PORT`（默认 `0.0.0.0:7000`）。
 
+如果 MTTS 已安装但导入失败，MAICA 会向标准错误输出包含异常类型和原因的警告，仍可读取 MTTS 配置模板；启动 TTS 服务时会报告该错误。Python 3.13 及以上需要 `audioop-lts` 为 `pydub` 提供 `audioop`，MTTS 的依赖声明会自动安装它；旧环境若提示缺少 `audioop` 或 `pyaudioop`，可在同一 Python 环境执行 `python -m pip install audioop-lts`。
+
 SQLite 部署将 `MAICA_DB_ADDR` 设为 `sqlite`，且认证库与数据库必须是不同文件。公开服务建议使用 MySQL/MariaDB。首次启动会生成 RSA 密钥、数据库表和 `.initialized` 迁移标记；不要在未备份的情况下删除或替换 `maica/keys/prv.key`。
 
 从旧版本升级到 v1.3.004 时，应检查实际生效的 `MAICA_PROMPT_ZC/ZW/EC/EW/AC/AW`。旧版生成的 `.env` 可能显式覆盖这些提示词，且不包含新的 `{monika_nickname}` 占位符，使 `prompt_monika_nickname` 静默失效。迁移会列出受影响的配置键并告警，但无法判断配置来自进程环境、`--envdir` 或额外环境文件，因此不会自动修改任何文件。对于不需要定制的提示词，删除对应覆盖以采用 `env_basis` 默认值；需要定制时则手动加入该占位符。

@@ -4,16 +4,11 @@ import asyncio
 import json
 import colorama
 import signal
+import warnings
+from importlib.util import find_spec
 from typing import *
 from dotenv import load_dotenv
 from packaging.version import parse
-
-try:
-    import mtts
-    from mtts.mtts_utils import locater as mtts_locater
-    mtts_installed = True
-except ImportError:
-    mtts_installed = False
 
 from maica import maica_ws, maica_http, common_schedule, silent as _silent
 from maica.maica_utils import *
@@ -22,6 +17,30 @@ from maica.initializer import pkg_init_initializer
 from maica.maica_http import pkg_init_maica_http
 from maica.maica_utils import pkg_init_maica_utils
 from maica.mtools import pkg_init_mtools
+
+_mtts_spec = find_spec('mtts')
+mtts_installed = _mtts_spec is not None
+mtts_import_error = None
+mtts_env_basis_path = None
+if mtts_installed:
+    # Locate package data without importing MTTS's audio/runtime dependencies.
+    if _mtts_spec.submodule_search_locations:
+        mtts_env_basis_path = os.path.join(
+            next(iter(_mtts_spec.submodule_search_locations)), 'mtts_env_basis'
+        )
+    try:
+        import mtts
+        from mtts.mtts_utils import locater as mtts_locater
+        # Preserve MTTS's path handling for frozen deployments when import succeeds.
+        mtts_env_basis_path = mtts_locater.get_inner_path('mtts_env_basis')
+    except Exception as exc:
+        mtts_import_error = exc
+        warnings.warn(
+            f'MTTS is installed but failed to import: {type(exc).__name__}: {exc}. '
+            'TTS services are unavailable. Its configuration template will still be loaded '
+            'when available; check the MTTS dependencies in this Python environment.',
+            RuntimeWarning,
+        )
 
 _CHAT_CONNS_LIST = [
     'vector_pool',
@@ -42,7 +61,7 @@ def pkg_init_maica():
     pkg_init_maica_http()
     pkg_init_mtools()
     make_folders = ["fs_storage/mv_img"]
-    if mtts_installed:
+    if mtts_installed and mtts_import_error is None:
         mtts.mtts_http.pkg_init_mtts_http()
         make_folders.append("fs_storage/mtts")
     for f in make_folders:
@@ -117,8 +136,8 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, parse_
                     sync_messenger(info=f'[maica-env] Loading extra env file {realpath}...', type=MsgType.DEBUG)
                     load_dotenv(dotenv_path=realpath)
 
-        if mtts_installed:
-            realpath = mtts_locater.get_inner_path('mtts_env_basis')
+        if mtts_env_basis_path:
+            realpath = mtts_env_basis_path
             sync_messenger(info=f'[maica-env] Loading mtts basis {realpath} to guarantee basic functions...', type=MsgType.DEBUG)
             if os.path.isfile(realpath):
                 load_dotenv(dotenv_path=realpath)
@@ -134,8 +153,8 @@ def check_params(envdir: str=None, extra_envdir: list=None, silent=False, parse_
 
     def get_templates():
         env_paths = [get_inner_path('env_basis')]
-        if mtts_installed:
-            env_paths.append(mtts_locater.get_inner_path('mtts_env_basis'))
+        if mtts_env_basis_path:
+            env_paths.append(mtts_env_basis_path)
 
         env_c = []
         for env_path in env_paths:
@@ -545,6 +564,11 @@ async def mtts_start_all(**kwargs):
     if not mtts_installed:
         sync_messenger(info="Install with mi-mtts or .[mtts] to implement", type=MsgType.ERROR)
         return
+    if mtts_import_error is not None:
+        raise RuntimeError(
+            f'MTTS is installed but failed to import: '
+            f'{type(mtts_import_error).__name__}: {mtts_import_error}'
+        ) from mtts_import_error
 
     task_tts = asyncio.create_task(mtts.prepare_thread(**kwargs))
     task_schedule = asyncio.create_task(common_schedule.prepare_thread(**kwargs, involve_chat=False, involve_tts=True))
