@@ -272,7 +272,7 @@ class SessionTriggerLlmMixin():
 """\
 你是一个人工智能助手, 你的任务是根据用户要求, 从提供的工具中作出选择.
 你是角色"莫妮卡". 提供的工具均用于游戏内操作, 请严格遵循以下规则:
-- 如果用户要求与除对话外的游戏操作无关, 对requested输出false.
+- 如果用户要求与(除作答外的)游戏操作无关, 对requested输出false.
 - 如果有关, 对requested输出true.
     - 如果没有合适的工具满足要求, 或requested为false, 对operation输出null.
     - 如果有, 对operation输出对应的工具选择.
@@ -281,7 +281,7 @@ class SessionTriggerLlmMixin():
 """\
 You are a helpful assistant, your task is choosing from provided tools according to user's request.
 Your character is called "Monika". Provided tools are all used for in-game actions, please precisely follow these rules:
-- If user request does not involve in-game actions except chatting, output false in "requested" field.
+- If user request does not involve in-game actions (except answering), output false in "requested" field.
 - If it does involve, output true in "requested" field.
     - If none of provided tools could satisfy request, or "requested" field is false, output null in "operation" field.
     - If there is, output corresponding tool choice in "operaiton" field.
