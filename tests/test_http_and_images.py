@@ -3,6 +3,8 @@ import socket
 import threading
 from io import BytesIO
 
+import aiofiles.threadpool
+import pytest
 from PIL import Image
 from quart import Quart, request
 from quart.testing import make_test_body_with_headers
@@ -39,11 +41,87 @@ def test_image_detection_conversion_and_save_are_cross_platform(tmp_path, monkey
     monkeypatch.setattr(img_proc, "_base_path", str(tmp_path))
     source = BytesIO()
     Image.new("RGBA", (32, 24), (255, 0, 0, 128)).save(source, format="PNG")
-    image = ImgByUuid(source.getvalue())
-    assert image.format == "image/jpeg"
-    assert image.get_bio().read(2) == b"\xff\xd8"
-    image.save()
-    assert (tmp_path / image.file_name).read_bytes().startswith(b"\xff\xd8")
+
+    async def scenario() -> None:
+        image = await ImgByUuid.create(source.getvalue())
+        assert image.format == "image/jpeg"
+        binary = image.get_bio().getvalue()
+        assert binary.startswith(b"\xff\xd8")
+        await image.save()
+        assert (tmp_path / image.file_name).read_bytes() == binary
+        assert not (tmp_path / (image.file_name + ".tmp")).exists()
+
+        loaded = await ImgByUuid.create(image.uuid)
+        assert loaded.format == "image/jpeg"
+        assert loaded.get_bio().read() == binary
+        await loaded.read()
+        assert loaded.get_bio().read() == binary
+
+        await loaded.delete()
+        assert not (tmp_path / image.file_name).exists()
+        assert loaded.get_bio().read() == b""
+        for operation in (loaded.read, loaded.delete):
+            with pytest.raises(MaicaInputWarning) as exc:
+                await operation()
+            assert exc.value.error_code == 404
+
+    asyncio.run(scenario())
+
+
+def test_failed_image_save_preserves_original_and_removes_temporary_file(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(img_proc, "_base_path", str(tmp_path))
+    source = BytesIO()
+    Image.new("RGB", (16, 16), "red").save(source, format="PNG")
+
+    async def fail_replace(*_args):
+        raise OSError("replacement failed")
+
+    async def scenario() -> None:
+        image = await ImgByUuid.create(source.getvalue())
+        path = tmp_path / image.file_name
+        path.write_bytes(b"previous content")
+        monkeypatch.setattr(img_proc.aiofiles.os, "replace", fail_replace)
+
+        with pytest.raises(OSError, match="replacement failed"):
+            await image.save()
+
+        assert path.read_bytes() == b"previous content"
+        assert not path.with_suffix(".jpg.tmp").exists()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("operation", ["read", "save"])
+def test_image_file_io_does_not_block_event_loop(operation, tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(img_proc, "_base_path", str(tmp_path))
+    source = BytesIO()
+    Image.new("RGB", (16, 16), "red").save(source, format="PNG")
+    started = threading.Event()
+    release = threading.Event()
+    original_open = aiofiles.threadpool.sync_open
+
+    def blocking_open(*args, **kwargs):
+        started.set()
+        release.wait(timeout=2)
+        return original_open(*args, **kwargs)
+
+    async def scenario() -> None:
+        image = await ImgByUuid.create(source.getvalue())
+        await image.save()
+        monkeypatch.setattr(aiofiles.threadpool, "sync_open", blocking_open)
+        task = asyncio.create_task(getattr(image, operation)())
+        try:
+            for _ in range(100):
+                if started.is_set():
+                    break
+                await asyncio.sleep(0.001)
+            assert started.is_set()
+            assert not task.done()
+        finally:
+            release.set()
+            await task
+
+    asyncio.run(scenario())
 
 
 def test_vista_request_body_uses_its_32_mib_limit() -> None:
@@ -120,12 +198,11 @@ def test_adjustable_body_enforces_retroactive_and_hard_limits() -> None:
 
 
 def test_invalid_image_is_rejected() -> None:
-    try:
-        ImgByUuid(b"not an image")
-    except MaicaInputWarning:
-        pass
-    else:
-        raise AssertionError("invalid bytes were accepted as an image")
+    async def scenario() -> None:
+        with pytest.raises(MaicaInputWarning):
+            await ImgByUuid.create(b"not an image")
+
+    asyncio.run(scenario())
 
 
 def test_vision_urls_reject_non_http_schemes_and_honor_allowlist() -> None:

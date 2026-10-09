@@ -622,18 +622,18 @@ class ShortConnHandler(View):
             raise MaicaPermissionWarning("MVista image storage is disabled on this server", 403)
 
         binary = await asyncio.to_thread(file.stream.read)
-        img = await asyncio.to_thread(ImgByUuid, binary)
-        await asyncio.to_thread(img.save)
+        img = await ImgByUuid.create(binary)
+        await img.save()
         try:
             await img.register(self.settings.verification.user_id)
         except Exception:
-            await asyncio.to_thread(img.delete)
+            await img.delete()
             raise
 
         imgs = await ImgByUuid.load(self.settings.verification.user_id)
         for stale_img in imgs[keep:]:
             try:
-                await asyncio.to_thread(stale_img.delete)
+                await stale_img.delete()
             except MaicaInputWarning:
                 pass
             finally:
@@ -687,7 +687,7 @@ class ShortConnHandler(View):
 
         for img in imgs:
             try:
-                await asyncio.to_thread(img.delete)
+                await img.delete()
             except MaicaInputWarning:
                 # Heal a stale metadata row even if its temporary file vanished.
                 pass
@@ -705,7 +705,7 @@ class ShortConnHandler(View):
         """GET, val=False"""
         query = await self.wrapped_validate(self._dlv_m, request.args.to_dict(flat=True))
 
-        img = await asyncio.to_thread(ImgByUuid, query.content)
+        img = await ImgByUuid.create(query.content)
 
         return await send_file(
             img.get_bio(),

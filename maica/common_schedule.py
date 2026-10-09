@@ -90,7 +90,7 @@ class CommonScheduler():
                     try:
                         processing_img = ImgByUuid()
                         processing_img.uuid = meta.uuid
-                        await asyncio.to_thread(processing_img.delete)
+                        await processing_img.delete()
                     except Exception:
                         # We ignore file <= db inconsistency, because they're temporary anyway
                         pass

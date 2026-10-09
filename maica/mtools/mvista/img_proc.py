@@ -1,4 +1,7 @@
+import asyncio
 import os
+import aiofiles
+import aiofiles.os
 from PIL import Image, UnidentifiedImageError
 from io import BytesIO
 
@@ -7,7 +10,6 @@ from sqlalchemy.orm import load_only
 
 import uuid
 from typing import *
-from typing import overload
 from maica.maica_utils import *
 
 _ALLOWED_FORMATS = {"JPEG", "PNG", "BMP", "WEBP"}
@@ -28,15 +30,15 @@ class ImgByUuid():
     A wrapped picture to process.
     Usage:
         - Read:
-            pi = ImgByUuid(uuid)
-            pi.read()
+            pi = await ImgByUuid.create(uuid)
             img_bytes = pi.get_bio()
         - Write:
-            pi = ImgByUuid(bytes)
-            pi.save()
+            pi = await ImgByUuid.create(bytes)
+            await pi.save()
         - Delete:
-            pi = ImgByUuid(uuid)
-            pi.delete()
+            pi = ImgByUuid()
+            pi.uuid = uuid
+            await pi.delete()
     """
 
     _bio: Optional[BytesIO] = None
@@ -62,10 +64,10 @@ class ImgByUuid():
     def real_path(self):
         return os.path.join(_base_path, self.file_name)
 
-    def gen_uuid(self):
+    async def gen_uuid(self):
         if not self.uuid:
             self.uuid = str(uuid.uuid4())
-            while os.path.isfile(self.real_path):
+            while await aiofiles.os.path.isfile(self.real_path):
                 self.uuid = str(uuid.uuid4())
         return self.uuid
 
@@ -79,56 +81,49 @@ class ImgByUuid():
         self._bio.seek(0)
         self._bio.truncate(0)
 
-    def _save(self, path):
+    async def _save(self, path):
         self._bio.seek(0)
         temporary_path = path + ".tmp"
         try:
-            with open(temporary_path, 'wb') as f:
-                f.write(self._bio.getvalue())
-                f.flush()
-                os.fsync(f.fileno())
-            os.replace(temporary_path, path)
+            async with aiofiles.open(temporary_path, 'wb') as f:
+                await f.write(self._bio.getvalue())
+                await f.flush()
+                await asyncio.to_thread(os.fsync, f.fileno())
+            await aiofiles.os.replace(temporary_path, path)
         finally:
-            if os.path.exists(temporary_path):
-                os.remove(temporary_path)
+            if await aiofiles.os.path.exists(temporary_path):
+                await aiofiles.os.remove(temporary_path)
 
-    def _read(self, path):
+    async def _read(self, path):
         self._purge()
-        with open(path, 'rb') as f:
-            self._bio.write(f.read())
+        async with aiofiles.open(path, 'rb') as f:
+            self._bio.write(await f.read())
 
-    @overload
-    def __init__(self, input: bytes) -> None:
-        """Create from binary."""
-
-    @overload
-    def __init__(self, input: str) -> None:
-        """Read from fs."""
-
-    @overload
-    def __init__(self) -> None:
-        """Do whatever later manually."""
-
-    def __init__(self, input=None):
-        """Automatically select initialization method."""
+    def __init__(self):
+        """Create an empty wrapper without accessing the filesystem."""
         self._bio = BytesIO()
+
+    @classmethod
+    async def create(cls, input: bytes | str | None = None) -> Self:
+        """Create from binary data or read an existing image by UUID."""
+        img = cls()
         if isinstance(input, str):
-            self.extract(input)
+            await img.extract(input)
         elif input:
-            self.perfuse(input)
-            self.gen_uuid()
+            await asyncio.to_thread(img.perfuse, input)
+            await img.gen_uuid()
+        return img
 
     def perfuse(self, binary: bytes):
         """Create from binary."""
         self._bio.write(binary)
         self.compress()
-        # self.gen_uuid()
 
-    def extract(self, fuuid: str):
+    async def extract(self, fuuid: str):
         """Read from fs."""
         self.uuid = fuuid
 
-        self.read()
+        await self.read()
         try:
             with Image.open(self._bio) as img:
                 if img.format not in _ALLOWED_FORMATS:
@@ -176,23 +171,23 @@ class ImgByUuid():
         self.format = "image/jpeg"
         self.is_compressed = True
 
-    def _check_existence(self):
-        if not os.path.isfile(self.real_path):
+    async def _check_existence(self):
+        if not await aiofiles.os.path.isfile(self.real_path):
             raise MaicaInputWarning(f"File {self.file_name} not exist", 404)
 
-    def read(self):
+    async def read(self):
         """Read bytes from desired path."""
-        self._check_existence()
-        self._read(self.real_path)
+        await self._check_existence()
+        await self._read(self.real_path)
 
-    def save(self):
+    async def save(self):
         """Save wrapped picture to desired path."""
-        self._save(self.real_path)
+        await self._save(self.real_path)
 
-    def delete(self):
+    async def delete(self):
         """Purge bio and delete desired path."""
-        self._check_existence()
-        os.remove(self.real_path)
+        await self._check_existence()
+        await aiofiles.os.remove(self.real_path)
         self._purge()
 
     def get_bio(self):
