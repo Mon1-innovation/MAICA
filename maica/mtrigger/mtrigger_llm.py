@@ -139,7 +139,7 @@ Do not use any tool more than once.\
         tools_looped_rnds = 0
         conversation_rnd_end = False
 
-        async def tools_loop(a_tool_calls: AsyncIterator[ToolCall]):
+        async def tools_loop(a_tool_calls: AsyncIterator[ToolCall], a_reasoning: Optional[AsyncIterator[str]] = None):
             nonlocal tools_looped_rnds, conversation_rnd_end
             tools_looped_rnds += 1
 
@@ -186,6 +186,17 @@ Do not use any tool more than once.\
             async def make_call(tool_call: ToolCall):
                 nonlocal conversation_rnd_end
 
+                # Log reasoning if exists
+                if a_reasoning:
+                    current_reasoning = "".join(aqueue_list_nowait(a_reasoning))
+                    if current_reasoning:
+                        await self.fsc.messenger(
+                            'maica_mtrigger_reasoning',
+                            f"MTrigger reasoning: {current_reasoning}",
+                            type=MsgType.DEBUG,
+                        )
+
+                # Log and send tool call (does NOT include effective maica_mtrigger_trigger)
                 await self.fsc.messenger(
                     'maica_mtrigger_tool_call',
                     f"MTrigger calling tool {tool_call.name}: {tool_call.arguments}, handling trigger...",
@@ -255,7 +266,7 @@ Do not use any tool more than once.\
                 ignore_additions=True,
             )
             async with llm_request(conn, **completion_args) as (task, a_reasoning, a_content, a_tool_calls):
-                await tools_loop(a_tool_calls)
+                await tools_loop(a_tool_calls, a_reasoning)
 
         await self.fsc.messenger(
             'maica_mtrigger_tool_fin',

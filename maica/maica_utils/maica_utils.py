@@ -820,6 +820,16 @@ async def run_staged_tasks(
         # Raise one regular exception so callers need not handle ExceptionGroup.
         raise eg.exceptions[0]
 
+def aqueue_list_nowait(aqueue: asyncio.Queue):
+    """Get currently existing elements and return synchronously only."""
+    slist = []
+    while True:
+        try:
+            slist.append(aqueue.get_nowait())
+        except asyncio.QueueEmpty:
+            break
+    return slist
+
 def get_slice_threshold(raw_threshold=None):
     raw_threshold = G.A.SESSION_SLICE_KEPT if raw_threshold is None else raw_threshold
     if '/' in raw_threshold:

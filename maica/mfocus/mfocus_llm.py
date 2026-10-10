@@ -304,7 +304,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         tools_looped_rnds = 0
         conversation_rnd_end = False
 
-        async def tools_loop(a_tool_calls: AsyncIterator[ToolCall]):
+        async def tools_loop(a_tool_calls: AsyncIterator[ToolCall], a_reasoning: Optional[AsyncIterator[str]] = None):
             nonlocal tools_looped_rnds, conversation_rnd_end
             tools_looped_rnds += 1
 
@@ -376,6 +376,16 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
                     
             async def make_call(tool_call: ToolCall):
                 nonlocal conversation_rnd_end
+
+                # Log reasoning if exists
+                if a_reasoning:
+                    current_reasoning = "".join(aqueue_list_nowait(a_reasoning))
+                    if current_reasoning:
+                        await self.fsc.messenger(
+                            'maica_mfocus_reasoning',
+                            f"MFocus reasoning: {current_reasoning}",
+                            type=MsgType.DEBUG,
+                        )
 
                 # Log and send tool call
                 await self.fsc.messenger(
@@ -455,7 +465,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
                 ignore_additions=True,
             )
             async with llm_request(conn, **completion_args) as (task, a_reasoning, a_content, a_tool_calls):
-                await tools_loop(a_tool_calls)
+                await tools_loop(a_tool_calls, a_reasoning)
 
         await self.fsc.messenger(
             'maica_mfocus_tool_fin',
