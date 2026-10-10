@@ -379,7 +379,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
 
                 # Log reasoning if exists
                 if a_reasoning:
-                    current_reasoning = "".join(aqueue_list_nowait(a_reasoning))
+                    current_reasoning = "".join(aiter_list_nowait(a_reasoning))
                     if current_reasoning:
                         await self.fsc.messenger(
                             'maica_mfocus_reasoning',

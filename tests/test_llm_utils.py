@@ -1,12 +1,26 @@
 import asyncio
 from types import SimpleNamespace
 
-from maica.maica_utils import FakeChatCompletion
+from maica.maica_utils import FakeChatCompletion, StreamBuffer, aiter_list_nowait
 from maica.maica_utils.llm_utils import llm_request, parse_responses_output
 
 
 async def collect(iterator):
     return [item async for item in iterator]
+
+
+def test_aiter_list_nowait_does_not_wait_for_future_items() -> None:
+    async def scenario() -> None:
+        stream = StreamBuffer()
+        stream.put_nowait("ready")
+
+        assert aiter_list_nowait(stream) == ["ready"]
+        assert aiter_list_nowait(stream) == []
+
+        stream.put_nowait("later")
+        assert await anext(stream) == "later"
+
+    asyncio.run(scenario())
 
 
 def test_non_streaming_fake_response_yields_nested_text() -> None:

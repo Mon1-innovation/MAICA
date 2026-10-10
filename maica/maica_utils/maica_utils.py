@@ -820,14 +820,22 @@ async def run_staged_tasks(
         # Raise one regular exception so callers need not handle ExceptionGroup.
         raise eg.exceptions[0]
 
-def aqueue_list_nowait(aqueue: asyncio.Queue):
-    """Get currently existing elements and return synchronously only."""
+def aiter_list_nowait(aqueue: asyncio.Queue[Any]) -> list[Any]:
+    """Get currently available elements from an async queue without waiting."""
     slist = []
     while True:
         try:
-            slist.append(aqueue.get_nowait())
+            item = aqueue.get_nowait()
         except asyncio.QueueEmpty:
             break
+
+        if item is None:
+            aqueue.task_done()
+            aqueue.put_nowait(None)
+            break
+
+        slist.append(item)
+
     return slist
 
 def get_slice_threshold(raw_threshold=None):

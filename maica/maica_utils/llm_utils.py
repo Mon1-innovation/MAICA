@@ -14,6 +14,7 @@ from openai import AsyncStream
 from openai.types.responses import Response, ResponseStreamEvent
 from .connection_utils import AiConnectionManager
 from .maica_utils import *
+from .stream_buffer import StreamBuffer
 
 class ToolCall(BaseModel):
     type: str = "function_call"
@@ -59,9 +60,9 @@ async def parse_responses_output(
         tool_call_stream: async iterator[dict]
     """
 
-    reasoning_q: asyncio.Queue[str | None] = asyncio.Queue()
-    content_q: asyncio.Queue[str | None] = asyncio.Queue()
-    tool_q: asyncio.Queue[ToolCall | None] = asyncio.Queue()
+    reasoning_q: StreamBuffer[str] = StreamBuffer()
+    content_q: StreamBuffer[str] = StreamBuffer()
+    tool_q: StreamBuffer[ToolCall] = StreamBuffer()
 
     _tool_calls_ids: set[str] = set()
 
@@ -173,28 +174,7 @@ async def parse_responses_output(
 
     task = asyncio.create_task(runner())
 
-    async def reasoning_stream() -> AsyncIterator[str]:
-        while True:
-            item = await reasoning_q.get()
-            if item is None:
-                break
-            yield item
-
-    async def content_stream() -> AsyncIterator[str]:
-        while True:
-            item = await content_q.get()
-            if item is None:
-                break
-            yield item
-
-    async def tool_stream() -> AsyncIterator[ToolCall]:
-        while True:
-            item = await tool_q.get()
-            if item is None:
-                break
-            yield item
-
-    return task, reasoning_stream(), content_stream(), tool_stream()
+    return task, reasoning_q, content_q, tool_q
 
 @asynccontextmanager
 async def llm_request(conn: AiConnectionManager, *args, **kwargs):

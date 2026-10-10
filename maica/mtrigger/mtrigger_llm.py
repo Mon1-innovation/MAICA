@@ -188,7 +188,7 @@ Do not use any tool more than once.\
 
                 # Log reasoning if exists
                 if a_reasoning:
-                    current_reasoning = "".join(aqueue_list_nowait(a_reasoning))
+                    current_reasoning = "".join(aiter_list_nowait(a_reasoning))
                     if current_reasoning:
                         await self.fsc.messenger(
                             'maica_mtrigger_reasoning',
