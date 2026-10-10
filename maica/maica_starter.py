@@ -55,6 +55,20 @@ _TTS_CONNS_LIST = [
     'mtts_conn',
 ]
 
+
+def _connection_names_for_target(target: Literal['chat', 'tts', 'all']) -> list[str]:
+    """Return only the connections needed by the services that will run."""
+    mtts_available = mtts_installed and mtts_import_error is None
+    if target == 'chat':
+        return list(_CHAT_CONNS_LIST)
+    if target == 'tts':
+        return list(_TTS_CONNS_LIST) if mtts_available else []
+
+    connection_names = list(_CHAT_CONNS_LIST)
+    if mtts_available:
+        connection_names.extend(_TTS_CONNS_LIST)
+    return connection_names
+
 def pkg_init_maica():
     pkg_init_initializer()
     """Prio 0"""
@@ -466,7 +480,7 @@ async def start_all(
 
     root_csc_items = []
     try:
-        connection_names = _CHAT_CONNS_LIST if start_target != 'tts' else _TTS_CONNS_LIST
+        connection_names = _connection_names_for_target(start_target)
         root_csc_items = await _create_root_connections(connection_names)
         root_csc_kwargs = dict(zip(connection_names, root_csc_items))
 
@@ -475,17 +489,17 @@ async def start_all(
         elif start_target == 'tts':
             await mtts_start_all(**root_csc_kwargs)
         else:
-            await _wait_for_first(
-                [
-                    asyncio.create_task(
-                        maica_start_all(
-                            **root_csc_kwargs,
-                            shutdown_trigger=shutdown_trigger,
-                        )
-                    ),
-                    asyncio.create_task(mtts_start_all(**root_csc_kwargs)),
-                ],
-            )
+            tasks = [
+                asyncio.create_task(
+                    maica_start_all(
+                        **root_csc_kwargs,
+                        shutdown_trigger=shutdown_trigger,
+                    )
+                ),
+            ]
+            if mtts_installed and mtts_import_error is None:
+                tasks.append(asyncio.create_task(mtts_start_all(**root_csc_kwargs)))
+            await _wait_for_first(tasks)
     finally:
         sync_messenger(info="Doing final connection cleanup...", type=MsgType.DEBUG)
         await asyncio.gather(
