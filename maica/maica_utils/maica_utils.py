@@ -820,7 +820,7 @@ async def run_staged_tasks(
         # Raise one regular exception so callers need not handle ExceptionGroup.
         raise eg.exceptions[0]
 
-def aiter_list_nowait(aqueue: asyncio.Queue[Any]) -> list[Any]:
+def aiter_list_nowait[T](aqueue: asyncio.Queue[T]) -> list[T]:
     """Get currently available elements from an async queue without waiting."""
     slist = []
     while True:
