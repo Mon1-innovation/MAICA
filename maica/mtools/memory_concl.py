@@ -17,7 +17,7 @@ async def memory_concl(arc_session: MaicaSession, fsc: FullSocketsContainer):
     session = MaicaSession()
     target_lang = fsc.maica_settings.basic.target_lang
 
-    conn = fsc.mfocus_conn
+    conn = fsc.mnerve_conn or fsc.mfocus_conn
     
     messages_j = arc_session.utilize(
         text_only=True,
