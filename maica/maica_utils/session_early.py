@@ -770,7 +770,7 @@ class SessionPersistentMixin():
         
         return result or []
 
-    def _conclude_suppl_sf(self, include: Iterable[Literal["basic", "personality", "dokis", "game", "maica"]] = ("personality", "game")):
+    def _conclude_suppl_sf(self, include: Iterable[Literal["basic", "personality", "dokis", "game", "maica"]] = ("basic", "personality", "dokis", "game", "maica")):
         """Mostly copied from wikipedia."""
         result: List[_Bt] = []
 
