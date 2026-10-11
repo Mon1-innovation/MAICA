@@ -838,6 +838,19 @@ def aiter_list_nowait[T](aqueue: asyncio.Queue[T]) -> list[T]:
 
     return slist
 
+def chained_get(obj: Mapping, *args: str):
+    """Like ?. in js."""
+    curr_obj = obj
+
+    for layer in args:
+        try:
+            curr_obj = curr_obj[layer]
+        except Exception:
+            curr_obj = None
+            break
+
+    return curr_obj
+
 def get_slice_threshold(raw_threshold=None):
     raw_threshold = G.A.SESSION_SLICE_KEPT if raw_threshold is None else raw_threshold
     if '/' in raw_threshold:

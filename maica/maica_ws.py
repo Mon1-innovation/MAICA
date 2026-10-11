@@ -56,7 +56,7 @@ class WsCoroutine(NoWsCoroutine):
         else:
             self.remote_addr = str(websocket.remote_address[0])
 
-        sync_messenger(info='An anonymous connection initiated', type=MsgType.PRIM_LOG)
+        sync_messenger(info='An anonymous connection initiated', type=MsgType.LOG)
         sync_messenger(info=f'From IP {self.remote_addr}', type=MsgType.DEBUG)
 
         # Starting loop from here
@@ -548,10 +548,10 @@ async def main_logic(
 
             try:
                 we_code, we_reason = we.code, we.reason
-                sync_messenger(info=f'Connection closed with {we_code}: {we_reason or 'No reason provided'}', type=MsgType.PRIM_LOG)
+                sync_messenger(info=f'Connection closed with {we_code}: {we_reason or 'No reason provided'}', type=MsgType.LOG)
 
             except Exception:
-                sync_messenger(info=f'Connection establishment failed: {str(we)}', type=MsgType.PRIM_LOG)
+                sync_messenger(info=f'Connection establishment failed: {str(we)}', type=MsgType.LOG)
 
         except Exception as e:
 
@@ -657,7 +657,7 @@ async def prepare_thread(**kwargs):
         models_info += f"Vector searching function set enabled: {root_csc.is_vector_ready}\n"
         models_info += f"Reranking function set enabled: {root_csc.is_reranking_ready}\n"
 
-        sync_messenger(info=models_info, type=MsgType.PRIM_LOG)
+        sync_messenger(info=models_info, type=MsgType.LOG)
 
     except Exception as e:
 

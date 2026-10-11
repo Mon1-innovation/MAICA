@@ -124,6 +124,7 @@ Do not use any tool more than once.\
         self._construct_tools()
         self._construct_messages()
 
+        conn = self.fsc.mfocus_conn
         completion_args = {
             "input": self.mt_session.utilize(
                 manual_prompt=True,
@@ -132,14 +133,21 @@ Do not use any tool more than once.\
             ),
             "tools": self.tools,
 
-            # We force tool calling to make it eventually use a stopping tool
-            "tool_choice": "required",
+            # We force tool calling to make it eventually use a stopping tool, if not reasoning
+
+            # However, in cases like deepseek tool_choice = required collides with reasoning
+            # so if model is confirmed reasoning, we fall back to auto
+            "tool_choice": "required" if not conn.default_reasoning else "auto",
         }
 
         tools_looped_rnds = 0
         conversation_rnd_end = False
 
-        async def tools_loop(a_tool_calls: AsyncIterator[ToolCall], a_reasoning: Optional[AsyncIterator[str]] = None):
+        async def tools_loop(
+                a_tool_calls: AsyncIterator[ToolCall],
+                a_reasoning: Optional[AsyncIterator[str]] = None,
+                a_content: Optional[AsyncIterator[str]] = None,
+            ):
             nonlocal tools_looped_rnds, conversation_rnd_end
             tools_looped_rnds += 1
 
@@ -196,6 +204,16 @@ Do not use any tool more than once.\
                             type=MsgType.DEBUG,
                         )
 
+                # Log content if exists
+                if a_content:
+                    current_content = "".join(aiter_list_nowait(a_content))
+                    if current_content:
+                        await self.fsc.messenger(
+                            'maica_mtrigger_content',
+                            f"MTrigger content: {current_content}",
+                            type=MsgType.PRIM_LOG,
+                        )
+
                 # Log and send tool call (does NOT include effective maica_mtrigger_trigger)
                 await self.fsc.messenger(
                     'maica_mtrigger_tool_call',
@@ -240,6 +258,16 @@ Do not use any tool more than once.\
                 if conversation_rnd_end:
                     break
 
+            # Might be leftover a_content, since the model is not guaranteed to call tools on tool_choice == auto
+            if a_content:
+                current_content = "".join(aiter_list_nowait(a_content))
+                if current_content:
+                    await self.fsc.messenger(
+                        'maica_mtrigger_content',
+                        f"MTrigger leftover content: {current_content}",
+                        type=MsgType.PRIM_LOG,
+                    )
+
             await asyncio.gather(*call_tasks)
 
         await self.fsc.messenger(
@@ -266,7 +294,7 @@ Do not use any tool more than once.\
                 ignore_additions=True,
             )
             async with llm_request(conn, **completion_args) as (task, a_reasoning, a_content, a_tool_calls):
-                await tools_loop(a_tool_calls, a_reasoning)
+                await tools_loop(a_tool_calls, a_reasoning, a_content)
 
         await self.fsc.messenger(
             'maica_mtrigger_tool_fin',

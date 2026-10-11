@@ -285,6 +285,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         self._construct_tools()
         self._construct_messages()
 
+        conn = self.fsc.mfocus_conn
         completion_args = {
             "input": self.mf_session.utilize(
                 manual_prompt=True,
@@ -294,9 +295,12 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
             "tools": self.tools,
             "stream": True,
 
-            # We force tool calling to make it eventually use a stopping tool
+            # We force tool calling to make it eventually use a stopping tool, if not reasoning
             # This will likely make mf_llm_concl far more stable
-            "tool_choice": "required",
+
+            # However, in cases like deepseek tool_choice = required collides with reasoning
+            # so if model is confirmed reasoning, we fall back to auto
+            "tool_choice": "required" if not conn.default_reasoning else "auto",
         }
 
         generated_guidance: str = ""
@@ -304,7 +308,11 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         tools_looped_rnds = 0
         conversation_rnd_end = False
 
-        async def tools_loop(a_tool_calls: AsyncIterator[ToolCall], a_reasoning: Optional[AsyncIterator[str]] = None):
+        async def tools_loop(
+                a_tool_calls: AsyncIterator[ToolCall],
+                a_reasoning: Optional[AsyncIterator[str]] = None,
+                a_content: Optional[AsyncIterator[str]] = None,
+            ):
             nonlocal tools_looped_rnds, conversation_rnd_end
             tools_looped_rnds += 1
 
@@ -387,6 +395,16 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
                             type=MsgType.DEBUG,
                         )
 
+                # Log content if exists
+                if a_content:
+                    current_content = "".join(aiter_list_nowait(a_content))
+                    if current_content:
+                        await self.fsc.messenger(
+                            'maica_mfocus_content',
+                            f"MFocus content: {current_content}",
+                            type=MsgType.PRIM_LOG,
+                        )
+
                 # Log and send tool call
                 await self.fsc.messenger(
                     'maica_mfocus_tool_call',
@@ -438,6 +456,16 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
                 if conversation_rnd_end:
                     break
 
+            # Might be leftover a_content, since the model is not guaranteed to call tools on tool_choice == auto
+            if a_content:
+                current_content = "".join(aiter_list_nowait(a_content))
+                if current_content:
+                    await self.fsc.messenger(
+                        'maica_mfocus_content',
+                        f"MFocus leftover content: {current_content}",
+                        type=MsgType.PRIM_LOG,
+                    )
+
             await asyncio.gather(*call_tasks)
 
         await self.fsc.messenger(
@@ -446,7 +474,6 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
             200,
         )
 
-        conn = self.fsc.mfocus_conn
         while (
             not conversation_rnd_end
             and not tools_looped_rnds >= 3
@@ -465,7 +492,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
                 ignore_additions=True,
             )
             async with llm_request(conn, **completion_args) as (task, a_reasoning, a_content, a_tool_calls):
-                await tools_loop(a_tool_calls, a_reasoning)
+                await tools_loop(a_tool_calls, a_reasoning, a_content)
 
         await self.fsc.messenger(
             'maica_mfocus_tool_fin',
