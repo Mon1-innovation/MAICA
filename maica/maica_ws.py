@@ -621,7 +621,7 @@ async def prepare_thread(**kwargs):
     try:
         models_info = "\n\n"
         models_info += f"Main model: {root_csc.mcore_conn.model_actual} ({'zero-shot' if G.A.MCORE_GENERIC and int(G.A.MCORE_GENERIC) else 'trained'})\n"
-        models_info += f"MFocus model: {root_csc.mfocus_conn.model_actual}\n"
+        models_info += f"MFocus model: {root_csc.mfocus_conn.model_actual} ({'thinking' if root_csc.mfocus_conn.default_reasoning else 'instruct'})\n"
 
         if root_csc.mvista_conn:
             models_info += f"MVista model: {root_csc.mvista_conn.model_actual}\n"
