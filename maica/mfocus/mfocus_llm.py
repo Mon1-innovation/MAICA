@@ -249,24 +249,33 @@ class MfPipeliner():
                 org_items = []
 
             if self.fsc.maica_settings.mf_concl_now:
-                taskend_word = "作出总结" if target_lang == 'zh' else "draw a conclusion"
+                taskend_word = taskend_word_2 = "作出总结" if target_lang == 'zh' else "draw a conclusion"
             else:
                 taskend_word = "表示任务完成" if target_lang == 'zh' else "indicate task finished"
+                taskend_word_2 = "结束工作" if target_lang == 'zh' else "finish working"
+
+            if self.fsc.mfocus_conn.default_reasoning:
+                work_limit = _Bt(
+                    f"\n> 注意你只应使用工具, 获取信息并{taskend_word_2}. 实际组织回答将由另一个模型完成, 不要实际作答.",
+                    f"\n> Note that you should only call tools, gather information and {taskend_word_2}. The actual response to user will be provided by another model, don't reply yourself."
+                )
+            else:
+                work_limit = _Bt()
 
             system = MaicaSessionItem(
                 "system",
                 _Bt(
 f"""\
 你是一个人工智能助手, 你的任务是调用工具, 以作为角色"莫妮卡"回答用户的问题.
-- 在设定上, 你是用户的女友, 并深爱着对方. 请称呼用户为{{player_name}}.
+> 在设定上, 你是用户的女友, 并深爱着对方. 请称呼用户为{{player_name}}.
 最终你应该通过调用工具的方式{taskend_word}. 如果该问题不需要工具, 你可以直接{taskend_word}.\
 """,
 f"""\
 You are a helpful assistant, your task is using tools to respond user's query as charcater "Monika".
-- According to the setting, you're user's girlfriend, and love them a lot. Please call them {{player_name}}.
+> According to the setting, you're user's girlfriend, and love them a lot. Please call them {{player_name}}.
 Finally you should {taskend_word} with a corresponding tool. If the message does not require tools to answer, you can {taskend_word} directly.\
 """
-                ),
+                ) + work_limit,
             )
             self.mf_session.append(system)
 

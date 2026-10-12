@@ -141,6 +141,9 @@ class MaicaSessionItem(BaseModel):
         # If generated_guidance exist, we ignore everything else.
         # }
 
+        # Note: now we do not force the generated_guidance was generated with useful info
+        # It's too complex to judge, and new behavior benefits behavior consistecy
+
         if known_info:
             if "generated_guidance" in known_info:
                 known_str = known_info["generated_guidance"]
