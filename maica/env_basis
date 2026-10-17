@@ -149,6 +149,7 @@ MAICA_MILVUS_COLL = 'maica_rag'
 MAICA_TP_APIS = '
     {
         "GAODE_WEATHER": "",
+        "DEEPSEEK_SEARCH_KEY": "",
         "SEARXNG_ADDR": "",
         "SEARXNG_USE_PROXY": false
     }
