@@ -222,7 +222,7 @@ class AiConnectionManager(AsyncCreator):
     @property
     def default_reasoning(self) -> Literal[False, True, None, "low", "medium", "high", "xhigh", "max", "ultra"] | str:
         """No evidence -> None, 'none' -> False."""
-        if not "completion" in self.caps:
+        if "completion" not in self.caps:
             raise CommonMaicaError("Only language generation models have reasoning prop")
 
         reasoning = chained_get(self.gen_kwargs, "reasoning", "effort")
