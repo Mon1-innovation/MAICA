@@ -185,7 +185,15 @@ async def _fetch_ms_meta(
             result = recur_res
 
     result: list[str]
+
+    max_tries = 2
+    tried = 0
+
     for title in result:
+        tried += 1
+        if tried > max_tries:
+            raise MaicaInternetWarning("No proper page found by MSpire")
+        
         summary = await inspect_page(title)
 
         if not summary or summary.isspace():
