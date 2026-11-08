@@ -1346,9 +1346,9 @@ sessions
 
 exprop的值是该模板的附加参数, 其中item_name的值为选择类目的性质(双语), item_list的值为所有可选条目的list, curr_item的值为当前已选条目. curr_item是可留空或缺省的.
 
-如果触发器匹配了请求, 但没有条目满足条件, 返回的选择将是false.
+如果触发器匹配了请求, 但没有条目满足条件, 返回的选择将是null.
 
-若将suggestion设为true, 则若selection返回false将会额外返回suggestion, 其值为一个推荐参考条目.
+若将suggestion设为true, 则若selection返回null将会额外返回suggestion, 其值为一个推荐参考条目.
 
 输出范例:
 ```json
@@ -1394,7 +1394,7 @@ exprop的值是该模板的附加参数, 其中item_name的值为选择类目的
 
 exprop的值是该模板的附加参数, 其中item_name的值为选择类目的性质(双语), value_limits的两个项为数值可取的上下限, curr_value的值为当前值. curr_value是可留空或缺省的.
 
-如果触发器匹配了请求, 但范围内没有值满足条件, 返回的选择将是false.
+如果触发器匹配了请求, 但范围内没有值满足条件, 返回的选择将是null.
 
 输出范例:
 ```json
