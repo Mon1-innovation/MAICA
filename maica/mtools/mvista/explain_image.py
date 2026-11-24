@@ -22,13 +22,13 @@ async def query_vlm(fsc: FullSocketsContainer, query: str, img_list: list[str]):
 
     system = MaicaSessionItem(
         "system",
-        _Bt("""\
-你是一个人工智能助手, 你接下来会收到一到数张图片和一个问题.
+        agents_md() + _Bt("""\
+你接下来会收到一到数张图片和一个问题.
 你应根据问题和图片中的内容, 以一个简洁客观的自然句作出回答.
 如果没有任何图片与问题相关, 你可以输出null.\
 """,
 """\
-You are a helpful assistant, now you will recieve one or several images and a query.
+You will recieve one or several images and a query.
 According to the images, answer briefly and objectively in a concise natural sentence.
 If none of the images is relevant with query, you can output null.\
 """

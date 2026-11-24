@@ -51,13 +51,13 @@ async def internet_search(fsc: FullSocketsContainer, query):
         elif results_list:
             system = MaicaSessionItem(
                 "system",
-                _Bt("""\
-你是一个人工智能助手, 你接下来会收到一些来自互联网的信息和一个问题.
+                agents_md() + _Bt("""\
+你接下来会收到一些来自互联网的信息和一个问题.
 你应将信息中与问题相关的部分整理总结成一个自然句, 保持内容简洁有效, 并将其输出.
 如果没有任何信息与问题相关, 你可以输出null.\
 """,
 """\
-You are a helpful assistant, now you will recieve some information from the Internet and a question.
+You will recieve some information from the Internet and a question.
 Conclude information related with query briefly in a natural sentence, while keeping it concise and useful, then output.
 If none of the information is relevant with query, you can output null.\
 """
@@ -85,13 +85,13 @@ If none of the information is relevant with query, you can output null.\
 
         system = MaicaSessionItem(
             "system",
-            _Bt("""\
-你是一个人工智能助手, 你接下来会收到一个问题.
+            agents_md() + _Bt("""\
+你接下来会收到一个问题.
 你应调用工具搜索互联网, 将结果整理总结成一个自然句, 保持内容简洁有效, 并将其输出.
 如果没有任何结果与问题相关, 你可以输出null.\
 """,
 """\
-You are a helpful assistant, now you will recieve a question.
+You will recieve a question.
 Search Internet with tool and conclude the results briefly in a natural sentence, keep it concise and useful, then output.
 If none of the results is relevant with query, you can output null.\
 """
@@ -124,6 +124,11 @@ If none of the results is relevant with query, you can output null.\
             results_list = [text]
 
     return results_list
+
+# Why don't we simply provide `web_search` to MFocus model:
+# In short terms, backend-tools in responses standard are not transparent.
+# If we do that, the MFocus model gets what it needs, but there's no simple
+# way to retrieve it and feed to core model.
 
 if __name__ == '__main__':
     async def test():

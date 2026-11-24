@@ -717,6 +717,33 @@ def default(exp, default, default_list: Collection=(None, )) -> Any:
     """If exp is in default list(normally None), use default."""
     return default if exp in default_list else exp
 
+def agents_md(**kwargs):
+    """By this name (kinda joky), I mean all auxiliary models recieve this instruction."""
+
+    apply_nickname = kwargs.get("apply_nickname", False)
+    m_nickname_text = kwargs.get("m_nickname_text", "")
+
+    pnzh = "(昵称[player_nickname])" if apply_nickname else ""
+    pnen = " (nickname [player_nickname])" if apply_nickname else ""
+    mnzh = to_str(m_nickname_text, 'zh')
+    mnen = to_str(m_nickname_text, 'en')
+
+    return BilingualText(
+f"""\
+你正在作为一个工具模型工作, 以辅助另一个缺少工具能力的角色扮演模型(称为"核心模型").
+只有核心模型负责正面回答用户的输入. 请遵守指示要求, 不要擅自作答.
+用户被称为[player]{pnzh}. 与用户对话的角色本名为莫妮卡{mnzh}, 是[player]的女友. 你可以参考以理解上下文.
+以下是具体指示:
+
+""",
+f"""\
+You're now working as a tool model to assist another model, which is roleplaying-specialized and lacks tool abilities (referred to as "core model").
+Only core model should directly answer the user's query. Please follow the instructions and avoid transgressing your position.
+User is called [player]{pnen}, and the character talking with user is Monika{mnen}, [player]'s girlfriend. These could be useful understanding the context.
+Here are the actual instructions:
+
+""")
+
 def wrap_ws_formatter(code, status, content, type, **kwargs) -> str:
     if not (
         isinstance(

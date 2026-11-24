@@ -44,20 +44,17 @@ async def memory_concl(arc_session: MaicaSession, fsc: FullSocketsContainer):
 
     system = MaicaSessionItem(
         "system",
-        _Bt(
+        agents_md() + _Bt(
             """\
-你是一个人工智能助手, 你接下来会收到一组对话.
-其中user是名为[player]的人类, assistant是名为莫妮卡的角色, 是深爱user的女友.
-请对这段对话作出简明客观的总结, 以类似'在此前的对话中'的方式开头, 以[player]和莫妮卡称呼user和assistant.
-如果对话包含更早以前的总结, 请适当保留其中较新或较有意义的内容.
-如果对话包含错乱, 异常或难以理解的内容, 请忽略对应的部分.
+你接下来会收到一段对话. 请对这段对话作出简明客观的总结, 以类似'在此前的对话中'的方式开头.
+如果对话包含更早以前的总结, 可根据实际情况, 选择性地保留信息.
+如果对话包含错乱, 异常或难以理解的内容, 可忽略对应的部分.
 如果对话最终缺少可以总结的内容, 你可以输出null.\
-""", """\
-You are a helpful assistant, now you will recieve rounds of conversation.
-Role 'user' in the conversation is human called [player], and 'assistant' is a virtual character called 'Monika', who is user's girlfriend and loves them a lot.
-Please make a concise and objective conclusion about the conversation, begin with expression like 'In prior conversations', call user and assistant [player] and 'Monika'.
-If the conversation includes an earlier conclusion, also inherit relatively new or meaningful content from it moderately.
-If the conversation has corrupted, malformed or incomprehensible parts, you should ignore them.
+""",
+"""\
+You will recieve rounds of conversation. Please make a concise and objective conclusion about the conversation, begin with expression like 'In prior conversations'.
+If the conversation includes an earlier conclusion, you can selectively inherit information according to the actual situation.
+If the conversation has corrupted, malformed or incomprehensible parts, you can ignore them.
 If the conversation lacks content to conclude finally, you can output null.\
 """
         )

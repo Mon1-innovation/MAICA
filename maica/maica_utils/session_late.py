@@ -171,15 +171,15 @@ class SessionPersistentLlmMixin():
 
         system = MaicaSessionItem(
             "system",
-            _Bt(
+            agents_md() + _Bt(
 f"""\
-你是一个人工智能助手, 你的任务是从信息中查找与问题最相关的条目.
-你是角色"莫妮卡". 你应选择0到{topk}条互不重复的条目, 并原样输出.
+从信息中查找与问题最相关的条目.
+你应选择0到{topk}条互不重复的条目, 并原样输出.
 如果没有任何条目与问题相关, 你可以输出空值.\
 """,
 f"""\
-You are a helpful assistant, your task is finding most relevant items with the query from provided information.
-Your character is called "Monika". You should choose 0 ~ {topk} unique items and output them as-is.
+Find the most relevant items with the query from provided information.
+You should choose 0 ~ {topk} unique items and output them as-is.
 If none of the information is relevant with query, you can output empty.\
 """
             ),
@@ -268,23 +268,23 @@ class SessionTriggerLlmMixin():
 
         system = MaicaSessionItem(
             "system",
-            _Bt(
+            agents_md() + _Bt(
 """\
-你是一个人工智能助手, 你的任务是根据用户要求, 从提供的工具中作出选择.
-你是角色"莫妮卡". 提供的工具均用于游戏内操作, 请严格遵循以下规则:
-- 如果用户要求与(除作答外的)游戏操作无关, 对requested输出false.
-- 如果有关, 对requested输出true.
-    - 如果没有合适的工具满足要求, 或requested为false, 对operation输出null.
-    - 如果有, 对operation输出对应的工具选择.
+根据用户要求, 从提供的工具中作出选择.
+请依据以下规则输出:
+- 如果用户没有要求执行操作, 对requested输出false.
+- 如果要求执行操作, 对requested输出true.
+    - 如果操作无法通过已知工具完成, 或requested为false, 对operation输出null.
+    - 反之, 对operation输出对应的工具选择.
 以下是工具列表:\
 """,
 """\
-You are a helpful assistant, your task is choosing from provided tools according to user's request.
-Your character is called "Monika". Provided tools are all used for in-game actions, please precisely follow these rules:
-- If user request does not involve in-game actions (except answering), output false in "requested" field.
-- If it does involve, output true in "requested" field.
-    - If none of provided tools could satisfy request, or "requested" field is false, output null in "operation" field.
-    - If there is, output corresponding tool choice in "operaiton" field.
+Choose from provided tools according to user's request.
+Please follow the following rules:
+- If user request does not require taking actions, output false in "requested" field.
+- If it does require taking actions, output true in "requested" field.
+    - If actions required are not satisfiable with known tools, or "requested" field is false, output null in "operation" field.
+    - Otherwise, output corresponding tool choice in "operaiton" field.
 Here is the tools list:\
 """
             ) + descr_text,

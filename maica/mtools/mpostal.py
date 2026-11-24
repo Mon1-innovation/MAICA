@@ -41,11 +41,11 @@ async def make_postmail(fsc: FullSocketsContainer):
 
         system = MaicaSessionItem(
             "system",
-            _Bt("""\
-你是一个人工智能助手, 你接下来会收到一封信件.
+            agents_md() + _Bt("""\
+接下来你会收到一封信件.
 请判断其更接近诗歌还是普通信件.\
 """, """\
-You are a helpful assistant, now you will recieve a mail letter.
+You will recieve a mail letter.
 Please decide if it's a poem or normal letter.\
 """
             )
@@ -105,12 +105,17 @@ Please decide if it's a poem or normal letter.\
         )\
         + img\
         + _Bt(
-            ", 请你作为莫妮卡写一首诗回答. 以下是诗的",
-            ", please write a poem to reply as Monika. The "
+            ", 以下是诗的",
+            ", The "
         )\
         + con\
         + ":\n"\
         + letter\
+        + "\n"\
+        + _Bt(
+            "请你作为莫妮卡, 也写一首诗回答.",
+            "Please write a poem back to reply as Monika.",
+        )\
         + "\n"\
         + t1\
         + "\n"\
@@ -125,12 +130,17 @@ Please decide if it's a poem or normal letter.\
         )\
         + img\
         + _Bt(
-            ", 请你作为莫妮卡写一封信回答. 以下是信的",
-            ", please write a letter to reply as Monika. The "
+            ", 以下是信的",
+            ", The "
         )\
         + con\
         + ":\n"\
         + letter\
+        + "\n"\
+        + _Bt(
+            "请你作为莫妮卡, 也写一封信回答.",
+            "Please write a letter back to reply as Monika.",
+        )\
         + "\n"\
         + t1\
         + "\n"\

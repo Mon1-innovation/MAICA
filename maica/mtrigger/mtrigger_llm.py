@@ -73,19 +73,20 @@ class MtPipeliner():
             org_items = self.org_session[-num_org_items:]
 
             taskend_word = "表示任务完成" if target_lang == 'zh' else "indicate task finished"
+            taskend_word_2 = "结束工作" if target_lang == 'zh' else "finish working"
 
             system = MaicaSessionItem(
                 "system",
-                _Bt(
+                agents_md() + _Bt(
 f"""\
-你是一个人工智能助手, 你接下来会收到一组对话历史和一则任务指示.
-你的任务是根据指示, 调用工具, 以作为角色"莫妮卡"执行游戏内操作.
-最终你应该通过调用工具的方式{taskend_word}. 如果该问题不需要工具, 你可以直接{taskend_word}.\
+你接下来会收到一组对话历史和一则任务指示.
+根据核心模型的回答, 调用工具, 代替核心模型执行操作.
+最终你应该通过调用工具的方式{taskend_word}. 如果该问题不需要工具, 你可以直接{taskend_word_2}.\
 """,
 f"""\
-You are a helpful assistant, now you will recieve rounds of conversation history and a task instruction.
-Your task is using tools according to instruction, to perform in-game actions as charcater "Monika".
-Finally you should {taskend_word} with a corresponding tool. If the message does not require tools to answer, you can {taskend_word} directly.\
+You will recieve rounds of conversation history and a task instruction.
+Use tools according to core model's response, to perform actions for it.
+Finally you should {taskend_word} with a corresponding tool. If the message does not require tools to answer, you can {taskend_word_2} directly.\
 """
                 ),
             )
@@ -338,12 +339,12 @@ Do not use any tool more than once.\
 
             system = MaicaSessionItem(
                 "system",
-                _Bt(
+                agents_md() + _Bt(
                     """\
-你是一个人工智能助手, 你接下来会收到一组信息和一条新信息.
+你接下来会收到一组信息和一条新信息.
 请检查这条信息的内容在现有信息中是否已经存在, 或与之高度重合.\
 """, """\
-You are a helpful assistant, now you will recieve a set of informations and a new information.
+You will recieve a set of informations and a new information.
 Please check if this new information is already covered by existing ones, or is highly coincided.\
 """
                 )

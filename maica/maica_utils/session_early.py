@@ -59,6 +59,14 @@ class SessionPersistentMixin():
             v = _read_perm(key)
             
         return v
+
+    # | nam\chr     | player            | Monika   |
+    # |-------------|-------------------|----------|
+    # | real name   | sp.pname          | Monika   |
+    # | common name | [player]          | Monika   |
+    # | nickname    | [player_nickname] | sp.mname |
+
+    # Normally, we only consider common names and nicknames to be used in convers.
     
     @property
     def pname(self) -> Optional[str]:

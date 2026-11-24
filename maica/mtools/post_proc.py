@@ -89,11 +89,12 @@ async def emo_proc_llm(emo: str, fsc: FullSocketsContainer):
 
     system = MaicaSessionItem(
         "system",
-        _Bt("""\
-你是一个人工智能助手, 你接下来会收到一个词或句子.
+        agents_md() + _Bt("""\
+你接下来会收到一个词或句子.
 请从给出的标准表情中, 为其选择最合适的一项.\
-""", """\
-You are a helpful assistant, now you will recieve a word or sentence.
+""",
+"""\
+You will recieve a word or sentence.
 Please choose an emotion that fits best from the given list of standard emotions.\
 """
         )

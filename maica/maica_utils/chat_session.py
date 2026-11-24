@@ -348,18 +348,19 @@ class MaicaSession(list[MaicaSessionItem], DbBoundObject):
                     )
                 ]):
                 _m_nickname = ""
-            m_nickname = _Bt(
+            m_nickname_text = _Bt(
+                # Extra blanks are required for en strings
                 f"(昵称{_m_nickname})",
-                f"(nickname {_m_nickname})",
+                f" (nickname {_m_nickname})",
             )
-            format_kvs["monika_nickname"] = m_nickname if _m_nickname else ""
+            format_kvs["monika_nickname"] = m_nickname_text if _m_nickname else ""
 
             # Add player nickname handling
-            nickname = _Bt(
+            nickname_text = _Bt(
                 "(昵称[player_nickname])",
-                "(nickname [player_nickname])",
+                " (nickname [player_nickname])",
             )
-            format_kvs["player_nickname"] = nickname if curr_context.apply_nickname else ""
+            format_kvs["player_nickname"] = nickname_text if curr_context.apply_nickname else ""
 
             for k, v in format_kvs.items():
                 format_kvs[k] = to_str(v, target_lang)
