@@ -52,7 +52,7 @@ def make_pipeline(kind, replies, monkeypatch, *, disable_loop=False):
     fsc.maica_settings.extra.mt_disable_loop = disable_loop
     fsc.maica_settings.extra.mf_llm_concl = True
     fsc.mfocus_conn = SimpleNamespace(default_reasoning=True, make_completion=make_completion)
-    monkeypatch.setattr(fsc, "messenger", messenger)
+    monkeypatch.setattr(fsc.rsc, "messenger", messenger)
 
     session = MaicaSession()
     session.append(MaicaSessionItem("user", "Hello", target_lang="en"))
