@@ -73,7 +73,7 @@ class MtPipeliner():
             org_items = self.org_session[-num_org_items:]
 
             taskend_word = "表示任务完成" if target_lang == 'zh' else "indicate task finished"
-            taskend_word_2 = "结束工作" if target_lang == 'zh' else "finish working"
+            taskend_word_2 = "调用结束工具" if target_lang == 'zh' else "call the finishing tool"
 
             system = MaicaSessionItem(
                 "system",
@@ -143,12 +143,13 @@ Do not use any tool more than once.\
 
         tools_looped_rnds = 0
         conversation_rnd_end = False
+        stop_reason = "rounds_limit"
 
         async def tools_loop(
                 a_tool_calls: AsyncIterator[ToolCall],
                 a_reasoning: Optional[AsyncIterator[str]] = None,
                 a_content: Optional[AsyncIterator[str]] = None,
-            ):
+            ) -> int:
             nonlocal tools_looped_rnds, conversation_rnd_end
             tools_looped_rnds += 1
 
@@ -270,6 +271,7 @@ Do not use any tool more than once.\
                     )
 
             await asyncio.gather(*call_tasks)
+            return len(call_tasks)
 
         await self.fsc.messenger(
             'maica_mtrigger_tool_start',
@@ -295,11 +297,19 @@ Do not use any tool more than once.\
                 ignore_additions=True,
             )
             async with llm_request(conn, **completion_args) as (task, a_reasoning, a_content, a_tool_calls):
-                await tools_loop(a_tool_calls, a_reasoning, a_content)
+                tool_call_count = await tools_loop(a_tool_calls, a_reasoning, a_content)
+
+            # Only stop after request and parser errors have propagated.
+            if tool_call_count == 0:
+                stop_reason = "no_tool_calls"
+                break
+
+        if conversation_rnd_end:
+            stop_reason = "stopping_tool"
 
         await self.fsc.messenger(
             'maica_mtrigger_tool_fin',
-            f"MTrigger ended due to {'stopping tool' if conversation_rnd_end else 'rounds limit'}",
+            f"MTrigger ended due to {stop_reason}",
             200,
         )
 

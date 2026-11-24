@@ -284,7 +284,7 @@ Please follow the following rules:
 - If user request does not require taking actions, output false in "requested" field.
 - If it does require taking actions, output true in "requested" field.
     - If actions required are not satisfiable with known tools, or "requested" field is false, output null in "operation" field.
-    - Otherwise, output corresponding tool choice in "operaiton" field.
+    - Otherwise, output corresponding tool choice in "operation" field.
 Here is the tools list:\
 """
             ) + descr_text,

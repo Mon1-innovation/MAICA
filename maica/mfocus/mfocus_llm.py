@@ -253,7 +253,7 @@ class MfPipeliner():
                 taskend_word_2 = "提交空总结" if target_lang == 'zh' else "return an empty conclusion"
             else:
                 taskend_word = "表示任务完成" if target_lang == 'zh' else "indicate task finished"
-                taskend_word_2 = "结束工作" if target_lang == 'zh' else "finish working"
+                taskend_word_2 = "调用结束工具" if target_lang == 'zh' else "call the finishing tool"
 
             system = MaicaSessionItem(
                 "system",
@@ -307,12 +307,13 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
         tools_results = self.tools_results
         tools_looped_rnds = 0
         conversation_rnd_end = False
+        stop_reason = "rounds_limit"
 
         async def tools_loop(
                 a_tool_calls: AsyncIterator[ToolCall],
                 a_reasoning: Optional[AsyncIterator[str]] = None,
                 a_content: Optional[AsyncIterator[str]] = None,
-            ):
+            ) -> int:
             nonlocal tools_looped_rnds, conversation_rnd_end
             tools_looped_rnds += 1
 
@@ -467,6 +468,7 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
                     )
 
             await asyncio.gather(*call_tasks)
+            return len(call_tasks)
 
         await self.fsc.messenger(
             'maica_mfocus_tool_start',
@@ -492,11 +494,19 @@ Finally you should {taskend_word} with a corresponding tool. If the message does
                 ignore_additions=True,
             )
             async with llm_request(conn, **completion_args) as (task, a_reasoning, a_content, a_tool_calls):
-                await tools_loop(a_tool_calls, a_reasoning, a_content)
+                tool_call_count = await tools_loop(a_tool_calls, a_reasoning, a_content)
+
+            # Only stop after request and parser errors have propagated.
+            if tool_call_count == 0:
+                stop_reason = "no_tool_calls"
+                break
+
+        if conversation_rnd_end:
+            stop_reason = "stopping_tool"
 
         await self.fsc.messenger(
             'maica_mfocus_tool_fin',
-            f"MFocus ended due to {'stopping tool' if conversation_rnd_end else 'rounds limit'}, generated guidance is {generated_guidance or 'EMPTY'}",
+            f"MFocus ended due to {stop_reason}, generated guidance is {generated_guidance or 'EMPTY'}",
             200,
         )
 
