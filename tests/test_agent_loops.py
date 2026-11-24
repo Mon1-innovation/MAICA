@@ -111,7 +111,7 @@ def test_agents_preserve_tool_results_and_termination(kind, disable_loop, finish
     assert len(requests) == (1 if disable_loop else 2)
     if not disable_loop:
         assert any(item.get("type") == "function_call_output" for item in requests[1]["input"])
-        assert ("stopping tool" if finish_with_tool else "no_tool_calls") in events[-1][1]
+        assert ("stopping_tool" if finish_with_tool else "no_tool_calls") in events[-1][1]
 
 
 @pytest.mark.parametrize("kind", ["mfocus", "mtrigger"])
